@@ -24,7 +24,12 @@ function SettingItem({
   label: string; description?: string; trailing?: React.ReactNode; onClick?: () => void;
 }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors tap-highlight-transparent text-left">
+    <div 
+      onClick={onClick} 
+      className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors tap-highlight-transparent text-left ${onClick ? "cursor-pointer" : ""}`}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
       <div className={`p-2 rounded-xl ${iconBg} shrink-0`}>
         <Icon className={`h-4 w-4 ${iconColor}`} />
       </div>
@@ -33,7 +38,7 @@ function SettingItem({
         {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
       </div>
       {trailing ?? <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
-    </button>
+    </div>
   );
 }
 

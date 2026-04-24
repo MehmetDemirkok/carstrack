@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getVehicles, deleteVehicles, calculateHealthScore } from "@/lib/store";
+import { getVehicles, deleteVehicles } from "@/lib/db";
+import { calculateHealthScore } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import {
   Car, ChevronRight, Plus, Gauge, Trash2,
   CheckCircle2, Circle, Fuel,
 } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -31,13 +33,27 @@ const tireColor = {
 };
 
 export default function VehiclesPage() {
+  const { profile } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const data = await getVehicles();
+      setVehicles(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setVehicles(getVehicles());
+    loadData();
   }, []);
 
   const toggleSelection = (id: string, e: React.MouseEvent) => {
@@ -51,13 +67,15 @@ export default function VehiclesPage() {
     setSelectedIds([]);
   };
 
-  const handleDelete = () => {
-    deleteVehicles(selectedIds);
-    setVehicles(getVehicles());
+  const handleDelete = async () => {
+    await deleteVehicles(selectedIds);
+    await loadData();
     setSelectedIds([]);
     setIsSelectionMode(false);
     setIsDeleteDialogOpen(false);
   };
+
+  if (loading) return <div className="p-4 pt-10 text-center text-muted-foreground">Araçlar yükleniyor...</div>;
 
   return (
     <div className="p-4 space-y-5 pb-28">

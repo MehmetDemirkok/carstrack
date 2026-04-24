@@ -1,3 +1,26 @@
+export type UserRole = "manager" | "driver";
+
+export interface Company {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface Profile {
+  id: string;
+  companyId: string;
+  role: UserRole;
+  fullName: string;
+  createdAt: string;
+}
+
+export interface VehicleAssignment {
+  id: string;
+  vehicleId: string;
+  driverId: string;
+  assignedAt: string;
+}
+
 export type FuelType = "Benzin" | "Dizel" | "LPG" | "Hibrit" | "Elektrik";
 export type TransmissionType = "Manuel" | "Otomatik" | "CVT" | "DSG" | "Yarı Otomatik";
 export type TireSeasonType = "Yazlık" | "Kışlık" | "Dört Mevsim";
