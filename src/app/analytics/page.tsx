@@ -1,299 +1,214 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockExpenses } from "@/lib/mock-data";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  TrendingUp,
-  Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
-  Target,
-  Sparkles,
-} from "lucide-react";
+import { getVehicles, calculateHealthScore, getMaintenanceStatusForItem, getMaintenanceProgress, getFleetAlerts } from "@/lib/store";
+import type { Vehicle, FleetAlert } from "@/lib/types";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import Link from "next/link";
+import {
+  Shield, Calendar, Disc3, Wrench, CheckCircle2, AlertTriangle,
+  XCircle, Car, Sun, Snowflake, Layers, ChevronRight, BatteryCharging,
+} from "lucide-react";
 
-const container = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } };
+const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
+
+const statusColor = { good: "bg-emerald-500", warning: "bg-amber-500", overdue: "bg-red-500" };
+const statusBadge = {
+  good: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+  overdue: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
 };
+const statusLabel = { good: "İyi", warning: "Yaklaşıyor", overdue: "Gecikmeli" };
+const StatusIcon = { good: CheckCircle2, warning: AlertTriangle, overdue: XCircle };
 
-const item = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+const severityStyle = {
+  critical: "bg-red-500/5 border-red-500/20",
+  warning: "bg-amber-500/5 border-amber-500/20",
+  info: "bg-blue-500/5 border-blue-500/20",
 };
+const severityIconStyle = {
+  critical: "bg-red-500/15 text-red-500",
+  warning: "bg-amber-500/15 text-amber-500",
+  info: "bg-blue-500/15 text-blue-500",
+};
+const categoryIcon = { insurance: Shield, inspection: Calendar, maintenance: Wrench, tire: Disc3 };
 
-const categories = [
-  {
-    name: "Periyodik Bakım",
-    amount: "₺12.500",
-    percent: 42,
-    color: "bg-blue-500",
-    lightColor: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  },
-  {
-    name: "Onarım & Parça",
-    amount: "₺8.000",
-    percent: 27,
-    color: "bg-orange-500",
-    lightColor: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-  },
-  {
-    name: "Lastik & Akü",
-    amount: "₺5.000",
-    percent: 17,
-    color: "bg-teal-500",
-    lightColor: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
-  },
-  {
-    name: "Sigorta & Vergi",
-    amount: "₺4.100",
-    percent: 14,
-    color: "bg-purple-500",
-    lightColor: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
-  },
-];
+function daysUntil(dateStr: string) {
+  if (!dateStr) return null;
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
+}
 
-export default function AnalyticsPage() {
+function docStatus(days: number | null) {
+  if (days === null) return "good";
+  if (days < 0) return "overdue";
+  if (days < 30) return "warning";
+  return "good";
+}
+
+export default function FleetStatusPage() {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [alerts, setAlerts] = useState<FleetAlert[]>([]);
+
+  useEffect(() => {
+    const v = getVehicles();
+    setVehicles(v);
+    setAlerts(getFleetAlerts(v));
+  }, []);
+
   return (
-    <div className="p-4 space-y-5">
+    <div className="p-4 space-y-6 pb-28">
       <div>
-        <h1 className="text-2xl font-outfit font-bold tracking-tight">
-          Analiz & Giderler
-        </h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          2026 yılı araç sahip olma maliyetleri
-        </p>
+        <h1 className="text-2xl font-outfit font-bold tracking-tight">Filo Durumu</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Tüm araçların bakım ve belge durumu</p>
       </div>
 
-      <motion.div
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="space-y-5"
-      >
-        {/* Total Cost Hero */}
-        <motion.div variants={item}>
-          <Card className="rounded-3xl border-none shadow-lg bg-gradient-to-br from-primary via-primary/90 to-primary/70 overflow-hidden relative">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
-            <div className="absolute -right-6 -top-6 h-32 w-32 bg-white/10 rounded-full blur-2xl" />
-            <div className="absolute -left-6 -bottom-6 h-24 w-24 bg-white/5 rounded-full blur-xl" />
-            <CardContent className="p-5 relative z-10">
-              <div className="flex items-center gap-2 mb-1 text-primary-foreground/70">
-                <Wallet className="h-4 w-4" />
-                <span className="text-xs font-medium">
-                  Toplam Sahip Olma Maliyeti
-                </span>
-              </div>
-              <div className="flex items-end justify-between mt-2">
-                <div>
-                  <h2 className="text-4xl font-outfit font-black text-primary-foreground tracking-tight">
-                    ₺29.600
-                  </h2>
-                  <p className="text-[11px] text-primary-foreground/50 mt-1">
-                    2 araç • 2026 yılı
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 bg-white/15 px-2.5 py-1 rounded-xl text-xs font-bold text-primary-foreground">
-                  <ArrowUpRight className="h-3 w-3" />
-                  <span>%12</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+        {/* Alerts summary */}
+        {alerts.length > 0 && (
+          <motion.div variants={fadeUp} className="space-y-2.5">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">Aktif Uyarılar</h2>
+            <div className="space-y-2">
+              {alerts.map((alert) => {
+                const Icon = categoryIcon[alert.category];
+                return (
+                  <Link href={`/vehicles/${alert.vehicleId}`} key={alert.id}>
+                    <div className={`p-3.5 rounded-2xl border flex gap-3 items-start hover:opacity-80 transition-opacity ${severityStyle[alert.severity]}`}>
+                      <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${severityIconStyle[alert.severity]}`}>
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-xs">{alert.title}</h3>
+                          <span className="text-[9px] text-muted-foreground">{alert.vehiclePlate}</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{alert.description}</p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
-        {/* Quick Stats Row */}
-        <motion.div variants={item} className="grid grid-cols-2 gap-3">
-          <Card className="rounded-2xl border-border/40 shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 rounded-xl">
-                <ArrowDownRight className="h-4 w-4 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground font-medium">
-                  En Az Harcama
-                </p>
-                <p className="text-sm font-bold font-outfit">₺800</p>
-                <p className="text-[9px] text-muted-foreground">Mart 2026</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-2xl border-border/40 shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-red-500/10 rounded-xl">
-                <ArrowUpRight className="h-4 w-4 text-red-500" />
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground font-medium">
-                  En Çok Harcama
-                </p>
-                <p className="text-sm font-bold font-outfit">₺4.500</p>
-                <p className="text-[9px] text-muted-foreground">Şubat 2026</p>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Area Chart */}
-        <motion.div variants={item}>
-          <Card className="rounded-2xl border-border/40 shadow-sm">
-            <CardHeader className="pb-2 px-5 pt-5">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Aylık Masraf Trendi
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 pb-4">
-              <div className="h-[180px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={mockExpenses}
-                    margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="colorTotal"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="hsl(var(--primary))"
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="hsl(var(--primary))"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{
-                        fontSize: 10,
-                        fill: "hsl(var(--muted-foreground))",
-                      }}
-                      dy={8}
-                    />
-                    <YAxis hide domain={["auto", "auto"]} />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "12px",
-                        border: "none",
-                        boxShadow:
-                          "0 4px 12px -2px rgb(0 0 0 / 0.12)",
-                        fontSize: "12px",
-                        padding: "8px 14px",
-                        background: "hsl(var(--card))",
-                      }}
-                      formatter={(value: unknown) => [
-                        `₺${Number(value).toLocaleString("tr-TR")}`,
-                        "Gider",
-                      ]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="total"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2.5}
-                      fill="url(#colorTotal)"
-                      dot={{
-                        r: 4,
-                        strokeWidth: 2,
-                        fill: "hsl(var(--background))",
-                        stroke: "hsl(var(--primary))",
-                      }}
-                      activeDot={{
-                        r: 6,
-                        strokeWidth: 0,
-                        fill: "hsl(var(--primary))",
-                      }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Category Breakdown */}
-        <motion.div variants={item} className="space-y-2.5">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">
-            Gider Dağılımı
-          </h3>
-
-          {/* Visual bar */}
-          <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
-            {categories.map((cat, i) => (
-              <motion.div
-                key={i}
-                className={`${cat.color} first:rounded-l-full last:rounded-r-full`}
-                initial={{ width: 0 }}
-                animate={{ width: `${cat.percent}%` }}
-                transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
-              />
-            ))}
-          </div>
-
-          <div className="space-y-2 mt-3">
-            {categories.map((category, i) => (
-              <motion.div
-                key={i}
-                variants={item}
-                className="bg-card p-3.5 rounded-2xl border border-border/40 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`h-3 w-3 rounded-full ${category.color}`} />
-                  <span className="text-xs font-medium">{category.name}</span>
+        {/* Per vehicle breakdown */}
+        {vehicles.map((vehicle) => {
+          const score = calculateHealthScore(vehicle);
+          const insDays = daysUntil(vehicle.insuranceExpiry);
+          const muaDays = daysUntil(vehicle.inspectionExpiry);
+          return (
+            <motion.div variants={fadeUp} key={vehicle.id} className="space-y-3">
+              <Link href={`/vehicles/${vehicle.id}`} className="flex items-center justify-between px-1 hover:opacity-80 transition-opacity">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg ${score >= 85 ? "bg-emerald-500/10" : score >= 65 ? "bg-amber-500/10" : "bg-red-500/10"}`}>
+                    <Car className={`h-4 w-4 ${score >= 85 ? "text-emerald-500" : score >= 65 ? "text-amber-500" : "text-red-500"}`} />
+                  </div>
+                  <div>
+                    <span className="text-sm font-bold">{vehicle.plate}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{vehicle.brand} {vehicle.model}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold font-outfit">
-                    {category.amount}
-                  </span>
-                  <Badge
-                    variant="secondary"
-                    className={`text-[9px] font-bold border-none ${category.lightColor}`}
-                  >
-                    %{category.percent}
-                  </Badge>
+                  <div className={`text-xs font-black font-outfit px-2 py-0.5 rounded-lg ${score >= 85 ? "bg-emerald-500/10 text-emerald-600" : score >= 65 ? "bg-amber-500/10 text-amber-600" : "bg-red-500/10 text-red-600"}`}>
+                    {score}
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+              </Link>
 
-        {/* Prediction */}
-        <motion.div variants={item}>
-          <Card className="rounded-2xl border-dashed border-primary/30 bg-primary/5 shadow-none">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 bg-primary/10 rounded-xl shrink-0">
-                <Target className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-sm font-bold">Tahmini Yıllık Maliyet</h3>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Mevcut harcama hızınızla yıl sonu toplam maliyetiniz{" "}
-                  <span className="font-bold text-foreground">~₺42.000</span>{" "}
-                  olarak tahmin ediliyor.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+              <Card className="rounded-2xl border-border/40 shadow-sm">
+                <CardContent className="p-4 space-y-4">
+                  {/* Documents */}
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Belgeler</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { icon: Shield, label: "Sigorta", days: insDays, date: vehicle.insuranceExpiry },
+                        { icon: Calendar, label: "Muayene", days: muaDays, date: vehicle.inspectionExpiry },
+                      ].map((doc) => {
+                        const st = docStatus(doc.days);
+                        const Icon = StatusIcon[st];
+                        return (
+                          <div key={doc.label} className={`p-2.5 rounded-xl border ${statusBadge[st]}`}>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <doc.icon className="h-3.5 w-3.5" />
+                              <span className="text-[10px] font-semibold">{doc.label}</span>
+                            </div>
+                            <p className="text-xs font-bold">{doc.date ? doc.date.split("-").reverse().join(".") : "—"}</p>
+                            {doc.days !== null && (
+                              <p className="text-[10px] mt-0.5">
+                                {doc.days < 0 ? `${Math.abs(doc.days)}g geçti` : `${doc.days}g kaldı`}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tire & Battery */}
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ekipman</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2.5 rounded-xl bg-muted/50 border border-border/20">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          {vehicle.tireStatus === "Yazlık" ? <Sun className="h-3.5 w-3.5 text-orange-500" /> : vehicle.tireStatus === "Kışlık" ? <Snowflake className="h-3.5 w-3.5 text-blue-500" /> : <Layers className="h-3.5 w-3.5 text-teal-500" />}
+                          <span className="text-[10px] font-semibold">Lastik</span>
+                        </div>
+                        <p className="text-xs font-bold truncate">{vehicle.tireStatus}</p>
+                        {vehicle.tireBrand && <p className="text-[10px] text-muted-foreground truncate">{vehicle.tireBrand}</p>}
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-muted/50 border border-border/20">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <BatteryCharging className="h-3.5 w-3.5 text-yellow-500" />
+                          <span className="text-[10px] font-semibold">Akü</span>
+                        </div>
+                        <p className="text-xs font-bold truncate">{vehicle.batteryBrand || "—"}</p>
+                        {vehicle.batteryInstallDate && <p className="text-[10px] text-muted-foreground">{vehicle.batteryInstallDate.split("-")[0]}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Maintenance items */}
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Bakım Kalemleri</p>
+                    <div className="space-y-2">
+                      {vehicle.maintenanceItems.map((item) => {
+                        const st = getMaintenanceStatusForItem(item, vehicle.mileage);
+                        const prog = getMaintenanceProgress(item, vehicle.mileage);
+                        const Icon = StatusIcon[st];
+                        return (
+                          <div key={item.id} className="flex items-center gap-3">
+                            <Icon className={`h-3.5 w-3.5 shrink-0 ${st === "good" ? "text-emerald-500" : st === "warning" ? "text-amber-500" : "text-red-500"}`} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-center mb-0.5">
+                                <span className="text-[11px] font-medium truncate">{item.name}</span>
+                                <Badge className={`text-[9px] font-bold border ml-2 shrink-0 ${statusBadge[st]}`}>{statusLabel[st]}</Badge>
+                              </div>
+                              <Progress value={prog} className="h-1.5" indicatorClassName={statusColor[st]} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
+
+        {vehicles.length === 0 && (
+          <motion.div variants={fadeUp} className="text-center py-16">
+            <Car className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+            <p className="text-muted-foreground">Henüz araç eklenmedi.</p>
+            <Link href="/vehicles/new" className="mt-4 inline-block text-primary text-sm font-medium hover:underline">Araç ekle →</Link>
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );
