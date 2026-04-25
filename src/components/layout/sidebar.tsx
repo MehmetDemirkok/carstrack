@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
+import { useCopilot } from "@/context/copilot-context";
 
 function getInitials(name: string): string {
   return name
@@ -22,6 +23,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { profile, company } = useAuth();
+  const { setOpen: openCopilot } = useCopilot();
 
   const navItems = [
     { icon: LayoutDashboard, label: t("nav_dashboard"), href: "/" },
@@ -85,6 +87,19 @@ export function Sidebar() {
             </Link>
           );
         })}
+      </div>
+
+      <div className="px-4 pb-2 relative">
+        <button
+          onClick={() => openCopilot(true)}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-muted-foreground hover:bg-muted/40 hover:text-foreground font-medium group"
+        >
+          <div className="p-1.5 bg-mesh rounded-lg shadow-sm shadow-primary/20">
+            <Sparkles className="h-3.5 w-3.5 text-white" />
+          </div>
+          <span className="relative z-10 text-sm">Filo Copilot</span>
+          <span className="ml-auto text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold border border-primary/20">AI</span>
+        </button>
       </div>
 
       <div className="p-4 space-y-3 border-t border-border/30 relative">

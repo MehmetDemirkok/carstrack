@@ -12,6 +12,8 @@ import { calculateHealthScore, getFleetAlerts } from "@/lib/store";
 import { getVehicles, getRecords } from "@/lib/db";
 import type { Vehicle, ServiceRecord, FleetAlert } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
+import { HealthScoreBreakdown } from "@/components/health-score-breakdown";
+import { FleetRiskOverview } from "@/components/fleet-risk-overview";
 import {
   Car,
   ChevronRight,
@@ -261,6 +263,20 @@ export default function Dashboard() {
 
         {/* RIGHT */}
         <div className="lg:col-span-5 space-y-5 lg:space-y-8">
+          {/* Health Score Breakdown */}
+          {vehicles.length > 0 && (
+            <motion.div variants={fadeUp}>
+              <HealthScoreBreakdown vehicles={vehicles} />
+            </motion.div>
+          )}
+
+          {/* Fleet Risk Overview */}
+          {vehicles.length > 0 && (
+            <motion.div variants={fadeUp}>
+              <FleetRiskOverview vehicles={vehicles} />
+            </motion.div>
+          )}
+
           {/* Quick stats */}
           <motion.div variants={fadeUp} className="grid grid-cols-3 gap-3 md:gap-4">
             {[

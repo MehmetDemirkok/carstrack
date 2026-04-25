@@ -7,6 +7,10 @@ import { TopBar } from "@/components/layout/top-bar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { LanguageProvider } from "@/context/language-context";
 import { AuthProvider } from "@/context/auth-context";
+import { CommandPaletteProvider } from "@/context/command-palette-context";
+import { CopilotProvider } from "@/context/copilot-context";
+import { CommandPalette } from "@/components/command-palette";
+import { AICopilotShell } from "@/components/ai-copilot";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -44,16 +48,22 @@ export default function RootLayout({
         >
           <LanguageProvider>
             <AuthProvider>
-              <div className="flex w-full min-h-[100dvh] relative">
-                <Sidebar />
-                <div className="flex-1 flex flex-col md:ml-64 w-full relative">
-                  <TopBar />
-                  <main className="flex-1 overflow-x-hidden pb-20 md:pb-6 max-w-5xl mx-auto w-full">
-                    {children}
-                  </main>
-                  <BottomNav />
-                </div>
-              </div>
+              <CommandPaletteProvider>
+                <CopilotProvider>
+                  <div className="flex w-full min-h-[100dvh] relative">
+                    <Sidebar />
+                    <div className="flex-1 flex flex-col md:ml-64 w-full relative">
+                      <TopBar />
+                      <main className="flex-1 overflow-x-hidden pb-20 md:pb-6 max-w-5xl mx-auto w-full">
+                        {children}
+                      </main>
+                      <BottomNav />
+                    </div>
+                  </div>
+                  <CommandPalette />
+                  <AICopilotShell />
+                </CopilotProvider>
+              </CommandPaletteProvider>
             </AuthProvider>
           </LanguageProvider>
           <Toaster position="top-right" richColors closeButton />

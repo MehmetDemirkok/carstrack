@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bell, Moon, Sun } from "lucide-react";
+import { Bell, Moon, Sun, Search, Bot } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
@@ -10,6 +10,8 @@ import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { useNotifications } from "@/hooks/use-notifications";
 import type { NotificationItem } from "@/hooks/use-notifications";
+import { useCommandPalette } from "@/context/command-palette-context";
+import { useCopilot } from "@/context/copilot-context";
 
 function getInitials(name: string): string {
   return name
@@ -33,6 +35,8 @@ export function TopBar() {
   const { profile, user } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const { setOpen: openPalette } = useCommandPalette();
+  const { setOpen: openCopilot } = useCopilot();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -86,6 +90,36 @@ export function TopBar() {
         </Link>
 
         <div className="flex items-center gap-2">
+          {/* Search / Command Palette */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full h-10 w-10 hover:bg-primary/10 hidden md:flex items-center justify-center gap-1.5 w-auto px-3"
+            onClick={() => openPalette(true)}
+          >
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <kbd className="text-[10px] font-bold bg-muted/80 border border-border/50 px-1.5 py-0.5 rounded-md text-muted-foreground/70">⌘K</kbd>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full h-10 w-10 hover:bg-primary/10 flex md:hidden"
+            onClick={() => openPalette(true)}
+          >
+            <Search className="h-5 w-5" />
+          </Button>
+
+          {/* AI Copilot */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative rounded-full h-10 w-10 hover:bg-primary/10"
+            onClick={() => openCopilot(true)}
+          >
+            <Bot className="h-5 w-5" />
+            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-500 border border-background" />
+          </Button>
+
           {/* Theme Toggle */}
           <Button
             variant="ghost"

@@ -179,15 +179,35 @@ export default function HistoryPage() {
       </AnimatePresence>
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center py-16 text-center">
-          <Wrench className="h-12 w-12 text-muted-foreground/30 mb-4" />
-          <p className="text-muted-foreground font-medium">Kayıt bulunamadı.</p>
-          {vehicles.length > 0 && (
-            <Button className="mt-4 rounded-full gap-2" onClick={() => setShowAdd(true)}>
-              <Plus className="h-4 w-4" /> İlk kaydı ekle
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col items-center py-12 text-center gap-4"
+        >
+          <div className="p-5 bg-primary/10 rounded-3xl">
+            <ClipboardList className="h-10 w-10 text-primary/60" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-bold">Servis Geçmişi Boş</p>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              {records.length > 0
+                ? "Seçili filtreler için kayıt bulunamadı."
+                : "Araçlarınıza ait servis, bakım ve onarım kayıtlarını buradan takip edebilirsiniz."}
+            </p>
+          </div>
+          {vehicles.length === 0 ? (
+            <Link href="/vehicles/new">
+              <Button className="rounded-full px-6 gap-2 shadow-md">
+                <Car className="h-4 w-4" /> Araç Ekle
+              </Button>
+            </Link>
+          ) : (
+            <Button className="rounded-full px-6 gap-2 shadow-md" onClick={() => setShowAdd(true)}>
+              <Plus className="h-4 w-4" /> Servis Kaydı Ekle
             </Button>
           )}
-        </div>
+        </motion.div>
       ) : (
         <motion.div variants={stagger} initial="hidden" animate="show" className="relative ml-4">
           <div className="absolute left-0 top-3 bottom-0 w-px bg-gradient-to-b from-border via-border to-transparent" />

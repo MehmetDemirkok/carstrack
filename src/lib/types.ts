@@ -4,6 +4,7 @@ export interface Company {
   id: string;
   name: string;
   createdAt: string;
+  inviteCode?: string;
 }
 
 export interface Profile {

@@ -11,8 +11,9 @@ import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import {
   Shield, Calendar, Disc3, Wrench, CheckCircle2, AlertTriangle,
-  XCircle, Car, Sun, Snowflake, Layers, ChevronRight, BatteryCharging,
+  XCircle, Car, Sun, Snowflake, Layers, ChevronRight, BatteryCharging, Activity,
 } from "lucide-react";
+import { DocumentAutomation } from "@/components/document-automation";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } };
 const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
@@ -206,11 +207,24 @@ export default function FleetStatusPage() {
           );
         })}
 
+        {vehicles.length > 0 && (
+          <motion.div variants={fadeUp}>
+            <DocumentAutomation vehicles={vehicles} />
+          </motion.div>
+        )}
+
         {vehicles.length === 0 && (
-          <motion.div variants={fadeUp} className="text-center py-16">
-            <Car className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-            <p className="text-muted-foreground">Henüz araç eklenmedi.</p>
-            <Link href="/vehicles/new" className="mt-4 inline-block text-primary text-sm font-medium hover:underline">Araç ekle →</Link>
+          <motion.div variants={fadeUp} className="text-center py-16 flex flex-col items-center gap-4">
+            <div className="p-5 bg-mesh rounded-3xl shadow-lg shadow-primary/20">
+              <Activity className="h-10 w-10 text-primary-foreground/80" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-bold">Henüz Araç Yok</p>
+              <p className="text-sm text-muted-foreground max-w-xs">Filo analizi için araçlarınızı ekleyin.</p>
+            </div>
+            <Link href="/vehicles/new">
+              <span className="text-sm text-primary font-semibold hover:underline">Araç ekle →</span>
+            </Link>
           </motion.div>
         )}
       </motion.div>

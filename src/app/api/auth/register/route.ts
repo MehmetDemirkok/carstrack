@@ -1,87 +1,108 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+function generateInviteCode(): string {
+  return Math.random().toString(36).substring(2, 10).toUpperCase();
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { companyName, fullName, email, password } = body;
+    const { mode, fullName, email, password, companyName, inviteCode } = body;
 
-    if (!companyName || !fullName || !email || !password) {
-      return NextResponse.json(
-        { error: "Lütfen tüm alanları doldurun." },
-        { status: 400 }
-      );
+    if (!fullName || !email || !password) {
+      return NextResponse.json({ error: "Lütfen tüm alanları doldurun." }, { status: 400 });
     }
 
     const supabaseAdmin = createAdminClient();
 
-    // 1. Kullanıcıyı auth.users tablosuna ekle
+    // ─── Mode: join (existing company via invite code) ────────
+    if (mode === "join") {
+      if (!inviteCode) {
+        return NextResponse.json({ error: "Davet kodu gereklidir." }, { status: 400 });
+      }
+
+      const { data: company, error: companyError } = await supabaseAdmin
+        .from("companies")
+        .select("id, name")
+        .eq("invite_code", inviteCode.trim().toUpperCase())
+        .single();
+
+      if (companyError || !company) {
+        return NextResponse.json({ error: "Geçersiz davet kodu. Yöneticinizden kontrol edin." }, { status: 400 });
+      }
+
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+
+      if (authError) {
+        return NextResponse.json({ error: authError.message }, { status: 400 });
+      }
+
+      const userId = authData.user!.id;
+
+      const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+        id: userId,
+        company_id: company.id,
+        role: "driver",
+        full_name: fullName,
+      });
+
+      if (profileError) {
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+        return NextResponse.json({ error: "Profil oluşturulurken hata oluştu." }, { status: 500 });
+      }
+
+      return NextResponse.json({ message: "Şirkete başarıyla katıldınız.", companyName: company.name }, { status: 200 });
+    }
+
+    // ─── Mode: create (new company) ───────────────────────────
+    if (!companyName) {
+      return NextResponse.json({ error: "Şirket adı gereklidir." }, { status: 400 });
+    }
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Kullanıcının anında giriş yapabilmesi için e-postayı onaylı kabul ediyoruz
+      email_confirm: true,
     });
 
     if (authError) {
       return NextResponse.json({ error: authError.message }, { status: 400 });
     }
 
-    if (!authData.user) {
-      return NextResponse.json(
-        { error: "Kullanıcı oluşturulamadı." },
-        { status: 500 }
-      );
-    }
+    const userId = authData.user!.id;
 
-    const userId = authData.user.id;
-
-    // 2. Şirketi oluştur
     const { data: companyData, error: companyError } = await supabaseAdmin
       .from("companies")
-      .insert({ name: companyName })
+      .insert({ name: companyName, invite_code: generateInviteCode() })
       .select("id")
       .single();
 
     if (companyError) {
-      // Hata durumunda oluşturulan auth kullanıcısını sil (Rollback)
       await supabaseAdmin.auth.admin.deleteUser(userId);
-      return NextResponse.json(
-        { error: "Şirket oluşturulurken bir hata meydana geldi." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Şirket oluşturulurken hata oluştu." }, { status: 500 });
     }
 
-    const companyId = companyData.id;
-
-    // 3. Profili oluştur (Yeni kayıt olan ilk kişi olduğu için rolü 'manager' yapıyoruz)
-    const { error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .insert({
-        id: userId,
-        company_id: companyId,
-        role: "manager",
-        full_name: fullName,
-      });
+    const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+      id: userId,
+      company_id: companyData.id,
+      role: "manager",
+      full_name: fullName,
+    });
 
     if (profileError) {
-      // Hata durumunda rollback
-      await supabaseAdmin.from("companies").delete().eq("id", companyId);
+      await supabaseAdmin.from("companies").delete().eq("id", companyData.id);
       await supabaseAdmin.auth.admin.deleteUser(userId);
-      return NextResponse.json(
-        { error: "Profil oluşturulurken bir hata meydana geldi." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Profil oluşturulurken hata oluştu." }, { status: 500 });
     }
 
-    return NextResponse.json(
-      { message: "Kayıt işlemi başarıyla tamamlandı." },
-      { status: 200 }
-    );
-  } catch (err: any) {
+    return NextResponse.json({ message: "Kayıt işlemi başarıyla tamamlandı." }, { status: 200 });
+  } catch (err: unknown) {
     console.error("Register Error:", err);
-    return NextResponse.json(
-      { error: "Sunucu tarafında beklenmeyen bir hata oluştu." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Sunucu tarafında beklenmeyen bir hata oluştu." }, { status: 500 });
   }
 }

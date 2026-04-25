@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Database, Trash2, Car,
-  Check, Globe, X, LogOut, Building2,
+  Check, Globe, X, LogOut, Building2, Copy, Users,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -76,6 +76,26 @@ export default function SettingsPage() {
   const { locale, setLocale, t } = useLanguage();
   const { user, profile, company, signOut } = useAuth();
   const router = useRouter();
+
+  // Invite code (fetched separately for managers in case auth context doesn't have it)
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  useEffect(() => {
+    if (profile?.role !== "manager") return;
+    if (company?.inviteCode) { setInviteCode(company.inviteCode); return; }
+    setInviteLoading(true);
+    const supabase = createClient();
+    supabase
+      .from("companies")
+      .select("invite_code")
+      .eq("id", profile.companyId)
+      .single()
+      .then(({ data }: { data: { invite_code: string } | null }) => {
+        if (data?.invite_code) setInviteCode(data.invite_code);
+        setInviteLoading(false);
+      });
+  }, [profile, company]);
 
   // Dialogs
   const [showClearData, setShowClearData] = useState(false);
@@ -223,6 +243,56 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Invite Code — only for managers */}
+        {profile?.role === "manager" && (
+          <motion.div variants={fadeUp} className="space-y-1">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">Ekip Daveti</h3>
+            <Card className="rounded-2xl border-border/40 shadow-sm overflow-hidden">
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="h-4 w-4 shrink-0" />
+                  <span>Ekip arkadaşlarınızı aynı şirkete davet edin</span>
+                </div>
+
+                {inviteLoading ? (
+                  <div className="flex items-center gap-2 py-2 text-muted-foreground text-sm">
+                    <span className="h-4 w-4 rounded-full border-2 border-current border-r-transparent animate-spin shrink-0" />
+                    Kod yükleniyor...
+                  </div>
+                ) : inviteCode ? (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-muted/60 border border-border/50 rounded-xl px-4 py-3 flex items-center gap-3">
+                      <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="font-mono font-black text-lg tracking-[0.3em] text-foreground select-all">
+                        {inviteCode}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="rounded-xl h-12 w-12 shrink-0 border-border/50"
+                      onClick={() => {
+                        navigator.clipboard.writeText(inviteCode);
+                        toast.success("Kopyalandı", { description: "Davet kodu panoya kopyalandı." });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-600 dark:text-amber-400">
+                    Davet kodu oluşturulmamış. Supabase SQL Editor&apos;de migration&apos;ı çalıştırın.
+                  </div>
+                )}
+
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Yeni çalışanlar kayıt ekranında <span className="font-semibold text-foreground">&ldquo;Şirkete Katıl&rdquo;</span> seçeneğini seçip bu kodu girerek filonuza erişim sağlayabilir. Katılanlar otomatik olarak <span className="font-semibold text-foreground">Sürücü</span> rolüyle eklenir.
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Preferences */}
         <motion.div variants={fadeUp} className="space-y-1">

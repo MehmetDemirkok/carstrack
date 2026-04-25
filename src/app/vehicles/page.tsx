@@ -14,7 +14,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Car, ChevronRight, Plus, Gauge, Trash2,
-  CheckCircle2, Circle, Fuel,
+  CheckCircle2, Circle, Fuel, Shield, Wrench, Calendar,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
@@ -227,15 +227,40 @@ export default function VehiclesPage() {
         })}
 
         {vehicles.length === 0 && (
-          <div className="col-span-full py-16 text-center flex flex-col items-center">
-            <Car className="h-16 w-16 text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground font-medium">Henüz araç eklenmemiş.</p>
-            <Link href="/vehicles/new" className="mt-4">
-              <Button className="rounded-full px-6 gap-2 shadow-md">
-                <Plus className="h-4 w-4" /> İlk Aracını Ekle
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="col-span-full py-12 flex flex-col items-center gap-5 text-center"
+          >
+            <div className="p-6 bg-mesh rounded-3xl shadow-xl shadow-primary/25">
+              <Car className="h-14 w-14 text-primary-foreground/80" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-outfit font-black tracking-tight">
+                <span className="text-gradient">Filonuzu Oluşturun</span>
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                İlk aracınızı ekleyerek bakım, sigorta ve muayene takibine başlayın.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { Icon: Shield, label: "Sigorta takibi" },
+                { Icon: Wrench, label: "Bakım hatırlatmaları" },
+                { Icon: Calendar, label: "Muayene uyarıları" },
+              ].map(({ Icon, label }) => (
+                <div key={label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 border border-border/40 text-[11px] font-medium text-muted-foreground">
+                  <Icon className="h-3 w-3" /> {label}
+                </div>
+              ))}
+            </div>
+            <Link href="/vehicles/new">
+              <Button className="rounded-full px-8 gap-2 shadow-lg bg-mesh text-primary-foreground border-none h-11">
+                <Plus className="h-4 w-4" /> Araç Ekle
               </Button>
             </Link>
-          </div>
+          </motion.div>
         )}
       </motion.div>
 
@@ -269,9 +294,7 @@ export default function VehiclesPage() {
             Seçili <b>{selectedIds.length}</b> aracı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <DialogClose className="w-full sm:w-auto">
-              <Button variant="outline" className="w-full rounded-xl">İptal</Button>
-            </DialogClose>
+            <DialogClose render={<Button variant="outline" className="w-full sm:w-auto rounded-xl" />}>İptal</DialogClose>
             <Button variant="destructive" onClick={handleDelete} className="w-full sm:w-auto rounded-xl">Evet, Sil</Button>
           </DialogFooter>
         </DialogContent>

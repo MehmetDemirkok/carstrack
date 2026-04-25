@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               id: comp.id,
               name: comp.name,
               createdAt: comp.created_at,
+              inviteCode: comp.invite_code,
             });
           } else {
             setCompany(null);

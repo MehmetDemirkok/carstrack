@@ -25,7 +25,7 @@ function daysBetween(a: Date, b: Date): number {
   return Math.ceil((b.getTime() - a.getTime()) / 86400000);
 }
 
-function docScore(expiryDateStr: string): number {
+export function docScore(expiryDateStr: string): number {
   if (!expiryDateStr) return 100;
   const days = daysBetween(new Date(), new Date(expiryDateStr));
   if (days < 0) return 0;
@@ -60,6 +60,22 @@ function itemScore(item: MaintenanceItem, currentMileage: number): number {
   }
 
   return Math.min(kmScore, monthScore);
+}
+
+export function calculateHealthScoreBreakdown(vehicle: Vehicle): {
+  insurance: number;
+  inspection: number;
+  maintenance: number;
+  overall: number;
+} {
+  const insurance = docScore(vehicle.insuranceExpiry);
+  const inspection = docScore(vehicle.inspectionExpiry);
+  const itemScores = vehicle.maintenanceItems.map((item) => itemScore(item, vehicle.mileage));
+  const maintenance = itemScores.length > 0
+    ? itemScores.reduce((a, b) => a + b, 0) / itemScores.length
+    : 100;
+  const overall = Math.round(insurance * 0.15 + inspection * 0.15 + maintenance * 0.7);
+  return { insurance: Math.round(insurance), inspection: Math.round(inspection), maintenance: Math.round(maintenance), overall };
 }
 
 export function calculateHealthScore(vehicle: Vehicle): number {
