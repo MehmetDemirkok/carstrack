@@ -108,104 +108,100 @@ export default function FleetStatusPage() {
           const score = calculateHealthScore(vehicle);
           const insDays = daysUntil(vehicle.insuranceExpiry);
           const muaDays = daysUntil(vehicle.inspectionExpiry);
+          
+          // Get statuses for a quick overview
+          const insStatus = docStatus(insDays);
+          const muaStatus = docStatus(muaDays);
+          
+          // Find critical maintenance items
+          const criticalMaintenance = vehicle.maintenanceItems
+            .map(item => ({ ...item, status: getMaintenanceStatusForItem(item, vehicle.mileage) }))
+            .filter(item => item.status !== "good");
+
           return (
-            <motion.div variants={fadeUp} key={vehicle.id} className="space-y-3">
-              <Link href={`/vehicles/${vehicle.id}`} className="flex items-center justify-between px-1 hover:opacity-80 transition-opacity">
-                <div className="flex items-center gap-2">
-                  <div className={`p-1.5 rounded-lg ${score >= 85 ? "bg-emerald-500/10" : score >= 65 ? "bg-amber-500/10" : "bg-red-500/10"}`}>
-                    <Car className={`h-4 w-4 ${score >= 85 ? "text-emerald-500" : score >= 65 ? "text-amber-500" : "text-red-500"}`} />
-                  </div>
-                  <div>
-                    <span className="text-sm font-bold">{vehicle.plate}</span>
-                    <span className="text-xs text-muted-foreground ml-2">{vehicle.brand} {vehicle.model}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`text-xs font-black font-outfit px-2 py-0.5 rounded-lg ${score >= 85 ? "bg-emerald-500/10 text-emerald-600" : score >= 65 ? "bg-amber-500/10 text-amber-600" : "bg-red-500/10 text-red-600"}`}>
-                    {score}
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </Link>
-
-              <Card className="rounded-2xl border-border/40 shadow-sm">
-                <CardContent className="p-4 space-y-4">
-                  {/* Documents */}
-                  <div>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Belgeler</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { icon: Shield, label: "Sigorta", days: insDays, date: vehicle.insuranceExpiry },
-                        { icon: Calendar, label: "Muayene", days: muaDays, date: vehicle.inspectionExpiry },
-                      ].map((doc) => {
-                        const st = docStatus(doc.days);
-                        const Icon = StatusIcon[st];
-                        return (
-                          <div key={doc.label} className={`p-2.5 rounded-xl border ${statusBadge[st]}`}>
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <doc.icon className="h-3.5 w-3.5" />
-                              <span className="text-[10px] font-semibold">{doc.label}</span>
-                            </div>
-                            <p className="text-xs font-bold">{doc.date ? doc.date.split("-").reverse().join(".") : "—"}</p>
-                            {doc.days !== null && (
-                              <p className="text-[10px] mt-0.5">
-                                {doc.days < 0 ? `${Math.abs(doc.days)}g geçti` : `${doc.days}g kaldı`}
-                              </p>
-                            )}
+            <motion.div variants={fadeUp} key={vehicle.id} className="group">
+              <Link href={`/vehicles/${vehicle.id}`}>
+                <Card className="rounded-[2.5rem] border-border/40 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 overflow-hidden group-hover:border-primary/20">
+                  <CardContent className="p-0">
+                    <div className="flex flex-col sm:flex-row">
+                      {/* Left Side: Vehicle Identity & Score */}
+                      <div className="p-6 sm:w-1/3 bg-muted/30 border-b sm:border-b-0 sm:border-r border-border/40 flex flex-col items-center justify-center text-center gap-4">
+                        <div className="relative">
+                          <svg className="w-24 h-24 -rotate-90 drop-shadow-sm" viewBox="0 0 44 44">
+                            <circle cx="22" cy="22" r="19" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted/50" />
+                            <motion.circle
+                              initial={{ strokeDasharray: "0 120" }}
+                              animate={{ strokeDasharray: `${score * 1.193} 120` }}
+                              transition={{ duration: 1.5, ease: "easeOut" }}
+                              cx="22" cy="22" r="19" fill="none"
+                              stroke={score >= 85 ? "#10b981" : score >= 65 ? "#f59e0b" : "#ef4444"}
+                              strokeWidth="4"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-2xl font-black font-outfit leading-none">{score}</span>
+                            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-tighter">Puan</span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Tire & Battery */}
-                  <div>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ekipman</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="p-2.5 rounded-xl bg-muted/50 border border-border/20">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          {vehicle.tireStatus === "Yazlık" ? <Sun className="h-3.5 w-3.5 text-orange-500" /> : vehicle.tireStatus === "Kışlık" ? <Snowflake className="h-3.5 w-3.5 text-blue-500" /> : <Layers className="h-3.5 w-3.5 text-teal-500" />}
-                          <span className="text-[10px] font-semibold">Lastik</span>
                         </div>
-                        <p className="text-xs font-bold truncate">{vehicle.tireStatus}</p>
-                        {vehicle.tireBrand && <p className="text-[10px] text-muted-foreground truncate">{vehicle.tireBrand}</p>}
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-muted/50 border border-border/20">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <BatteryCharging className="h-3.5 w-3.5 text-yellow-500" />
-                          <span className="text-[10px] font-semibold">Akü</span>
+                        <div className="space-y-1">
+                          <div className="inline-flex items-center gap-2 bg-background border border-border/60 px-3 py-1 rounded-xl shadow-sm">
+                            <Car className="h-3 w-3 text-primary" />
+                            <span className="text-xs font-black tracking-tight">{vehicle.plate}</span>
+                          </div>
+                          <p className="text-[11px] font-medium text-muted-foreground">{vehicle.brand} {vehicle.model}</p>
                         </div>
-                        <p className="text-xs font-bold truncate">{vehicle.batteryBrand || "—"}</p>
-                        {vehicle.batteryInstallDate && <p className="text-[10px] text-muted-foreground">{vehicle.batteryInstallDate.split("-")[0]}</p>}
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Maintenance items */}
-                  <div>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Bakım Kalemleri</p>
-                    <div className="space-y-2">
-                      {vehicle.maintenanceItems.map((item) => {
-                        const st = getMaintenanceStatusForItem(item, vehicle.mileage);
-                        const prog = getMaintenanceProgress(item, vehicle.mileage);
-                        const Icon = StatusIcon[st];
-                        return (
-                          <div key={item.id} className="flex items-center gap-3">
-                            <Icon className={`h-3.5 w-3.5 shrink-0 ${st === "good" ? "text-emerald-500" : st === "warning" ? "text-amber-500" : "text-red-500"}`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-center mb-0.5">
-                                <span className="text-[11px] font-medium truncate">{item.name}</span>
-                                <Badge className={`text-[9px] font-bold border ml-2 shrink-0 ${statusBadge[st]}`}>{statusLabel[st]}</Badge>
+                      {/* Right Side: Status Overview */}
+                      <div className="flex-1 p-6 flex flex-col justify-between gap-6">
+                        {/* Status Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          {[
+                            { label: "Sigorta", icon: Shield, status: insStatus, info: insDays !== null ? (insDays < 0 ? "Gecikti" : `${insDays} Gün`) : "—" },
+                            { label: "Muayene", icon: Calendar, status: muaStatus, info: muaDays !== null ? (muaDays < 0 ? "Gecikti" : `${muaDays} Gün`) : "—" },
+                            { label: "Bakım", icon: Wrench, status: criticalMaintenance.length > 0 ? "warning" : "good", info: criticalMaintenance.length > 0 ? `${criticalMaintenance.length} Uyarı` : "Tamam" },
+                            { label: "Lastik", icon: Disc3, status: "good", info: vehicle.tireStatus },
+                          ].map((item, i) => (
+                            <div key={i} className="flex flex-col items-center sm:items-start gap-2">
+                              <div className={`p-2 rounded-2xl border ${statusBadge[item.status as keyof typeof statusBadge]} transition-transform group-hover:scale-110`}>
+                                <item.icon className="h-4 w-4" />
                               </div>
-                              <Progress value={prog} className="h-1.5" indicatorClassName={statusColor[st]} />
+                              <div className="text-center sm:text-left">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{item.label}</p>
+                                <p className="text-xs font-bold">{item.info}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Critical Items Strip */}
+                        {criticalMaintenance.length > 0 || insStatus !== "good" || muaStatus !== "good" ? (
+                          <div className="bg-muted/50 rounded-2xl p-3 border border-border/30">
+                            <div className="flex items-center gap-2 mb-2">
+                              <AlertTriangle className="h-3 w-3 text-amber-500" />
+                              <span className="text-[10px] font-bold uppercase tracking-tight">Dikkat Gerekenler</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {insStatus !== "good" && <Badge variant="outline" className="text-[9px] bg-red-500/5 text-red-600 border-red-500/20">Sigorta Yenileme</Badge>}
+                              {muaStatus !== "good" && <Badge variant="outline" className="text-[9px] bg-red-500/5 text-red-600 border-red-500/20">Muayene Randevusu</Badge>}
+                              {criticalMaintenance.slice(0, 2).map((m, i) => (
+                                <Badge key={i} variant="outline" className="text-[9px] bg-amber-500/5 text-amber-600 border-amber-500/20">{m.name}</Badge>
+                              ))}
+                              {criticalMaintenance.length > 2 && <span className="text-[9px] text-muted-foreground font-medium">+{criticalMaintenance.length - 2} daha</span>}
                             </div>
                           </div>
-                        );
-                      })}
+                        ) : (
+                          <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/5 p-3 rounded-2xl border border-emerald-500/10">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span className="text-xs font-bold">Her şey yolunda, tüm kontroller tamam.</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             </motion.div>
           );
         })}
