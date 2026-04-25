@@ -371,9 +371,8 @@ export default function SettingsPage() {
               <button
                 key={l}
                 onClick={() => { setLocale(l); setShowLang(false); }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${
-                  locale === l ? "border-primary bg-primary/5" : "border-border/40 hover:bg-muted/50"
-                }`}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${locale === l ? "border-primary bg-primary/5" : "border-border/40 hover:bg-muted/50"
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{l === "tr" ? "🇹🇷" : "🇬🇧"}</span>
@@ -470,8 +469,8 @@ export default function SettingsPage() {
             ))}
             <div className="pt-2 pb-1">
               <p className="text-xs text-muted-foreground">{t("help_contact")}</p>
-              <a href="mailto:destek@carstrack.app" className="text-sm font-medium text-primary">
-                destek@carstrack.app
+              <a href="mailto:mehmetdemirkok@gmail.com" className="text-sm font-medium text-primary">
+                mehmetdemirkok@gmail.com
               </a>
             </div>
           </div>

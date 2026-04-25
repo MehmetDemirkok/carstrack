@@ -88,15 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: Session | null } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        await loadProfile(u.id);
-      }
-      setLoading(false);
-    });
-
     return () => subscription.unsubscribe();
   }, []);
 

@@ -31,11 +31,19 @@ export async function middleware(request: NextRequest) {
   const isAuthPath = pathname.startsWith("/login") || pathname.startsWith("/register");
 
   if (!user && !isAuthPath) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const redirectResponse = NextResponse.redirect(new URL("/login", request.url));
+    supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
+      redirectResponse.cookies.set(name, value, options as Parameters<typeof redirectResponse.cookies.set>[2]);
+    });
+    return redirectResponse;
   }
 
   if (user && isAuthPath) {
-    return NextResponse.redirect(new URL("/", request.url));
+    const redirectResponse = NextResponse.redirect(new URL("/", request.url));
+    supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
+      redirectResponse.cookies.set(name, value, options as Parameters<typeof redirectResponse.cookies.set>[2]);
+    });
+    return redirectResponse;
   }
 
   return supabaseResponse;
