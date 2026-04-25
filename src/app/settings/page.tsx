@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -170,6 +171,7 @@ export default function SettingsPage() {
     }
 
     setShowClearData(false);
+    toast.success("Başarılı", { description: "Veriler başarıyla temizlendi." });
     router.push("/");
     router.refresh();
   };

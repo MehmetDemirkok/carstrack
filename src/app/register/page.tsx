@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 
 const item = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
 const container = {
@@ -41,10 +42,12 @@ export default function RegisterPage() {
 
     if (form.password !== form.confirmPassword) {
       setError("Şifreler eşleşmiyor.");
+      toast.error("Hata", { description: "Şifreler eşleşmiyor." });
       return;
     }
     if (form.password.length < 6) {
       setError("Şifre en az 6 karakter olmalıdır.");
+      toast.error("Hata", { description: "Şifre en az 6 karakter olmalıdır." });
       return;
     }
 
@@ -65,11 +68,13 @@ export default function RegisterPage() {
 
     if (!res.ok) {
       setError(data.error || "Kayıt sırasında bir hata oluştu.");
+      toast.error("Kayıt başarısız", { description: data.error || "Kayıt sırasında bir hata oluştu." });
       setLoading(false);
       return;
     }
 
     setSuccess(true);
+    toast.success("Kayıt başarılı", { description: "Şirketiniz oluşturuldu. Yönlendiriliyorsunuz..." });
 
     const supabase = createClient();
     await supabase.auth.signInWithPassword({ email: form.email, password: form.password });

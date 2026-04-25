@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { getVehicles, deleteVehicles } from "@/lib/db";
 import { calculateHealthScore } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
@@ -39,15 +40,18 @@ export default function VehiclesPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const data = await getVehicles();
       setVehicles(data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? JSON.stringify(err);
-      console.error("Failed to load vehicles:", msg);
+      console.error("Failed to load vehicles:", err);
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -69,14 +73,34 @@ export default function VehiclesPage() {
   };
 
   const handleDelete = async () => {
-    await deleteVehicles(selectedIds);
-    await loadData();
-    setSelectedIds([]);
-    setIsSelectionMode(false);
-    setIsDeleteDialogOpen(false);
+    try {
+      await deleteVehicles(selectedIds);
+      await loadData();
+      toast.success("Silindi", { description: `${selectedIds.length} araç başarıyla silindi.` });
+      setSelectedIds([]);
+      setIsSelectionMode(false);
+      setIsDeleteDialogOpen(false);
+    } catch (err) {
+      toast.error("Hata", { description: "Araçlar silinirken hata oluştu." });
+    }
   };
 
-  if (loading) return <div className="p-4 pt-10 text-center text-muted-foreground">Araçlar yükleniyor...</div>;
+  if (loading) return (
+    <div className="p-4 pt-10 text-center text-muted-foreground flex flex-col items-center gap-2">
+      <p>Araçlar yükleniyor...</p>
+    </div>
+  );
+
+  if (errorMsg) return (
+    <div className="p-4 pt-10 text-center flex flex-col items-center gap-3">
+      <div className="p-3 bg-destructive/10 rounded-xl">
+        <Car className="h-10 w-10 text-destructive" />
+      </div>
+      <p className="text-foreground font-bold">Veriler Yüklenirken Hata Oluştu</p>
+      <p className="text-sm text-destructive max-w-md">{errorMsg}</p>
+      <Button onClick={loadData} variant="outline" className="mt-2">Tekrar Dene</Button>
+    </div>
+  );
 
   return (
     <div className="p-4 space-y-5 pb-28 relative">

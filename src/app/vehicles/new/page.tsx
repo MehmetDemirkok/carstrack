@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -152,10 +153,13 @@ export default function NewVehiclePage() {
       await addVehicle(data);
       setSaving(false);
       setDone(true);
+      toast.success("Araç Eklendi", { description: "Araç başarıyla eklendi, yönlendiriliyorsunuz." });
       setTimeout(() => router.push("/vehicles"), 1400);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Araç eklenirken bir hata oluştu.";
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? "Araç eklenirken bir hata oluştu.";
+      console.error("Vehicle add error:", err);
       setError(msg);
+      toast.error("Hata", { description: msg });
       setSaving(false);
     }
   };

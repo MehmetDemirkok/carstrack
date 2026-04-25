@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -136,17 +137,21 @@ export default function VehicleDetailPage() {
       await updateVehicle(vehicle.id, editData);
       setShowEdit(false);
       reload();
+      toast.success("Güncellendi", { description: "Araç bilgileri kaydedildi." });
     } catch (err) {
       console.error(err);
+      toast.error("Hata", { description: "Araç güncellenirken hata oluştu." });
     }
   };
 
   const handleDelete = async () => {
     try {
       await deleteVehicle(vehicle.id);
+      toast.success("Silindi", { description: "Araç başarıyla silindi." });
       router.push("/vehicles");
     } catch (err) {
       console.error(err);
+      toast.error("Hata", { description: "Araç silinirken hata oluştu." });
     }
   };
 
@@ -164,8 +169,10 @@ export default function VehicleDetailPage() {
       setShowAddRecord(false);
       setRecordForm({ date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
       reload();
+      toast.success("Kayıt Eklendi", { description: "Servis kaydı başarıyla eklendi." });
     } catch (err) {
       console.error(err);
+      toast.error("Hata", { description: "Kayıt eklenirken hata oluştu." });
     }
   };
 
@@ -525,7 +532,15 @@ export default function VehicleDetailPage() {
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <span className="text-[11px] font-bold">{record.mileage.toLocaleString("tr-TR")} km</span>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={async () => { await deleteRecord(record.id); reload(); }}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={async () => {
+                                  try {
+                                    await deleteRecord(record.id);
+                                    reload();
+                                    toast.success("Silindi", { description: "Kayıt başarıyla silindi." });
+                                  } catch (err) {
+                                    toast.error("Hata", { description: "Kayıt silinirken hata oluştu." });
+                                  }
+                                }}>
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </div>

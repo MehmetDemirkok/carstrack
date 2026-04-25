@@ -32,28 +32,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
 
     async function loadProfile(userId: string) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*, companies(*)")
-        .eq("id", userId)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*, companies(*)")
+          .eq("id", userId)
+          .single();
 
-      if (data) {
-        setProfile({
-          id: data.id,
-          companyId: data.company_id,
-          role: data.role,
-          fullName: data.full_name,
-          createdAt: data.created_at,
-        });
-        const comp = data.companies as Record<string, string>;
-        setCompany({
-          id: comp.id,
-          name: comp.name,
-          createdAt: comp.created_at,
-        });
-      } else {
-        // Auth user exists but no profile row — orphan user.
+        if (error) {
+          console.error("Profile fetch error:", error);
+        }
+
+        if (data) {
+          setProfile({
+            id: data.id,
+            companyId: data.company_id,
+            role: data.role,
+            fullName: data.full_name,
+            createdAt: data.created_at,
+          });
+          const comp = data.companies as Record<string, string> | null | undefined;
+          if (comp) {
+            setCompany({
+              id: comp.id,
+              name: comp.name,
+              createdAt: comp.created_at,
+            });
+          } else {
+            setCompany(null);
+          }
+        } else {
+          setProfile(null);
+          setCompany(null);
+        }
+      } catch (err) {
+        console.error("Failed to load profile", err);
         setProfile(null);
         setCompany(null);
       }

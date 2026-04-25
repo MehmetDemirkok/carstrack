@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 const item = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
 const container = {
@@ -31,9 +32,11 @@ export default function LoginPage() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError) {
       setError("E-posta veya şifre hatalı.");
+      toast.error("Giriş başarısız", { description: "E-posta veya şifre hatalı." });
       setLoading(false);
       return;
     }
+    toast.success("Giriş başarılı", { description: "Yönlendiriliyorsunuz..." });
     router.push("/");
     router.refresh();
   };

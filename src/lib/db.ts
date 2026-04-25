@@ -13,9 +13,12 @@ export function clearCompanyCache() {
   cachedUserId = null;
 }
 
-async function requireCompanyId(): Promise<string> {
+export async function requireCompanyId(): Promise<string> {
+  console.log("[db] requireCompanyId started");
   const supabase = createClient();
+  console.log("[db] calling getSession()");
   const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+  console.log("[db] getSession() resolved", { sessionExists: !!session, sessionErr });
   const user = session?.user;
 
   if (sessionErr || !user) {
@@ -23,13 +26,18 @@ async function requireCompanyId(): Promise<string> {
     throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
   }
 
-  if (cachedUserId === user.id && cachedCompanyId) return cachedCompanyId;
+  if (cachedUserId === user.id && cachedCompanyId) {
+    console.log("[db] using cached company_id");
+    return cachedCompanyId;
+  }
 
+  console.log("[db] calling profiles select");
   const { data: profile, error: profileErr } = await supabase
     .from("profiles")
     .select("company_id")
     .eq("id", user.id)
     .single();
+  console.log("[db] profiles select resolved", { profile, profileErr });
 
   if (profileErr || !profile?.company_id) {
     clearCompanyCache();
@@ -134,13 +142,18 @@ function toRecord(row: Record<string, unknown>): ServiceRecord {
 // ─── Vehicles ─────────────────────────────────────────────────
 
 export async function getVehicles(): Promise<Vehicle[]> {
+  console.log("[db] getVehicles started");
   const supabase = createClient();
+  console.log("[db] getVehicles requiring companyId");
   const companyId = await requireCompanyId();
+  console.log("[db] getVehicles companyId acquired", companyId);
+  console.log("[db] getVehicles calling Supabase select");
   const { data, error } = await supabase
     .from("vehicles")
     .select("*")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false });
+  console.log("[db] getVehicles select resolved", { dataLength: data?.length, error });
   if (error) throw error;
   return (data ?? []).map(toVehicle);
 }
@@ -161,14 +174,19 @@ export async function getVehicle(id: string): Promise<Vehicle | null> {
 export async function addVehicle(
   data: Omit<Vehicle, "id" | "createdAt" | "updatedAt">
 ): Promise<Vehicle> {
+  console.log("[db] addVehicle started");
   const supabase = createClient();
+  console.log("[db] addVehicle requiring companyId");
   const companyId = await requireCompanyId();
+  console.log("[db] addVehicle companyId acquired", companyId);
   const row = toDbVehicle(data, companyId);
+  console.log("[db] addVehicle calling Supabase insert", row);
   const { data: inserted, error } = await supabase
     .from("vehicles")
     .insert(row)
     .select()
     .single();
+  console.log("[db] addVehicle insert resolved", { inserted, error });
   if (error) throw error;
   return toVehicle(inserted);
 }
