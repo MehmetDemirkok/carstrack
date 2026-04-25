@@ -112,15 +112,19 @@ export default function Dashboard() {
   const warningCount = alerts.filter((a) => a.severity === "warning").length;
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6 relative">
+      {/* Ambient page background */}
+      <div className="absolute inset-0 -z-10 bg-mesh-soft pointer-events-none" />
+
       <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8">
         {/* LEFT */}
         <div className="lg:col-span-7 space-y-5 lg:space-y-8">
           {/* Fleet Health Hero */}
           <motion.div variants={fadeUp}>
-            <Card className="rounded-3xl border-none shadow-lg overflow-hidden relative bg-gradient-to-br from-primary via-primary/90 to-primary/70">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
-              <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
+            <Card className="rounded-3xl border-none shadow-2xl shadow-primary/30 overflow-hidden relative bg-mesh glow shimmer">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.18),_transparent_55%)]" />
+              <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-white/8 rounded-full blur-3xl animate-float-slow" />
+              <div className="absolute -left-12 top-1/2 w-32 h-32 bg-[color:var(--primary-3)]/30 rounded-full blur-3xl animate-float-slow" style={{ animationDelay: "2s" }} />
               <CardContent className="p-5 md:p-8 relative z-10">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
@@ -181,7 +185,7 @@ export default function Dashboard() {
           {/* Vehicle Cards */}
           <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-4">
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-widest">Araçlarım</h2>
+              <h2 className="text-xs md:text-sm font-semibold uppercase tracking-widest"><span className="text-gradient">Araçlarım</span></h2>
               <Link href="/vehicles">
                 <Button variant="ghost" size="sm" className="text-[11px] md:text-xs text-primary h-7 px-2 gap-1 hover:bg-primary/10">
                   Tümünü Gör <ChevronRight className="h-3 w-3" />
@@ -210,7 +214,7 @@ export default function Dashboard() {
                   return (
                     <Link href={`/vehicles/${vehicle.id}`} key={vehicle.id} className="block tap-highlight-transparent">
                       <motion.div whileTap={{ scale: 0.98 }}>
-                        <Card className="rounded-2xl overflow-hidden shadow-sm border-border/40 hover:shadow-md transition-all">
+                        <Card className="rounded-2xl overflow-hidden shadow-sm border-border/40 hover-lift">
                           <div className="flex h-[108px] md:h-32">
                             <div className="w-[120px] md:w-[160px] relative shrink-0 bg-muted">
                               {vehicle.image ? (
@@ -260,16 +264,17 @@ export default function Dashboard() {
           {/* Quick stats */}
           <motion.div variants={fadeUp} className="grid grid-cols-3 gap-3 md:gap-4">
             {[
-              { icon: Car, value: String(vehicles.length), label: "Araç", color: "text-blue-500", bg: "bg-blue-500/10" },
-              { icon: AlertTriangle, value: String(criticalCount + warningCount), label: "Uyarı", color: "text-orange-500", bg: "bg-orange-500/10" },
-              { icon: CheckCircle2, value: String(records.length), label: "Servis", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+              { icon: Car, value: String(vehicles.length), label: "Araç", color: "text-blue-500", bg: "bg-blue-500/10", ring: "from-blue-500/40 to-blue-500/0" },
+              { icon: AlertTriangle, value: String(criticalCount + warningCount), label: "Uyarı", color: "text-orange-500", bg: "bg-orange-500/10", ring: "from-orange-500/40 to-orange-500/0" },
+              { icon: CheckCircle2, value: String(records.length), label: "Servis", color: "text-emerald-500", bg: "bg-emerald-500/10", ring: "from-emerald-500/40 to-emerald-500/0" },
             ].map((stat, i) => (
-              <Card key={i} className="rounded-2xl border-border/40 shadow-sm">
+              <Card key={i} className="rounded-2xl border-border/40 shadow-sm hover-lift relative overflow-hidden group">
+                <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${stat.ring} opacity-0 group-hover:opacity-100 transition-opacity`} />
                 <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-1.5">
-                  <div className={`p-2 md:p-3 rounded-xl ${stat.bg}`}>
+                  <div className={`p-2 md:p-3 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform`}>
                     <stat.icon className={`h-4 w-4 md:h-5 md:w-5 ${stat.color}`} />
                   </div>
-                  <span className="text-lg md:text-2xl font-bold font-outfit leading-none">{stat.value}</span>
+                  <span className="text-lg md:text-2xl font-bold font-outfit leading-none tracking-tight">{stat.value}</span>
                   <span className="text-[10px] md:text-xs text-muted-foreground font-medium">{stat.label}</span>
                 </CardContent>
               </Card>
@@ -283,12 +288,14 @@ export default function Dashboard() {
               <div className="space-y-2 md:space-y-2.5">
                 {alerts.slice(0, 4).map((alert) => {
                   const Icon = categoryIcon[alert.category];
+                  const accentBar = alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-orange-500" : "bg-blue-500";
                   return (
                     <Link href={`/vehicles/${alert.vehicleId}`} key={alert.id}>
                       <motion.div
                         whileTap={{ scale: 0.98 }}
-                        className={`p-3.5 rounded-2xl border flex gap-3 items-start transition-colors cursor-pointer ${severityStyle[alert.severity]}`}
+                        className={`relative p-3.5 pl-4 rounded-2xl border flex gap-3 items-start transition-all cursor-pointer overflow-hidden hover-lift ${severityStyle[alert.severity]}`}
                       >
+                        <div className={`absolute left-0 top-2 bottom-2 w-1 rounded-r ${accentBar}`} />
                         <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${severityIconStyle[alert.severity]}`}>
                           <Icon className="h-3.5 w-3.5" />
                         </div>

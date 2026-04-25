@@ -22,7 +22,8 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 pb-safe md:hidden">
       <div className="max-w-md mx-auto px-3 pb-2">
-        <div className="glass rounded-2xl border border-border/50 shadow-lg shadow-black/5 dark:shadow-black/20">
+        <div className="glass rounded-3xl border border-border/50 shadow-2xl shadow-primary/10 dark:shadow-black/40 overflow-hidden relative">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
           <div className="flex justify-around items-center h-16 px-1">
             {navItems.map((item) => {
               const isActive =
@@ -34,36 +35,29 @@ export function BottomNav() {
                   href={item.href}
                   className="relative flex flex-col items-center justify-center flex-1 h-full gap-1 tap-highlight-transparent"
                 >
-                  <div className="relative">
+                  {isActive && (
+                    <motion.div
+                      layoutId="navPill"
+                      className="absolute inset-y-1.5 inset-x-2 bg-mesh rounded-2xl shadow-lg shadow-primary/30"
+                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <div className="relative z-10">
                     <item.icon
                       className={cn(
                         "w-5 h-5 transition-all duration-300",
-                        isActive ? "text-primary scale-110" : "text-muted-foreground"
+                        isActive ? "text-white drop-shadow-md" : "text-muted-foreground"
                       )}
                     />
-                    {isActive && (
-                      <motion.div
-                        layoutId="navGlow"
-                        className="absolute -inset-3 bg-primary/15 rounded-xl blur-sm"
-                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                      />
-                    )}
                   </div>
                   <span
                     className={cn(
-                      "text-[9px] font-medium transition-colors duration-300 relative z-10",
-                      isActive ? "text-primary" : "text-muted-foreground"
+                      "text-[9px] font-semibold transition-colors duration-300 relative z-10",
+                      isActive ? "text-white" : "text-muted-foreground"
                     )}
                   >
                     {item.label}
                   </span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="bottomNavIndicator"
-                      className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-1 bg-primary rounded-full"
-                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                    />
-                  )}
                 </Link>
               );
             })}

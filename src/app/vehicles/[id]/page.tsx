@@ -658,7 +658,11 @@ export default function VehicleDetailPage() {
               <div className="space-y-1">
                 <Label className={iLabel}>Tür</Label>
                 <Select value={recordForm.type} onValueChange={(v) => v && setRecordForm((f) => ({ ...f, type: v as ServiceType }))}>
-                  <SelectTrigger className={iCls}><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={iCls}>
+                    <SelectValue>
+                      {(value: unknown) => SERVICE_TYPES.find((t) => t.value === value)?.label ?? "Seçiniz"}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>{SERVICE_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

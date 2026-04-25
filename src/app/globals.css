@@ -58,6 +58,9 @@
   --popover-foreground: oklch(0.13 0.02 260);
   --primary: oklch(0.55 0.22 260);
   --primary-foreground: oklch(0.985 0 0);
+  --primary-2: oklch(0.62 0.2 200);
+  --primary-3: oklch(0.7 0.18 160);
+  --accent-glow: oklch(0.55 0.22 260 / 0.35);
   --secondary: oklch(0.96 0.01 260);
   --secondary-foreground: oklch(0.25 0.02 260);
   --muted: oklch(0.96 0.005 260);
@@ -93,6 +96,9 @@
   --popover-foreground: oklch(0.96 0.005 260);
   --primary: oklch(0.7 0.18 260);
   --primary-foreground: oklch(0.12 0.015 260);
+  --primary-2: oklch(0.72 0.16 200);
+  --primary-3: oklch(0.76 0.15 160);
+  --accent-glow: oklch(0.7 0.18 260 / 0.45);
   --secondary: oklch(0.22 0.02 260);
   --secondary-foreground: oklch(0.96 0.005 260);
   --muted: oklch(0.22 0.015 260);
@@ -155,5 +161,112 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* ── Premium polish utilities ───────────────────────────────────────── */
+
+  /* Brand gradient text — used for logo / hero numbers */
+  .text-gradient {
+    background-image: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 50%, var(--primary-3) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .text-gradient-warm {
+    background-image: linear-gradient(135deg, oklch(0.7 0.2 30) 0%, oklch(0.7 0.18 60) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Atmospheric mesh background — for hero cards / login */
+  .bg-mesh {
+    background-color: var(--primary);
+    background-image:
+      radial-gradient(at 18% 22%, var(--primary-2) 0px, transparent 50%),
+      radial-gradient(at 82% 12%, var(--primary-3) 0px, transparent 45%),
+      radial-gradient(at 50% 90%, oklch(0.45 0.22 290) 0px, transparent 55%);
+  }
+  .bg-mesh-soft {
+    background-image:
+      radial-gradient(circle at 15% 10%, var(--accent-glow), transparent 35%),
+      radial-gradient(circle at 85% 90%, oklch(0.7 0.15 200 / 0.15), transparent 40%);
+  }
+  .dark .bg-mesh-soft {
+    background-image:
+      radial-gradient(circle at 15% 10%, var(--accent-glow), transparent 40%),
+      radial-gradient(circle at 85% 90%, oklch(0.7 0.18 200 / 0.18), transparent 45%);
+  }
+
+  /* Hover lift — small elevation + shadow on hover */
+  .hover-lift {
+    transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 38px -16px var(--accent-glow), 0 8px 16px -8px oklch(0 0 0 / 0.08);
+  }
+
+  /* Gradient ring on focus / active — for avatars and tiles */
+  .ring-gradient {
+    position: relative;
+    isolation: isolate;
+  }
+  .ring-gradient::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2), var(--primary-3));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* Soft inner glow for hero / cta cards */
+  .glow {
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 0.04) inset,
+      0 1px 0 oklch(1 0 0 / 0.06) inset,
+      0 22px 50px -22px var(--accent-glow);
+  }
+
+  /* Animated decorative orb */
+  .orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(60px);
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  /* Shimmer effect (used over gradient backgrounds) */
+  @keyframes shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 30%, oklch(1 0 0 / 0.15) 50%, transparent 70%);
+    animation: shimmer 3.5s infinite;
+  }
+
+  /* Slow float — for ambient deco elements */
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px); }
+    50%      { transform: translateY(-12px); }
+  }
+  .animate-float-slow {
+    animation: float-slow 6s ease-in-out infinite;
   }
 }

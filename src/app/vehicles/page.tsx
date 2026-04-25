@@ -79,10 +79,11 @@ export default function VehiclesPage() {
   if (loading) return <div className="p-4 pt-10 text-center text-muted-foreground">Araçlar yükleniyor...</div>;
 
   return (
-    <div className="p-4 space-y-5 pb-28">
+    <div className="p-4 space-y-5 pb-28 relative">
+      <div className="absolute inset-0 -z-10 bg-mesh-soft pointer-events-none" />
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-outfit font-bold tracking-tight">Araçlarım</h1>
+          <h1 className="text-2xl font-outfit font-black tracking-tight"><span className="text-gradient">Araçlarım</span></h1>
           <p className="text-xs text-muted-foreground mt-0.5">{vehicles.length} kayıtlı araç</p>
         </div>
         <div className="flex items-center gap-2">
@@ -118,8 +119,8 @@ export default function VehiclesPage() {
                 className="block tap-highlight-transparent"
                 onClick={(e) => { if (isSelectionMode) toggleSelection(vehicle.id, e); }}
               >
-                <motion.div variants={cardAnim} whileTap={isSelectionMode ? {} : { scale: 0.97 }}>
-                  <Card className={`overflow-hidden rounded-3xl shadow-md hover:shadow-lg transition-all relative group ${selected ? "border-primary ring-2 ring-primary/20" : "border-border/40"}`}>
+                <motion.div variants={cardAnim} whileTap={isSelectionMode ? {} : { scale: 0.97 }} whileHover={isSelectionMode ? {} : { y: -4 }}>
+                  <Card className={`overflow-hidden rounded-3xl shadow-md transition-all relative group ${selected ? "border-primary ring-2 ring-primary/20 shadow-primary/20" : "border-border/40 hover:shadow-2xl hover:shadow-primary/15"}`}>
                     {isSelectionMode && (
                       <div className={`absolute inset-0 z-20 pointer-events-none transition-colors rounded-3xl ${selected ? "bg-primary/5" : "bg-black/40"}`} />
                     )}

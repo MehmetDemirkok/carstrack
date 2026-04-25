@@ -3,21 +3,25 @@ import type { Vehicle, ServiceRecord, Profile, VehicleAssignment } from "./types
 
 // ─── Auth helpers ─────────────────────────────────────────────
 
-/**
- * Resolves the authenticated user's company_id. Throws if no session.
- * Centralizes the company lookup so every CRUD call is automatically scoped.
- */
+// Cached per-user. Always resolves the current session first so a logout +
+// different user login in the same browser cannot leak data across companies.
 let cachedCompanyId: string | null = null;
 let cachedUserId: string | null = null;
 
-async function requireCompanyId(): Promise<string> {
-  if (cachedCompanyId) return cachedCompanyId;
+export function clearCompanyCache() {
+  cachedCompanyId = null;
+  cachedUserId = null;
+}
 
+async function requireCompanyId(): Promise<string> {
   const supabase = createClient();
   const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
   const user = session?.user;
-  
-  if (sessionErr || !user) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+
+  if (sessionErr || !user) {
+    clearCompanyCache();
+    throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+  }
 
   if (cachedUserId === user.id && cachedCompanyId) return cachedCompanyId;
 
@@ -27,8 +31,13 @@ async function requireCompanyId(): Promise<string> {
     .eq("id", user.id)
     .single();
 
-  if (profileErr || !profile?.company_id) throw new Error("Şirket bilgisi bulunamadı.");
-  
+  if (profileErr || !profile?.company_id) {
+    clearCompanyCache();
+    throw new Error(
+      "Şirket profili bulunamadı. Lütfen kayıt sayfasından yeni bir şirket oluşturun veya yöneticinize başvurun."
+    );
+  }
+
   cachedUserId = user.id;
   cachedCompanyId = profile.company_id as string;
   return cachedCompanyId;
@@ -273,12 +282,12 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleId: stri
     .order("full_name");
   if (error) throw error;
 
-  return (profiles ?? []).map((row) => ({
-    id: row.id,
-    companyId: row.company_id,
+  return (profiles ?? []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    companyId: row.company_id as string,
     role: row.role as Profile["role"],
-    fullName: row.full_name,
-    createdAt: row.created_at,
+    fullName: row.full_name as string,
+    createdAt: row.created_at as string,
     assignedVehicleId:
       Array.isArray(row.vehicle_assignments) && row.vehicle_assignments.length > 0
         ? (row.vehicle_assignments[0] as { vehicle_id: string }).vehicle_id
@@ -292,11 +301,11 @@ export async function getAssignments(): Promise<VehicleAssignment[]> {
   const supabase = createClient();
   const { data, error } = await supabase.from("vehicle_assignments").select("*");
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    vehicleId: row.vehicle_id,
-    driverId: row.driver_id,
-    assignedAt: row.assigned_at,
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    vehicleId: row.vehicle_id as string,
+    driverId: row.driver_id as string,
+    assignedAt: row.assigned_at as string,
   }));
 }
 

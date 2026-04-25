@@ -252,7 +252,14 @@ export default function HistoryPage() {
             <div className="space-y-1">
               <Label className={iLabel}>Araç</Label>
               <Select value={form.vehicleId} onValueChange={(v) => v && setForm((f) => ({ ...f, vehicleId: v }))}>
-                <SelectTrigger className={iCls}><SelectValue placeholder="Araç seçiniz..." /></SelectTrigger>
+                <SelectTrigger className={iCls}>
+                  <SelectValue placeholder="Araç seçiniz...">
+                    {(value: unknown) => {
+                      const v = vehicles.find((x) => x.id === value);
+                      return v ? `${v.plate} — ${v.brand} ${v.model}` : "Araç seçiniz...";
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.plate} — {v.brand} {v.model}</SelectItem>)}
                 </SelectContent>
@@ -263,7 +270,11 @@ export default function HistoryPage() {
               <div className="space-y-1">
                 <Label className={iLabel}>Tür</Label>
                 <Select value={form.type} onValueChange={(v) => v && setForm((f) => ({ ...f, type: v as ServiceType }))}>
-                  <SelectTrigger className={iCls}><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={iCls}>
+                    <SelectValue>
+                      {(value: unknown) => SERVICE_TYPES.find((t) => t.value === value)?.label ?? "Seçiniz"}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>{SERVICE_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

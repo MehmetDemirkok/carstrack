@@ -40,10 +40,23 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-background">
-      {/* Decorative background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 pointer-events-none" />
-      <div className="absolute -top-48 -right-48 w-96 h-96 bg-primary/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-48 -left-48 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Atmospheric background */}
+      <div className="absolute inset-0 bg-mesh-soft pointer-events-none" />
+      <motion.div
+        animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+        className="orb w-[28rem] h-[28rem] -top-40 -right-40 bg-primary/30"
+      />
+      <motion.div
+        animate={{ x: [0, -25, 0], y: [0, 30, 0] }}
+        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
+        className="orb w-[24rem] h-[24rem] -bottom-32 -left-32 bg-[color:var(--primary-2)]/30"
+      />
+      <motion.div
+        animate={{ x: [0, 20, 0], y: [0, 25, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+        className="orb w-72 h-72 top-1/3 left-1/4 bg-[color:var(--primary-3)]/20"
+      />
 
       {/* Floating decorative cars */}
       <motion.div
@@ -68,7 +81,8 @@ export default function LoginPage() {
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full max-w-sm"
       >
-        <div className="bg-card/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-border/40 p-8">
+        <div className="bg-card/70 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-primary/15 border border-border/40 p-8 relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
 
           {/* Logo */}
           <motion.div
@@ -78,14 +92,14 @@ export default function LoginPage() {
             className="flex flex-col items-center gap-3 mb-8"
           >
             <div className="relative">
-              <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-4 rounded-3xl border border-primary/20 shadow-lg">
-                <Car className="h-8 w-8 text-primary" />
+              <div className="bg-mesh p-4 rounded-3xl shadow-xl shadow-primary/40">
+                <Car className="h-8 w-8 text-white drop-shadow" />
               </div>
-              <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-lg -z-10" />
+              <div className="absolute inset-0 bg-primary/40 rounded-3xl blur-2xl -z-10 animate-pulse" />
             </div>
             <div className="text-center">
-              <h1 className="text-2xl font-outfit font-black tracking-tight">CarsTrack</h1>
-              <p className="text-xs text-muted-foreground mt-0.5 font-medium">Filo Yönetim Sistemi</p>
+              <h1 className="text-3xl font-outfit font-black tracking-tight text-gradient">CarsTrack</h1>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">Filo Yönetim Sistemi</p>
             </div>
           </motion.div>
 

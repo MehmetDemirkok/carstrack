@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { clearCompanyCache } from "@/lib/db";
 import type { Profile, Company } from "@/lib/types";
 
 interface AuthContextType {
@@ -51,14 +52,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name: comp.name,
           createdAt: comp.created_at,
         });
+      } else {
+        // Auth user exists but no profile row — orphan user.
+        setProfile(null);
+        setCompany(null);
       }
     }
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
       const u = session?.user ?? null;
       setUser(u);
+      // Any auth change must invalidate the per-user company cache in db.ts.
+      clearCompanyCache();
       if (u) {
         await loadProfile(u.id);
       } else {
@@ -68,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: Session | null } }) => {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
@@ -91,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error("Sign out error", err);
     } finally {
+      clearCompanyCache();
       setUser(null);
       setProfile(null);
       setCompany(null);
