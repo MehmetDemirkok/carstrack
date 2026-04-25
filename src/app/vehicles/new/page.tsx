@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { addVehicle, MAINTENANCE_TEMPLATES } from "@/lib/store";
+import { MAINTENANCE_TEMPLATES } from "@/lib/store";
+import { addVehicle } from "@/lib/db";
 import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, Wrench, CheckCircle2, Camera, Info } from "lucide-react";
 
@@ -103,8 +104,11 @@ export default function NewVehiclePage() {
     reader.readAsDataURL(file);
   };
 
+  const [error, setError] = useState<string>("");
+
   const handleSubmit = async () => {
     setSaving(true);
+    setError("");
     const mileage = parseInt(form.mileage) || 0;
     const maintenanceItems = MAINTENANCE_TEMPLATES.map((t) => ({
       ...t,
@@ -144,10 +148,16 @@ export default function NewVehiclePage() {
       notes: form.notes,
     };
 
-    addVehicle(data);
-    setSaving(false);
-    setDone(true);
-    setTimeout(() => router.push("/vehicles"), 1400);
+    try {
+      await addVehicle(data);
+      setSaving(false);
+      setDone(true);
+      setTimeout(() => router.push("/vehicles"), 1400);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Araç eklenirken bir hata oluştu.";
+      setError(msg);
+      setSaving(false);
+    }
   };
 
   const cls = "rounded-xl h-11 bg-muted/30 border-border/40 text-sm focus-visible:ring-primary/30";
@@ -423,7 +433,12 @@ export default function NewVehiclePage() {
 
       {/* Bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 glass border-t border-border/30">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-2">
+          {error && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-2 text-xs text-destructive text-center">
+              {error}
+            </div>
+          )}
           {step < steps.length ? (
             <Button
               className="w-full h-12 rounded-2xl font-semibold shadow-lg shadow-primary/20 gap-2"

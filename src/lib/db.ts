@@ -1,6 +1,39 @@
 import { createClient } from "./supabase/client";
 import type { Vehicle, ServiceRecord, Profile, VehicleAssignment } from "./types";
 
+// ─── Auth helpers ─────────────────────────────────────────────
+
+/**
+ * Resolves the authenticated user's company_id. Throws if no session.
+ * Centralizes the company lookup so every CRUD call is automatically scoped.
+ */
+let cachedCompanyId: string | null = null;
+let cachedUserId: string | null = null;
+
+async function requireCompanyId(): Promise<string> {
+  if (cachedCompanyId) return cachedCompanyId;
+
+  const supabase = createClient();
+  const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+  const user = session?.user;
+  
+  if (sessionErr || !user) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+
+  if (cachedUserId === user.id && cachedCompanyId) return cachedCompanyId;
+
+  const { data: profile, error: profileErr } = await supabase
+    .from("profiles")
+    .select("company_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profileErr || !profile?.company_id) throw new Error("Şirket bilgisi bulunamadı.");
+  
+  cachedUserId = user.id;
+  cachedCompanyId = profile.company_id as string;
+  return cachedCompanyId;
+}
+
 // ─── Mappers ──────────────────────────────────────────────────
 
 function toVehicle(row: Record<string, unknown>): Vehicle {
@@ -93,9 +126,11 @@ function toRecord(row: Record<string, unknown>): ServiceRecord {
 
 export async function getVehicles(): Promise<Vehicle[]> {
   const supabase = createClient();
+  const companyId = await requireCompanyId();
   const { data, error } = await supabase
     .from("vehicles")
     .select("*")
+    .eq("company_id", companyId)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(toVehicle);
@@ -103,20 +138,22 @@ export async function getVehicles(): Promise<Vehicle[]> {
 
 export async function getVehicle(id: string): Promise<Vehicle | null> {
   const supabase = createClient();
+  const companyId = await requireCompanyId();
   const { data, error } = await supabase
     .from("vehicles")
     .select("*")
     .eq("id", id)
+    .eq("company_id", companyId)
     .single();
   if (error) return null;
   return toVehicle(data);
 }
 
 export async function addVehicle(
-  data: Omit<Vehicle, "id" | "createdAt" | "updatedAt">,
-  companyId: string
+  data: Omit<Vehicle, "id" | "createdAt" | "updatedAt">
 ): Promise<Vehicle> {
   const supabase = createClient();
+  const companyId = await requireCompanyId();
   const row = toDbVehicle(data, companyId);
   const { data: inserted, error } = await supabase
     .from("vehicles")
@@ -129,20 +166,36 @@ export async function addVehicle(
 
 export async function updateVehicle(id: string, updates: Partial<Vehicle>): Promise<void> {
   const supabase = createClient();
+  const companyId = await requireCompanyId();
   const row = { ...toDbVehicle(updates), updated_at: new Date().toISOString() };
-  const { error } = await supabase.from("vehicles").update(row).eq("id", id);
+  const { error } = await supabase
+    .from("vehicles")
+    .update(row)
+    .eq("id", id)
+    .eq("company_id", companyId);
   if (error) throw error;
 }
 
 export async function deleteVehicle(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("vehicles").delete().eq("id", id);
+  const companyId = await requireCompanyId();
+  const { error } = await supabase
+    .from("vehicles")
+    .delete()
+    .eq("id", id)
+    .eq("company_id", companyId);
   if (error) throw error;
 }
 
 export async function deleteVehicles(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
   const supabase = createClient();
-  const { error } = await supabase.from("vehicles").delete().in("id", ids);
+  const companyId = await requireCompanyId();
+  const { error } = await supabase
+    .from("vehicles")
+    .delete()
+    .in("id", ids)
+    .eq("company_id", companyId);
   if (error) throw error;
 }
 
@@ -150,9 +203,11 @@ export async function deleteVehicles(ids: string[]): Promise<void> {
 
 export async function getRecords(): Promise<ServiceRecord[]> {
   const supabase = createClient();
+  const companyId = await requireCompanyId();
   const { data, error } = await supabase
     .from("service_records")
     .select("*")
+    .eq("company_id", companyId)
     .order("date", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(toRecord);
@@ -160,20 +215,22 @@ export async function getRecords(): Promise<ServiceRecord[]> {
 
 export async function getVehicleRecords(vehicleId: string): Promise<ServiceRecord[]> {
   const supabase = createClient();
+  const companyId = await requireCompanyId();
   const { data, error } = await supabase
     .from("service_records")
     .select("*")
     .eq("vehicle_id", vehicleId)
+    .eq("company_id", companyId)
     .order("date", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(toRecord);
 }
 
 export async function addRecord(
-  data: Omit<ServiceRecord, "id" | "createdAt">,
-  companyId: string
+  data: Omit<ServiceRecord, "id" | "createdAt">
 ): Promise<ServiceRecord> {
   const supabase = createClient();
+  const companyId = await requireCompanyId();
   const { data: inserted, error } = await supabase
     .from("service_records")
     .insert({
@@ -194,7 +251,12 @@ export async function addRecord(
 
 export async function deleteRecord(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("service_records").delete().eq("id", id);
+  const companyId = await requireCompanyId();
+  const { error } = await supabase
+    .from("service_records")
+    .delete()
+    .eq("id", id)
+    .eq("company_id", companyId);
   if (error) throw error;
 }
 
@@ -202,9 +264,11 @@ export async function deleteRecord(id: string): Promise<void> {
 
 export async function getDrivers(): Promise<(Profile & { assignedVehicleId: string | null })[]> {
   const supabase = createClient();
+  const companyId = await requireCompanyId();
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select("*, vehicle_assignments(vehicle_id)")
+    .eq("company_id", companyId)
     .eq("role", "driver")
     .order("full_name");
   if (error) throw error;
@@ -239,8 +303,9 @@ export async function getAssignments(): Promise<VehicleAssignment[]> {
 export async function getMyAssignment(): Promise<VehicleAssignment | null> {
   const supabase = createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return null;
 
   const { data, error } = await supabase

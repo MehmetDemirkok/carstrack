@@ -8,13 +8,10 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  getVehicles,
-  calculateHealthScore,
-  getFleetAlerts,
-  getRecords,
-} from "@/lib/store";
+import { calculateHealthScore, getFleetAlerts } from "@/lib/store";
+import { getVehicles, getRecords } from "@/lib/db";
 import type { Vehicle, ServiceRecord, FleetAlert } from "@/lib/types";
+import { useAuth } from "@/context/auth-context";
 import {
   Car,
   ChevronRight,
@@ -60,17 +57,31 @@ const categoryIcon = {
 };
 
 export default function Dashboard() {
+  const { loading: authLoading } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [alerts, setAlerts] = useState<FleetAlert[]>([]);
 
   useEffect(() => {
-    const v = getVehicles();
-    const r = getRecords();
-    setVehicles(v);
-    setRecords(r);
-    setAlerts(getFleetAlerts(v));
-  }, []);
+    if (authLoading) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [v, r] = await Promise.all([getVehicles(), getRecords()]);
+        if (cancelled) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setVehicles(v);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setRecords(r);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setAlerts(getFleetAlerts(v));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : JSON.stringify(err);
+        console.error("Dashboard load failed:", msg);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authLoading]);
 
   const scores = vehicles.map((v) => calculateHealthScore(v));
   const fleetScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;

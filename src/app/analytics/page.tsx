@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { getVehicles, calculateHealthScore, getMaintenanceStatusForItem, getMaintenanceProgress, getFleetAlerts } from "@/lib/store";
+import { calculateHealthScore, getMaintenanceStatusForItem, getMaintenanceProgress, getFleetAlerts } from "@/lib/store";
+import { getVehicles } from "@/lib/db";
 import type { Vehicle, FleetAlert } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,9 +55,16 @@ export default function FleetStatusPage() {
   const [alerts, setAlerts] = useState<FleetAlert[]>([]);
 
   useEffect(() => {
-    const v = getVehicles();
-    setVehicles(v);
-    setAlerts(getFleetAlerts(v));
+    async function load() {
+      try {
+        const v = await getVehicles();
+        setVehicles(v);
+        setAlerts(getFleetAlerts(v));
+      } catch (err) {
+        console.error("Failed to load vehicles", err);
+      }
+    }
+    load();
   }, []);
 
   return (

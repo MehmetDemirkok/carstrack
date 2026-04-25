@@ -6,8 +6,11 @@ import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  getVehicles, updateVehicle, deleteVehicle, calculateHealthScore,
-  getRecords, addRecord, deleteRecord, getMaintenanceStatusForItem,
+  getVehicles, updateVehicle, deleteVehicle, getVehicle,
+  getVehicleRecords, addRecord, deleteRecord,
+} from "@/lib/db";
+import {
+  calculateHealthScore, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES,
 } from "@/lib/store";
 import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType } from "@/lib/types";
@@ -105,11 +108,16 @@ export default function VehicleDetailPage() {
     notes: "",
   });
 
-  const reload = useCallback(() => {
-    const v = getVehicles().find((x) => x.id === id);
-    if (!v) { router.push("/vehicles"); return; }
-    setVehicle(v);
-    setRecords(getRecords().filter((r) => r.vehicleId === id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  const reload = useCallback(async () => {
+    try {
+      const v = await getVehicle(id);
+      if (!v) { router.push("/vehicles"); return; }
+      setVehicle(v);
+      const recs = await getVehicleRecords(id);
+      setRecords(recs);
+    } catch (err) {
+      console.error(err);
+    }
   }, [id, router]);
 
   useEffect(() => { reload(); }, [reload]);
@@ -123,30 +131,42 @@ export default function VehicleDetailPage() {
     setShowEdit(true);
   };
 
-  const handleSaveEdit = () => {
-    updateVehicle(vehicle.id, editData);
-    setShowEdit(false);
-    reload();
+  const handleSaveEdit = async () => {
+    try {
+      await updateVehicle(vehicle.id, editData);
+      setShowEdit(false);
+      reload();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleDelete = () => {
-    deleteVehicle(vehicle.id);
-    router.push("/vehicles");
+  const handleDelete = async () => {
+    try {
+      await deleteVehicle(vehicle.id);
+      router.push("/vehicles");
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleAddRecord = () => {
-    addRecord({
-      vehicleId: vehicle.id,
-      date: recordForm.date,
-      type: recordForm.type,
-      title: recordForm.title,
-      mileage: parseInt(recordForm.mileage) || vehicle.mileage,
-      serviceCenter: recordForm.serviceCenter,
-      notes: recordForm.notes,
-    });
-    setShowAddRecord(false);
-    setRecordForm({ date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
-    reload();
+  const handleAddRecord = async () => {
+    try {
+      await addRecord({
+        vehicleId: vehicle.id,
+        date: recordForm.date,
+        type: recordForm.type,
+        title: recordForm.title,
+        mileage: parseInt(recordForm.mileage) || vehicle.mileage,
+        serviceCenter: recordForm.serviceCenter,
+        notes: recordForm.notes,
+      });
+      setShowAddRecord(false);
+      setRecordForm({ date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
+      reload();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const iLabel = "text-xs font-medium text-muted-foreground";
@@ -505,7 +525,7 @@ export default function VehicleDetailPage() {
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <span className="text-[11px] font-bold">{record.mileage.toLocaleString("tr-TR")} km</span>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={() => { deleteRecord(record.id); reload(); }}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={async () => { await deleteRecord(record.id); reload(); }}>
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </div>

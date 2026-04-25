@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, Company } from "@/lib/types";
 
@@ -27,7 +26,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -70,13 +68,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        await loadProfile(u.id);
+      }
+      setLoading(false);
+    });
+
     return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
+    try {
+      // Clear server-side cookies
+      await fetch("/api/auth/logout", { method: "POST" });
+      
+      // Clear client-side session just in case
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Sign out error", err);
+    } finally {
+      setUser(null);
+      setProfile(null);
+      setCompany(null);
+      
+      try {
+        if (typeof document !== "undefined") {
+          document.cookie.split(";").forEach((c) => {
+            if (c.trim().startsWith("sb-")) {
+              document.cookie = c.replace(/^ +/, "").replace(/=.*/, `=;expires=${new Date(0).toUTCString()};path=/`);
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Cookie clear error", e);
+      }
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
   };
 
   return (

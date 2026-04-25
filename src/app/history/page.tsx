@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getRecords, getVehicles, addRecord, deleteRecord } from "@/lib/store";
+import { getRecords, getVehicles, addRecord, deleteRecord } from "@/lib/db";
 import type { ServiceRecord, ServiceType, Vehicle } from "@/lib/types";
+import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -48,6 +49,7 @@ const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { stag
 const fadeLeft = { hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.35 } } };
 
 export default function HistoryPage() {
+  const { loading: authLoading } = useAuth();
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filter, setFilter] = useState<ServiceType | "all">("all");
@@ -64,13 +66,23 @@ export default function HistoryPage() {
     notes: "",
   });
 
-  const reload = () => {
-    const r = getRecords().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setRecords(r);
-    setVehicles(getVehicles());
+  const reload = async () => {
+    try {
+      const [r, v] = await Promise.all([getRecords(), getVehicles()]);
+      setRecords(r);
+      setVehicles(v);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : JSON.stringify(err);
+      console.error("History load failed:", msg);
+    }
   };
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    if (!authLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      reload();
+    }
+  }, [authLoading]);
 
   const filtered = records.filter((r) => {
     if (filter !== "all" && r.type !== filter) return false;
@@ -78,21 +90,34 @@ export default function HistoryPage() {
     return true;
   });
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.vehicleId || !form.title) return;
     const v = vehicles.find((x) => x.id === form.vehicleId);
-    addRecord({
-      vehicleId: form.vehicleId,
-      date: form.date,
-      type: form.type,
-      title: form.title,
-      mileage: parseInt(form.mileage) || (v?.mileage ?? 0),
-      serviceCenter: form.serviceCenter,
-      notes: form.notes,
-    });
-    setShowAdd(false);
-    setForm({ vehicleId: "", date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
-    reload();
+    try {
+      await addRecord({
+        vehicleId: form.vehicleId,
+        date: form.date,
+        type: form.type,
+        title: form.title,
+        mileage: parseInt(form.mileage) || (v?.mileage ?? 0),
+        serviceCenter: form.serviceCenter,
+        notes: form.notes,
+      });
+      setShowAdd(false);
+      setForm({ vehicleId: "", date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
+      await reload();
+    } catch (err) {
+      console.error("Add record failed:", err instanceof Error ? err.message : err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteRecord(id);
+      await reload();
+    } catch (err) {
+      console.error("Delete record failed:", err instanceof Error ? err.message : err);
+    }
   };
 
   const iCls = "rounded-xl h-10 bg-muted/30 border-border/40 text-sm";
