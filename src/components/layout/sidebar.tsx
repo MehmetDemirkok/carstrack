@@ -5,17 +5,19 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Car, LayoutDashboard, History, Activity, Settings, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Car, label: "Araçlarım", href: "/vehicles" },
-  { icon: History, label: "Servis Geçmişi", href: "/history" },
-  { icon: Activity, label: "Filo Durumu", href: "/analytics" },
-  { icon: Settings, label: "Ayarlar", href: "/settings" },
-];
+import { useLanguage } from "@/context/language-context";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const navItems = [
+    { icon: LayoutDashboard, label: t("nav_dashboard"), href: "/" },
+    { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
+    { icon: History, label: t("nav_history"), href: "/history" },
+    { icon: Activity, label: t("nav_analytics"), href: "/analytics" },
+    { icon: Settings, label: t("nav_settings"), href: "/settings" },
+  ];
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-border/30 bg-background/50 glass z-40 fixed top-0 bottom-0 left-0">
@@ -59,7 +61,7 @@ export function Sidebar() {
         <Link href="/vehicles/new" className="block w-full">
           <Button className="w-full rounded-xl gap-2 font-semibold h-12 shadow-lg shadow-primary/20">
             <Plus className="h-4 w-4" />
-            Yeni Araç Ekle
+            {t("nav_add_vehicle")}
           </Button>
         </Link>
       </div>

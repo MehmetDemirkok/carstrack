@@ -5,6 +5,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { TopBar } from "@/components/layout/top-bar";
 import { Sidebar } from "@/components/layout/sidebar";
+import { LanguageProvider } from "@/context/language-context";
+import { AuthProvider } from "@/context/auth-context";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
@@ -39,16 +41,20 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex w-full min-h-[100dvh] relative">
-            <Sidebar />
-            <div className="flex-1 flex flex-col md:ml-64 w-full relative">
-              <TopBar />
-              <main className="flex-1 overflow-x-hidden pb-20 md:pb-6 max-w-5xl mx-auto w-full">
-                {children}
-              </main>
-              <BottomNav />
-            </div>
-          </div>
+          <LanguageProvider>
+            <AuthProvider>
+              <div className="flex w-full min-h-[100dvh] relative">
+                <Sidebar />
+                <div className="flex-1 flex flex-col md:ml-64 w-full relative">
+                  <TopBar />
+                  <main className="flex-1 overflow-x-hidden pb-20 md:pb-6 max-w-5xl mx-auto w-full">
+                    {children}
+                  </main>
+                  <BottomNav />
+                </div>
+              </div>
+            </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

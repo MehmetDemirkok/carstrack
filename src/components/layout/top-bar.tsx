@@ -1,31 +1,46 @@
 "use client";
 
 import { Bell, Moon, Sun } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useLanguage } from "@/context/language-context";
+import { useAuth } from "@/context/auth-context";
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 export function TopBar() {
   const { theme, setTheme } = useTheme();
+  const { t } = useLanguage();
+  const { profile } = useAuth();
+
+  const initials = profile?.fullName ? getInitials(profile.fullName) : "?";
+  const firstName = profile?.fullName?.split(" ")[0] ?? "...";
 
   return (
     <header className="sticky top-0 z-50 w-full glass border-b border-border/30">
       <div className="flex h-14 items-center justify-between px-4 md:px-8 w-full">
         <Link href="/settings" className="flex items-center gap-3 tap-highlight-transparent">
           <Avatar className="h-9 w-9 ring-2 ring-primary/20 shadow-sm">
-            <AvatarImage src="https://github.com/shadcn.png" alt="@user" />
             <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
-              MD
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
             <span className="text-[10px] text-muted-foreground leading-none font-medium">
-              Hoş geldin,
+              {t("topbar_welcome")}
             </span>
             <span className="text-sm font-bold leading-none mt-1 font-outfit">
-              Mehmet D.
+              {firstName}
             </span>
           </div>
         </Link>

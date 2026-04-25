@@ -33,7 +33,7 @@ const tireColor = {
 };
 
 export default function VehiclesPage() {
-  const { profile } = useAuth();
+  const { loading: authLoading } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -46,15 +46,16 @@ export default function VehiclesPage() {
       const data = await getVehicles();
       setVehicles(data);
     } catch (err) {
-      console.error(err);
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? JSON.stringify(err);
+      console.error("Failed to load vehicles:", msg);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!authLoading) loadData();
+  }, [authLoading]);
 
   const toggleSelection = (id: string, e: React.MouseEvent) => {
     e.preventDefault();

@@ -5,17 +5,19 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, CarFront, Wrench, Activity, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-
-const navItems = [
-  { href: "/", icon: LayoutDashboard, label: "Özet" },
-  { href: "/vehicles", icon: CarFront, label: "Araçlar" },
-  { href: "/history", icon: Wrench, label: "Servis" },
-  { href: "/analytics", icon: Activity, label: "Durum" },
-  { href: "/settings", icon: Settings, label: "Ayarlar" },
-];
+import { useLanguage } from "@/context/language-context";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const navItems = [
+    { href: "/", icon: LayoutDashboard, label: t("nav_dashboard") },
+    { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
+    { href: "/history", icon: Wrench, label: t("nav_history").split(" ")[0] },
+    { href: "/analytics", icon: Activity, label: t("nav_analytics").split(" ")[0] },
+    { href: "/settings", icon: Settings, label: t("nav_settings") },
+  ];
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 pb-safe md:hidden">

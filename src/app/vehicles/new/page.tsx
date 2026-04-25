@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addVehicle, MAINTENANCE_TEMPLATES } from "@/lib/store";
 import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, Wrench, CheckCircle2, Camera } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, Wrench, CheckCircle2, Camera, Info } from "lucide-react";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
 const FUEL_TYPES: FuelType[] = ["Benzin", "Dizel", "LPG", "Hibrit", "Elektrik"];
@@ -329,6 +329,16 @@ export default function NewVehiclePage() {
                 <Card className="rounded-2xl border-border/40">
                   <CardContent className="p-4 space-y-4">
                     <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Akü Bilgileri</h3>
+                    {/* Battery replacement info note */}
+                    <div className="flex gap-2.5 bg-amber-500/8 border border-amber-500/20 rounded-xl p-3">
+                      <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Ortalama Akü Ömrü</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Standart kurşun-asit akülerin ömrü genellikle <span className="font-semibold text-foreground">3–5 yıl</span> ya da <span className="font-semibold text-foreground">60.000–100.000 km</span>{'\''}dir. Sıcak iklimler ve kısa mesafe kullanımı ömrü kısaltabilir.
+                        </p>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Akü Markası">
                         <Input className={cls} placeholder="Bosch" value={form.batteryBrand} onChange={(e) => set("batteryBrand", e.target.value)} />
@@ -380,7 +390,7 @@ export default function NewVehiclePage() {
             {/* ── STEP 5: BAKIM ── */}
             {step === 5 && (
               <div className="space-y-3">
-                <p className="text-xs text-muted-foreground px-1">Her bakım kalemi için en son yapılma tarihini ve km'sini girin (opsiyonel).</p>
+                <p className="text-xs text-muted-foreground px-1">Her bakım kalemi için en son yapılma tarihini ve km{"'"}sini girin (opsiyonel).</p>
                 {MAINTENANCE_TEMPLATES.map((t) => (
                   <Card key={t.id} className="rounded-2xl border-border/40">
                     <CardContent className="p-4 space-y-3">
