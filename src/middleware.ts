@@ -28,9 +28,12 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isAuthPath = pathname.startsWith("/login") || pathname.startsWith("/register");
+  // isAuthOnlyPath: pages that redirect logged-in users away (login/register)
+  const isAuthOnlyPath = pathname.startsWith("/login") || pathname.startsWith("/register");
+  // isPublicPath: pages accessible without a session (includes reset-password — user arrives via email link)
+  const isPublicPath = isAuthOnlyPath || pathname.startsWith("/reset-password");
 
-  if (!user && !isAuthPath) {
+  if (!user && !isPublicPath) {
     const redirectResponse = NextResponse.redirect(new URL("/login", request.url));
     supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
       redirectResponse.cookies.set(name, value, options as Parameters<typeof redirectResponse.cookies.set>[2]);
@@ -38,7 +41,7 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  if (user && isAuthPath) {
+  if (user && isAuthOnlyPath) {
     const redirectResponse = NextResponse.redirect(new URL("/", request.url));
     supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
       redirectResponse.cookies.set(name, value, options as Parameters<typeof redirectResponse.cookies.set>[2]);
