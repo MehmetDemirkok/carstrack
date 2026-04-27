@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendPasswordResetEmail } from "@/lib/emails";
 
 export async function POST(req: Request) {
   try {
@@ -20,12 +20,10 @@ export async function POST(req: Request) {
 
     const admin = createAdminClient();
 
-    // Securely verify the account exists using the service-role admin client.
-    // generateLink() returns a 422 AuthApiError when no user matches the email,
-    // which we translate to a clean { found: false } response.
-    // The token produced here is immediately superseded by resetPasswordForEmail
-    // below and is never exposed or sent anywhere.
-    const { error: linkError } = await admin.auth.admin.generateLink({
+    // generateLink() both verifies the user exists (422 = not found) and returns
+    // the signed action_link that we embed in our Resend email. We never call
+    // resetPasswordForEmail() — Supabase sends no email of its own.
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "recovery",
       email: normalizedEmail,
       options: { redirectTo },
@@ -39,21 +37,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
     }
 
-    // Account confirmed — trigger the recovery email through Supabase's configured
-    // SMTP provider (Resend or built-in). Uses the anon key; no session required.
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    const resetLink = linkData.properties.action_link;
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-      normalizedEmail,
-      { redirectTo }
-    );
+    const { error: emailError } = await sendPasswordResetEmail(normalizedEmail, resetLink);
 
-    if (resetError) {
-      console.error("[forgot-password] resetPasswordForEmail error:", resetError.message);
+    if (emailError) {
+      console.error("[forgot-password] resend error:", emailError);
       return NextResponse.json({ error: "Failed to send reset email." }, { status: 500 });
     }
 
