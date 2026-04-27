@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -92,6 +93,7 @@ export default function VehicleDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { loading: authLoading } = useAuth();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [records, setRecords] = useState<ServiceRecord[]>([]);
@@ -121,7 +123,9 @@ export default function VehicleDetailPage() {
     }
   }, [id, router]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    if (!authLoading) reload();
+  }, [authLoading, reload]);
 
   if (!vehicle) return null;
 

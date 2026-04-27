@@ -33,6 +33,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function loadProfile(userId: string) {
       try {
+        // Ensure the access token is live before querying.
+        // On page load, INITIAL_SESSION can fire with a briefly-stale JWT while
+        // the client is still completing its refresh cycle.  getUser() forces a
+        // server-validated token, guaranteeing the profiles RLS check passes.
+        await supabase.auth.getUser();
+
         const { data, error } = await supabase
           .from("profiles")
           .select("*, companies(*)")
@@ -75,18 +81,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
+    } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       const u = session?.user ?? null;
       setUser(u);
-      // Any auth change must invalidate the per-user company cache in db.ts.
-      clearCompanyCache();
-      if (u) {
-        await loadProfile(u.id);
-      } else {
+
+      if (event === "SIGNED_OUT") {
+        // User signed out: wipe everything and signal ready.
+        clearCompanyCache();
         setProfile(null);
         setCompany(null);
+        setLoading(false);
+      } else if (event === "TOKEN_REFRESHED") {
+        // Background token refresh — user identity and profile are unchanged.
+        // Do NOT call setLoading(false) here: on page load with an expired token,
+        // TOKEN_REFRESHED fires BEFORE INITIAL_SESSION.  Marking loading as done
+        // here would cause child components to render with profile=null (showing
+        // the lowercase email fallback) before INITIAL_SESSION loads the profile.
+        // Do NOT clear company cache: no identity change occurred.
+      } else {
+        // INITIAL_SESSION, SIGNED_IN, USER_UPDATED, PASSWORD_RECOVERY, etc.
+        // Clear the company cache in case the user identity changed, reload profile,
+        // then — and only then — signal that the auth layer is fully initialised.
+        clearCompanyCache();
+        if (u) {
+          await loadProfile(u.id);
+        } else {
+          setProfile(null);
+          setCompany(null);
+        }
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();

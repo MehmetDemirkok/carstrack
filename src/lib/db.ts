@@ -14,30 +14,42 @@ export function clearCompanyCache() {
 }
 
 export async function requireCompanyId(): Promise<string> {
-  console.log("[db] requireCompanyId started");
   const supabase = createClient();
-  console.log("[db] calling getSession()");
-  const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
-  console.log("[db] getSession() resolved", { sessionExists: !!session, sessionErr });
-  const user = session?.user;
 
-  if (sessionErr || !user) {
+  // Hot path: getSession() reads from the in-memory singleton — no network request.
+  // We only trust it when the access token has not yet expired (>60 s remaining).
+  // An expired token causes auth.uid() to return null inside Supabase RLS, making
+  // every row silently filtered out rather than returning an error — the root cause
+  // of the "vehicles/records disappear" bug.
+  const { data: { session } } = await supabase.auth.getSession();
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const tokenValid =
+    !!session?.user &&
+    !!session.expires_at &&
+    session.expires_at - nowSeconds > 60;
+
+  if (tokenValid && cachedUserId === session!.user!.id && cachedCompanyId) {
+    return cachedCompanyId;
+  }
+
+  // Cold path or token expired / expiring: getUser() validates the JWT server-side
+  // and automatically refreshes it if needed before returning.
+  const { data: { user }, error: userErr } = await supabase.auth.getUser();
+
+  if (userErr || !user) {
     clearCompanyCache();
     throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
   }
 
   if (cachedUserId === user.id && cachedCompanyId) {
-    console.log("[db] using cached company_id");
     return cachedCompanyId;
   }
 
-  console.log("[db] calling profiles select");
   const { data: profile, error: profileErr } = await supabase
     .from("profiles")
     .select("company_id")
     .eq("id", user.id)
     .single();
-  console.log("[db] profiles select resolved", { profile, profileErr });
 
   if (profileErr || !profile?.company_id) {
     clearCompanyCache();
@@ -142,18 +154,13 @@ function toRecord(row: Record<string, unknown>): ServiceRecord {
 // ─── Vehicles ─────────────────────────────────────────────────
 
 export async function getVehicles(): Promise<Vehicle[]> {
-  console.log("[db] getVehicles started");
   const supabase = createClient();
-  console.log("[db] getVehicles requiring companyId");
   const companyId = await requireCompanyId();
-  console.log("[db] getVehicles companyId acquired", companyId);
-  console.log("[db] getVehicles calling Supabase select");
   const { data, error } = await supabase
     .from("vehicles")
     .select("*")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false });
-  console.log("[db] getVehicles select resolved", { dataLength: data?.length, error });
   if (error) throw error;
   return (data ?? []).map(toVehicle);
 }
@@ -174,19 +181,14 @@ export async function getVehicle(id: string): Promise<Vehicle | null> {
 export async function addVehicle(
   data: Omit<Vehicle, "id" | "createdAt" | "updatedAt">
 ): Promise<Vehicle> {
-  console.log("[db] addVehicle started");
   const supabase = createClient();
-  console.log("[db] addVehicle requiring companyId");
   const companyId = await requireCompanyId();
-  console.log("[db] addVehicle companyId acquired", companyId);
   const row = toDbVehicle(data, companyId);
-  console.log("[db] addVehicle calling Supabase insert", row);
   const { data: inserted, error } = await supabase
     .from("vehicles")
     .insert(row)
     .select()
     .single();
-  console.log("[db] addVehicle insert resolved", { inserted, error });
   if (error) throw error;
   return toVehicle(inserted);
 }

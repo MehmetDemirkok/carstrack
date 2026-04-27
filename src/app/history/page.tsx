@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRecords, getVehicles, addRecord, deleteRecord } from "@/lib/db";
 import type { ServiceRecord, ServiceType, Vehicle } from "@/lib/types";
@@ -66,23 +66,26 @@ export default function HistoryPage() {
     notes: "",
   });
 
-  const reload = async () => {
+  // Records and vehicles are fetched independently so a vehicle-load failure
+  // does not block the records list from rendering (and vice-versa).
+  const reload = useCallback(async () => {
     try {
-      const [r, v] = await Promise.all([getRecords(), getVehicles()]);
+      const r = await getRecords();
       setRecords(r);
+    } catch (err) {
+      console.error("Records load failed:", err instanceof Error ? err.message : err);
+    }
+    try {
+      const v = await getVehicles();
       setVehicles(v);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : JSON.stringify(err);
-      console.error("History load failed:", msg);
+      console.error("Vehicles load failed:", err instanceof Error ? err.message : err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (!authLoading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      reload();
-    }
-  }, [authLoading]);
+    if (!authLoading) reload();
+  }, [authLoading, reload]);
 
   const filtered = records.filter((r) => {
     if (filter !== "all" && r.type !== filter) return false;
@@ -233,7 +236,7 @@ export default function HistoryPage() {
                         </div>
                         <p className="text-[11px] text-muted-foreground">{record.date.split("-").reverse().join(".")}</p>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive shrink-0 -mt-1" onClick={() => { deleteRecord(record.id); reload(); }}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive shrink-0 -mt-1" onClick={() => handleDelete(record.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
