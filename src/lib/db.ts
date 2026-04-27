@@ -13,55 +13,79 @@ export function clearCompanyCache() {
   cachedUserId = null;
 }
 
+let companyIdPromise: Promise<string> | null = null;
+
 export async function requireCompanyId(): Promise<string> {
   const supabase = createClient();
 
-  // Hot path: getSession() reads from the in-memory singleton — no network request.
-  // We only trust it when the access token has not yet expired (>60 s remaining).
-  // An expired token causes auth.uid() to return null inside Supabase RLS, making
-  // every row silently filtered out rather than returning an error — the root cause
-  // of the "vehicles/records disappear" bug.
+  // 1. Try local session first (no network call — reads from memory/cookie)
   const { data: { session } } = await supabase.auth.getSession();
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const tokenValid =
-    !!session?.user &&
-    !!session.expires_at &&
-    session.expires_at - nowSeconds > 60;
+  const user = session?.user;
 
-  if (tokenValid && cachedUserId === session!.user!.id && cachedCompanyId) {
-    return cachedCompanyId;
-  }
-
-  // Cold path or token expired / expiring: getUser() validates the JWT server-side
-  // and automatically refreshes it if needed before returning.
-  const { data: { user }, error: userErr } = await supabase.auth.getUser();
-
-  if (userErr || !user) {
+  if (!user) {
     clearCompanyCache();
     throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
   }
 
+  // 2. Return cached value if we're the same user
   if (cachedUserId === user.id && cachedCompanyId) {
     return cachedCompanyId;
   }
 
-  const { data: profile, error: profileErr } = await supabase
-    .from("profiles")
-    .select("company_id")
-    .eq("id", user.id)
-    .single();
-
-  if (profileErr || !profile?.company_id) {
-    clearCompanyCache();
-    throw new Error(
-      "Şirket profili bulunamadı. Lütfen kayıt sayfasından yeni bir şirket oluşturun veya yöneticinize başvurun."
-    );
+  // 3. Fast path: use company_id from user metadata (set during registration / auto-migrated)
+  const metadataCompanyId = user.user_metadata?.company_id;
+  if (metadataCompanyId) {
+    cachedUserId = user.id;
+    cachedCompanyId = metadataCompanyId;
+    return cachedCompanyId;
   }
 
-  cachedUserId = user.id;
-  cachedCompanyId = profile.company_id as string;
-  return cachedCompanyId;
+  // 4. Deduplicate concurrent calls
+  if (companyIdPromise) return companyIdPromise;
+
+  companyIdPromise = (async () => {
+    try {
+      console.log("requireCompanyId: Fetching profile from server API...");
+
+      // Use server API route instead of client-side Supabase query
+      // (client-side supabase.auth.getUser() hangs in the browser)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const res = await fetch("/api/auth/profile", {
+        signal: controller.signal,
+        credentials: "same-origin",
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        clearCompanyCache();
+        throw new Error("Şirket profili bulunamadı.");
+      }
+
+      const { profile } = await res.json();
+      if (!profile?.companyId) {
+        clearCompanyCache();
+        throw new Error("Şirket profili bulunamadı.");
+      }
+
+      cachedUserId = user.id;
+      cachedCompanyId = profile.companyId;
+
+      // Auto-migrate company_id to metadata for future speed
+      console.log("requireCompanyId: Auto-migrating company_id to metadata...");
+      supabase.auth.updateUser({ data: { company_id: profile.companyId } })
+        .catch(err => console.error("Metadata migration failed:", err));
+
+      return cachedCompanyId!;
+    } finally {
+      companyIdPromise = null;
+    }
+  })();
+
+  return companyIdPromise;
 }
+
 
 // ─── Mappers ──────────────────────────────────────────────────
 
@@ -154,15 +178,24 @@ function toRecord(row: Record<string, unknown>): ServiceRecord {
 // ─── Vehicles ─────────────────────────────────────────────────
 
 export async function getVehicles(): Promise<Vehicle[]> {
-  const supabase = createClient();
-  const companyId = await requireCompanyId();
-  const { data, error } = await supabase
-    .from("vehicles")
-    .select("*")
-    .eq("company_id", companyId)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(toVehicle);
+  try {
+    const res = await fetch("/api/vehicles", { credentials: "same-origin" });
+    if (!res.ok) throw new Error(`Vehicles fetch failed: ${res.status}`);
+    const { vehicles } = await res.json();
+    return vehicles ?? [];
+  } catch (err) {
+    console.error("getVehicles server fetch failed, trying client fallback:", err);
+    // Fallback to client-side query
+    const supabase = createClient();
+    const companyId = await requireCompanyId();
+    const { data, error } = await supabase
+      .from("vehicles")
+      .select("*")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(toVehicle);
+  }
 }
 
 export async function getVehicle(id: string): Promise<Vehicle | null> {
@@ -231,15 +264,24 @@ export async function deleteVehicles(ids: string[]): Promise<void> {
 // ─── Records ─────────────────────────────────────────────────
 
 export async function getRecords(): Promise<ServiceRecord[]> {
-  const supabase = createClient();
-  const companyId = await requireCompanyId();
-  const { data, error } = await supabase
-    .from("service_records")
-    .select("*")
-    .eq("company_id", companyId)
-    .order("date", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(toRecord);
+  try {
+    const res = await fetch("/api/records", { credentials: "same-origin" });
+    if (!res.ok) throw new Error(`Records fetch failed: ${res.status}`);
+    const { records } = await res.json();
+    return records ?? [];
+  } catch (err) {
+    console.error("getRecords server fetch failed, trying client fallback:", err);
+    // Fallback to client-side query
+    const supabase = createClient();
+    const companyId = await requireCompanyId();
+    const { data, error } = await supabase
+      .from("service_records")
+      .select("*")
+      .eq("company_id", companyId)
+      .order("date", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(toRecord);
+  }
 }
 
 export async function getVehicleRecords(vehicleId: string): Promise<ServiceRecord[]> {

@@ -36,6 +36,7 @@ export async function POST(req: Request) {
         email,
         password,
         email_confirm: true,
+        user_metadata: { company_id: company.id } // Store for non-recursive RLS
       });
 
       if (authError) {
@@ -64,18 +65,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Şirket adı gereklidir." }, { status: 400 });
     }
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
-
-    if (authError) {
-      return NextResponse.json({ error: authError.message }, { status: 400 });
-    }
-
-    const userId = authData.user!.id;
-
+    // 1. Create company first to get ID
     const { data: companyData, error: companyError } = await supabaseAdmin
       .from("companies")
       .insert({ name: companyName, invite_code: generateInviteCode() })
@@ -83,10 +73,25 @@ export async function POST(req: Request) {
       .single();
 
     if (companyError) {
-      await supabaseAdmin.auth.admin.deleteUser(userId);
       return NextResponse.json({ error: "Şirket oluşturulurken hata oluştu." }, { status: 500 });
     }
 
+    // 2. Create user with company_id in metadata
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { company_id: companyData.id }
+    });
+
+    if (authError) {
+      await supabaseAdmin.from("companies").delete().eq("id", companyData.id);
+      return NextResponse.json({ error: authError.message }, { status: 400 });
+    }
+
+    const userId = authData.user!.id;
+
+    // 3. Create profile
     const { error: profileError } = await supabaseAdmin.from("profiles").insert({
       id: userId,
       company_id: companyData.id,

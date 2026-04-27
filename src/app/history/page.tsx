@@ -212,11 +212,11 @@ export default function HistoryPage() {
           )}
         </motion.div>
       ) : (
-        <motion.div variants={stagger} initial="hidden" animate="show" className="relative ml-4">
+        <motion.div variants={stagger} initial="hidden" animate="show" key={filtered.length} className="relative ml-4">
           <div className="absolute left-0 top-3 bottom-0 w-px bg-gradient-to-b from-border via-border to-transparent" />
           <div className="space-y-5">
             {filtered.map((record) => {
-              const config = typeConfig[record.type];
+              const config = typeConfig[record.type] ?? typeConfig.other;
               const Icon = config.icon;
               const vehicle = vehicles.find((v) => v.id === record.vehicleId);
               return (
@@ -229,12 +229,12 @@ export default function HistoryPage() {
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <h3 className="font-bold text-sm truncate">{record.title}</h3>
+                          <h3 className="font-bold text-sm truncate">{record.title || "(Başlıksız)"}</h3>
                           <Badge variant="secondary" className={`text-[9px] h-4 px-1.5 rounded-md font-bold border-none shrink-0 ${config.color}`}>
                             {config.label}
                           </Badge>
                         </div>
-                        <p className="text-[11px] text-muted-foreground">{record.date.split("-").reverse().join(".")}</p>
+                        <p className="text-[11px] text-muted-foreground">{record.date ? record.date.split("-").reverse().join(".") : "—"}</p>
                       </div>
                       <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive shrink-0 -mt-1" onClick={() => handleDelete(record.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
