@@ -225,7 +225,7 @@ export default function RegisterPage() {
                     <Input
                       value={form.companyName}
                       onChange={set("companyName")}
-                      placeholder="SSTEK A.Ş."
+                      placeholder="ABC Lojistik"
                       className="rounded-xl h-11 bg-muted/40 border-border/50 pl-10 focus:bg-background transition-colors"
                       required
                     />
@@ -266,7 +266,7 @@ export default function RegisterPage() {
                   <Input
                     value={form.fullName}
                     onChange={set("fullName")}
-                    placeholder="Mehmet Demir"
+                    placeholder="Ahmet Yılmaz"
                     className="rounded-xl h-11 bg-muted/40 border-border/50 pl-10 focus:bg-background transition-colors"
                     required
                   />
@@ -284,7 +284,7 @@ export default function RegisterPage() {
                     type="email"
                     value={form.email}
                     onChange={set("email")}
-                    placeholder={mode === "create" ? "yonetici@sstek.com" : "calisan@sstek.com"}
+                    placeholder={mode === "create" ? "yonetici@sirket.com" : "calisan@sirket.com"}
                     className="rounded-xl h-11 bg-muted/40 border-border/50 pl-10 focus:bg-background transition-colors"
                     required
                   />

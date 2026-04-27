@@ -49,13 +49,15 @@ const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { stag
 const fadeLeft = { hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.35 } } };
 
 export default function HistoryPage() {
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, company } = useAuth();
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filter, setFilter] = useState<ServiceType | "all">("all");
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [form, setForm] = useState({
     vehicleId: "",
     date: new Date().toISOString().split("T")[0],
@@ -69,23 +71,37 @@ export default function HistoryPage() {
   // Records and vehicles are fetched independently so a vehicle-load failure
   // does not block the records list from rendering (and vice-versa).
   const reload = useCallback(async () => {
-    try {
-      const r = await getRecords();
-      setRecords(r);
-    } catch (err) {
-      console.error("Records load failed:", err instanceof Error ? err.message : err);
-    }
-    try {
-      const v = await getVehicles();
-      setVehicles(v);
-    } catch (err) {
-      console.error("Vehicles load failed:", err instanceof Error ? err.message : err);
+    let recordsLoaded = false;
+    let vehiclesLoaded = false;
+
+    // Try up to 3 times with a delay for auth cookie readiness
+    for (let attempt = 0; attempt < 3 && (!recordsLoaded || !vehiclesLoaded); attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 500));
+
+      if (!recordsLoaded) {
+        try {
+          const r = await getRecords();
+          setRecords(r);
+          recordsLoaded = true;
+        } catch (err) {
+          console.error(`Records load attempt ${attempt + 1} failed:`, err instanceof Error ? err.message : err);
+        }
+      }
+      if (!vehiclesLoaded) {
+        try {
+          const v = await getVehicles();
+          setVehicles(v);
+          vehiclesLoaded = true;
+        } catch (err) {
+          console.error(`Vehicles load attempt ${attempt + 1} failed:`, err instanceof Error ? err.message : err);
+        }
+      }
     }
   }, []);
 
   useEffect(() => {
-    if (!authLoading) reload();
-  }, [authLoading, reload]);
+    if (!authLoading && company) reload();
+  }, [authLoading, company, reload]);
 
   const filtered = records.filter((r) => {
     if (filter !== "all" && r.type !== filter) return false;
@@ -114,13 +130,21 @@ export default function HistoryPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!recordToDelete) return;
     try {
-      await deleteRecord(id);
+      await deleteRecord(recordToDelete);
+      setRecordToDelete(null);
+      setShowDelete(false);
       await reload();
     } catch (err) {
       console.error("Delete record failed:", err instanceof Error ? err.message : err);
     }
+  };
+
+  const openDeleteDialog = (id: string) => {
+    setRecordToDelete(id);
+    setShowDelete(true);
   };
 
   const iCls = "rounded-xl h-10 bg-muted/30 border-border/40 text-sm";
@@ -236,7 +260,7 @@ export default function HistoryPage() {
                         </div>
                         <p className="text-[11px] text-muted-foreground">{record.date ? record.date.split("-").reverse().join(".") : "—"}</p>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive shrink-0 -mt-1" onClick={() => handleDelete(record.id)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive shrink-0 -mt-1" onClick={() => openDeleteDialog(record.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -315,6 +339,22 @@ export default function HistoryPage() {
           <DialogFooter>
             <DialogClose render={<Button variant="outline" className="rounded-xl" />}>İptal</DialogClose>
             <Button onClick={handleAdd} disabled={!form.vehicleId || !form.title} className="rounded-xl">Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showDelete} onOpenChange={setShowDelete}>
+        <DialogContent className="rounded-3xl max-w-[340px]">
+          <DialogHeader>
+            <DialogTitle className="font-outfit text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Kaydı Sil
+            </DialogTitle>
+          </DialogHeader>
+          <p className="py-4 text-sm text-muted-foreground">
+            Bu servis kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+          </p>
+          <DialogFooter className="gap-2">
+            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
+            <Button variant="destructive" onClick={handleDelete} className="rounded-xl flex-1">Evet, Sil</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

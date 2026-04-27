@@ -93,13 +93,15 @@ export default function VehicleDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, company } = useAuth();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showAddRecord, setShowAddRecord] = useState(false);
+  const [showDeleteRecord, setShowDeleteRecord] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
   const [editData, setEditData] = useState<Partial<Vehicle>>({});
   const [recordForm, setRecordForm] = useState({
@@ -124,8 +126,8 @@ export default function VehicleDetailPage() {
   }, [id, router]);
 
   useEffect(() => {
-    if (!authLoading) reload();
-  }, [authLoading, reload]);
+    if (!authLoading && company) reload();
+  }, [authLoading, company, reload]);
 
   if (!vehicle) return null;
 
@@ -536,14 +538,9 @@ export default function VehicleDetailPage() {
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <span className="text-[11px] font-bold">{record.mileage.toLocaleString("tr-TR")} km</span>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={async () => {
-                                  try {
-                                    await deleteRecord(record.id);
-                                    reload();
-                                    toast.success("Silindi", { description: "Kayıt başarıyla silindi." });
-                                  } catch (err) {
-                                    toast.error("Hata", { description: "Kayıt silinirken hata oluştu." });
-                                  }
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={() => {
+                                  setRecordToDelete(record.id);
+                                  setShowDeleteRecord(true);
                                 }}>
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
@@ -699,6 +696,40 @@ export default function VehicleDetailPage() {
           <DialogFooter>
             <DialogClose render={<Button variant="outline" className="rounded-xl" />}>İptal</DialogClose>
             <Button onClick={handleAddRecord} disabled={!recordForm.title} className="rounded-xl">Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ── DELETE RECORD CONFIRM DIALOG ── */}
+      <Dialog open={showDeleteRecord} onOpenChange={setShowDeleteRecord}>
+        <DialogContent className="rounded-3xl max-w-[340px]">
+          <DialogHeader>
+            <DialogTitle className="font-outfit text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Kaydı Sil
+            </DialogTitle>
+          </DialogHeader>
+          <p className="py-4 text-sm text-muted-foreground">
+            Bu servis kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+          </p>
+          <DialogFooter className="gap-2">
+            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
+            <Button
+              variant="destructive"
+              className="rounded-xl flex-1"
+              onClick={async () => {
+                if (!recordToDelete) return;
+                try {
+                  await deleteRecord(recordToDelete);
+                  setShowDeleteRecord(false);
+                  setRecordToDelete(null);
+                  reload();
+                  toast.success("Silindi", { description: "Kayıt başarıyla silindi." });
+                } catch (err) {
+                  toast.error("Hata", { description: "Kayıt silinirken hata oluştu." });
+                }
+              }}
+            >
+              Evet, Sil
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

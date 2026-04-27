@@ -471,7 +471,7 @@ export default function SettingsPage() {
             <div className="space-y-2">
               {[
                 { label: t("about_version_label"), value: "1.0.0" },
-                { label: t("about_developer"), value: "Mehmet Demirkok" },
+                { label: t("about_developer"), value: "Arda Yazılım" },
                 { label: t("about_tech"), value: "Next.js 16 · React 19 · Supabase" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between items-center py-2 border-b border-border/30 last:border-0">
@@ -539,8 +539,8 @@ export default function SettingsPage() {
             ))}
             <div className="pt-2 pb-1">
               <p className="text-xs text-muted-foreground">{t("help_contact")}</p>
-              <a href="mailto:mehmetdemirkok@gmail.com" className="text-sm font-medium text-primary">
-                mehmetdemirkok@gmail.com
+              <a href="mailto:support@carstrack.com" className="text-sm font-medium text-primary">
+                support@carstrack.com
               </a>
             </div>
           </div>

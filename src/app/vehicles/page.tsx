@@ -34,7 +34,7 @@ const tireColor = {
 };
 
 export default function VehiclesPage() {
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, company } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -58,8 +58,8 @@ export default function VehiclesPage() {
   };
 
   useEffect(() => {
-    if (!authLoading) loadData();
-  }, [authLoading]);
+    if (!authLoading && company) loadData();
+  }, [authLoading, company]);
 
   const toggleSelection = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
