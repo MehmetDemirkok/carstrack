@@ -178,24 +178,15 @@ function toRecord(row: Record<string, unknown>): ServiceRecord {
 // ─── Vehicles ─────────────────────────────────────────────────
 
 export async function getVehicles(): Promise<Vehicle[]> {
-  try {
-    const res = await fetch("/api/vehicles", { credentials: "same-origin" });
-    if (!res.ok) throw new Error(`Vehicles fetch failed: ${res.status}`);
-    const { vehicles } = await res.json();
-    return vehicles ?? [];
-  } catch (err) {
-    console.error("getVehicles server fetch failed, trying client fallback:", err);
-    // Fallback to client-side query
-    const supabase = createClient();
-    const companyId = await requireCompanyId();
-    const { data, error } = await supabase
-      .from("vehicles")
-      .select("*")
-      .eq("company_id", companyId)
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-    return (data ?? []).map(toVehicle);
-  }
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data, error } = await supabase
+    .from("vehicles")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(toVehicle);
 }
 
 export async function getVehicle(id: string): Promise<Vehicle | null> {
