@@ -33,11 +33,11 @@ export async function requireCompanyId(): Promise<string> {
   }
 
   // 3. Fast path: use company_id from user metadata (set during registration / auto-migrated)
-  const metadataCompanyId = user.user_metadata?.company_id;
+  const metadataCompanyId = user.user_metadata?.company_id as string | undefined;
   if (metadataCompanyId) {
     cachedUserId = user.id;
     cachedCompanyId = metadataCompanyId;
-    return cachedCompanyId;
+    return metadataCompanyId;
   }
 
   // 4. Deduplicate concurrent calls
@@ -75,7 +75,7 @@ export async function requireCompanyId(): Promise<string> {
       // Auto-migrate company_id to metadata for future speed
       console.log("requireCompanyId: Auto-migrating company_id to metadata...");
       supabase.auth.updateUser({ data: { company_id: profile.companyId } })
-        .catch(err => console.error("Metadata migration failed:", err));
+        .catch((err: unknown) => console.error("Metadata migration failed:", err));
 
       return cachedCompanyId!;
     } finally {

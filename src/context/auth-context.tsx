@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (!metadataCompanyId) {
               console.log("loadProfile: Auto-migrating company_id to metadata...");
               supabase.auth.updateUser({ data: { company_id: companyData.id } })
-                .catch(err => console.error("Metadata migration failed:", err));
+                .catch((err: unknown) => console.error("Metadata migration failed:", err));
             }
           } else {
             setCompany(null);
