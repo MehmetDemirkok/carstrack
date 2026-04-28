@@ -58,9 +58,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error("Profile API error:", res.status, body);
 
           if (res.status === 401) {
-            // User session is invalid server-side
+            // User session is invalid server-side — clear it and redirect to login
             console.warn("User session invalid, signing out...");
-            supabase.auth.signOut();
+            await supabase.auth.signOut();
+            if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+              window.location.href = "/login";
+            }
             return;
           }
 
