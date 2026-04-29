@@ -47,43 +47,30 @@ export default function ResetPasswordPage() {
   const strength = getPasswordStrength(password) as ReturnType<typeof getPasswordStrength> & { textColor?: string };
 
   useEffect(() => {
-    const supabase = createClient();
-    let timer: ReturnType<typeof setTimeout>;
-
-    // PKCE flow — exchange code from query string for a session
-    const code = new URLSearchParams(window.location.search).get("code");
-    if (code) {
-      void (async () => {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        setStatus(error ? "invalid" : "ready");
-      })();
+    // If /auth/callback forwarded an error via ?error=, show it immediately
+    const errorParam = new URLSearchParams(window.location.search).get("error");
+    if (errorParam) {
+      setStatus("invalid");
       return;
     }
 
-    // Implicit / hash flow — Supabase client fires PASSWORD_RECOVERY after parsing the URL hash
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
-      if (event === "PASSWORD_RECOVERY") {
-        clearTimeout(timer);
-        setStatus("ready");
-      }
-    });
+    const supabase = createClient();
 
-    // Check immediately in case the event already fired before our listener registered
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      if (session) {
-        clearTimeout(timer);
-        setStatus("ready");
+    // INITIAL_SESSION fires immediately with the current auth state when the listener registers.
+    // If /auth/callback established a session (via setSession), it will be present here.
+    // PASSWORD_RECOVERY / SIGNED_IN cover edge cases where the session arrives slightly later.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        if (event === "INITIAL_SESSION") {
+          setStatus(session ? "ready" : "invalid");
+        } else if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+          setStatus("ready");
+        }
       }
-    });
-
-    // Fallback: no valid recovery token found within 4 s
-    timer = setTimeout(() => {
-      setStatus((prev) => (prev === "loading" ? "invalid" : prev));
-    }, 4000);
+    );
 
     return () => {
       subscription.unsubscribe();
-      clearTimeout(timer);
     };
   }, []);
 

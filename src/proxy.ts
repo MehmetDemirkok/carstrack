@@ -40,8 +40,8 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // isAuthOnlyPath: pages that redirect logged-in users away (login/register)
   const isAuthOnlyPath = pathname.startsWith("/login") || pathname.startsWith("/register");
-  // isPublicPath: pages accessible without a session (includes reset-password — user arrives via email link)
-  const isPublicPath = isAuthOnlyPath || pathname.startsWith("/reset-password");
+  // isPublicPath: pages accessible without a session (includes reset-password and auth/callback — user arrives via email link)
+  const isPublicPath = isAuthOnlyPath || pathname.startsWith("/reset-password") || pathname.startsWith("/auth/callback");
 
   if (!user && !isPublicPath) {
     const redirectResponse = NextResponse.redirect(new URL("/login", request.url));

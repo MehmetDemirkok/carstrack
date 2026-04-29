@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     // Build redirectTo server-side from the request origin — never from client input —
     // to prevent open-redirect manipulation.
     const origin = req.headers.get("origin") ?? "http://localhost:3000";
-    const redirectTo = `${origin}/reset-password`;
+    const redirectTo = `${origin}/auth/callback?next=/reset-password`;
 
     const admin = createAdminClient();
 
