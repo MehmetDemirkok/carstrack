@@ -13,9 +13,12 @@ export async function POST(req: Request) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Build redirectTo server-side from the request origin — never from client input —
-    // to prevent open-redirect manipulation.
-    const origin = req.headers.get("origin") ?? "http://localhost:3000";
+    // Build redirectTo server-side. Prefer the explicit APP_URL env var (set in
+    // Vercel dashboard), then the request origin, then localhost as last resort.
+    const origin =
+      process.env.NEXT_PUBLIC_APP_URL ??
+      req.headers.get("origin") ??
+      "http://localhost:3000";
     const redirectTo = `${origin}/auth/callback?next=/reset-password`;
 
     const admin = createAdminClient();
