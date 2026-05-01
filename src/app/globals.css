@@ -144,6 +144,15 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  /* Position a fixed element above the mobile bottom nav (h-16 + pb-2 = 72px) */
+  .bottom-above-nav {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  @media (min-width: 768px) {
+    .bottom-above-nav {
+      bottom: 0;
+    }
+  }
   .tap-highlight-transparent {
     -webkit-tap-highlight-color: transparent;
   }

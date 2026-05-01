@@ -206,7 +206,7 @@ export default function NewVehiclePage() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto p-4 pb-32">
+      <div className="max-w-2xl mx-auto p-4 pb-[160px] md:pb-32">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -436,7 +436,7 @@ export default function NewVehiclePage() {
       </div>
 
       {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 glass border-t border-border/30">
+      <div className="fixed bottom-above-nav left-0 right-0 z-50 p-4 glass border-t border-border/30">
         <div className="max-w-2xl mx-auto space-y-2">
           {error && (
             <div className="bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-2 text-xs text-destructive text-center">
