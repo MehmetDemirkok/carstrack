@@ -16,10 +16,51 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.vercel.app";
+
 export const metadata: Metadata = {
-  title: "Araç Bakım Asistanı",
-  description: "Premium Araç Bakım ve Masraf Takip Uygulaması",
+  title: {
+    default: "CarsTrack — Araç Bakım Takip",
+    template: "%s | CarsTrack",
+  },
+  description:
+    "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin. Vehicle maintenance tracking, service history and car expense management.",
+  applicationName: "CarsTrack",
+  keywords: [
+    "araç bakım takip",
+    "vehicle maintenance tracking",
+    "service history tracking",
+    "car expense tracking",
+    "araç masraf takip",
+    "sigorta takip",
+    "muayene takip",
+  ],
+  authors: [{ name: "CarsTrack" }],
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    url: APP_URL,
+    siteName: "CarsTrack",
+    title: "CarsTrack — Araç Bakım Takip",
+    description:
+      "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin.",
+    images: [{ url: `${APP_URL}/og-image.png`, width: 1200, height: 630, alt: "CarsTrack" }],
+    locale: "tr_TR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CarsTrack — Araç Bakım Takip",
+    description:
+      "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin.",
+    images: [`${APP_URL}/og-image.png`],
+  },
 };
 
 export const viewport: Viewport = {

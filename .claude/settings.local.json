@@ -14,7 +14,18 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Bash(git -C /Users/mehmetdemirkok/Downloads/carstrack log --oneline --all -- src/middleware.ts)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(identify /Users/mehmetdemirkok/Downloads/carstrack/public/icon-192.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/mehmetdemirkok/Downloads/carstrack/public/icon-192.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/mehmetdemirkok/Downloads/carstrack/public/icon-512.png)",
+      "Bash(convert --version)",
+      "Bash(sips --help)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/mehmetdemirkok/Downloads/carstrack/src/app/favicon.ico)",
+      "Bash(cp ../src/app/favicon.ico ./favicon.ico)",
+      "Bash(sips -z 192 192 icon-192.png --out icon.png)",
+      "Bash(sips -z 180 180 icon-192.png --out apple-touch-icon.png)",
+      "Bash(sips -z 630 630 icon-192.png --out _tmp_icon_630.png)",
+      "Bash(sips -p 630 1200 --padColor 09090b _tmp_icon_630.png --out og-image.png)"
     ]
   }
 }
