@@ -12,7 +12,7 @@ interface Props {
 interface DocEntry {
   vehicleId: string;
   plate: string;
-  docType: "insurance" | "inspection";
+  docType: "insurance" | "green-card" | "inspection";
   docLabel: string;
   daysRemaining: number;
 }
@@ -42,6 +42,9 @@ export function DocumentAutomation({ vehicles }: Props) {
   for (const v of vehicles) {
     if (v.insuranceExpiry) {
       entries.push({ vehicleId: v.id, plate: v.plate, docType: "insurance", docLabel: "Sigorta", daysRemaining: daysUntil(v.insuranceExpiry) });
+    }
+    if (v.greenCardExpiry) {
+      entries.push({ vehicleId: v.id, plate: v.plate, docType: "green-card", docLabel: "Yeşil Kart", daysRemaining: daysUntil(v.greenCardExpiry) });
     }
     if (v.inspectionExpiry) {
       entries.push({ vehicleId: v.id, plate: v.plate, docType: "inspection", docLabel: "Muayene", daysRemaining: daysUntil(v.inspectionExpiry) });

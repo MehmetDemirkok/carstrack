@@ -468,6 +468,7 @@ export default function VehicleDetailPage() {
                   <div className="bg-card rounded-2xl p-5 border border-border/40 shadow-sm space-y-4">
                     {[
                       { icon: ShieldCheck, iconBg: "bg-blue-500/10", iconColor: "text-blue-500", label: "Kasko & Sigorta", sub: vehicle.insuranceCompany || "—", date: vehicle.insuranceExpiry },
+                      { icon: ShieldCheck, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500", label: "Yurtdışı Sigortası (Yeşil Kart)", sub: vehicle.greenCardCompany || "—", date: vehicle.greenCardExpiry },
                       { icon: CalendarDays, iconBg: "bg-purple-500/10", iconColor: "text-purple-500", label: "TÜVTÜRK Muayene", sub: "", date: vehicle.inspectionExpiry },
                     ].map((doc, i) => {
                       const days = daysUntil(doc.date);
@@ -639,11 +640,7 @@ export default function VehicleDetailPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1"><Label className={iLabel}>Motor Kodu</Label><Input className={iCls} value={editData.engineType || ""} onChange={(e) => setEditData((d) => ({ ...d, engineType: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label className={iLabel}>Hacim (L)</Label><Input className={iCls} value={editData.engineVolume || ""} onChange={(e) => setEditData((d) => ({ ...d, engineVolume: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label className={iLabel}>Güç (HP)</Label><Input className={iCls} value={editData.power || ""} onChange={(e) => setEditData((d) => ({ ...d, power: e.target.value }))} /></div>
-                </div>
+                <div className="space-y-1"><Label className={iLabel}>Motor Hacmi (L)</Label><Input className={iCls} value={editData.engineVolume || ""} onChange={(e) => setEditData((d) => ({ ...d, engineVolume: e.target.value }))} /></div>
                 <div className="space-y-1">
                   <Label className={iLabel}>Lastik Mevsimi</Label>
                   <Select value={editData.tireStatus || ""} onValueChange={(v) => v && setEditData((d) => ({ ...d, tireStatus: v as TireSeasonType }))}>
@@ -652,6 +649,7 @@ export default function VehicleDetailPage() {
                   </Select>
                 </div>
                 <div className="space-y-1"><Label className={iLabel}>Sigorta Bitiş</Label><Input className={iCls} type="date" value={editData.insuranceExpiry || ""} onChange={(e) => setEditData((d) => ({ ...d, insuranceExpiry: e.target.value }))} /></div>
+                <div className="space-y-1"><Label className={iLabel}>Yeşil Kart Bitiş</Label><Input className={iCls} type="date" value={editData.greenCardExpiry || ""} onChange={(e) => setEditData((d) => ({ ...d, greenCardExpiry: e.target.value }))} /></div>
                 <div className="space-y-1"><Label className={iLabel}>Muayene Bitiş</Label><Input className={iCls} type="date" value={editData.inspectionExpiry || ""} onChange={(e) => setEditData((d) => ({ ...d, inspectionExpiry: e.target.value }))} /></div>
                 <div className="space-y-1"><Label className={iLabel}>Son Servis Tarihi</Label><Input className={iCls} type="date" value={editData.lastServiceDate || ""} onChange={(e) => setEditData((d) => ({ ...d, lastServiceDate: e.target.value }))} /></div>
               </div>

@@ -37,12 +37,9 @@ interface FormData {
   year: string;
   color: string;
   mileage: string;
-  engineType: string;
   engineVolume: string;
-  power: string;
   fuelType: FuelType;
   transmission: TransmissionType;
-  chassisNo: string;
   tireStatus: TireSeasonType;
   tireBrand: string;
   tireSize: string;
@@ -53,6 +50,8 @@ interface FormData {
   batteryInstallDate: string;
   insuranceCompany: string;
   insuranceExpiry: string;
+  greenCardCompany: string;
+  greenCardExpiry: string;
   inspectionExpiry: string;
   lastServiceDate: string;
   lastServiceMileage: string;
@@ -63,11 +62,11 @@ interface FormData {
 
 const defaultForm: FormData = {
   image: "", plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
-  color: "Beyaz", mileage: "", engineType: "", engineVolume: "", power: "",
-  fuelType: "Benzin", transmission: "Otomatik", chassisNo: "",
+  color: "Beyaz", mileage: "", engineVolume: "",
+  fuelType: "Benzin", transmission: "Otomatik",
   tireStatus: "Yazlık", tireBrand: "", tireSize: "", tireInstallDate: "", tireMileage: "0",
   batteryBrand: "", batteryCapacity: "", batteryInstallDate: "",
-  insuranceCompany: "", insuranceExpiry: "", inspectionExpiry: "",
+  insuranceCompany: "", insuranceExpiry: "", greenCardCompany: "", greenCardExpiry: "", inspectionExpiry: "",
   lastServiceDate: "", lastServiceMileage: "0", notes: "",
   maintenanceDates: {}, maintenanceMileages: {},
 };
@@ -128,12 +127,12 @@ export default function NewVehiclePage() {
       year: parseInt(form.year) || new Date().getFullYear(),
       color: form.color,
       mileage,
-      engineType: form.engineType,
+      engineType: "",
       engineVolume: form.engineVolume,
-      power: form.power,
+      power: "",
       fuelType: form.fuelType,
       transmission: form.transmission,
-      chassisNo: form.chassisNo,
+      chassisNo: "",
       tireStatus: form.tireStatus,
       tireBrand: form.tireBrand,
       tireSize: form.tireSize,
@@ -144,6 +143,8 @@ export default function NewVehiclePage() {
       batteryInstallDate: form.batteryInstallDate,
       insuranceCompany: form.insuranceCompany,
       insuranceExpiry: form.insuranceExpiry,
+      greenCardCompany: form.greenCardCompany,
+      greenCardExpiry: form.greenCardExpiry,
       inspectionExpiry: form.inspectionExpiry,
       lastServiceDate: form.lastServiceDate,
       lastServiceMileage: parseInt(form.lastServiceMileage) || 0,
@@ -280,17 +281,9 @@ export default function NewVehiclePage() {
                   <Field label="Kilometre">
                     <Input className={cls} type="number" placeholder="45000" value={form.mileage} onChange={(e) => set("mileage", e.target.value)} />
                   </Field>
-                  <div className="grid grid-cols-3 gap-3">
-                    <Field label="Motor Kodu">
-                      <Input className={cls} placeholder="B48B20" value={form.engineType} onChange={(e) => set("engineType", e.target.value)} />
-                    </Field>
-                    <Field label="Hacim (L)">
-                      <Input className={cls} placeholder="2.0" value={form.engineVolume} onChange={(e) => set("engineVolume", e.target.value)} />
-                    </Field>
-                    <Field label="Güç (HP)">
-                      <Input className={cls} type="number" placeholder="184" value={form.power} onChange={(e) => set("power", e.target.value)} />
-                    </Field>
-                  </div>
+                  <Field label="Motor Hacmi (L)">
+                    <Input className={cls} placeholder="2.0" value={form.engineVolume} onChange={(e) => set("engineVolume", e.target.value)} />
+                  </Field>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Yakıt Tipi">
                       <Select value={form.fuelType} onValueChange={(v) => v && set("fuelType", v as FuelType)}>
@@ -305,9 +298,6 @@ export default function NewVehiclePage() {
                       </Select>
                     </Field>
                   </div>
-                  <Field label="Şasi Numarası">
-                    <Input className={cls} placeholder="WBA3X5C50EF123456" value={form.chassisNo} onChange={(e) => set("chassisNo", e.target.value)} />
-                  </Field>
                 </CardContent>
               </Card>
             )}
@@ -376,12 +366,22 @@ export default function NewVehiclePage() {
             {step === 4 && (
               <Card className="rounded-2xl border-border/40">
                 <CardContent className="p-4 space-y-4">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Zorunlu Mali Sorumluluk Sigortası</h3>
                   <Field label="Sigorta Şirketi">
                     <Input className={cls} placeholder="Allianz, Axa..." value={form.insuranceCompany} onChange={(e) => set("insuranceCompany", e.target.value)} />
                   </Field>
                   <Field label="Sigorta Bitiş Tarihi">
                     <Input className={cls} type="date" value={form.insuranceExpiry} onChange={(e) => set("insuranceExpiry", e.target.value)} />
                   </Field>
+                  <div className="h-px bg-border/40" />
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Yurtdışı Sigortası (Yeşil Kart)</h3>
+                  <Field label="Sigorta Şirketi">
+                    <Input className={cls} placeholder="Allianz, Axa..." value={form.greenCardCompany} onChange={(e) => set("greenCardCompany", e.target.value)} />
+                  </Field>
+                  <Field label="Yeşil Kart Bitiş Tarihi">
+                    <Input className={cls} type="date" value={form.greenCardExpiry} onChange={(e) => set("greenCardExpiry", e.target.value)} />
+                  </Field>
+                  <div className="h-px bg-border/40" />
                   <Field label="TÜVTÜRK Muayene Bitiş">
                     <Input className={cls} type="date" value={form.inspectionExpiry} onChange={(e) => set("inspectionExpiry", e.target.value)} />
                   </Field>

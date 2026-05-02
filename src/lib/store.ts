@@ -134,6 +134,15 @@ export function getFleetAlerts(vehicles: Vehicle[]): FleetAlert[] {
       alerts.push({ id: `${v.id}-ins`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Sigorta Yaklaşıyor", description: `${v.plate} — ${insDays} gün kaldı.`, severity: "warning", category: "insurance" });
     }
 
+    if (v.greenCardExpiry) {
+      const gcDays = daysBetween(today, new Date(v.greenCardExpiry));
+      if (gcDays < 0) {
+        alerts.push({ id: `${v.id}-gc`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Yeşil Kart Süresi Doldu", description: `${v.plate} aracının yeşil kartı sona erdi.`, severity: "critical", category: "green-card" });
+      } else if (gcDays < 30) {
+        alerts.push({ id: `${v.id}-gc`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Yeşil Kart Yaklaşıyor", description: `${v.plate} — ${gcDays} gün kaldı.`, severity: "warning", category: "green-card" });
+      }
+    }
+
     const muaDays = daysBetween(today, new Date(v.inspectionExpiry));
     if (muaDays < 0) {
       alerts.push({ id: `${v.id}-mua`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Muayene Süresi Doldu", description: `${v.plate} aracının muayenesi sona erdi.`, severity: "critical", category: "inspection" });

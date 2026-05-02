@@ -64,6 +64,8 @@ export async function GET() {
       batteryInstallDate: (row.battery_install_date as string) || "",
       insuranceCompany: (row.insurance_company as string) || "",
       insuranceExpiry: (row.insurance_expiry as string) || "",
+      greenCardCompany: (row.green_card_company as string) || "",
+      greenCardExpiry: (row.green_card_expiry as string) || "",
       inspectionExpiry: (row.inspection_expiry as string) || "",
       lastServiceDate: (row.last_service_date as string) || "",
       lastServiceMileage: (row.last_service_mileage as number) || 0,

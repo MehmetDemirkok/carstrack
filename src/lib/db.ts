@@ -115,6 +115,8 @@ function toVehicle(row: Record<string, unknown>): Vehicle {
     batteryInstallDate: (row.battery_install_date as string) || "",
     insuranceCompany: (row.insurance_company as string) || "",
     insuranceExpiry: (row.insurance_expiry as string) || "",
+    greenCardCompany: (row.green_card_company as string) || "",
+    greenCardExpiry: (row.green_card_expiry as string) || "",
     inspectionExpiry: (row.inspection_expiry as string) || "",
     lastServiceDate: (row.last_service_date as string) || "",
     lastServiceMileage: (row.last_service_mileage as number) || 0,
@@ -152,6 +154,8 @@ function toDbVehicle(v: Partial<Vehicle>, companyId?: string) {
   if (v.batteryInstallDate !== undefined) obj.battery_install_date = v.batteryInstallDate || null;
   if (v.insuranceCompany !== undefined) obj.insurance_company = v.insuranceCompany;
   if (v.insuranceExpiry !== undefined) obj.insurance_expiry = v.insuranceExpiry || null;
+  if (v.greenCardCompany !== undefined) obj.green_card_company = v.greenCardCompany;
+  if (v.greenCardExpiry !== undefined) obj.green_card_expiry = v.greenCardExpiry || null;
   if (v.inspectionExpiry !== undefined) obj.inspection_expiry = v.inspectionExpiry || null;
   if (v.lastServiceDate !== undefined) obj.last_service_date = v.lastServiceDate || null;
   if (v.lastServiceMileage !== undefined) obj.last_service_mileage = v.lastServiceMileage;

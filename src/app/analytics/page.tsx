@@ -37,7 +37,7 @@ const severityIconStyle = {
   warning: "bg-amber-500/15 text-amber-500",
   info: "bg-blue-500/15 text-blue-500",
 };
-const categoryIcon = { insurance: Shield, inspection: Calendar, maintenance: Wrench, tire: Disc3 };
+const categoryIcon = { insurance: Shield, "green-card": Shield, inspection: Calendar, maintenance: Wrench, tire: Disc3 };
 
 function daysUntil(dateStr: string) {
   if (!dateStr) return null;

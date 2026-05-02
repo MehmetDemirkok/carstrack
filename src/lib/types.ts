@@ -62,6 +62,8 @@ export interface Vehicle {
   batteryInstallDate: string;
   insuranceCompany: string;
   insuranceExpiry: string;
+  greenCardCompany: string;
+  greenCardExpiry: string;
   inspectionExpiry: string;
   lastServiceDate: string;
   lastServiceMileage: number;
@@ -92,5 +94,5 @@ export interface FleetAlert {
   title: string;
   description: string;
   severity: AlertSeverity;
-  category: "insurance" | "inspection" | "maintenance" | "tire";
+  category: "insurance" | "green-card" | "inspection" | "maintenance" | "tire";
 }

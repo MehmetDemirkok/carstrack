@@ -13,6 +13,7 @@ import { useAuth } from "@/context/auth-context";
 
 const categoryIcon = {
   insurance: Shield,
+  "green-card": Shield,
   inspection: Calendar,
   maintenance: Wrench,
   tire: Disc3,

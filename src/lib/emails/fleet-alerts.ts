@@ -9,6 +9,7 @@ interface Params {
 
 const categoryEmoji: Record<FleetAlert["category"], string> = {
   insurance: "🛡️",
+  "green-card": "🌍",
   inspection: "📋",
   maintenance: "🔧",
   tire: "🔄",
