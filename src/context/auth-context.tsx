@@ -121,6 +121,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCompany(null);
         setLoading(false);
         initializedRef.current = true;
+        // If the sign-out was triggered by a stale/invalid token, redirect to login
+        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+          window.location.href = "/login";
+        }
       } else if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION" || event === "SIGNED_IN") {
         if (!initializedRef.current || event === "SIGNED_IN") {
           if (u) {

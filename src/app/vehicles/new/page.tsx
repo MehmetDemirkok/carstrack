@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle } from "@/lib/db";
+import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, Wrench, CheckCircle2, Camera, Info } from "lucide-react";
 
@@ -84,6 +85,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 export default function NewVehiclePage() {
   const router = useRouter();
+  const guardDemo = useDemoGuard();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [saving, setSaving] = useState(false);
@@ -108,6 +110,7 @@ export default function NewVehiclePage() {
   const [error, setError] = useState<string>("");
 
   const handleSubmit = async () => {
+    if (guardDemo()) return;
     setSaving(true);
     setError("");
     const mileage = parseInt(form.mileage) || 0;

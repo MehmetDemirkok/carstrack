@@ -11,6 +11,7 @@ import {
   getVehicles, updateVehicle, deleteVehicle, getVehicle,
   getVehicleRecords, addRecord, deleteRecord,
 } from "@/lib/db";
+import { useDemoGuard } from "@/hooks/use-demo-guard";
 import {
   calculateHealthScore, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES,
@@ -93,6 +94,7 @@ export default function VehicleDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const guardDemo = useDemoGuard();
   const { loading: authLoading, company } = useAuth();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
@@ -139,6 +141,7 @@ export default function VehicleDetailPage() {
   };
 
   const handleSaveEdit = async () => {
+    if (guardDemo()) { setShowEdit(false); return; }
     try {
       await updateVehicle(vehicle.id, editData);
       setShowEdit(false);
@@ -151,6 +154,7 @@ export default function VehicleDetailPage() {
   };
 
   const handleDelete = async () => {
+    if (guardDemo()) return;
     try {
       await deleteVehicle(vehicle.id);
       toast.success("Silindi", { description: "Araç başarıyla silindi." });
@@ -162,6 +166,7 @@ export default function VehicleDetailPage() {
   };
 
   const handleAddRecord = async () => {
+    if (guardDemo()) { setShowAddRecord(false); return; }
     try {
       await addRecord({
         vehicleId: vehicle.id,
@@ -717,6 +722,7 @@ export default function VehicleDetailPage() {
               className="rounded-xl flex-1"
               onClick={async () => {
                 if (!recordToDelete) return;
+                if (guardDemo()) { setShowDeleteRecord(false); return; }
                 try {
                   await deleteRecord(recordToDelete);
                   setShowDeleteRecord(false);

@@ -25,16 +25,23 @@ export async function proxy(request: NextRequest) {
 
   // Safety timeout for getUser to prevent proxy from hanging the entire request
   const userPromise = supabase.auth.getUser();
-  const timeoutPromise = new Promise<{ data: { user: null }, error: Error }>((_, reject) => 
+  const timeoutPromise = new Promise<{ data: { user: null }, error: Error }>((_, reject) =>
     setTimeout(() => reject(new Error("Auth timeout")), 5000)
   );
 
   let user = null;
+  let staleSession = false;
   try {
     const { data } = await Promise.race([userPromise, timeoutPromise]) as any;
     user = data?.user;
   } catch (err) {
-    console.error("Proxy auth timeout or error:", err);
+    const code = (err as { code?: string })?.code;
+    if (code === "refresh_token_not_found" || code === "refresh_token_already_used") {
+      staleSession = true;
+      // Expected: session expired or invalidated — will clear cookies and redirect to login
+    } else {
+      console.error("Proxy auth timeout or error:", err);
+    }
   }
 
   const { pathname } = request.nextUrl;
@@ -48,6 +55,12 @@ export async function proxy(request: NextRequest) {
     supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
       redirectResponse.cookies.set(name, value, options as Parameters<typeof redirectResponse.cookies.set>[2]);
     });
+    // If the session was stale, delete all sb- cookies so they don't loop
+    if (staleSession) {
+      request.cookies.getAll()
+        .filter(({ name }) => name.startsWith("sb-"))
+        .forEach(({ name }) => redirectResponse.cookies.delete(name));
+    }
     return redirectResponse;
   }
 

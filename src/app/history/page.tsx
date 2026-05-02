@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRecords, getVehicles, addRecord, deleteRecord } from "@/lib/db";
+import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { ServiceRecord, ServiceType, Vehicle } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { stag
 const fadeLeft = { hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.35 } } };
 
 export default function HistoryPage() {
+  const guardDemo = useDemoGuard();
   const { loading: authLoading, company } = useAuth();
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -110,6 +112,7 @@ export default function HistoryPage() {
   });
 
   const handleAdd = async () => {
+    if (guardDemo()) { setShowAdd(false); return; }
     if (!form.vehicleId || !form.title) return;
     const v = vehicles.find((x) => x.id === form.vehicleId);
     try {
@@ -131,6 +134,7 @@ export default function HistoryPage() {
   };
 
   const handleDelete = async () => {
+    if (guardDemo()) { setShowDelete(false); return; }
     if (!recordToDelete) return;
     try {
       await deleteRecord(recordToDelete);

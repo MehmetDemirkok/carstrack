@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { getVehicles, deleteVehicles } from "@/lib/db";
 import { calculateHealthScore } from "@/lib/store";
+import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { Vehicle } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ const tireColor = {
 };
 
 export default function VehiclesPage() {
+  const guardDemo = useDemoGuard();
   const { loading: authLoading, company } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -73,6 +75,7 @@ export default function VehiclesPage() {
   };
 
   const handleDelete = async () => {
+    if (guardDemo()) { setIsDeleteDialogOpen(false); return; }
     try {
       await deleteVehicles(selectedIds);
       await loadData();
