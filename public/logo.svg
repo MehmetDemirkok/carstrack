@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background -->
+  <rect width="512" height="512" rx="88" fill="#09090b"/>
+  <rect width="512" height="512" rx="88" fill="url(#bg-grad)" opacity="0.6"/>
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1c1c1e"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+    <linearGradient id="car-grad" x1="256" y1="160" x2="256" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f4f4f5"/>
+      <stop offset="100%" stop-color="#d4d4d8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Car silhouette — side view -->
+  <!-- Main body -->
+  <rect x="72" y="262" width="368" height="92" rx="14" fill="url(#car-grad)"/>
+  <!-- Cabin/roof -->
+  <path d="M150 262 L184 188 Q195 168 220 168 L292 168 Q317 168 328 188 L362 262 Z" fill="url(#car-grad)"/>
+  <!-- Front windshield divider (dark) -->
+  <path d="M202 256 L223 196 Q228 182 238 182 L274 182 Q284 182 289 196 L310 256 Z" fill="#1a1a1c"/>
+
+  <!-- Headlight (front, right) -->
+  <rect x="408" y="274" width="32" height="18" rx="9" fill="#bbf7d0"/>
+  <!-- Taillight (rear, left) -->
+  <rect x="72" y="274" width="26" height="18" rx="9" fill="#fca5a5"/>
+
+  <!-- Wheel arch cutouts -->
+  <circle cx="178" cy="354" r="52" fill="#09090b"/>
+  <circle cx="334" cy="354" r="52" fill="#09090b"/>
+  <!-- Wheels -->
+  <circle cx="178" cy="354" r="40" fill="#27272a"/>
+  <circle cx="178" cy="354" r="22" fill="#52525b"/>
+  <circle cx="178" cy="354" r="8"  fill="#71717a"/>
+  <circle cx="334" cy="354" r="40" fill="#27272a"/>
+  <circle cx="334" cy="354" r="22" fill="#52525b"/>
+  <circle cx="334" cy="354" r="8"  fill="#71717a"/>
+
+  <!-- Tracking badge (green, top-right) -->
+  <circle cx="392" cy="120" r="64" fill="#15803d" opacity="0.25"/>
+  <circle cx="392" cy="120" r="48" fill="#16a34a"/>
+  <!-- Checkmark -->
+  <polyline points="368,120 384,138 416,103" stroke="white" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

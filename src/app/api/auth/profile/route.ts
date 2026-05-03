@@ -1,20 +1,34 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+const TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Supabase query timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    const { data: { user }, error: authError } = await withTimeout(
+      supabase.auth.getUser(),
+      TIMEOUT_MS
+    );
 
     if (authError || !user) {
       return NextResponse.json({ profile: null, company: null }, { status: 401 });
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*, companies(*)")
-      .eq("id", user.id)
-      .single();
+    const { data, error } = await withTimeout(
+      supabase.from("profiles").select("*, companies(*)").eq("id", user.id).single(),
+      TIMEOUT_MS
+    );
 
     if (error) {
       console.error("Profile API error:", error);

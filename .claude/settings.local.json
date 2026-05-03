@@ -25,7 +25,12 @@
       "Bash(sips -z 192 192 icon-192.png --out icon.png)",
       "Bash(sips -z 180 180 icon-192.png --out apple-touch-icon.png)",
       "Bash(sips -z 630 630 icon-192.png --out _tmp_icon_630.png)",
-      "Bash(sips -p 630 1200 --padColor 09090b _tmp_icon_630.png --out og-image.png)"
+      "Bash(sips -p 630 1200 --padColor 09090b _tmp_icon_630.png --out og-image.png)",
+      "Bash(rsvg-convert -w 512 -h 512 logo.svg -o icon-512.png)",
+      "Bash(rsvg-convert -w 192 -h 192 logo.svg -o icon-192.png)",
+      "Bash(rsvg-convert -w 192 -h 192 logo.svg -o icon.png)",
+      "Bash(rsvg-convert -w 180 -h 180 logo.svg -o apple-touch-icon.png)",
+      "Bash(rsvg-convert -w 48  -h 48  logo.svg -o favicon-48.png)"
     ]
   }
 }
