@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bell, Moon, Sun, Search, Bot } from "lucide-react";
+import { Bell, Moon, Sun, Search } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
@@ -11,7 +11,6 @@ import { useAuth } from "@/context/auth-context";
 import { useNotifications } from "@/hooks/use-notifications";
 import type { NotificationItem } from "@/hooks/use-notifications";
 import { useCommandPalette } from "@/context/command-palette-context";
-import { useCopilot } from "@/context/copilot-context";
 
 function getInitials(name: string): string {
   return name
@@ -36,7 +35,6 @@ export function TopBar() {
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const { setOpen: openPalette } = useCommandPalette();
-  const { setOpen: openCopilot } = useCopilot();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -56,8 +54,7 @@ export function TopBar() {
     : "?";
   const greeting = getGreeting();
   
-  const { notifications, loading: notifLoading } = useNotifications();
-  const hasNotifications = notifications.length > 0;
+  const { notifications, loading: notifLoading, unreadCount, markAllRead } = useNotifications();
 
   const getTypeColor = (type: NotificationItem["type"]) => {
     switch (type) {
@@ -109,17 +106,6 @@ export function TopBar() {
             <Search className="h-5 w-5" />
           </Button>
 
-          {/* AI Copilot */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative rounded-full h-10 w-10 hover:bg-primary/10"
-            onClick={() => openCopilot(true)}
-          >
-            <Bot className="h-5 w-5" />
-            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-500 border border-background" />
-          </Button>
-
           {/* Theme Toggle */}
           <Button
             variant="ghost"
@@ -137,10 +123,14 @@ export function TopBar() {
               variant="ghost"
               size="icon"
               className={`relative rounded-full h-10 w-10 transition-colors ${showNotifications ? "bg-primary/10 text-primary" : "hover:bg-primary/10"}`}
-              onClick={() => setShowNotifications(!showNotifications)}
+              onClick={() => {
+                const opening = !showNotifications;
+                setShowNotifications(opening);
+                if (opening) markAllRead();
+              }}
             >
               <Bell className="h-5 w-5" />
-              {hasNotifications && (
+              {unreadCount > 0 && (
                 <>
                   <motion.span
                     animate={{ scale: [1, 1.4, 1] }}
@@ -167,9 +157,11 @@ export function TopBar() {
                 >
                   <div className="p-4 border-b border-border/40 flex justify-between items-center bg-muted/20">
                     <h3 className="font-outfit font-bold text-sm">Bildirimler</h3>
-                    <span className="text-[10px] bg-primary/10 text-primary px-2.5 py-1 rounded-full font-bold">
-                      {notifications.length} Yeni
-                    </span>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] bg-primary/10 text-primary px-2.5 py-1 rounded-full font-bold">
+                        {unreadCount} Yeni
+                      </span>
+                    )}
                   </div>
                   
                   <div className="max-h-[300px] overflow-y-auto">
@@ -212,7 +204,10 @@ export function TopBar() {
                   
                   {notifications.length > 0 && (
                     <div className="p-3 border-t border-border/40 bg-muted/10 text-center sticky bottom-0">
-                      <span className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                      <span
+                        className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        onClick={markAllRead}
+                      >
                         Tümünü okundu işaretle
                       </span>
                     </div>

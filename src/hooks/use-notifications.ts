@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getVehicles } from "@/lib/db";
 import { useAuth } from "@/context/auth-context";
+
+const STORAGE_KEY = "carstrack_read_notif_ids";
 
 export type NotificationType = "warning" | "error" | "info" | "urgent";
 
@@ -18,6 +20,13 @@ export function useNotifications() {
   const { profile } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [readIds, setReadIds] = useState<Set<string>>(() => {
+    try {
+      return new Set<string>(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]"));
+    } catch {
+      return new Set<string>();
+    }
+  });
 
   useEffect(() => {
     if (!profile?.companyId) {
@@ -161,5 +170,16 @@ export function useNotifications() {
     loadNotifications();
   }, [profile?.companyId]);
 
-  return { notifications, loading };
+  const markAllRead = useCallback(() => {
+    const ids = notifications.map((n) => n.id);
+    const next = new Set<string>(ids);
+    setReadIds(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+    } catch {}
+  }, [notifications]);
+
+  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
+
+  return { notifications, loading, unreadCount, markAllRead };
 }

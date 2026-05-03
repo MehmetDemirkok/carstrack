@@ -471,7 +471,7 @@ export default function SettingsPage() {
             <div className="space-y-2">
               {[
                 { label: t("about_version_label"), value: "1.0.0" },
-                { label: t("about_developer"), value: "Arda Yazılım" },
+                { label: t("about_developer"), value: "Mehmet Demirkök" },
                 { label: t("about_tech"), value: "Next.js 16 · React 19 · Supabase" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between items-center py-2 border-b border-border/30 last:border-0">
