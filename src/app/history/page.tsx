@@ -15,8 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link";
 import {
   Wrench, CheckCircle2, AlertTriangle, Disc3, Car, Plus,
-  Filter, Trash2, BatteryCharging, ClipboardList,
+  Filter, Trash2, BatteryCharging, ClipboardList, Download,
 } from "lucide-react";
+import { exportServiceHistoryExcel } from "@/lib/export";
 
 const typeConfig: Record<ServiceType, { icon: React.ElementType; color: string; dot: string; label: string }> = {
   routine: { icon: CheckCircle2, color: "bg-blue-500/10 text-blue-500", dot: "bg-blue-500", label: "Periyodik" },
@@ -162,6 +163,16 @@ export default function HistoryPage() {
           <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} kayıt</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full h-9 w-9 shadow-sm border-border/50"
+            title="Excel'e Aktar"
+            disabled={filtered.length === 0}
+            onClick={() => exportServiceHistoryExcel(filtered, vehicles)}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" className="rounded-full h-9 w-9 shadow-sm border-border/50" onClick={() => setShowFilters((s) => !s)}>
             <Filter className={`h-4 w-4 ${showFilters ? "text-primary" : ""}`} />
           </Button>

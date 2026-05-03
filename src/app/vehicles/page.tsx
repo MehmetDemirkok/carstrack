@@ -15,8 +15,9 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Car, ChevronRight, Plus, Gauge, Trash2,
-  CheckCircle2, Circle, Fuel, Shield, Wrench, Calendar,
+  CheckCircle2, Circle, Fuel, Shield, Wrench, Calendar, Download,
 } from "lucide-react";
+import { exportVehiclesExcel } from "@/lib/export";
 import { useAuth } from "@/context/auth-context";
 
 const stagger = {
@@ -114,6 +115,17 @@ export default function VehiclesPage() {
           <p className="text-xs text-muted-foreground mt-0.5">{vehicles.length} kayıtlı araç</p>
         </div>
         <div className="flex items-center gap-2">
+          {vehicles.length > 0 && !isSelectionMode && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full h-9 w-9 shadow-sm border-border/50"
+              title="Excel'e Aktar"
+              onClick={() => exportVehiclesExcel(vehicles)}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
           {vehicles.length > 0 && (
             <Button
               variant={isSelectionMode ? "default" : "outline"}
