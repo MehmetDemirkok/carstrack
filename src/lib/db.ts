@@ -1,5 +1,5 @@
 import { createClient } from "./supabase/client";
-import type { Vehicle, ServiceRecord, Profile, VehicleAssignment } from "./types";
+import type { Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask } from "./types";
 
 // ─── Auth helpers ─────────────────────────────────────────────
 
@@ -404,4 +404,146 @@ export async function unassignDriver(driverId: string): Promise<void> {
     .delete()
     .eq("driver_id", driverId);
   if (error) throw error;
+}
+
+// ─── Vehicle Tasks ────────────────────────────────────────────
+
+function toTask(row: Record<string, unknown>): VehicleTask {
+  const vehicleData = row.vehicles as { plate?: string; brand?: string; model?: string } | null;
+  const profileData = row.profiles as { full_name?: string } | null;
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    vehicleId: row.vehicle_id as string,
+    driverId: row.driver_id as string,
+    startKm: row.start_km as number,
+    endKm: row.end_km != null ? (row.end_km as number) : undefined,
+    distance: row.distance != null ? (row.distance as number) : undefined,
+    description: (row.description as string) || "",
+    status: row.status as VehicleTask["status"],
+    startTime: row.start_time as string,
+    endTime: row.end_time != null ? (row.end_time as string) : undefined,
+    createdAt: row.created_at as string,
+    vehiclePlate: vehicleData?.plate ?? undefined,
+    vehicleName: vehicleData
+      ? `${vehicleData.brand ?? ""} ${vehicleData.model ?? ""}`.trim() || undefined
+      : undefined,
+    driverName: profileData?.full_name ?? undefined,
+  };
+}
+
+export async function getMyActiveTask(): Promise<VehicleTask | null> {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from("vehicle_tasks")
+    .select("*, vehicles(plate, brand, model), profiles(full_name)")
+    .eq("driver_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return toTask(data as Record<string, unknown>);
+}
+
+export async function getTasks(filters?: {
+  vehicleId?: string;
+  driverId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  status?: "active" | "completed";
+}): Promise<VehicleTask[]> {
+  const params = new URLSearchParams();
+  if (filters?.vehicleId) params.set("vehicleId", filters.vehicleId);
+  if (filters?.driverId) params.set("driverId", filters.driverId);
+  if (filters?.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters?.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters?.status) params.set("status", filters.status);
+
+  try {
+    const res = await fetch(`/api/tasks?${params}`, { credentials: "same-origin" });
+    if (!res.ok) throw new Error(`Tasks fetch failed: ${res.status}`);
+    const { tasks } = await res.json();
+    return tasks ?? [];
+  } catch (err) {
+    console.error("getTasks server fetch failed, trying client fallback:", err);
+    const supabase = createClient();
+    const companyId = await requireCompanyId();
+    let query = supabase
+      .from("vehicle_tasks")
+      .select("*, vehicles(plate, brand, model), profiles(full_name)")
+      .eq("company_id", companyId)
+      .order("start_time", { ascending: false });
+
+    if (filters?.vehicleId) query = query.eq("vehicle_id", filters.vehicleId);
+    if (filters?.driverId) query = query.eq("driver_id", filters.driverId);
+    if (filters?.dateFrom) query = query.gte("start_time", filters.dateFrom);
+    if (filters?.dateTo) query = query.lte("start_time", `${filters.dateTo}T23:59:59`);
+    if (filters?.status) query = query.eq("status", filters.status);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []).map((r: unknown) => toTask(r as Record<string, unknown>));
+  }
+}
+
+export async function startTask(data: {
+  vehicleId: string;
+  startKm: number;
+  description: string;
+}): Promise<VehicleTask> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Oturum bulunamadı.");
+
+  const { data: inserted, error } = await supabase
+    .from("vehicle_tasks")
+    .insert({
+      company_id: companyId,
+      vehicle_id: data.vehicleId,
+      driver_id: userId,
+      start_km: data.startKm,
+      description: data.description,
+      status: "active",
+      start_time: new Date().toISOString(),
+    })
+    .select("*, vehicles(plate, brand, model), profiles(full_name)")
+    .single();
+
+  if (error) throw error;
+  return toTask(inserted as Record<string, unknown>);
+}
+
+export async function endTask(taskId: string, endKm: number): Promise<VehicleTask> {
+  const supabase = createClient();
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from("vehicle_tasks")
+    .select("start_km")
+    .eq("id", taskId)
+    .eq("status", "active")
+    .single();
+
+  if (fetchErr || !existing) throw new Error("Aktif görev bulunamadı.");
+  const distance = endKm - (existing.start_km as number);
+
+  const { data: updated, error } = await supabase
+    .from("vehicle_tasks")
+    .update({
+      end_km: endKm,
+      distance,
+      status: "completed",
+      end_time: new Date().toISOString(),
+    })
+    .eq("id", taskId)
+    .select("*, vehicles(plate, brand, model), profiles(full_name)")
+    .single();
+
+  if (error) throw error;
+  return toTask(updated as Record<string, unknown>);
 }

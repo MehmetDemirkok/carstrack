@@ -86,6 +86,26 @@ export interface ServiceRecord {
   createdAt: string;
 }
 
+export type TaskStatus = "active" | "completed";
+
+export interface VehicleTask {
+  id: string;
+  companyId: string;
+  vehicleId: string;
+  driverId: string;
+  startKm: number;
+  endKm?: number;
+  distance?: number;
+  description: string;
+  status: TaskStatus;
+  startTime: string;
+  endTime?: string;
+  createdAt: string;
+  vehiclePlate?: string;
+  vehicleName?: string;
+  driverName?: string;
+}
+
 export interface FleetAlert {
   id: string;
   vehicleId: string;

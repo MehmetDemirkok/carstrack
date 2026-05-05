@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CarFront, Wrench, Activity, Settings } from "lucide-react";
+import { LayoutDashboard, CarFront, Wrench, Activity, Settings, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/context/language-context";
@@ -14,6 +14,7 @@ export function BottomNav() {
   const navItems = [
     { href: "/", icon: LayoutDashboard, label: t("nav_dashboard") },
     { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
+    { href: "/tasks", icon: ClipboardList, label: t("nav_tasks") },
     { href: "/history", icon: Wrench, label: t("nav_history").split(" ")[0] },
     { href: "/analytics", icon: Activity, label: t("nav_analytics").split(" ")[0] },
     { href: "/settings", icon: Settings, label: t("nav_settings") },

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Car, LayoutDashboard, History, Activity, Settings, Plus, Sparkles } from "lucide-react";
+import { Car, LayoutDashboard, History, Activity, Settings, Plus, Sparkles, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
@@ -26,6 +26,7 @@ export function Sidebar() {
   const navItems = [
     { icon: LayoutDashboard, label: t("nav_dashboard"), href: "/" },
     { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
+    { icon: ClipboardList, label: t("nav_tasks"), href: "/tasks" },
     { icon: History, label: t("nav_history"), href: "/history" },
     { icon: Activity, label: t("nav_analytics"), href: "/analytics" },
     { icon: Settings, label: t("nav_settings"), href: "/settings" },

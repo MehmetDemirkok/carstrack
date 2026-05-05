@@ -9,6 +9,7 @@ export const translations = {
     nav_analytics: "Filo Durumu",
     nav_settings: "Ayarlar",
     nav_add_vehicle: "Yeni Araç Ekle",
+    nav_tasks: "Görevler",
 
     // TopBar
     topbar_welcome: "Hoş geldin,",
@@ -107,6 +108,7 @@ export const translations = {
     nav_analytics: "Fleet Status",
     nav_settings: "Settings",
     nav_add_vehicle: "Add New Vehicle",
+    nav_tasks: "Tasks",
 
     // TopBar
     topbar_welcome: "Welcome,",
