@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { Vehicle, ServiceRecord } from "@/lib/types";
+import type { Vehicle, ServiceRecord, VehicleTask } from "@/lib/types";
 
 const SERVICE_TYPE_LABELS: Record<string, string> = {
   routine: "Periyodik Bakım",
@@ -95,6 +95,67 @@ export function exportServiceHistoryExcel(records: ServiceRecord[], vehicles: Ve
   autoWidth(ws);
   XLSX.utils.book_append_sheet(wb, ws, "Servis Geçmişi");
   download(wb, `carstrack_servis_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function formatDuration(start: string, end?: string): string {
+  if (!end) return "";
+  const mins = Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 60000);
+  if (mins < 60) return `${mins} dk`;
+  return `${Math.floor(mins / 60)} sa ${mins % 60} dk`;
+}
+
+function taskRows(tasks: VehicleTask[], vehicles: Vehicle[]) {
+  const vehicleMap = Object.fromEntries(
+    vehicles.map((v) => [v.id, v] as [string, Vehicle])
+  );
+  return tasks.map((t) => {
+    const v = vehicleMap[t.vehicleId];
+    return {
+      "Plaka":             t.vehiclePlate ?? v?.plate ?? "—",
+      "Araç":              t.vehicleName  ?? (v ? `${v.brand} ${v.model}` : "—"),
+      "Personel":          t.driverName   ?? "—",
+      "Departman":         t.driverDepartment ?? "—",
+      "Başlangıç KM":      t.startKm,
+      "Bitiş KM":          t.endKm   ?? "",
+      "Mesafe (km)":       t.distance ?? "",
+      "Süre":              t.status === "completed"
+                             ? formatDuration(t.startTime, t.endTime)
+                             : "Devam ediyor",
+      "Açıklama":          t.description,
+      "Durum":             t.status === "active" ? "Aktif" : "Tamamlandı",
+      "Başlangıç Tarihi":  formatDate(t.startTime),
+      "Başlangıç Saati":   t.startTime
+                             ? new Date(t.startTime).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })
+                             : "",
+      "Bitiş Tarihi":      t.endTime ? formatDate(t.endTime) : "",
+      "Bitiş Saati":       t.endTime
+                             ? new Date(t.endTime).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })
+                             : "",
+    };
+  });
+}
+
+export function exportTasksExcel(tasks: VehicleTask[], vehicles: Vehicle[]) {
+  const wb = XLSX.utils.book_new();
+  const rows = taskRows(tasks, vehicles);
+
+  if (rows.length === 0) {
+    // Still create the sheet with headers so the file isn't empty
+    const ws = XLSX.utils.json_to_sheet([{
+      "Plaka": "", "Araç": "", "Personel": "", "Departman": "",
+      "Başlangıç KM": "", "Bitiş KM": "", "Mesafe (km)": "", "Süre": "",
+      "Açıklama": "", "Durum": "", "Başlangıç Tarihi": "", "Başlangıç Saati": "",
+      "Bitiş Tarihi": "", "Bitiş Saati": "",
+    }]);
+    autoWidth(ws);
+    XLSX.utils.book_append_sheet(wb, ws, "Görev Raporu");
+  } else {
+    const ws = XLSX.utils.json_to_sheet(rows);
+    autoWidth(ws);
+    XLSX.utils.book_append_sheet(wb, ws, "Görev Raporu");
+  }
+
+  download(wb, `carstrack_gorevler_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 export function exportFullReportExcel(vehicles: Vehicle[], records: ServiceRecord[]) {

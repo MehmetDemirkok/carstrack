@@ -12,6 +12,7 @@ import {
   Filter,
   X,
   CheckCircle2,
+  Download,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import {
@@ -22,6 +23,7 @@ import {
   endTask,
   getMembers,
 } from "@/lib/db";
+import { exportTasksExcel } from "@/lib/export";
 import type { Vehicle, VehicleTask, Profile } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -519,6 +521,20 @@ function ManagerView() {
           </div>
         </div>
       </div>
+
+      {/* Export row */}
+      {tasks.length > 0 && !loading && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => exportTasksExcel(tasks, vehicles)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 transition-colors text-sm font-semibold text-foreground/80 hover:text-foreground"
+          >
+            <Download className="h-4 w-4" />
+            Excel&apos;e Aktar
+            <span className="text-xs text-muted-foreground font-normal">({tasks.length} kayıt)</span>
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (

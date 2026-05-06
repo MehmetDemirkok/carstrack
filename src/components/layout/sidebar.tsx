@@ -75,7 +75,12 @@ export function Sidebar() {
                   transition={{ type: "spring", stiffness: 320, damping: 28 }}
                 />
               )}
-              <item.icon className={`h-5 w-5 relative z-10 transition-transform ${isActive ? "scale-110 drop-shadow" : "group-hover:scale-105"}`} />
+              <div className="relative shrink-0">
+                <item.icon className={`h-5 w-5 relative z-10 transition-transform ${isActive ? "scale-110 drop-shadow" : "group-hover:scale-105"}`} />
+                {item.href === "/settings" && profile && !profile.department && !isActive && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background z-20" />
+                )}
+              </div>
               <span className="relative z-10 text-sm">{item.label}</span>
               {isActive && (
                 <motion.span

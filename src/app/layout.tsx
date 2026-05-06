@@ -9,6 +9,7 @@ import { LanguageProvider } from "@/context/language-context";
 import { AuthProvider } from "@/context/auth-context";
 import { CommandPaletteProvider } from "@/context/command-palette-context";
 import { CommandPalette } from "@/components/command-palette";
+import { ProfileCompletionNotice } from "@/components/profile-completion-notice";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -100,6 +101,7 @@ export default function RootLayout({
                   </div>
                 </div>
                 <CommandPalette />
+                <ProfileCompletionNotice />
               </CommandPaletteProvider>
             </AuthProvider>
           </LanguageProvider>

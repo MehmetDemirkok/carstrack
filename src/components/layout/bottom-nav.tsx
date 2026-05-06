@@ -6,10 +6,13 @@ import { LayoutDashboard, CarFront, Wrench, Activity, Settings, ClipboardList } 
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/context/language-context";
+import { useAuth } from "@/context/auth-context";
 
 export function BottomNav() {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const { profile } = useAuth();
+  const needsProfileCompletion = !!profile && !profile.department;
 
   const navItems = [
     { href: "/", icon: LayoutDashboard, label: t("nav_dashboard") },
@@ -50,6 +53,9 @@ export function BottomNav() {
                         isActive ? "text-white drop-shadow-md" : "text-muted-foreground"
                       )}
                     />
+                    {item.href === "/settings" && needsProfileCompletion && !isActive && (
+                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background" />
+                    )}
                   </div>
                   <span
                     className={cn(
