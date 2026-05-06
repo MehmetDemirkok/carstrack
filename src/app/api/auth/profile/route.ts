@@ -47,6 +47,7 @@ export async function GET() {
         companyId: data.company_id,
         role: data.role,
         fullName: data.full_name,
+        department: (data.department as string) || "",
         createdAt: data.created_at,
       },
       company: comp

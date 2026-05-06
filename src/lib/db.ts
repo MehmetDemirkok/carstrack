@@ -344,6 +344,7 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleId: stri
     companyId: row.company_id as string,
     role: row.role as Profile["role"],
     fullName: row.full_name as string,
+    department: (row.department as string) || "",
     createdAt: row.created_at as string,
     assignedVehicleId:
       Array.isArray(row.vehicle_assignments) && row.vehicle_assignments.length > 0
@@ -397,6 +398,25 @@ export async function assignVehicle(vehicleId: string, driverId: string): Promis
   if (error) throw error;
 }
 
+export async function getMembers(): Promise<Profile[]> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("full_name");
+  if (error) throw error;
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    companyId: row.company_id as string,
+    role: row.role as Profile["role"],
+    fullName: row.full_name as string,
+    department: (row.department as string) || "",
+    createdAt: row.created_at as string,
+  }));
+}
+
 export async function unassignDriver(driverId: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase
@@ -410,7 +430,7 @@ export async function unassignDriver(driverId: string): Promise<void> {
 
 function toTask(row: Record<string, unknown>): VehicleTask {
   const vehicleData = row.vehicles as { plate?: string; brand?: string; model?: string } | null;
-  const profileData = row.profiles as { full_name?: string } | null;
+  const profileData = row.profiles as { full_name?: string; department?: string } | null;
   return {
     id: row.id as string,
     companyId: row.company_id as string,
@@ -429,6 +449,7 @@ function toTask(row: Record<string, unknown>): VehicleTask {
       ? `${vehicleData.brand ?? ""} ${vehicleData.model ?? ""}`.trim() || undefined
       : undefined,
     driverName: profileData?.full_name ?? undefined,
+    driverDepartment: profileData?.department || undefined,
   };
 }
 
@@ -440,7 +461,7 @@ export async function getMyActiveTask(): Promise<VehicleTask | null> {
 
   const { data, error } = await supabase
     .from("vehicle_tasks")
-    .select("*, vehicles(plate, brand, model), profiles(full_name)")
+    .select("*, vehicles(plate, brand, model), profiles(full_name, department)")
     .eq("driver_id", userId)
     .eq("status", "active")
     .maybeSingle();
@@ -455,13 +476,15 @@ export async function getTasks(filters?: {
   dateFrom?: string;
   dateTo?: string;
   status?: "active" | "completed";
+  department?: string;
 }): Promise<VehicleTask[]> {
   const params = new URLSearchParams();
-  if (filters?.vehicleId) params.set("vehicleId", filters.vehicleId);
-  if (filters?.driverId) params.set("driverId", filters.driverId);
-  if (filters?.dateFrom) params.set("dateFrom", filters.dateFrom);
-  if (filters?.dateTo) params.set("dateTo", filters.dateTo);
-  if (filters?.status) params.set("status", filters.status);
+  if (filters?.vehicleId)   params.set("vehicleId",   filters.vehicleId);
+  if (filters?.driverId)    params.set("driverId",    filters.driverId);
+  if (filters?.dateFrom)    params.set("dateFrom",    filters.dateFrom);
+  if (filters?.dateTo)      params.set("dateTo",      filters.dateTo);
+  if (filters?.status)      params.set("status",      filters.status);
+  if (filters?.department)  params.set("department",  filters.department);
 
   try {
     const res = await fetch(`/api/tasks?${params}`, { credentials: "same-origin" });
@@ -474,15 +497,15 @@ export async function getTasks(filters?: {
     const companyId = await requireCompanyId();
     let query = supabase
       .from("vehicle_tasks")
-      .select("*, vehicles(plate, brand, model), profiles(full_name)")
+      .select("*, vehicles(plate, brand, model), profiles(full_name, department)")
       .eq("company_id", companyId)
       .order("start_time", { ascending: false });
 
     if (filters?.vehicleId) query = query.eq("vehicle_id", filters.vehicleId);
-    if (filters?.driverId) query = query.eq("driver_id", filters.driverId);
-    if (filters?.dateFrom) query = query.gte("start_time", filters.dateFrom);
-    if (filters?.dateTo) query = query.lte("start_time", `${filters.dateTo}T23:59:59`);
-    if (filters?.status) query = query.eq("status", filters.status);
+    if (filters?.driverId)  query = query.eq("driver_id",  filters.driverId);
+    if (filters?.dateFrom)  query = query.gte("start_time", filters.dateFrom);
+    if (filters?.dateTo)    query = query.lte("start_time", `${filters.dateTo}T23:59:59`);
+    if (filters?.status)    query = query.eq("status", filters.status);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -512,7 +535,7 @@ export async function startTask(data: {
       status: "active",
       start_time: new Date().toISOString(),
     })
-    .select("*, vehicles(plate, brand, model), profiles(full_name)")
+    .select("*, vehicles(plate, brand, model), profiles(full_name, department)")
     .single();
 
   if (error) throw error;
@@ -541,7 +564,7 @@ export async function endTask(taskId: string, endKm: number): Promise<VehicleTas
       end_time: new Date().toISOString(),
     })
     .eq("id", taskId)
-    .select("*, vehicles(plate, brand, model), profiles(full_name)")
+    .select("*, vehicles(plate, brand, model), profiles(full_name, department)")
     .single();
 
   if (error) throw error;

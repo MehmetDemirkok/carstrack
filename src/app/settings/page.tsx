@@ -77,6 +77,31 @@ export default function SettingsPage() {
   const { user, profile, company, signOut } = useAuth();
   const router = useRouter();
 
+  // Department edit
+  const [department, setDepartment] = useState("");
+  const [deptSaving, setDeptSaving] = useState(false);
+
+  useEffect(() => {
+    setDepartment(profile?.department ?? "");
+  }, [profile?.department]);
+
+  const handleSaveDept = async () => {
+    setDeptSaving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("profiles")
+        .update({ department: department.trim() })
+        .eq("id", user!.id);
+      if (error) throw error;
+      toast.success("Departman güncellendi");
+    } catch {
+      toast.error("Kaydedilemedi");
+    } finally {
+      setDeptSaving(false);
+    }
+  };
+
   // Invite code (fetched separately for managers in case auth context doesn't have it)
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -238,6 +263,34 @@ export default function SettingsPage() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Department / Title edit */}
+              <div className="pt-3 border-t border-border/30 space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  Departman / Ünvan
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    placeholder="Örn: Satış, Teknik, İdari İşler..."
+                    list="dept-suggestions"
+                    className="flex-1 h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <datalist id="dept-suggestions">
+                    {["Sürücüler", "Satış", "Teknik", "Muhasebe", "İdari İşler", "Pazarlama", "İnsan Kaynakları", "Yönetim"].map(
+                      (d) => <option key={d} value={d} />
+                    )}
+                  </datalist>
+                  <button
+                    onClick={handleSaveDept}
+                    disabled={deptSaving || department.trim() === (profile?.department ?? "")}
+                    className="h-9 px-4 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                  >
+                    {deptSaving ? "..." : "Kaydet"}
+                  </button>
                 </div>
               </div>
             </CardContent>

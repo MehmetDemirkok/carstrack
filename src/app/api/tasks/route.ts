@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 
 function mapTask(row: Record<string, unknown>) {
   const vehicle = row.vehicles as { plate?: string; brand?: string; model?: string } | null;
-  const profile = row.profiles as { full_name?: string } | null;
+  const profile = row.profiles as { full_name?: string; department?: string } | null;
   return {
     id: row.id,
     companyId: row.company_id,
@@ -20,6 +20,7 @@ function mapTask(row: Record<string, unknown>) {
     vehiclePlate: vehicle?.plate ?? undefined,
     vehicleName: vehicle ? `${vehicle.brand ?? ""} ${vehicle.model ?? ""}`.trim() || undefined : undefined,
     driverName: profile?.full_name ?? undefined,
+    driverDepartment: profile?.department || undefined,
   };
 }
 
@@ -53,9 +54,11 @@ export async function GET(req: NextRequest) {
     const dateTo    = p.get("dateTo");
     const status    = p.get("status");
 
+    const department = p.get("department");
+
     let query = supabase
       .from("vehicle_tasks")
-      .select("*, vehicles(plate, brand, model), profiles(full_name)")
+      .select("*, vehicles(plate, brand, model), profiles(full_name, department)")
       .eq("company_id", companyId)
       .order("start_time", { ascending: false });
 
@@ -64,6 +67,20 @@ export async function GET(req: NextRequest) {
     if (dateFrom)  query = query.gte("start_time", dateFrom);
     if (dateTo)    query = query.lte("start_time", `${dateTo}T23:59:59`);
     if (status)    query = query.eq("status", status);
+
+    // Department filter: resolve matching profile IDs first
+    if (department) {
+      const { data: deptMembers } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("department", department);
+
+      if (!deptMembers || deptMembers.length === 0) {
+        return NextResponse.json({ tasks: [] });
+      }
+      query = query.in("driver_id", deptMembers.map((m) => m.id));
+    }
 
     const { data, error } = await query;
     if (error) {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Car, Eye, EyeOff, Mail, Lock, ArrowRight, Play } from "lucide-react";
+import { Car, Eye, EyeOff, Mail, Lock, ArrowRight, Play, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,40 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [driverDemoLoading, setDriverDemoLoading] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const router = useRouter();
+
+  const handleDriverDemoLogin = async () => {
+    setDriverDemoLoading(true);
+    try {
+      // Ensure demo company + vehicles exist first
+      await fetch("/api/demo/setup", { method: "POST" });
+
+      const res = await fetch("/api/demo/driver-setup", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast.error("Şoför demo başlatılamadı", { description: data.error ?? "Bir hata oluştu." });
+        return;
+      }
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+      if (authError) {
+        toast.error("Şoför demo girişi başarısız", { description: authError.message });
+        return;
+      }
+      toast.success("Şoför demo hesabına hoş geldiniz!", {
+        description: "Görev başlatmayı deneyin.",
+      });
+      router.push("/tasks");
+      router.refresh();
+    } finally {
+      setDriverDemoLoading(false);
+    }
+  };
 
   const handleDemoLogin = async () => {
     setDemoLoading(true);
@@ -243,26 +275,41 @@ export default function LoginPage() {
               <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest">veya</span>
               <div className="flex-1 h-px bg-border/50" />
             </div>
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              disabled={demoLoading || loading}
-              className="w-full h-11 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 transition-colors flex items-center justify-center gap-2.5 text-sm font-semibold text-foreground/80 hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {demoLoading ? (
-                <>
-                  <span className="h-4 w-4 rounded-full border-2 border-current border-r-transparent animate-spin" />
-                  Demo hazırlanıyor...
-                </>
-              ) : (
-                <>
-                  <Play className="h-3.5 w-3.5 fill-current" />
-                  Demo ile Giriş Yap
-                </>
-              )}
-            </button>
+
+            <div className="grid grid-cols-2 gap-2">
+              {/* Manager demo */}
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                disabled={demoLoading || driverDemoLoading || loading}
+                className="h-11 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold text-foreground/80 hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {demoLoading ? (
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />
+                ) : (
+                  <Play className="h-3 w-3 fill-current shrink-0" />
+                )}
+                {demoLoading ? "Hazırlanıyor..." : "Yönetici Demo"}
+              </button>
+
+              {/* Driver demo */}
+              <button
+                type="button"
+                onClick={handleDriverDemoLogin}
+                disabled={demoLoading || driverDemoLoading || loading}
+                className="h-11 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold text-primary/80 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {driverDemoLoading ? (
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />
+                ) : (
+                  <User className="h-3.5 w-3.5 shrink-0" />
+                )}
+                {driverDemoLoading ? "Hazırlanıyor..." : "Şoför Demo"}
+              </button>
+            </div>
+
             <p className="text-center text-[11px] text-muted-foreground mt-2">
-              5 araç, gerçek veriler — kayıt gerektirmez
+              Gerçek veriler — kayıt gerektirmez
             </p>
           </motion.div>
 

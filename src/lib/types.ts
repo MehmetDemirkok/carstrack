@@ -12,6 +12,7 @@ export interface Profile {
   companyId: string;
   role: UserRole;
   fullName: string;
+  department: string;
   createdAt: string;
 }
 
@@ -104,6 +105,7 @@ export interface VehicleTask {
   vehiclePlate?: string;
   vehicleName?: string;
   driverName?: string;
+  driverDepartment?: string;
 }
 
 export interface FleetAlert {

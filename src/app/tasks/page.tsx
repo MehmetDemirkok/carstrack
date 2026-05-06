@@ -20,7 +20,7 @@ import {
   getMyActiveTask,
   startTask,
   endTask,
-  getDrivers,
+  getMembers,
 } from "@/lib/db";
 import type { Vehicle, VehicleTask, Profile } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -80,14 +80,14 @@ export default function TasksPage() {
         </div>
       </motion.div>
 
-      {profile?.role === "manager" ? <ManagerView /> : <DriverView />}
+      {profile?.role === "manager" ? <ManagerView /> : <StaffView />}
     </div>
   );
 }
 
-// ─── Driver View ──────────────────────────────────────────────
+// ─── Staff / Driver View (all non-manager roles) ─────────────
 
-function DriverView() {
+function StaffView() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTask, setActiveTask] = useState<VehicleTask | null | undefined>(undefined);
   const [recentTasks, setRecentTasks] = useState<VehicleTask[]>([]);
@@ -357,43 +357,47 @@ function DriverView() {
 
 // ─── Manager View ─────────────────────────────────────────────
 
-type DriverWithAssignment = Profile & { assignedVehicleId: string | null };
-
 function ManagerView() {
-  const [tasks, setTasks]     = useState<VehicleTask[]>([]);
+  const [tasks, setTasks]       = useState<VehicleTask[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [drivers, setDrivers]  = useState<DriverWithAssignment[]>([]);
-  const [loading, setLoading]  = useState(true);
+  const [members, setMembers]   = useState<Profile[]>([]);
+  const [loading, setLoading]   = useState(true);
 
-  const [fVehicle, setFVehicle] = useState("");
-  const [fDriver, setFDriver]   = useState("");
-  const [fFrom, setFFrom]       = useState("");
-  const [fTo, setFTo]           = useState("");
-  const [fStatus, setFStatus]   = useState("");
+  const [fVehicle, setFVehicle]   = useState("");
+  const [fMember, setFMember]     = useState("");
+  const [fDept, setFDept]         = useState("");
+  const [fFrom, setFFrom]         = useState("");
+  const [fTo, setFTo]             = useState("");
+  const [fStatus, setFStatus]     = useState("");
 
-  const hasFilters = fVehicle || fDriver || fFrom || fTo || fStatus;
+  const hasFilters = fVehicle || fMember || fDept || fFrom || fTo || fStatus;
+
+  // Unique departments from loaded members (non-empty)
+  const departments = Array.from(
+    new Set(members.map((m) => m.department).filter(Boolean))
+  ).sort();
 
   async function loadAll(filters?: {
-    vehicleId?: string; driverId?: string;
-    dateFrom?: string; dateTo?: string;
-    status?: string;
+    vehicleId?: string; driverId?: string; department?: string;
+    dateFrom?: string; dateTo?: string; status?: string;
   }) {
     setLoading(true);
     try {
-      const [t, v, d] = await Promise.all([
+      const [t, v, m] = await Promise.all([
         getTasks({
-          vehicleId: filters?.vehicleId || undefined,
-          driverId:  filters?.driverId  || undefined,
-          dateFrom:  filters?.dateFrom  || undefined,
-          dateTo:    filters?.dateTo    || undefined,
-          status:    (filters?.status as "active" | "completed") || undefined,
+          vehicleId:  filters?.vehicleId  || undefined,
+          driverId:   filters?.driverId   || undefined,
+          department: filters?.department || undefined,
+          dateFrom:   filters?.dateFrom   || undefined,
+          dateTo:     filters?.dateTo     || undefined,
+          status:     (filters?.status as "active" | "completed") || undefined,
         }),
         vehicles.length ? Promise.resolve(vehicles) : getVehicles(),
-        drivers.length  ? Promise.resolve(drivers)  : getDrivers(),
+        members.length  ? Promise.resolve(members)  : getMembers(),
       ]);
       setTasks(t);
       setVehicles(v as Vehicle[]);
-      setDrivers(d as DriverWithAssignment[]);
+      setMembers(m as Profile[]);
     } catch {
       toast.error("Veriler yüklenirken hata oluştu");
     } finally {
@@ -404,11 +408,11 @@ function ManagerView() {
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSearch() {
-    loadAll({ vehicleId: fVehicle, driverId: fDriver, dateFrom: fFrom, dateTo: fTo, status: fStatus });
+    loadAll({ vehicleId: fVehicle, driverId: fMember, department: fDept, dateFrom: fFrom, dateTo: fTo, status: fStatus });
   }
 
   function clearFilters() {
-    setFVehicle(""); setFDriver(""); setFFrom(""); setFTo(""); setFStatus("");
+    setFVehicle(""); setFMember(""); setFDept(""); setFFrom(""); setFTo(""); setFStatus("");
     loadAll();
   }
 
@@ -420,9 +424,9 @@ function ManagerView() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Toplam Görev", value: tasks.length,            Icon: ClipboardList, accent: false },
-          { label: "Aktif Görev",  value: activeCount,             Icon: Play,          accent: activeCount > 0 },
-          { label: "Toplam KM",    value: `${formatKm(totalKm)} km`, Icon: Route,       accent: false },
+          { label: "Toplam Görev", value: tasks.length,              Icon: ClipboardList, accent: false },
+          { label: "Aktif Görev",  value: activeCount,               Icon: Play,          accent: activeCount > 0 },
+          { label: "Toplam KM",    value: `${formatKm(totalKm)} km`, Icon: Route,         accent: false },
         ].map(({ label, value, Icon, accent }) => (
           <div
             key={label}
@@ -463,13 +467,25 @@ function ManagerView() {
             ))}
           </select>
           <select
-            value={fDriver}
-            onChange={(e) => setFDriver(e.target.value)}
+            value={fMember}
+            onChange={(e) => setFMember(e.target.value)}
             className="h-10 rounded-xl border border-border bg-background/60 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
-            <option value="">Tüm Sürücüler</option>
-            {drivers.map((d) => (
-              <option key={d.id} value={d.id}>{d.fullName}</option>
+            <option value="">Tüm Personel</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.fullName}{m.department ? ` — ${m.department}` : ""}
+              </option>
+            ))}
+          </select>
+          <select
+            value={fDept}
+            onChange={(e) => setFDept(e.target.value)}
+            className="h-10 rounded-xl border border-border bg-background/60 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value="">Tüm Departmanlar</option>
+            {departments.map((d) => (
+              <option key={d} value={d}>{d}</option>
             ))}
           </select>
           <select
@@ -487,18 +503,20 @@ function ManagerView() {
             onChange={(e) => setFFrom(e.target.value)}
             className="h-10 rounded-xl border border-border bg-background/60 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
-          <input
-            type="date"
-            value={fTo}
-            onChange={(e) => setFTo(e.target.value)}
-            className="h-10 rounded-xl border border-border bg-background/60 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          <Button
-            onClick={handleSearch}
-            className="h-10 rounded-xl bg-mesh hover:opacity-95 text-white border-none text-xs font-semibold"
-          >
-            Filtrele
-          </Button>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={fTo}
+              onChange={(e) => setFTo(e.target.value)}
+              className="flex-1 h-10 rounded-xl border border-border bg-background/60 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <Button
+              onClick={handleSearch}
+              className="h-10 rounded-xl bg-mesh hover:opacity-95 text-white border-none text-xs font-semibold px-4 shrink-0"
+            >
+              Filtrele
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -522,7 +540,7 @@ function ManagerView() {
           <table className="w-full text-sm">
             <thead className="bg-muted/30">
               <tr>
-                {["Araç", "Sürücü", "Başl. KM", "Bitiş KM", "Mesafe", "Süre", "Durum", "Tarih"].map(
+                {["Araç", "Personel", "Başl. KM", "Bitiş KM", "Mesafe", "Süre", "Durum", "Tarih"].map(
                   (h) => (
                     <th
                       key={h}
@@ -546,8 +564,11 @@ function ManagerView() {
                         {v ? `${v.brand} ${v.model}` : (task.vehicleName ?? "")}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                      {task.driverName ?? "—"}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <p className="font-medium">{task.driverName ?? "—"}</p>
+                      {task.driverDepartment && (
+                        <p className="text-xs text-muted-foreground">{task.driverDepartment}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">{formatKm(task.startKm)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
