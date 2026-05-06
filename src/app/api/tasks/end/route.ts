@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     // Fetch task (RLS ensures only the owner or manager can access it)
     const { data: task, error: fetchErr } = await supabase
       .from("vehicle_tasks")
-      .select("id, start_km, driver_id, status")
+      .select("id, start_km, vehicle_id, driver_id, status")
       .eq("id", body.taskId)
       .single();
 
@@ -53,6 +53,26 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error("POST /api/tasks/end error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Aracın KM bilgisini görevden gelen bitiş KM ile güncelle.
+    // Sadece bitiş KM mevcut kayıtlı KM'den büyükse güncellenir.
+    try {
+      const { data: vehicle } = await supabase
+        .from("vehicles")
+        .select("mileage")
+        .eq("id", task.vehicle_id as string)
+        .single();
+
+      if (vehicle && endKm > (vehicle.mileage as number)) {
+        await supabase
+          .from("vehicles")
+          .update({ mileage: endKm })
+          .eq("id", task.vehicle_id as string);
+      }
+    } catch (kmErr) {
+      // KM güncellemesi başarısız olsa bile görev tamamlanmış sayılır
+      console.error("POST /api/tasks/end vehicle mileage update failed:", kmErr);
     }
 
     return NextResponse.json({ task: updated });

@@ -262,13 +262,18 @@ function StaffView() {
               <label className="text-sm font-medium">Araç</label>
               <select
                 value={vehicleId}
-                onChange={(e) => setVehicleId(e.target.value)}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setVehicleId(id);
+                  const v = vehicles.find((x) => x.id === id);
+                  if (v && v.mileage > 0) setStartKm(String(v.mileage));
+                }}
                 className="w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               >
                 <option value="">Araç seçin...</option>
                 {vehicles.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.plate} — {v.brand} {v.model}
+                    {v.plate} — {v.brand} {v.model} ({v.mileage.toLocaleString("tr-TR")} km)
                   </option>
                 ))}
               </select>
@@ -284,6 +289,11 @@ function StaffView() {
                 placeholder="Örn: 45000"
                 className="w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
+              {vehicleId && vehicles.find((v) => v.id === vehicleId) && (
+                <p className="text-xs text-muted-foreground">
+                  Son kayıtlı KM: {vehicles.find((v) => v.id === vehicleId)!.mileage.toLocaleString("tr-TR")} km
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
