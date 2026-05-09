@@ -5,11 +5,11 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Database, Trash2, Car,
-  Check, Globe, X, LogOut, Building2, Copy, Users,
+  Check, Globe, X, LogOut, Building2, Copy, Users, Camera,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -76,6 +76,71 @@ export default function SettingsPage() {
   const { locale, setLocale, t } = useLanguage();
   const { user, profile, company, signOut } = useAuth();
   const router = useRouter();
+
+  // Avatar — localAvatar stores freshly uploaded image; falls back to profile value
+  const [localAvatar, setLocalAvatar] = useState<string | undefined>(undefined);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarRemoving, setAvatarRemoving] = useState(false);
+  const avatarUrl = localAvatar ?? profile?.avatarUrl;
+
+  const handleAvatarFile = (file: File | null) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dosya çok büyük", { description: "Lütfen 10 MB'dan küçük bir görsel seçin." });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const img = new Image();
+      img.onload = async () => {
+        // Center-crop to square, then resize to 400×400
+        const SIZE = 400;
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2;
+        const sy = (img.height - side) / 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = SIZE;
+        canvas.height = SIZE;
+        canvas.getContext("2d")!.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        setAvatarSaving(true);
+        try {
+          const supabase = createClient();
+          const { error } = await supabase
+            .from("profiles")
+            .update({ avatar_url: dataUrl })
+            .eq("id", user!.id);
+          if (error) throw error;
+          setLocalAvatar(dataUrl);
+          toast.success("Profil fotoğrafı güncellendi");
+        } catch {
+          toast.error("Fotoğraf kaydedilemedi");
+        } finally {
+          setAvatarSaving(false);
+        }
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = async () => {
+    setAvatarRemoving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("id", user!.id);
+      if (error) throw error;
+      setLocalAvatar(undefined);
+      toast.success("Profil fotoğrafı kaldırıldı");
+    } catch {
+      toast.error("Kaldırılamadı");
+    } finally {
+      setAvatarRemoving(false);
+    }
+  };
 
   // Department edit
   const [department, setDepartment] = useState("");
@@ -242,11 +307,43 @@ export default function SettingsPage() {
           <Card className="rounded-3xl border-border/40 shadow-sm overflow-hidden">
             <CardContent className="p-5 space-y-4">
               <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16 ring-2 ring-primary/20 shadow-md shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl font-outfit">
-                    {profile?.fullName ? getInitials(profile.fullName) : "?"}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <div className="relative group">
+                    <Avatar className="h-20 w-20 ring-2 ring-primary/20 shadow-md">
+                      {avatarUrl && <AvatarImage src={avatarUrl} alt="Profil fotoğrafı" className="object-cover" />}
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-2xl font-outfit">
+                        {profile?.fullName ? getInitials(profile.fullName) : "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    {/* Camera badge — always visible, not hover-only (mobile friendly) */}
+                    <label
+                      htmlFor="avatar-upload"
+                      className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary shadow-md flex items-center justify-center cursor-pointer ring-2 ring-background transition-transform active:scale-95"
+                      title="Fotoğraf değiştir"
+                    >
+                      {avatarSaving
+                        ? <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-r-transparent animate-spin" />
+                        : <Camera className="h-3.5 w-3.5 text-primary-foreground" />
+                      }
+                    </label>
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(e) => { handleAvatarFile(e.target.files?.[0] ?? null); e.target.value = ""; }}
+                    />
+                  </div>
+                  {avatarUrl && (
+                    <button
+                      onClick={handleRemoveAvatar}
+                      disabled={avatarRemoving}
+                      className="text-[10px] text-destructive/70 hover:text-destructive transition-colors disabled:opacity-40"
+                    >
+                      {avatarRemoving ? "Kaldırılıyor..." : "Kaldır"}
+                    </button>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg font-bold font-outfit truncate">
                     {profile?.fullName ?? user?.email?.split("@")[0] ?? "—"}

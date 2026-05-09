@@ -48,6 +48,7 @@ export async function GET() {
         role: data.role,
         fullName: data.full_name,
         department: (data.department as string) || "",
+        avatarUrl: (data.avatar_url as string) || undefined,
         createdAt: data.created_at,
       },
       company: comp

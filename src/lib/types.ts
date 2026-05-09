@@ -13,6 +13,7 @@ export interface Profile {
   role: UserRole;
   fullName: string;
   department: string;
+  avatarUrl?: string;
   createdAt: string;
 }
 
