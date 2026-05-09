@@ -183,38 +183,44 @@ export default function HistoryPage() {
       </div>
 
       {/* Type filter chips */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-        {FILTER_TYPES.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors border ${filter === key ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-muted/50 text-muted-foreground border-border/40 hover:bg-muted"}`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="relative">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {FILTER_TYPES.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors border ${filter === key ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-muted/50 text-muted-foreground border-border/40 hover:bg-muted"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent" />
       </div>
 
       {/* Vehicle filter */}
       <AnimatePresence>
         {showFilters && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              <button
-                onClick={() => setVehicleFilter("all")}
-                className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors border ${vehicleFilter === "all" ? "bg-foreground text-background border-foreground" : "bg-muted/50 text-muted-foreground border-border/40 hover:bg-muted"}`}
-              >
-                Tüm Araçlar
-              </button>
-              {vehicles.map((v) => (
+            <div className="relative">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 <button
-                  key={v.id}
-                  onClick={() => setVehicleFilter(v.id)}
-                  className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors border ${vehicleFilter === v.id ? "bg-foreground text-background border-foreground" : "bg-muted/50 text-muted-foreground border-border/40 hover:bg-muted"}`}
+                  onClick={() => setVehicleFilter("all")}
+                  className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors border ${vehicleFilter === "all" ? "bg-foreground text-background border-foreground" : "bg-muted/50 text-muted-foreground border-border/40 hover:bg-muted"}`}
                 >
-                  {v.plate}
+                  Tüm Araçlar
                 </button>
-              ))}
+                {vehicles.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setVehicleFilter(v.id)}
+                    className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors border ${vehicleFilter === v.id ? "bg-foreground text-background border-foreground" : "bg-muted/50 text-muted-foreground border-border/40 hover:bg-muted"}`}
+                  >
+                    {v.plate}
+                  </button>
+                ))}
+              </div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent" />
             </div>
           </motion.div>
         )}
@@ -292,7 +298,7 @@ export default function HistoryPage() {
                     </div>
 
                     {record.notes && (
-                      <div className="bg-muted/40 rounded-xl p-3 text-[11px] text-muted-foreground leading-relaxed border border-border/20">
+                      <div className="bg-muted/40 rounded-xl p-3 text-[11px] text-muted-foreground leading-relaxed border border-border/20 whitespace-pre-wrap break-words">
                         {record.notes}
                       </div>
                     )}

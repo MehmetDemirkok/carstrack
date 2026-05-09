@@ -153,7 +153,7 @@ export function TopBar() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="absolute top-14 right-0 w-[320px] bg-card/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl shadow-primary/10 overflow-hidden z-50 origin-top-right"
+                  className="absolute top-14 right-0 w-[320px] max-w-[calc(100vw-1rem)] bg-card/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl shadow-primary/10 overflow-hidden z-50 origin-top-right"
                 >
                   <div className="p-4 border-b border-border/40 flex justify-between items-center bg-muted/20">
                     <h3 className="font-outfit font-bold text-sm">Bildirimler</h3>

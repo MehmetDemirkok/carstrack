@@ -334,8 +334,8 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-600 dark:text-amber-400">
-                    Davet kodu oluşturulmamış. Supabase SQL Editor&apos;de migration&apos;ı çalıştırın.
+                  <div className="bg-muted/50 border border-border/40 rounded-xl px-4 py-3 text-xs text-muted-foreground">
+                    Davet kodu henüz oluşturulmamış. Lütfen yönetici ile iletişime geçin.
                   </div>
                 )}
 

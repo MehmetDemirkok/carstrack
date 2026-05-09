@@ -54,7 +54,7 @@ export function BottomNav() {
                       )}
                     />
                     {item.href === "/settings" && needsProfileCompletion && !isActive && (
-                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background" />
+                      <span title="Profil bilgilerinizi tamamlayın" className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background" />
                     )}
                   </div>
                   <span

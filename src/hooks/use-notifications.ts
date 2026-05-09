@@ -153,6 +153,22 @@ export function useNotifications() {
               });
             }
           }
+
+          // --- Bakım Verisi Eksik Kontrolü ---
+          const hasMaintData = v.maintenanceItems?.some(
+            (m) => m.lastDoneDate !== undefined || m.lastDoneMileage !== undefined
+          ) ?? false;
+          if (!hasMaintData) {
+            notifs.push({
+              id: `maint_empty_${v.id}`,
+              title: "Bakım Verilerini Doldurun",
+              description: `${v.plate} plakalı aracın bakım geçmişi boş. Araç detayından her bakım kalemi için son yapılma tarihini ekleyin.`,
+              type: "info",
+              date: new Date().toISOString(),
+              vehicleId: v.id,
+              vehiclePlate: v.plate,
+            });
+          }
         });
 
         // En aciller (error -> urgent -> warning -> info) en üstte olacak şekilde sıralayalım

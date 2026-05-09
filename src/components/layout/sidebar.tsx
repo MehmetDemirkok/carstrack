@@ -37,8 +37,8 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-border/30 bg-background/60 glass z-40 fixed top-0 bottom-0 left-0 overflow-hidden">
       {/* Ambient orbs */}
-      <div className="orb w-56 h-56 bg-primary/30 -top-20 -left-16 animate-float-slow" />
-      <div className="orb w-40 h-40 bg-[color:var(--primary-2)]/25 bottom-32 -right-12 animate-float-slow" style={{ animationDelay: "1.5s" }} />
+      <div className="orb w-56 h-56 bg-primary/30 -top-20 -left-16 motion-safe:animate-float-slow" />
+      <div className="orb w-40 h-40 bg-[color:var(--primary-2)]/25 bottom-32 -right-12 motion-safe:animate-float-slow" style={{ animationDelay: "1.5s" }} />
 
       <div className="p-6 relative">
         <Link href="/" className="flex items-center gap-3 tap-highlight-transparent group">
@@ -78,7 +78,7 @@ export function Sidebar() {
               <div className="relative shrink-0">
                 <item.icon className={`h-5 w-5 relative z-10 transition-transform ${isActive ? "scale-110 drop-shadow" : "group-hover:scale-105"}`} />
                 {item.href === "/settings" && profile && !profile.department && !isActive && (
-                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background z-20" />
+                  <span title="Profil bilgilerinizi tamamlayın" className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background z-20" />
                 )}
               </div>
               <span className="relative z-10 text-sm">{item.label}</span>

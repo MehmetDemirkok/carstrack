@@ -30,7 +30,7 @@ import {
   ChevronLeft, Settings, Trash2, Car, Fuel, Gauge, MapPin, Disc3,
   Sun, Snowflake, Layers, BatteryCharging, ShieldCheck, CalendarDays,
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
-  Palette, Zap, Hash, ChevronRight,
+  Palette, Zap, Hash, ChevronRight, Pencil,
 } from "lucide-react";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
@@ -104,6 +104,10 @@ export default function VehicleDetailPage() {
   const [showAddRecord, setShowAddRecord] = useState(false);
   const [showDeleteRecord, setShowDeleteRecord] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+  const [showMaintEdit, setShowMaintEdit] = useState(false);
+  const [maintEditItem, setMaintEditItem] = useState<{ id: string; name: string; intervalKm?: number } | null>(null);
+  const [maintEditDate, setMaintEditDate] = useState("");
+  const [maintEditKm, setMaintEditKm] = useState("");
 
   const [editData, setEditData] = useState<Partial<Vehicle>>({});
   const [recordForm, setRecordForm] = useState({
@@ -162,6 +166,29 @@ export default function VehicleDetailPage() {
     } catch (err) {
       console.error(err);
       toast.error("Hata", { description: "Araç silinirken hata oluştu." });
+    }
+  };
+
+  const handleSaveMaintEdit = async () => {
+    if (!maintEditItem) return;
+    if (guardDemo()) { setShowMaintEdit(false); return; }
+    const updatedItems = vehicle.maintenanceItems.map((item) =>
+      item.id === maintEditItem.id
+        ? {
+            ...item,
+            lastDoneDate: maintEditDate || undefined,
+            lastDoneMileage: maintEditKm ? parseInt(maintEditKm) : undefined,
+          }
+        : item
+    );
+    try {
+      await updateVehicle(vehicle.id, { maintenanceItems: updatedItems });
+      setShowMaintEdit(false);
+      reload();
+      toast.success("Güncellendi", { description: "Bakım bilgisi kaydedildi." });
+    } catch (err) {
+      console.error(err);
+      toast.error("Hata", { description: "Bakım bilgisi kaydedilemedi." });
     }
   };
 
@@ -305,10 +332,18 @@ export default function VehicleDetailPage() {
               <div className="mt-4 space-y-4">
                 {/* ── BAKIM ── */}
                 <TabsContent value="maintenance" className="space-y-3 outline-none">
+                  {vehicle.maintenanceItems.length === 0 && (
+                    <div className="text-center py-10 text-muted-foreground">
+                      <Wrench className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm font-medium">Bakım verisi bulunamadı.</p>
+                      <p className="text-xs mt-1">Bu araç eski bir kayıt olabilir.</p>
+                    </div>
+                  )}
                   {vehicle.maintenanceItems.map((item) => {
                     const status = getMaintenanceStatusForItem(item, vehicle.mileage);
                     const progress = getMaintenanceProgress(item, vehicle.mileage);
                     const Icon = statusIcon[status];
+                    const hasData = item.lastDoneDate !== undefined || item.lastDoneMileage !== undefined;
                     return (
                       <div key={item.id} className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm">
                         <div className="flex items-center justify-between mb-2">
@@ -316,9 +351,27 @@ export default function VehicleDetailPage() {
                             <Icon className={`h-4 w-4 ${status === "good" ? "text-emerald-500" : status === "warning" ? "text-amber-500" : "text-red-500"}`} />
                             <span className="text-sm font-semibold">{item.name}</span>
                           </div>
-                          <Badge className={`text-[10px] font-bold border-none ${statusBadge[status]}`}>
-                            {statusLabel[status]}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {!hasData && (
+                              <span className="text-[10px] text-amber-500 font-medium">Veri yok</span>
+                            )}
+                            <Badge className={`text-[10px] font-bold border-none ${statusBadge[status]}`}>
+                              {statusLabel[status]}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                              onClick={() => {
+                                setMaintEditItem({ id: item.id, name: item.name, intervalKm: item.intervalKm });
+                                setMaintEditDate(item.lastDoneDate || "");
+                                setMaintEditKm(item.lastDoneMileage !== undefined ? String(item.lastDoneMileage) : "");
+                                setShowMaintEdit(true);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                         <Progress value={progress} className="h-2 mb-2" indicatorClassName={statusColor[status]} />
                         <div className="flex justify-between text-[10px] text-muted-foreground">
@@ -734,6 +787,35 @@ export default function VehicleDetailPage() {
             >
               Evet, Sil
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── BAKIM GÜNCELLE DIALOG ── */}
+      <Dialog open={showMaintEdit} onOpenChange={setShowMaintEdit}>
+        <DialogContent className="max-w-[92vw] md:max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <Wrench className="h-4 w-4 text-primary" />
+              {maintEditItem?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground">En son ne zaman yapıldığını girin. Boş bırakırsanız kayıt temizlenir.</p>
+            <div className="space-y-1">
+              <Label className={iLabel}>Son Yapılma Tarihi</Label>
+              <Input className={iCls} type="date" value={maintEditDate} onChange={(e) => setMaintEditDate(e.target.value)} />
+            </div>
+            {maintEditItem?.intervalKm && (
+              <div className="space-y-1">
+                <Label className={iLabel}>Son Yapılma km</Label>
+                <Input className={iCls} type="number" placeholder="0" value={maintEditKm} onChange={(e) => setMaintEditKm(e.target.value)} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
+            <Button onClick={handleSaveMaintEdit} className="rounded-xl flex-1">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

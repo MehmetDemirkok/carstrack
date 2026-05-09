@@ -2,217 +2,236 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { calculateHealthScore, getMaintenanceStatusForItem, getMaintenanceProgress, getFleetAlerts } from "@/lib/store";
+import {
+  calculateHealthScore,
+  getMaintenanceStatusForItem,
+  getFleetAlerts,
+} from "@/lib/store";
 import { getVehicles } from "@/lib/db";
 import type { Vehicle, FleetAlert } from "@/lib/types";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import {
   Shield, Calendar, Disc3, Wrench, CheckCircle2, AlertTriangle,
-  XCircle, Car, Sun, Snowflake, Layers, ChevronRight, BatteryCharging, Activity,
+  XCircle, Car, ChevronRight, Activity,
 } from "lucide-react";
 import { DocumentAutomation } from "@/components/document-automation";
 
-const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } };
-const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
-
-const statusColor = { good: "bg-emerald-500", warning: "bg-amber-500", overdue: "bg-red-500" };
-const statusBadge = {
-  good: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  overdue: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-};
-const statusLabel = { good: "İyi", warning: "Yaklaşıyor", overdue: "Gecikmeli" };
-const StatusIcon = { good: CheckCircle2, warning: AlertTriangle, overdue: XCircle };
-
-const severityStyle = {
-  critical: "bg-red-500/5 border-red-500/20",
-  warning: "bg-amber-500/5 border-amber-500/20",
-  info: "bg-blue-500/5 border-blue-500/20",
-};
-const severityIconStyle = {
-  critical: "bg-red-500/15 text-red-500",
-  warning: "bg-amber-500/15 text-amber-500",
-  info: "bg-blue-500/15 text-blue-500",
-};
-const categoryIcon = { insurance: Shield, "green-card": Shield, inspection: Calendar, maintenance: Wrench, tire: Disc3 };
+const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
+const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
 
 function daysUntil(dateStr: string) {
   if (!dateStr) return null;
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
 }
 
-function docStatus(days: number | null) {
+function docStatus(days: number | null): "good" | "warning" | "overdue" {
   if (days === null) return "good";
   if (days < 0) return "overdue";
   if (days < 30) return "warning";
   return "good";
 }
 
+const statusColors = {
+  good:    { pill: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", dot: "#10b981" },
+  warning: { pill: "bg-amber-500/10 text-amber-600 dark:text-amber-400",       dot: "#f59e0b" },
+  overdue: { pill: "bg-red-500/10 text-red-600 dark:text-red-400",             dot: "#ef4444" },
+};
+
+const statusIcon = {
+  good:    CheckCircle2,
+  warning: AlertTriangle,
+  overdue: XCircle,
+};
+
+const categoryIcon: Record<FleetAlert["category"], typeof Shield> = {
+  insurance: Shield,
+  "green-card": Shield,
+  inspection: Calendar,
+  maintenance: Wrench,
+  tire: Disc3,
+};
+
+const severityBadge = {
+  critical: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+  warning:  "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+  info:     "bg-blue-500/10 text-blue-500 border-blue-500/20",
+};
+
+function scoreBar(score: number) {
+  if (score >= 85) return "#10b981";
+  if (score >= 65) return "#f59e0b";
+  return "#ef4444";
+}
+
 export default function FleetStatusPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [alerts, setAlerts] = useState<FleetAlert[]>([]);
+  const [alerts, setAlerts]     = useState<FleetAlert[]>([]);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const v = await getVehicles();
-        setVehicles(v);
-        setAlerts(getFleetAlerts(v));
-      } catch (err) {
-        console.error("Failed to load vehicles", err);
-      }
-    }
-    load();
+    getVehicles()
+      .then((v) => { setVehicles(v); setAlerts(getFleetAlerts(v)); })
+      .catch(console.error);
   }, []);
 
+  const criticalCount = alerts.filter((a) => a.severity === "critical").length;
+  const warningCount  = alerts.filter((a) => a.severity === "warning").length;
+
   return (
-    <div className="p-4 space-y-6 pb-28">
-      <div>
-        <h1 className="text-2xl font-outfit font-bold tracking-tight">Filo Durumu</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Tüm araçların bakım ve belge durumu</p>
+    <div className="max-w-5xl mx-auto p-4 space-y-5 pb-28">
+      {/* ── Başlık ── */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-outfit font-bold tracking-tight">Filo Durumu</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Bakım ve belge özeti</p>
+        </div>
+        {vehicles.length > 0 && (
+          <div className="flex gap-2 shrink-0">
+            {criticalCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                <XCircle className="h-3 w-3" /> {criticalCount} kritik
+              </span>
+            )}
+            {warningCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <AlertTriangle className="h-3 w-3" /> {warningCount} uyarı
+              </span>
+            )}
+            {criticalCount === 0 && warningCount === 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <CheckCircle2 className="h-3 w-3" /> Filo sağlıklı
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
-        {/* Alerts summary */}
-        {alerts.length > 0 && (
-          <motion.div variants={fadeUp} className="space-y-2.5">
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">Aktif Uyarılar</h2>
-            <div className="space-y-2">
-              {alerts.map((alert) => {
-                const Icon = categoryIcon[alert.category];
-                return (
-                  <Link href={`/vehicles/${alert.vehicleId}`} key={alert.id}>
-                    <div className={`p-3.5 rounded-2xl border flex gap-3 items-start hover:opacity-80 transition-opacity ${severityStyle[alert.severity]}`}>
-                      <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${severityIconStyle[alert.severity]}`}>
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-xs">{alert.title}</h3>
-                          <span className="text-[9px] text-muted-foreground">{alert.vehiclePlate}</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">{alert.description}</p>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4">
 
-        {/* Per vehicle breakdown */}
+        {/* ── Araç kartları ── */}
         {vehicles.map((vehicle) => {
           const score = calculateHealthScore(vehicle);
+          const barColor = scoreBar(score);
+
           const insDays = daysUntil(vehicle.insuranceExpiry);
           const muaDays = daysUntil(vehicle.inspectionExpiry);
-          
-          // Get statuses for a quick overview
           const insStatus = docStatus(insDays);
           const muaStatus = docStatus(muaDays);
-          
-          // Find critical maintenance items
-          const criticalMaintenance = vehicle.maintenanceItems
-            .map(item => ({ ...item, status: getMaintenanceStatusForItem(item, vehicle.mileage) }))
-            .filter(item => item.status !== "good");
+
+          const critMaint = vehicle.maintenanceItems
+            .map((item) => ({ ...item, status: getMaintenanceStatusForItem(item, vehicle.mileage) }))
+            .filter((item) => item.status !== "good");
+
+          const maintStatus: "good" | "warning" | "overdue" =
+            critMaint.some((m) => m.status === "overdue") ? "overdue"
+            : critMaint.length > 0 ? "warning"
+            : "good";
+
+          const hasIssue = insStatus !== "good" || muaStatus !== "good" || maintStatus !== "good";
+
+          const statusItems = [
+            { label: "Sigorta",  icon: Shield,   status: insStatus,   info: insDays !== null ? (insDays < 0 ? "Gecikti" : `${insDays} gün`) : "—" },
+            { label: "Muayene", icon: Calendar,  status: muaStatus,   info: muaDays !== null ? (muaDays < 0 ? "Gecikti" : `${muaDays} gün`) : "—" },
+            { label: "Bakım",   icon: Wrench,    status: maintStatus, info: critMaint.length > 0 ? `${critMaint.length} uyarı` : "Tamam" },
+            { label: "Lastik",  icon: Disc3,     status: "good" as const, info: vehicle.tireStatus },
+          ];
+
+          const vehicleAlerts = alerts.filter((a) => a.vehicleId === vehicle.id);
 
           return (
-            <motion.div variants={fadeUp} key={vehicle.id} className="group">
-              <Link href={`/vehicles/${vehicle.id}`}>
-                <Card className="rounded-[2.5rem] border-border/40 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 overflow-hidden group-hover:border-primary/20">
-                  <CardContent className="p-0">
-                    <div className="flex flex-col sm:flex-row">
-                      {/* Left Side: Vehicle Identity & Score */}
-                      <div className="p-6 sm:w-1/3 bg-muted/30 border-b sm:border-b-0 sm:border-r border-border/40 flex flex-col items-center justify-center text-center gap-4">
-                        <div className="relative">
-                          <svg className="w-24 h-24 -rotate-90 drop-shadow-sm" viewBox="0 0 44 44">
-                            <circle cx="22" cy="22" r="19" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted/50" />
-                            <motion.circle
-                              initial={{ strokeDasharray: "0 120" }}
-                              animate={{ strokeDasharray: `${score * 1.193} 120` }}
-                              transition={{ duration: 1.5, ease: "easeOut" }}
-                              cx="22" cy="22" r="19" fill="none"
-                              stroke={score >= 85 ? "#10b981" : score >= 65 ? "#f59e0b" : "#ef4444"}
-                              strokeWidth="4"
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-2xl font-black font-outfit leading-none">{score}</span>
-                            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-tighter">Puan</span>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="inline-flex items-center gap-2 bg-background border border-border/60 px-3 py-1 rounded-xl shadow-sm">
-                            <Car className="h-3 w-3 text-primary" />
-                            <span className="text-xs font-black tracking-tight">{vehicle.plate}</span>
-                          </div>
-                          <p className="text-[11px] font-medium text-muted-foreground">{vehicle.brand} {vehicle.model}</p>
+            <motion.div variants={fadeUp} key={vehicle.id}>
+              <Link href={`/vehicles/${vehicle.id}`} className="block group">
+                <div className="bg-card rounded-2xl border border-border/40 overflow-hidden hover:border-primary/30 hover:shadow-md transition-all duration-200">
+
+                  {/* Üst skor çubuğu */}
+                  <div className="h-1 w-full" style={{ background: `linear-gradient(to right, ${barColor}33, ${barColor})` }} />
+
+                  <div className="p-4 space-y-4">
+                    {/* ── Kimlik satırı ── */}
+                    <div className="flex items-center gap-3">
+                      {/* Küçük skor dairesi */}
+                      <div className="relative w-11 h-11 shrink-0">
+                        <svg className="w-11 h-11 -rotate-90" viewBox="0 0 44 44">
+                          <circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" strokeWidth="3.5" className="text-muted/40" />
+                          <circle
+                            cx="22" cy="22" r="18" fill="none"
+                            stroke={barColor}
+                            strokeWidth="3.5"
+                            strokeDasharray={`${score * 1.131} 113.1`}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-[11px] font-black font-outfit leading-none">{score}</span>
                         </div>
                       </div>
 
-                      {/* Right Side: Status Overview */}
-                      <div className="flex-1 p-6 flex flex-col justify-between gap-6">
-                        {/* Status Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                          {[
-                            { label: "Sigorta", icon: Shield, status: insStatus, info: insDays !== null ? (insDays < 0 ? "Gecikti" : `${insDays} Gün`) : "—" },
-                            { label: "Muayene", icon: Calendar, status: muaStatus, info: muaDays !== null ? (muaDays < 0 ? "Gecikti" : `${muaDays} Gün`) : "—" },
-                            { label: "Bakım", icon: Wrench, status: criticalMaintenance.length > 0 ? "warning" : "good", info: criticalMaintenance.length > 0 ? `${criticalMaintenance.length} Uyarı` : "Tamam" },
-                            { label: "Lastik", icon: Disc3, status: "good", info: vehicle.tireStatus },
-                          ].map((item, i) => (
-                            <div key={i} className="flex flex-col items-center sm:items-start gap-2">
-                              <div className={`p-2 rounded-2xl border ${statusBadge[item.status as keyof typeof statusBadge]} transition-transform group-hover:scale-110`}>
-                                <item.icon className="h-4 w-4" />
-                              </div>
-                              <div className="text-center sm:text-left">
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{item.label}</p>
-                                <p className="text-xs font-bold">{item.info}</p>
-                              </div>
-                            </div>
-                          ))}
+                      {/* Plaka + model */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-outfit font-black text-sm tracking-tight">{vehicle.plate}</span>
+                          <span className="text-xs text-muted-foreground truncate">{vehicle.brand} {vehicle.model} • {vehicle.year}</span>
                         </div>
-
-                        {/* Critical Items Strip */}
-                        {criticalMaintenance.length > 0 || insStatus !== "good" || muaStatus !== "good" ? (
-                          <div className="bg-muted/50 rounded-2xl p-3 border border-border/30">
-                            <div className="flex items-center gap-2 mb-2">
-                              <AlertTriangle className="h-3 w-3 text-amber-500" />
-                              <span className="text-[10px] font-bold uppercase tracking-tight">Dikkat Gerekenler</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {insStatus !== "good" && <Badge variant="outline" className="text-[9px] bg-red-500/5 text-red-600 border-red-500/20">Sigorta Yenileme</Badge>}
-                              {muaStatus !== "good" && <Badge variant="outline" className="text-[9px] bg-red-500/5 text-red-600 border-red-500/20">Muayene Randevusu</Badge>}
-                              {criticalMaintenance.slice(0, 2).map((m, i) => (
-                                <Badge key={i} variant="outline" className="text-[9px] bg-amber-500/5 text-amber-600 border-amber-500/20">{m.name}</Badge>
-                              ))}
-                              {criticalMaintenance.length > 2 && <span className="text-[9px] text-muted-foreground font-medium">+{criticalMaintenance.length - 2} daha</span>}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/5 p-3 rounded-2xl border border-emerald-500/10">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span className="text-xs font-bold">Her şey yolunda, tüm kontroller tamam.</span>
-                          </div>
-                        )}
+                        <span className="text-[11px] text-muted-foreground">{vehicle.mileage.toLocaleString("tr-TR")} km</span>
                       </div>
+
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary shrink-0 transition-colors" />
                     </div>
-                  </CardContent>
-                </Card>
+
+                    {/* ── 4 durum pill'i ── */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {statusItems.map((item) => {
+                        const Icon = statusIcon[item.status];
+                        return (
+                          <div
+                            key={item.label}
+                            className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl ${statusColors[item.status].pill}`}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                            <span className="text-[9px] font-bold uppercase tracking-wide opacity-70">{item.label}</span>
+                            <span className="text-[10px] font-bold leading-none text-center">{item.info}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* ── Uyarı satırı ── */}
+                    {hasIssue ? (
+                      <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/30">
+                        {vehicleAlerts.map((alert) => {
+                          const Icon = categoryIcon[alert.category];
+                          return (
+                            <span
+                              key={alert.id}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${severityBadge[alert.severity]}`}
+                            >
+                              <Icon className="h-2.5 w-2.5" />
+                              {alert.title}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 pt-1 border-t border-border/30 text-emerald-500">
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        <span className="text-[11px] font-semibold">Tüm kontroller tamam</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </Link>
             </motion.div>
           );
         })}
 
+        {/* ── Document Automation ── */}
         {vehicles.length > 0 && (
           <motion.div variants={fadeUp}>
             <DocumentAutomation vehicles={vehicles} />
           </motion.div>
         )}
 
+        {/* ── Boş durum ── */}
         {vehicles.length === 0 && (
           <motion.div variants={fadeUp} className="text-center py-16 flex flex-col items-center gap-4">
             <div className="p-5 bg-mesh rounded-3xl shadow-lg shadow-primary/20">
@@ -223,7 +242,9 @@ export default function FleetStatusPage() {
               <p className="text-sm text-muted-foreground max-w-xs">Filo analizi için araçlarınızı ekleyin.</p>
             </div>
             <Link href="/vehicles/new">
-              <span className="text-sm text-primary font-semibold hover:underline">Araç ekle →</span>
+              <span className="text-sm text-primary font-semibold hover:underline flex items-center gap-1">
+                Araç ekle <ChevronRight className="h-3.5 w-3.5" />
+              </span>
             </Link>
           </motion.div>
         )}

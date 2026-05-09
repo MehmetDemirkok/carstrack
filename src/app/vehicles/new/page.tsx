@@ -13,7 +13,7 @@ import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle } from "@/lib/db";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, Wrench, CheckCircle2, Camera, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, CheckCircle2, Camera, Info } from "lucide-react";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
 const FUEL_TYPES: FuelType[] = ["Benzin", "Dizel", "LPG", "Hibrit", "Elektrik"];
@@ -26,7 +26,6 @@ const steps = [
   { id: 2, title: "Teknik", icon: Fuel },
   { id: 3, title: "Lastik & Akü", icon: Disc3 },
   { id: 4, title: "Belgeler", icon: Shield },
-  { id: 5, title: "Bakım", icon: Wrench },
 ];
 
 interface FormData {
@@ -56,8 +55,6 @@ interface FormData {
   lastServiceDate: string;
   lastServiceMileage: string;
   notes: string;
-  maintenanceDates: Record<string, string>;
-  maintenanceMileages: Record<string, string>;
 }
 
 const defaultForm: FormData = {
@@ -68,7 +65,6 @@ const defaultForm: FormData = {
   batteryBrand: "", batteryCapacity: "", batteryInstallDate: "",
   insuranceCompany: "", insuranceExpiry: "", greenCardCompany: "", greenCardExpiry: "", inspectionExpiry: "",
   lastServiceDate: "", lastServiceMileage: "0", notes: "",
-  maintenanceDates: {}, maintenanceMileages: {},
 };
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
@@ -93,12 +89,6 @@ export default function NewVehiclePage() {
   const set = (key: keyof FormData, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const setMaintDate = (id: string, value: string) =>
-    setForm((prev) => ({ ...prev, maintenanceDates: { ...prev.maintenanceDates, [id]: value } }));
-
-  const setMaintKm = (id: string, value: string) =>
-    setForm((prev) => ({ ...prev, maintenanceMileages: { ...prev.maintenanceMileages, [id]: value } }));
-
   const handleFile = (file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
@@ -113,11 +103,7 @@ export default function NewVehiclePage() {
     setSaving(true);
     setError("");
     const mileage = parseInt(form.mileage) || 0;
-    const maintenanceItems = MAINTENANCE_TEMPLATES.map((t) => ({
-      ...t,
-      lastDoneDate: form.maintenanceDates[t.id] || undefined,
-      lastDoneMileage: form.maintenanceMileages[t.id] ? parseInt(form.maintenanceMileages[t.id]) : undefined,
-    }));
+    const maintenanceItems = MAINTENANCE_TEMPLATES.map((t) => ({ ...t }));
 
     const data: Omit<Vehicle, "id" | "createdAt" | "updatedAt"> = {
       image: form.image,
@@ -404,36 +390,6 @@ export default function NewVehiclePage() {
               </Card>
             )}
 
-            {/* ── STEP 5: BAKIM ── */}
-            {step === 5 && (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground px-1">Her bakım kalemi için en son yapılma tarihini ve km{"'"}sini girin (opsiyonel).</p>
-                {MAINTENANCE_TEMPLATES.map((t) => (
-                  <Card key={t.id} className="rounded-2xl border-border/40">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold">{t.name}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {t.intervalKm ? `${(t.intervalKm / 1000).toFixed(0)}K km` : ""}
-                          {t.intervalKm && t.intervalMonths ? " / " : ""}
-                          {t.intervalMonths ? `${t.intervalMonths} ay` : ""}
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label="Son Yapılma Tarihi">
-                          <Input className="rounded-xl h-10 bg-muted/30 border-border/40 text-sm" type="date" value={form.maintenanceDates[t.id] || ""} onChange={(e) => setMaintDate(t.id, e.target.value)} />
-                        </Field>
-                        {t.intervalKm && (
-                          <Field label="Son Yapılma km">
-                            <Input className="rounded-xl h-10 bg-muted/30 border-border/40 text-sm" type="number" placeholder="0" value={form.maintenanceMileages[t.id] || ""} onChange={(e) => setMaintKm(t.id, e.target.value)} />
-                          </Field>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
           </motion.div>
         </AnimatePresence>
       </div>

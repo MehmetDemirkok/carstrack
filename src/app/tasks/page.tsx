@@ -34,7 +34,10 @@ function formatDuration(start: string, end?: string): string {
   const ms = (end ? new Date(end) : new Date()).getTime() - new Date(start).getTime();
   const mins = Math.floor(ms / 60000);
   if (mins < 60) return `${mins} dk`;
-  return `${Math.floor(mins / 60)} sa ${mins % 60} dk`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} sa ${mins % 60} dk`;
+  const days = Math.floor(hours / 24);
+  return `${days} gün ${hours % 24} sa`;
 }
 
 function formatDateTime(iso: string): string {
@@ -562,7 +565,50 @@ function ManagerView() {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-border/40">
+        <>
+        {/* Mobile card list */}
+        <div className="md:hidden space-y-3">
+          {tasks.map((task) => {
+            const v = vehicles.find((x) => x.id === task.vehicleId);
+            const isActive = task.status === "active";
+            return (
+              <div key={task.id} className="glass rounded-2xl p-4 border border-border/40 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm">{v?.plate ?? task.vehiclePlate ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{v ? `${v.brand} ${v.model}` : (task.vehicleName ?? "")}</p>
+                  </div>
+                  <span className={`inline-flex shrink-0 items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${isActive ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
+                    {isActive && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
+                    {isActive ? "Aktif" : "Tamamlandı"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium">{task.driverName ?? "—"}</span>
+                  {task.driverDepartment && <span className="text-muted-foreground">{task.driverDepartment}</span>}
+                </div>
+                <div className="grid grid-cols-3 gap-2 bg-muted/40 rounded-xl p-2.5">
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Mesafe</p>
+                    <p className="text-sm font-bold">{task.distance != null ? `${formatKm(task.distance)} km` : "—"}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Süre</p>
+                    <p className="text-sm font-bold">{isActive ? formatDuration(task.startTime) : task.endTime ? formatDuration(task.startTime, task.endTime) : "—"}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Başl. KM</p>
+                    <p className="text-sm font-bold">{formatKm(task.startKm)}</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground">{formatDateTime(task.startTime)}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto rounded-3xl border border-border/40">
           <table className="w-full text-sm">
             <thead className="bg-muted/30">
               <tr>
@@ -633,6 +679,7 @@ function ManagerView() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );
