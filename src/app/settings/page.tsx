@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Database, Trash2, Car,
-  Check, Globe, X, LogOut, Building2, Copy, Users, Camera,
+  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -199,6 +199,34 @@ export default function SettingsPage() {
   const [notifSupported, setNotifSupported] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
   const [notifEnabled, setNotifEnabled] = useState(false);
+
+  // E-posta bildirimleri
+  const [emailNotif, setEmailNotif] = useState(true);
+  const [emailNotifSaving, setEmailNotifSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile?.notifyByEmail !== undefined) setEmailNotif(profile.notifyByEmail);
+  }, [profile?.notifyByEmail]);
+
+  const handleEmailNotifToggle = async () => {
+    const next = !emailNotif;
+    setEmailNotif(next);
+    setEmailNotifSaving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("profiles")
+        .update({ notify_by_email: next })
+        .eq("id", user!.id);
+      if (error) throw error;
+      toast.success(next ? "E-posta bildirimleri açıldı" : "E-posta bildirimleri kapatıldı");
+    } catch {
+      setEmailNotif(!next);
+      toast.error("Kaydedilemedi");
+    } finally {
+      setEmailNotifSaving(false);
+    }
+  };
 
   // PWA install
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -471,6 +499,15 @@ export default function SettingsPage() {
                 }
                 trailing={notifTrailing}
                 onClick={notifPermission !== "granted" ? handleNotifClick : undefined}
+              />
+              <SettingItem
+                icon={Mail}
+                iconBg="bg-sky-500/10"
+                iconColor="text-sky-500"
+                label={emailNotifSaving ? t("notif_email_saving") : t("notif_email")}
+                description={t("notif_email_desc")}
+                trailing={<Toggle on={emailNotif} onToggle={handleEmailNotifToggle} />}
+                onClick={handleEmailNotifToggle}
               />
               <SettingItem
                 icon={Languages}

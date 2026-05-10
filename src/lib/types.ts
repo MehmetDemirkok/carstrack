@@ -14,6 +14,7 @@ export interface Profile {
   fullName: string;
   department: string;
   avatarUrl?: string;
+  notifyByEmail: boolean;
   createdAt: string;
 }
 

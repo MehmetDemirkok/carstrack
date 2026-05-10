@@ -32,7 +32,10 @@
       "Bash(rsvg-convert -w 180 -h 180 logo.svg -o apple-touch-icon.png)",
       "Bash(rsvg-convert -w 48  -h 48  logo.svg -o favicon-48.png)",
       "Bash(xargs ls -la)",
-      "Bash(grep -E \"\\\\.ts$|\\\\.tsx$\")"
+      "Bash(grep -E \"\\\\.ts$|\\\\.tsx$\")",
+      "Bash(sort -k9)",
+      "Bash(openssl rand *)",
+      "Bash(npx supabase *)"
     ]
   }
 }

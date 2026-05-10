@@ -49,6 +49,7 @@ export async function GET() {
         fullName: data.full_name,
         department: (data.department as string) || "",
         avatarUrl: (data.avatar_url as string) || undefined,
+        notifyByEmail: data.notify_by_email !== false,
         createdAt: data.created_at,
       },
       company: comp

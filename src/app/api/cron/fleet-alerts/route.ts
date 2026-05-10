@@ -51,10 +51,11 @@ export async function GET(req: Request) {
   }
   const userEmailMap = new Map(usersData.users.map((u) => [u.id, u.email ?? ""]));
 
-  // ── 3. Tüm profiller (rol + company_id + ad soyad) ───────────────
+  // ── 3. Tüm profiller (rol + company_id + ad soyad + bildirim tercihi) ──
   const { data: profiles, error: profilesErr } = await admin
     .from("profiles")
-    .select("id, company_id, role, full_name");
+    .select("id, company_id, role, full_name, notify_by_email")
+    .neq("notify_by_email", false); // e-posta bildirimi kapalı olanları atla
   if (profilesErr) {
     console.error("[cron/fleet-alerts] profiles error:", profilesErr);
     return NextResponse.json({ error: "Failed to load profiles" }, { status: 500 });

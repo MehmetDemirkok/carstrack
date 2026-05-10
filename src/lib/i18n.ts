@@ -51,6 +51,9 @@ export const translations = {
     notif_disabled: "Kapalı",
     notif_denied: "Engellendi",
     notif_denied_hint: "Tarayıcı ayarlarından bildirimlere izin verin.",
+    notif_email: "E-posta Bildirimleri",
+    notif_email_desc: "Sigorta, muayene ve bakım uyarılarını e-posta ile al",
+    notif_email_saving: "Kaydediliyor...",
 
     // About dialog
     about_title: "CarsTrack Hakkında",
@@ -181,6 +184,9 @@ export const translations = {
     notif_disabled: "Off",
     notif_denied: "Blocked",
     notif_denied_hint: "Enable notifications in your browser settings.",
+    notif_email: "Email Notifications",
+    notif_email_desc: "Receive insurance, inspection and maintenance alerts by email",
+    notif_email_saving: "Saving...",
 
     // About dialog
     about_title: "About CarsTrack",

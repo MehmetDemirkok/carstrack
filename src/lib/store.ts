@@ -120,6 +120,11 @@ export function getMaintenanceProgress(item: MaintenanceItem, currentMileage: nu
 
 // ─── Fleet Alerts ─────────────────────────────────────────────
 
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+}
+
 export function getFleetAlerts(vehicles: Vehicle[]): FleetAlert[] {
   const alerts: FleetAlert[] = [];
   const today = new Date();
@@ -127,42 +132,55 @@ export function getFleetAlerts(vehicles: Vehicle[]): FleetAlert[] {
   for (const v of vehicles) {
     const name = `${v.brand} ${v.model}`;
 
-    const insDays = daysBetween(today, new Date(v.insuranceExpiry));
-    if (insDays < 0) {
-      alerts.push({ id: `${v.id}-ins`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Sigorta Süresi Doldu", description: `${v.plate} aracının sigortası sona erdi.`, severity: "critical", category: "insurance" });
-    } else if (insDays < 30) {
-      alerts.push({ id: `${v.id}-ins`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Sigorta Yaklaşıyor", description: `${v.plate} — ${insDays} gün kaldı.`, severity: "warning", category: "insurance" });
-    }
-
-    if (v.greenCardExpiry) {
-      const gcDays = daysBetween(today, new Date(v.greenCardExpiry));
-      if (gcDays < 0) {
-        alerts.push({ id: `${v.id}-gc`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Yeşil Kart Süresi Doldu", description: `${v.plate} aracının yeşil kartı sona erdi.`, severity: "critical", category: "green-card" });
-      } else if (gcDays < 30) {
-        alerts.push({ id: `${v.id}-gc`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Yeşil Kart Yaklaşıyor", description: `${v.plate} — ${gcDays} gün kaldı.`, severity: "warning", category: "green-card" });
+    // ── Sigorta ──────────────────────────────────────────────────
+    if (v.insuranceExpiry) {
+      const insDays = daysBetween(today, new Date(v.insuranceExpiry));
+      const insCompany = v.insuranceCompany ? ` (${v.insuranceCompany})` : "";
+      if (insDays < 0) {
+        alerts.push({ id: `${v.id}-ins`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Sigorta Süresi Doldu", description: `${v.plate} aracının sigortası${insCompany} ${formatDate(v.insuranceExpiry)} tarihinde sona erdi. Lütfen en kısa sürede yenileyin.`, severity: "critical", category: "insurance" });
+      } else if (insDays <= 60) {
+        const urgency = insDays <= 14 ? "Acil: " : "";
+        alerts.push({ id: `${v.id}-ins`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: `${urgency}Sigorta Bitiyor`, description: `${v.plate} aracının sigortası${insCompany} ${formatDate(v.insuranceExpiry)} tarihinde bitiyor — ${insDays} gün kaldı.`, severity: insDays <= 14 ? "critical" : "warning", category: "insurance" });
       }
     }
 
-    const muaDays = daysBetween(today, new Date(v.inspectionExpiry));
-    if (muaDays < 0) {
-      alerts.push({ id: `${v.id}-mua`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Muayene Süresi Doldu", description: `${v.plate} aracının muayenesi sona erdi.`, severity: "critical", category: "inspection" });
-    } else if (muaDays < 30) {
-      alerts.push({ id: `${v.id}-mua`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Muayene Yaklaşıyor", description: `${v.plate} — ${muaDays} gün kaldı.`, severity: "warning", category: "inspection" });
+    // ── Yeşil Kart ───────────────────────────────────────────────
+    if (v.greenCardExpiry) {
+      const gcDays = daysBetween(today, new Date(v.greenCardExpiry));
+      const gcCompany = v.greenCardCompany ? ` (${v.greenCardCompany})` : "";
+      if (gcDays < 0) {
+        alerts.push({ id: `${v.id}-gc`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Yeşil Kart Süresi Doldu", description: `${v.plate} aracının yeşil kartı${gcCompany} ${formatDate(v.greenCardExpiry)} tarihinde sona erdi.`, severity: "critical", category: "green-card" });
+      } else if (gcDays <= 60) {
+        alerts.push({ id: `${v.id}-gc`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Yeşil Kart Bitiyor", description: `${v.plate} aracının yeşil kartı${gcCompany} ${formatDate(v.greenCardExpiry)} tarihinde bitiyor — ${gcDays} gün kaldı.`, severity: gcDays <= 14 ? "critical" : "warning", category: "green-card" });
+      }
     }
 
+    // ── Muayene ──────────────────────────────────────────────────
+    if (v.inspectionExpiry) {
+      const muaDays = daysBetween(today, new Date(v.inspectionExpiry));
+      if (muaDays < 0) {
+        alerts.push({ id: `${v.id}-mua`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Muayene Süresi Doldu", description: `${v.plate} aracının muayenesi ${formatDate(v.inspectionExpiry)} tarihinde sona erdi. Trafik cezasına maruz kalmamak için yaptırın.`, severity: "critical", category: "inspection" });
+      } else if (muaDays <= 60) {
+        const urgency = muaDays <= 14 ? "Acil: " : "";
+        alerts.push({ id: `${v.id}-mua`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: `${urgency}Muayene Yaklaşıyor`, description: `${v.plate} aracının muayene tarihi ${formatDate(v.inspectionExpiry)} — ${muaDays} gün kaldı.`, severity: muaDays <= 14 ? "critical" : "warning", category: "inspection" });
+      }
+    }
+
+    // ── Lastik ───────────────────────────────────────────────────
     if (v.tireStatus === "Kışlık") {
       const month = today.getMonth() + 1;
       if (month >= 4 && month <= 9) {
-        alerts.push({ id: `${v.id}-tire`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Kış Lastiği Uyarısı", description: `${v.plate} aracında kış lastiği takılı, değişim zamanı.`, severity: "warning", category: "tire" });
+        alerts.push({ id: `${v.id}-tire`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: "Kış Lastiği Değişimi", description: `${v.plate} aracında kış lastiği takılı. Yaz aylarında yaz lastiğine geçiş önerilir.`, severity: "warning", category: "tire" });
       }
     }
 
+    // ── Bakım Kalemleri ──────────────────────────────────────────
     for (const item of v.maintenanceItems) {
       const status = getMaintenanceStatusForItem(item, v.mileage);
       if (status === "overdue") {
-        alerts.push({ id: `${v.id}-${item.id}`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: `${item.name} Gecikmeli`, description: `${v.plate} — ${item.name} zamanı geçti.`, severity: "critical", category: "maintenance" });
+        alerts.push({ id: `${v.id}-${item.id}`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: `${item.name} — Gecikmeli`, description: `${v.plate} aracında ${item.name} zamanı geçti. En kısa sürede servise götürmeniz önerilir.`, severity: "critical", category: "maintenance" });
       } else if (status === "warning") {
-        alerts.push({ id: `${v.id}-${item.id}`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: `${item.name} Yaklaşıyor`, description: `${v.plate} — ${item.name} yakında gerekiyor.`, severity: "warning", category: "maintenance" });
+        alerts.push({ id: `${v.id}-${item.id}`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: `${item.name} — Yaklaşıyor`, description: `${v.plate} aracında ${item.name} zamanı yaklaşıyor. Servis randevusu planlamanız önerilir.`, severity: "warning", category: "maintenance" });
       }
     }
   }
