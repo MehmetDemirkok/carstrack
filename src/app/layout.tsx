@@ -15,7 +15,10 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
+
+// Paste your Google Search Console verification code here after adding the property
+const GOOGLE_SITE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ?? "";
 
 export const metadata: Metadata = {
   title: {
@@ -33,9 +36,21 @@ export const metadata: Metadata = {
     "araç masraf takip",
     "sigorta takip",
     "muayene takip",
+    "fleet management",
+    "araç yönetim sistemi",
+    "carstrack",
   ],
-  authors: [{ name: "CarsTrack" }],
+  authors: [{ name: "CarsTrack", url: APP_URL }],
+  creator: "CarsTrack",
+  publisher: "CarsTrack",
+  metadataBase: new URL(APP_URL),
+  alternates: {
+    canonical: "/",
+  },
   manifest: "/manifest.json",
+  ...(GOOGLE_SITE_VERIFICATION && {
+    verification: { google: GOOGLE_SITE_VERIFICATION },
+  }),
   icons: {
     icon: [
       { url: "/logo.svg", type: "image/svg+xml" },
@@ -71,6 +86,23 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "CarsTrack",
+  url: APP_URL,
+  description:
+    "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin.",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "TRY",
+  },
+  inLanguage: "tr-TR",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -78,6 +110,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body
         className={`${inter.variable} ${outfit.variable} font-sans antialiased bg-background text-foreground min-h-[100dvh] flex flex-col`}
       >

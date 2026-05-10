@@ -1,12 +1,17 @@
 {
-  "name": "CarsTrack",
+  "name": "CarsTrack — Araç Bakım Takip",
   "short_name": "CarsTrack",
-  "description": "Vehicle maintenance tracking, service history and car expense management.",
+  "description": "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin.",
+  "id": "/",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#09090b",
   "theme_color": "#09090b",
   "orientation": "portrait",
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "tr",
+  "dir": "ltr",
+  "scope": "/",
   "icons": [
     {
       "src": "/favicon.ico",
@@ -24,6 +29,21 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "CarsTrack Dashboard"
     }
   ]
 }

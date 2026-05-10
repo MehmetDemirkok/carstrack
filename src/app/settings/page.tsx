@@ -20,6 +20,7 @@ import { useLanguage } from "@/context/language-context";
 import type { Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
+import { HelpDialog } from "@/components/help-dialog";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -668,37 +669,7 @@ export default function SettingsPage() {
       </Dialog>
 
       {/* ── Help & Support Dialog ── */}
-      <Dialog open={showHelp} onOpenChange={setShowHelp}>
-        <DialogContent className="rounded-3xl max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle className="font-outfit flex items-center gap-2">
-              <HelpCircle className="h-5 w-5 text-amber-500" /> {t("help_title")}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-2 space-y-1 max-h-72 overflow-y-auto">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("help_faq_title")}</p>
-            {[
-              { q: t("help_q1"), a: t("help_a1") },
-              { q: t("help_q2"), a: t("help_a2") },
-              { q: t("help_q3"), a: t("help_a3") },
-            ].map(({ q, a }) => (
-              <div key={q} className="p-3 rounded-2xl bg-muted/40">
-                <p className="text-sm font-semibold">{q}</p>
-                <p className="text-xs text-muted-foreground mt-1">{a}</p>
-              </div>
-            ))}
-            <div className="pt-2 pb-1">
-              <p className="text-xs text-muted-foreground">{t("help_contact")}</p>
-              <a href="mailto:support@carstrack.com" className="text-sm font-medium text-primary">
-                support@carstrack.com
-              </a>
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" className="w-full rounded-xl" />}>{t("help_close")}</DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <HelpDialog open={showHelp} onOpenChange={setShowHelp} />
     </div>
   );
 }
