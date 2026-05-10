@@ -231,7 +231,7 @@ export default function NewVehiclePage() {
                 <Card className="rounded-2xl border-border/40">
                   <CardContent className="p-4 space-y-4">
                     <Field label="Plaka" required>
-                      <Input className={cls} placeholder="34 ABC 123" value={form.plate} onChange={(e) => set("plate", e.target.value)} />
+                      <Input className={cls} placeholder="34 ABC 123" value={form.plate} onChange={(e) => set("plate", e.target.value.toUpperCase())} />
                     </Field>
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Marka" required>

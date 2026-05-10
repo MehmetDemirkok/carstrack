@@ -570,3 +570,39 @@ export async function endTask(taskId: string, endKm: number): Promise<VehicleTas
   if (error) throw error;
   return toTask(updated as Record<string, unknown>);
 }
+
+export async function createTaskAsManager(data: {
+  vehicleId: string;
+  driverId: string;
+  startKm: number;
+  description: string;
+}): Promise<VehicleTask> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+
+  const { data: inserted, error } = await supabase
+    .from("vehicle_tasks")
+    .insert({
+      company_id: companyId,
+      vehicle_id: data.vehicleId,
+      driver_id: data.driverId,
+      start_km: data.startKm,
+      description: data.description,
+      status: "active",
+      start_time: new Date().toISOString(),
+    })
+    .select("*, vehicles(plate, brand, model), profiles(full_name, department)")
+    .single();
+
+  if (error) throw error;
+  return toTask(inserted as Record<string, unknown>);
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("vehicle_tasks")
+    .delete()
+    .eq("id", taskId);
+  if (error) throw error;
+}

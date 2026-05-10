@@ -138,6 +138,9 @@ export default function VehicleDetailPage() {
   if (!vehicle) return null;
 
   const score = calculateHealthScore(vehicle);
+  const hasAnyMaintenanceData = vehicle.maintenanceItems.some(
+    (item) => item.lastDoneDate !== undefined || item.lastDoneMileage !== undefined
+  ) || !!vehicle.lastServiceDate;
 
   const openEdit = () => {
     setEditData({ ...vehicle });
@@ -339,76 +342,116 @@ export default function VehicleDetailPage() {
                       <p className="text-xs mt-1">Bu araç eski bir kayıt olabilir.</p>
                     </div>
                   )}
-                  {vehicle.maintenanceItems.map((item) => {
-                    const status = getMaintenanceStatusForItem(item, vehicle.mileage);
-                    const progress = getMaintenanceProgress(item, vehicle.mileage);
-                    const Icon = statusIcon[status];
-                    const hasData = item.lastDoneDate !== undefined || item.lastDoneMileage !== undefined;
-                    return (
-                      <div key={item.id} className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 ${status === "good" ? "text-emerald-500" : status === "warning" ? "text-amber-500" : "text-red-500"}`} />
-                            <span className="text-sm font-semibold">{item.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!hasData && (
-                              <span className="text-[10px] text-amber-500 font-medium">Veri yok</span>
-                            )}
-                            <Badge className={`text-[10px] font-bold border-none ${statusBadge[status]}`}>
-                              {statusLabel[status]}
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
-                              onClick={() => {
-                                setMaintEditItem({ id: item.id, name: item.name, intervalKm: item.intervalKm });
-                                setMaintEditDate(item.lastDoneDate || "");
-                                setMaintEditKm(item.lastDoneMileage !== undefined ? String(item.lastDoneMileage) : "");
-                                setShowMaintEdit(true);
-                              }}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                        <Progress value={progress} className="h-2 mb-2" indicatorClassName={statusColor[status]} />
-                        <div className="flex justify-between text-[10px] text-muted-foreground">
-                          <span>
-                            {item.lastDoneMileage !== undefined ? `Son: ${item.lastDoneMileage.toLocaleString("tr-TR")} km` : item.lastDoneDate ? `Son: ${item.lastDoneDate.split("-").reverse().join(".")}` : "Kayıt yok"}
-                          </span>
-                          <span>
-                            {item.intervalKm && item.lastDoneMileage !== undefined
-                              ? (() => {
-                                  const rem = (item.lastDoneMileage + item.intervalKm) - vehicle.mileage;
-                                  return rem > 0 ? `${rem.toLocaleString("tr-TR")} km kaldı` : `${Math.abs(rem).toLocaleString("tr-TR")} km geçti`;
-                                })()
-                              : item.intervalMonths && item.lastDoneDate
-                              ? `${item.intervalMonths} aylık`
-                              : ""}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
 
-                  <div className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm flex items-center gap-3">
-                    <div className="p-2 bg-blue-500/10 rounded-xl shrink-0">
-                      <Clock className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-muted-foreground">Son Servis</p>
-                      <p className="text-sm font-bold">{vehicle.lastServiceDate ? vehicle.lastServiceDate.split("-").reverse().join(".") : "—"}</p>
-                      {vehicle.lastServiceMileage > 0 && <p className="text-[10px] text-muted-foreground">{vehicle.lastServiceMileage.toLocaleString("tr-TR")} km'de</p>}
-                    </div>
-                    {vehicle.nextServiceMileage > 0 && (
-                      <div className="text-right">
-                        <p className="text-[10px] text-muted-foreground">Sonraki</p>
-                        <p className="text-sm font-bold text-primary">{vehicle.nextServiceMileage.toLocaleString("tr-TR")} km</p>
+                  {/* No maintenance data warning */}
+                  {!hasAnyMaintenanceData && vehicle.maintenanceItems.length > 0 && (
+                    <div className="bg-amber-500/8 border border-amber-500/20 rounded-2xl p-4 flex gap-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Bakım bilgisi girilmemiş</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                          Bu araç için henüz bakım veya servis bilgisi girilmedi. Doğru takip yapabilmek için lütfen her kalemin son yapılma tarih ve kilometresini güncelleyin.
+                        </p>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Simplified list when no data; full cards when data exists */}
+                  {!hasAnyMaintenanceData
+                    ? vehicle.maintenanceItems.map((item) => (
+                        <div key={item.id} className="bg-card rounded-2xl px-4 py-3 border border-border/40 shadow-sm flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Wrench className="h-4 w-4 text-muted-foreground/40" />
+                            <span className="text-sm font-medium text-muted-foreground">{item.name}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            onClick={() => {
+                              setMaintEditItem({ id: item.id, name: item.name, intervalKm: item.intervalKm });
+                              setMaintEditDate(item.lastDoneDate || "");
+                              setMaintEditKm(item.lastDoneMileage !== undefined ? String(item.lastDoneMileage) : "");
+                              setShowMaintEdit(true);
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))
+                    : vehicle.maintenanceItems.map((item) => {
+                        const status = getMaintenanceStatusForItem(item, vehicle.mileage);
+                        const progress = getMaintenanceProgress(item, vehicle.mileage);
+                        const Icon = statusIcon[status];
+                        const hasData = item.lastDoneDate !== undefined || item.lastDoneMileage !== undefined;
+                        return (
+                          <div key={item.id} className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Icon className={`h-4 w-4 ${status === "good" ? "text-emerald-500" : status === "warning" ? "text-amber-500" : "text-red-500"}`} />
+                                <span className="text-sm font-semibold">{item.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {!hasData && (
+                                  <span className="text-[10px] text-amber-500 font-medium">Veri yok</span>
+                                )}
+                                <Badge className={`text-[10px] font-bold border-none ${statusBadge[status]}`}>
+                                  {statusLabel[status]}
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                  onClick={() => {
+                                    setMaintEditItem({ id: item.id, name: item.name, intervalKm: item.intervalKm });
+                                    setMaintEditDate(item.lastDoneDate || "");
+                                    setMaintEditKm(item.lastDoneMileage !== undefined ? String(item.lastDoneMileage) : "");
+                                    setShowMaintEdit(true);
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                            <Progress value={progress} className="h-2 mb-2" indicatorClassName={statusColor[status]} />
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>
+                                {item.lastDoneMileage !== undefined ? `Son: ${item.lastDoneMileage.toLocaleString("tr-TR")} km` : item.lastDoneDate ? `Son: ${item.lastDoneDate.split("-").reverse().join(".")}` : "Kayıt yok"}
+                              </span>
+                              <span>
+                                {item.intervalKm && item.lastDoneMileage !== undefined
+                                  ? (() => {
+                                      const rem = (item.lastDoneMileage + item.intervalKm) - vehicle.mileage;
+                                      return rem > 0 ? `${rem.toLocaleString("tr-TR")} km kaldı` : `${Math.abs(rem).toLocaleString("tr-TR")} km geçti`;
+                                    })()
+                                  : item.intervalMonths && item.lastDoneDate
+                                  ? `${item.intervalMonths} aylık`
+                                  : ""}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                  {/* Son Servis — only when maintenance data exists */}
+                  {hasAnyMaintenanceData && (
+                    <div className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm flex items-center gap-3">
+                      <div className="p-2 bg-blue-500/10 rounded-xl shrink-0">
+                        <Clock className="h-5 w-5 text-blue-500" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">Son Servis</p>
+                        <p className="text-sm font-bold">{vehicle.lastServiceDate ? vehicle.lastServiceDate.split("-").reverse().join(".") : "—"}</p>
+                        {vehicle.lastServiceMileage > 0 && <p className="text-[10px] text-muted-foreground">{vehicle.lastServiceMileage.toLocaleString("tr-TR")} km'de</p>}
+                      </div>
+                      {vehicle.nextServiceMileage > 0 && (
+                        <div className="text-right">
+                          <p className="text-[10px] text-muted-foreground">Sonraki</p>
+                          <p className="text-sm font-bold text-primary">{vehicle.nextServiceMileage.toLocaleString("tr-TR")} km</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </TabsContent>
 
                 {/* ── TEKNİK ── */}
