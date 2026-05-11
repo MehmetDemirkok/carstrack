@@ -345,6 +345,7 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: str
     role: row.role as Profile["role"],
     fullName: row.full_name as string,
     department: (row.department as string) || "",
+    notifyByEmail: row.notify_by_email !== false,
     createdAt: row.created_at as string,
     assignedVehicleIds: Array.isArray(row.vehicle_assignments)
       ? (row.vehicle_assignments as { vehicle_id: string }[]).map((a) => a.vehicle_id)
@@ -444,6 +445,7 @@ export async function getMembers(): Promise<Profile[]> {
     role: row.role as Profile["role"],
     fullName: row.full_name as string,
     department: (row.department as string) || "",
+    notifyByEmail: row.notify_by_email !== false,
     createdAt: row.created_at as string,
   }));
 }
