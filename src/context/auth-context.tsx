@@ -132,15 +132,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Safety timeout: if after 15 seconds we are still loading, force it to false.
-    // This prevents the "Loading..." hang if Supabase events never fire or get stuck.
+    // Safety timeout: force-unblock the UI if Supabase events never fire.
+    // 5s is enough — INITIAL_SESSION normally fires in < 500ms.
     const timer = setTimeout(() => {
       if (!initializedRef.current) {
         console.warn("Auth initialization timed out, forcing loading to false");
         setLoading(false);
         initializedRef.current = true;
       }
-    }, 15000);
+    }, 5000);
 
     return () => {
       subscription.unsubscribe();

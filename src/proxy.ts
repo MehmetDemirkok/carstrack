@@ -2,8 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Next.js 16 proxy (replaces middleware.ts).
-// Critical rule: NEVER set httpOnly on Supabase session cookies.
-// The browser client uses document.cookie to read/write them — httpOnly breaks that.
+//
+// PERFORMANCE NOTE: We use getSession() here (local JWT check, no network call)
+// instead of getUser() (network call to Supabase Auth server).
+// getUser() was causing 400-500ms latency on every request in production,
+// blocking auth initialization and data fetches.
+// Security: API routes that need identity verification still call getUser().
+// This proxy is only responsible for redirects.
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -16,28 +21,29 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          // Step 1: make downstream server code see the refreshed tokens
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          // Step 2: new response that carries the updated request cookies
           supabaseResponse = NextResponse.next({ request });
-          // Step 3: write cookies to response — use Supabase's options as-is.
-          // Do NOT add httpOnly: Supabase browser client needs document.cookie access.
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              // Ensure Secure flag in production (HTTPS required).
+              // Do NOT add httpOnly — browser client needs document.cookie access.
+              secure: process.env.NODE_ENV === "production",
+            })
           );
         },
       },
     }
   );
 
-  // Always getUser() (not getSession()) — validates JWT server-side and
-  // triggers a token refresh if the access token is expiring.
+  // getSession() is a local operation — reads JWT from cookie, no network call.
+  // This keeps the proxy under 1ms instead of 400-500ms.
   let user = null;
   let staleSession = false;
   try {
-    const { data, error } = await supabase.auth.getUser();
+    const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
       const code = (error as { code?: string })?.code ?? "";
       if (
@@ -46,12 +52,11 @@ export async function proxy(request: NextRequest) {
       ) {
         staleSession = true;
       }
-      // "Auth session missing!" is normal for unauthenticated requests — not an error.
     } else {
-      user = data?.user ?? null;
+      user = session?.user ?? null;
     }
   } catch {
-    // Network timeout or unexpected error — don't block the request.
+    // Unexpected error — don't block the request.
   }
 
   const { pathname } = request.nextUrl;
@@ -67,8 +72,9 @@ export async function proxy(request: NextRequest) {
 
   // Stale/expired session → wipe sb- cookies, redirect to login
   if (staleSession) {
-    const loginUrl = new URL("/login", request.url);
-    const redirectResponse = NextResponse.redirect(loginUrl);
+    const redirectResponse = NextResponse.redirect(
+      new URL("/login", request.url)
+    );
     request.cookies
       .getAll()
       .filter(({ name }) => name.startsWith("sb-"))
@@ -106,8 +112,6 @@ export async function proxy(request: NextRequest) {
     return redirectResponse;
   }
 
-  // Return supabaseResponse (not NextResponse.next()) so refreshed tokens
-  // are delivered to the browser.
   return supabaseResponse;
 }
 

@@ -27,7 +27,10 @@ function getGreeting(): string {
 export function TopBar() {
   const { profile, user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
   const notifRef = useRef<HTMLDivElement>(null);
   const { setOpen: openPalette } = useCommandPalette();
 
@@ -101,13 +104,14 @@ export function TopBar() {
             <Search className="h-4 w-4" />
           </Button>
 
-          {/* Theme Toggle */}
+          {/* Theme Toggle — suppressHydrationWarning prevents title mismatch */}
           <Button
             variant="ghost"
             size="icon"
             className="rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            title={theme === "dark" ? "Açık tema" : "Koyu tema"}
+            title={mounted ? (theme === "dark" ? "Açık tema" : "Koyu tema") : undefined}
+            suppressHydrationWarning
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
