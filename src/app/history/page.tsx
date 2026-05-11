@@ -55,6 +55,7 @@ export default function HistoryPage() {
   const { loading: authLoading, company } = useAuth();
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
   const [filter, setFilter] = useState<ServiceType | "all">("all");
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
@@ -74,31 +75,15 @@ export default function HistoryPage() {
   // Records and vehicles are fetched independently so a vehicle-load failure
   // does not block the records list from rendering (and vice-versa).
   const reload = useCallback(async () => {
-    let recordsLoaded = false;
-    let vehiclesLoaded = false;
-
-    // Try up to 3 times with a delay for auth cookie readiness
-    for (let attempt = 0; attempt < 3 && (!recordsLoaded || !vehiclesLoaded); attempt++) {
-      if (attempt > 0) await new Promise(r => setTimeout(r, 500));
-
-      if (!recordsLoaded) {
-        try {
-          const r = await getRecords();
-          setRecords(r);
-          recordsLoaded = true;
-        } catch (err) {
-          console.error(`Records load attempt ${attempt + 1} failed:`, err instanceof Error ? err.message : err);
-        }
-      }
-      if (!vehiclesLoaded) {
-        try {
-          const v = await getVehicles();
-          setVehicles(v);
-          vehiclesLoaded = true;
-        } catch (err) {
-          console.error(`Vehicles load attempt ${attempt + 1} failed:`, err instanceof Error ? err.message : err);
-        }
-      }
+    setDataLoading(true);
+    try {
+      const [r, v] = await Promise.all([getRecords(), getVehicles()]);
+      setRecords(r);
+      setVehicles(v);
+    } catch (err) {
+      console.error("History load failed:", err instanceof Error ? err.message : err);
+    } finally {
+      setDataLoading(false);
     }
   }, []);
 
@@ -226,7 +211,12 @@ export default function HistoryPage() {
         )}
       </AnimatePresence>
 
-      {filtered.length === 0 ? (
+      {dataLoading ? (
+        <div className="flex flex-col items-center py-16 gap-3 text-muted-foreground">
+          <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm">Yükleniyor...</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}

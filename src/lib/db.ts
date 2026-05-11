@@ -328,7 +328,7 @@ export async function deleteRecord(id: string): Promise<void> {
 
 // ─── Drivers / Profiles ──────────────────────────────────────
 
-export async function getDrivers(): Promise<(Profile & { assignedVehicleId: string | null })[]> {
+export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: string[] })[]> {
   const supabase = createClient();
   const companyId = await requireCompanyId();
   const { data: profiles, error } = await supabase
@@ -346,10 +346,9 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleId: stri
     fullName: row.full_name as string,
     department: (row.department as string) || "",
     createdAt: row.created_at as string,
-    assignedVehicleId:
-      Array.isArray(row.vehicle_assignments) && row.vehicle_assignments.length > 0
-        ? (row.vehicle_assignments[0] as { vehicle_id: string }).vehicle_id
-        : null,
+    assignedVehicleIds: Array.isArray(row.vehicle_assignments)
+      ? (row.vehicle_assignments as { vehicle_id: string }[]).map((a) => a.vehicle_id)
+      : [],
   }));
 }
 
@@ -367,34 +366,66 @@ export async function getAssignments(): Promise<VehicleAssignment[]> {
   }));
 }
 
-export async function getMyAssignment(): Promise<VehicleAssignment | null> {
+export async function getMyAssignments(): Promise<VehicleAssignment[]> {
   const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
-  if (!user) return null;
+  if (!user) return [];
 
   const { data, error } = await supabase
     .from("vehicle_assignments")
     .select("*")
-    .eq("driver_id", user.id)
+    .eq("driver_id", user.id);
+  if (error) return [];
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    vehicleId: row.vehicle_id as string,
+    driverId: row.driver_id as string,
+    assignedAt: row.assigned_at as string,
+  }));
+}
+
+export async function getMyVehicles(): Promise<Vehicle[]> {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) return [];
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
     .single();
-  if (error) return null;
-  return {
-    id: data.id,
-    vehicleId: data.vehicle_id,
-    driverId: data.driver_id,
-    assignedAt: data.assigned_at,
-  };
+
+  if (profile?.role !== "driver") return getVehicles();
+
+  // Use the API route so the server-side admin client can bypass RLS on
+  // vehicle_assignments (drivers may not have a SELECT policy on that table).
+  try {
+    const res = await fetch("/api/my-vehicles");
+    if (!res.ok) return [];
+    const json = await res.json() as { vehicles?: Record<string, unknown>[] };
+    return (json.vehicles ?? []).map(toVehicle);
+  } catch {
+    return [];
+  }
 }
 
 export async function assignVehicle(vehicleId: string, driverId: string): Promise<void> {
   const supabase = createClient();
-  await supabase.from("vehicle_assignments").delete().eq("driver_id", driverId);
   const { error } = await supabase
     .from("vehicle_assignments")
     .insert({ vehicle_id: vehicleId, driver_id: driverId });
+  if (error && error.code !== "23505") throw error; // ignore duplicate-key
+}
+
+export async function unassignVehicle(vehicleId: string, driverId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("vehicle_assignments")
+    .delete()
+    .eq("driver_id", driverId)
+    .eq("vehicle_id", vehicleId);
   if (error) throw error;
 }
 
@@ -415,6 +446,18 @@ export async function getMembers(): Promise<Profile[]> {
     department: (row.department as string) || "",
     createdAt: row.created_at as string,
   }));
+}
+
+export async function updateMemberProfile(
+  memberId: string,
+  updates: { fullName?: string; department?: string }
+): Promise<void> {
+  const supabase = createClient();
+  const patch: Record<string, string> = {};
+  if (updates.fullName !== undefined) patch.full_name = updates.fullName;
+  if (updates.department !== undefined) patch.department = updates.department;
+  const { error } = await supabase.from("profiles").update(patch).eq("id", memberId);
+  if (error) throw error;
 }
 
 export async function unassignDriver(driverId: string): Promise<void> {

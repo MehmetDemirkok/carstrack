@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CarFront, Wrench, Activity, Settings, ClipboardList } from "lucide-react";
+import { LayoutDashboard, CarFront, Wrench, Activity, Settings, ClipboardList, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/context/language-context";
@@ -11,17 +11,25 @@ import { useAuth } from "@/context/auth-context";
 export function BottomNav() {
   const pathname = usePathname();
   const { t } = useLanguage();
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
   const needsProfileCompletion = !!profile && !profile.department;
 
-  const navItems = [
-    { href: "/", icon: LayoutDashboard, label: t("nav_dashboard") },
-    { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
-    { href: "/tasks", icon: ClipboardList, label: t("nav_tasks") },
-    { href: "/history", icon: Wrench, label: t("nav_history").split(" ")[0] },
-    { href: "/analytics", icon: Activity, label: t("nav_analytics").split(" ")[0] },
-    { href: "/settings", icon: Settings, label: t("nav_settings") },
-  ];
+  const isDriver = profile?.role === "driver";
+
+  const navItems = isDriver
+    ? [
+        { href: "/tasks", icon: ClipboardList, label: "Seyahatler" },
+        { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
+        { href: "/settings", icon: Settings, label: t("nav_settings") },
+      ]
+    : [
+        { href: "/", icon: LayoutDashboard, label: t("nav_dashboard") },
+        { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
+        { href: "/tasks", icon: ClipboardList, label: t("nav_tasks") },
+        { href: "/users", icon: Users, label: "Ekip" },
+        { href: "/analytics", icon: Activity, label: t("nav_analytics").split(" ")[0] },
+        { href: "/settings", icon: Settings, label: t("nav_settings") },
+      ];
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 pb-safe md:hidden">
@@ -29,7 +37,7 @@ export function BottomNav() {
         <div className="glass rounded-3xl border border-border/50 shadow-2xl shadow-primary/10 dark:shadow-black/40 overflow-hidden relative">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
           <div className="flex justify-around items-center h-16 px-1">
-            {navItems.map((item) => {
+            {!loading && navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/" && pathname.startsWith(item.href));

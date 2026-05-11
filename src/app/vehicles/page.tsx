@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { getVehicles, deleteVehicles } from "@/lib/db";
+import { getMyVehicles, deleteVehicles } from "@/lib/db";
 import { calculateHealthScore } from "@/lib/store";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { Vehicle } from "@/lib/types";
@@ -49,7 +49,7 @@ export default function VehiclesPage() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const data = await getVehicles();
+      const data = await getMyVehicles();
       setVehicles(data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? JSON.stringify(err);
@@ -181,7 +181,7 @@ export default function VehiclesPage() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                       {/* Plate */}
-                      <div className="absolute top-3 left-3 glass rounded-xl px-3 py-1.5 border border-white/20 flex items-center gap-2 shadow-lg z-10">
+                      <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-1.5 border border-white/15 flex items-center gap-2 shadow-lg z-10">
                         <Car className="h-3.5 w-3.5 text-white" />
                         <span className="font-outfit font-bold text-sm text-white">{vehicle.plate}</span>
                       </div>

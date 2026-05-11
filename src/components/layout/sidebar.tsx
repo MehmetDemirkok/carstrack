@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Car, LayoutDashboard, History, Activity, Settings, Plus, Sparkles, ClipboardList } from "lucide-react";
+import { Car, LayoutDashboard, History, Activity, Settings, Plus, Sparkles, ClipboardList, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
@@ -21,16 +21,25 @@ function getInitials(name: string): string {
 export function Sidebar() {
   const pathname = usePathname();
   const { t } = useLanguage();
-  const { profile, company } = useAuth();
+  const { profile, loading } = useAuth();
 
-  const navItems = [
-    { icon: LayoutDashboard, label: t("nav_dashboard"), href: "/" },
-    { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
-    { icon: ClipboardList, label: t("nav_tasks"), href: "/tasks" },
-    { icon: History, label: t("nav_history"), href: "/history" },
-    { icon: Activity, label: t("nav_analytics"), href: "/analytics" },
-    { icon: Settings, label: t("nav_settings"), href: "/settings" },
-  ];
+  const isDriver = profile?.role === "driver";
+
+  const navItems = isDriver
+    ? [
+        { icon: ClipboardList, label: "Seyahatlerim", href: "/tasks" },
+        { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
+        { icon: Settings, label: t("nav_settings"), href: "/settings" },
+      ]
+    : [
+        { icon: LayoutDashboard, label: t("nav_dashboard"), href: "/" },
+        { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
+        { icon: ClipboardList, label: t("nav_tasks"), href: "/tasks" },
+        { icon: Users, label: "Ekip", href: "/users" },
+        { icon: History, label: t("nav_history"), href: "/history" },
+        { icon: Activity, label: t("nav_analytics"), href: "/analytics" },
+        { icon: Settings, label: t("nav_settings"), href: "/settings" },
+      ];
 
   const initials = profile?.fullName ? getInitials(profile.fullName) : "?";
 
@@ -56,7 +65,7 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 px-4 space-y-1 overflow-y-auto no-scrollbar relative">
-        {navItems.map((item) => {
+        {!loading && navItems.map((item) => {
           const isActive =
             pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));
@@ -94,10 +103,12 @@ export function Sidebar() {
       </div>
 
       <div className="p-4 space-y-3 border-t border-border/30 relative">
+
         {profile && (
           <Link
             href="/settings"
             className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-muted/40 transition-colors group"
+            title={profile.fullName}
           >
             <Avatar className="h-9 w-9 ring-gradient">
               <AvatarFallback className="bg-mesh text-white font-bold text-xs">
@@ -105,19 +116,20 @@ export function Sidebar() {
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0 flex-1 leading-none">
-              <span className="text-sm font-semibold truncate">{profile.fullName}</span>
-              <span className="text-[10px] text-muted-foreground truncate mt-0.5">
-                {company?.name ?? (profile.role === "manager" ? "Yönetici" : "Şoför")}
+              <span className="text-[10px] text-muted-foreground truncate">
+                {profile.role === "manager" ? "Yönetici" : "Şoför"}
               </span>
             </div>
           </Link>
         )}
-        <Link href="/vehicles/new" className="block w-full">
-          <Button className="w-full rounded-2xl gap-2 font-semibold h-12 bg-mesh hover:opacity-95 text-white border-none shadow-lg shadow-primary/30">
-            <Plus className="h-4 w-4" />
-            {t("nav_add_vehicle")}
-          </Button>
-        </Link>
+        {!isDriver && (
+          <Link href="/vehicles/new" className="block w-full">
+            <Button className="w-full rounded-2xl gap-2 font-semibold h-12 bg-mesh hover:opacity-95 text-white border-none shadow-lg shadow-primary/30">
+              <Plus className="h-4 w-4" />
+              {t("nav_add_vehicle")}
+            </Button>
+          </Link>
+        )}
       </div>
     </aside>
   );

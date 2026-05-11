@@ -2,9 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { BottomNav } from "@/components/layout/bottom-nav";
-import { TopBar } from "@/components/layout/top-bar";
-import { Sidebar } from "@/components/layout/sidebar";
+import { ShellWrapper } from "@/components/layout/shell-wrapper";
 import { LanguageProvider } from "@/context/language-context";
 import { AuthProvider } from "@/context/auth-context";
 import { CommandPaletteProvider } from "@/context/command-palette-context";
@@ -129,14 +127,7 @@ export default function RootLayout({
             <AuthProvider>
               <CommandPaletteProvider>
                 <div className="flex w-full min-h-[100dvh] relative">
-                  <Sidebar />
-                  <div className="flex-1 flex flex-col md:ml-64 w-full relative">
-                    <TopBar />
-                    <main className="flex-1 overflow-x-hidden pb-20 md:pb-6 max-w-5xl mx-auto w-full">
-                      {children}
-                    </main>
-                    <BottomNav />
-                  </div>
+                  <ShellWrapper>{children}</ShellWrapper>
                 </div>
                 <CommandPalette />
                 <ProfileCompletionNotice />

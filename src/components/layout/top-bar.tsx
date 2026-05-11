@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bell, Moon, Sun, Search } from "lucide-react";
+import { Bell, Moon, Sun, Search, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
@@ -31,7 +31,7 @@ function getGreeting(): string {
 
 export function TopBar() {
   const { theme, setTheme } = useTheme();
-  const { profile, user } = useAuth();
+  const { profile, user, signOut } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const { setOpen: openPalette } = useCommandPalette();
@@ -116,6 +116,19 @@ export function TopBar() {
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-indigo-300" />
           </Button>
+
+          {/* Logout */}
+          {profile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full h-10 w-10 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              title="Çıkış Yap"
+              onClick={signOut}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          )}
 
           {/* Notification Button & Popover */}
           <div className="relative" ref={notifRef}>

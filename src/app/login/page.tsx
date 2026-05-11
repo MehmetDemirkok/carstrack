@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Car, Eye, EyeOff, Mail, Lock, ArrowRight, Play, User } from "lucide-react";
+import {
+  Car, Eye, EyeOff, Mail, Lock, ArrowRight,
+  Play, User, Shield, Activity, Bell, Users,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,79 +14,25 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ForgotPasswordModal } from "@/components/forgot-password-modal";
 
-const item = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
-const container = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08, delayChildren: 0.3 } },
-};
+const features = [
+  { icon: Car,      text: "Tüm araç bilgilerini tek ekranda takip edin" },
+  { icon: Activity, text: "Filo sağlık skoru ve anlık durum izleme" },
+  { icon: Bell,     text: "Sigorta, muayene ve bakım hatırlatmaları" },
+  { icon: Users,    text: "Çok kullanıcılı ekip yönetimi" },
+];
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
-  const [driverDemoLoading, setDriverDemoLoading] = useState(false);
-  const [forgotOpen, setForgotOpen] = useState(false);
+  const [email, setEmail]               = useState("");
+  const [password, setPassword]         = useState("");
+  const [showPass, setShowPass]         = useState(false);
+  const [error, setError]               = useState("");
+  const [loading, setLoading]           = useState(false);
+  const [demoLoading, setDemoLoading]   = useState(false);
+  const [driverLoading, setDriverLoading] = useState(false);
+  const [forgotOpen, setForgotOpen]     = useState(false);
   const router = useRouter();
 
-  const handleDriverDemoLogin = async () => {
-    setDriverDemoLoading(true);
-    try {
-      // Ensure demo company + vehicles exist first
-      await fetch("/api/demo/setup", { method: "POST" });
-
-      const res = await fetch("/api/demo/driver-setup", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        toast.error("Şoför demo başlatılamadı", { description: data.error ?? "Bir hata oluştu." });
-        return;
-      }
-      const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
-      if (authError) {
-        toast.error("Şoför demo girişi başarısız", { description: authError.message });
-        return;
-      }
-      toast.success("Şoför demo hesabına hoş geldiniz!", {
-        description: "Görev başlatmayı deneyin.",
-      });
-      router.push("/tasks");
-      router.refresh();
-    } finally {
-      setDriverDemoLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    setDemoLoading(true);
-    try {
-      const res = await fetch("/api/demo/setup", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        toast.error("Demo başlatılamadı", { description: data.error ?? "Bir hata oluştu." });
-        return;
-      }
-      const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
-      if (authError) {
-        toast.error("Demo girişi başarısız", { description: authError.message });
-        return;
-      }
-      toast.success("Demo hesabına hoş geldiniz!", { description: "Gerçek verilerle keşfedebilirsiniz." });
-      router.push("/");
-      router.refresh();
-    } finally {
-      setDemoLoading(false);
-    }
-  };
+  const anyBusy = loading || demoLoading || driverLoading;
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -93,243 +42,246 @@ export default function LoginPage() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError) {
       setError("E-posta veya şifre hatalı.");
-      toast.error("Giriş başarısız", { description: "E-posta veya şifre hatalı." });
+      toast.error("Giriş başarısız");
       setLoading(false);
       return;
     }
-    toast.success("Giriş başarılı", { description: "Yönlendiriliyorsunuz..." });
+    toast.success("Giriş başarılı");
     router.push("/");
     router.refresh();
   };
 
+  const handleDemoLogin = async () => {
+    setDemoLoading(true);
+    try {
+      const res  = await fetch("/api/demo/setup", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || data.error) { toast.error("Demo başlatılamadı"); return; }
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password });
+      if (authError) { toast.error("Demo girişi başarısız"); return; }
+      toast.success("Yönetici demo'ya hoş geldiniz!");
+      router.push("/");
+      router.refresh();
+    } finally { setDemoLoading(false); }
+  };
+
+  const handleDriverDemo = async () => {
+    setDriverLoading(true);
+    try {
+      await fetch("/api/demo/setup", { method: "POST" });
+      const res  = await fetch("/api/demo/driver-setup", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || data.error) { toast.error("Şoför demo başlatılamadı"); return; }
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password });
+      if (authError) { toast.error("Şoför demo girişi başarısız"); return; }
+      toast.success("Şoför demo'ya hoş geldiniz!");
+      router.push("/tasks");
+      router.refresh();
+    } finally { setDriverLoading(false); }
+  };
+
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-background">
-      {/* Atmospheric background */}
-      <div className="absolute inset-0 bg-mesh-soft pointer-events-none" />
-      <motion.div
-        animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
-        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-        className="orb w-[28rem] h-[28rem] -top-40 -right-40 bg-primary/30"
-      />
-      <motion.div
-        animate={{ x: [0, -25, 0], y: [0, 30, 0] }}
-        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-        className="orb w-[24rem] h-[24rem] -bottom-32 -left-32 bg-[color:var(--primary-2)]/30"
-      />
-      <motion.div
-        animate={{ x: [0, 20, 0], y: [0, 25, 0] }}
-        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-        className="orb w-72 h-72 top-1/3 left-1/4 bg-[color:var(--primary-3)]/20"
-      />
+    <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-background">
 
-      {/* Floating decorative cars */}
-      <motion.div
-        animate={{ y: [-12, 12, -12], rotate: [-4, 4, -4] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-16 left-8 opacity-[0.06] pointer-events-none hidden md:block"
-      >
-        <Car className="h-28 w-28 text-primary" />
-      </motion.div>
-      <motion.div
-        animate={{ y: [12, -12, 12], rotate: [4, -4, 4] }}
-        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-16 right-8 opacity-[0.06] pointer-events-none hidden md:block"
-      >
-        <Car className="h-36 w-36 text-primary" />
-      </motion.div>
+      {/* ── LEFT — brand panel (desktop only) ── */}
+      <div className="hidden lg:flex lg:w-[45%] xl:w-[48%] 2xl:w-[50%] relative overflow-hidden bg-mesh flex-col justify-between p-10 xl:p-14 2xl:p-16">
+        {/* Ambient orbs */}
+        <motion.div animate={{ x:[0,40,0], y:[0,-30,0] }} transition={{ duration:18, repeat:Infinity, ease:"easeInOut" }}
+          className="orb w-[34rem] h-[34rem] -top-48 -right-32 bg-white/10" />
+        <motion.div animate={{ x:[0,-30,0], y:[0,40,0] }} transition={{ duration:24, repeat:Infinity, ease:"easeInOut" }}
+          className="orb w-96 h-96 -bottom-40 -left-20 bg-white/8" />
 
-      {/* Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 32, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-sm"
-      >
-        <div className="bg-card/70 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-primary/15 border border-border/40 p-8 relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="bg-white/15 backdrop-blur-sm p-3 rounded-2xl border border-white/20 shadow-lg">
+            <Car className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <span className="font-outfit font-black text-2xl text-white tracking-tight">CarsTrack</span>
+            <p className="text-white/60 text-xs font-medium mt-0.5">Filo Yönetim Sistemi</p>
+          </div>
+        </div>
 
-          {/* Logo */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col items-center gap-3 mb-8"
-          >
-            <div className="relative">
-              <div className="bg-mesh p-4 rounded-3xl shadow-xl shadow-primary/40">
-                <Car className="h-8 w-8 text-white drop-shadow" />
+        {/* Hero */}
+        <div className="relative z-10 space-y-10">
+          <div className="space-y-4">
+            <h2 className="text-4xl xl:text-5xl 2xl:text-6xl font-outfit font-black text-white leading-tight">
+              Filonuzu tam<br />kontrolde tutun
+            </h2>
+            <p className="text-white/65 text-base xl:text-lg leading-relaxed max-w-sm">
+              Araç bakımından sigorta takibine, servis geçmişinden ekip yönetimine kadar tek platform.
+            </p>
+          </div>
+          <div className="space-y-4">
+            {features.map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-3.5">
+                <div className="h-10 w-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
+                  <Icon className="h-4.5 w-4.5 text-white" style={{ width:"18px", height:"18px" }} />
+                </div>
+                <span className="text-white/80 text-sm xl:text-base font-medium">{text}</span>
               </div>
-              <div className="absolute inset-0 bg-primary/40 rounded-3xl blur-2xl -z-10 animate-pulse" />
-            </div>
-            <div className="text-center">
-              <h1 className="text-3xl font-outfit font-black tracking-tight text-gradient">CarsTrack</h1>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Filo Yönetim Sistemi</p>
-            </div>
-          </motion.div>
+            ))}
+          </div>
+        </div>
 
-          {/* Form */}
-          <motion.form
-            variants={container}
-            initial="hidden"
-            animate="show"
-            onSubmit={handleLogin}
-            className="space-y-4"
-          >
+        {/* Footer badge */}
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2">
+            <Shield className="h-3.5 w-3.5 text-white/70" />
+            <span className="text-white/70 text-xs font-medium">Güvenli · Hızlı · Güvenilir</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── RIGHT — form panel ── */}
+      <div className="flex-1 flex flex-col lg:overflow-y-auto relative">
+        <div className="absolute inset-0 bg-mesh-soft pointer-events-none" />
+
+        {/* Mobile top bar */}
+        <div className="lg:hidden flex items-center justify-between px-5 pt-8 pb-4 relative z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="bg-mesh p-2.5 rounded-xl shadow-md shadow-primary/30">
+              <Car className="h-5 w-5 text-white" />
+            </div>
+            <span className="font-outfit font-black text-xl text-gradient">CarsTrack</span>
+          </div>
+          <Link href="/register" className="text-xs text-primary font-semibold">
+            Kayıt ol →
+          </Link>
+        </div>
+
+        {/* Form area — fills remaining height on mobile, centered on desktop */}
+        <div className="flex-1 flex flex-col justify-center relative z-10 px-5 sm:px-8 md:px-12 lg:px-14 xl:px-20 2xl:px-28 py-6 lg:py-12">
+
+          {/* Desktop header */}
+          <div className="hidden lg:block mb-8 xl:mb-10">
+            <h1 className="text-3xl xl:text-4xl font-outfit font-bold tracking-tight">Hesabınıza girin</h1>
+            <p className="text-muted-foreground mt-2">
+              Hesabınız yok mu?{" "}
+              <Link href="/register" className="text-primary font-semibold hover:underline underline-offset-4">
+                Ücretsiz kayıt olun
+              </Link>
+            </p>
+          </div>
+
+          {/* Mobile header */}
+          <div className="lg:hidden mb-6">
+            <h1 className="text-2xl font-outfit font-bold tracking-tight">Giriş Yap</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Hesabınız yok mu?{" "}
+              <Link href="/register" className="text-primary font-semibold hover:underline">
+                Kayıt olun
+              </Link>
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4 xl:space-y-5">
             {/* Email */}
-            <motion.div variants={item} className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                E-posta
-              </label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">E-posta</label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="ornek@sirket.com"
-                  className="rounded-xl h-11 bg-muted/40 border-border/50 pl-10 focus:bg-background transition-colors"
+                  className="h-12 xl:h-14 rounded-2xl bg-muted/50 border-border/60 pl-11 text-sm xl:text-base focus:bg-background transition-colors"
                   required
+                  autoComplete="email"
                 />
               </div>
-            </motion.div>
+            </div>
 
             {/* Password */}
-            <motion.div variants={item} className="space-y-1.5">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  Şifre
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setForgotOpen(true)}
-                  className="text-[11px] text-muted-foreground hover:text-primary transition-colors font-medium"
-                  tabIndex={-1}
-                >
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Şifre</label>
+                <button type="button" onClick={() => setForgotOpen(true)}
+                  className="text-xs text-primary/80 hover:text-primary transition-colors font-medium" tabIndex={-1}>
                   Şifremi Unuttum?
                 </button>
               </div>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
                 <Input
                   type={showPass ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="rounded-xl h-11 bg-muted/40 border-border/50 pl-10 pr-11 focus:bg-background transition-colors"
+                  className="h-12 xl:h-14 rounded-2xl bg-muted/50 border-border/60 pl-11 pr-12 text-sm xl:text-base focus:bg-background transition-colors"
                   required
+                  autoComplete="current-password"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPass((v) => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors p-0.5"
-                  tabIndex={-1}
-                >
+                <button type="button" onClick={() => setShowPass(v => !v)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors" tabIndex={-1}>
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-            </motion.div>
+            </div>
 
             {/* Error */}
             {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                className="flex items-center gap-2 bg-destructive/8 border border-destructive/20 rounded-xl px-3.5 py-2.5"
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
+              <motion.div initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }}
+                className="flex items-center gap-2.5 bg-destructive/8 border border-destructive/25 rounded-2xl px-4 py-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-destructive shrink-0" />
                 <p className="text-sm text-destructive">{error}</p>
               </motion.div>
             )}
 
             {/* Submit */}
-            <motion.div variants={item}>
-              <Button
-                type="submit"
-                className="w-full rounded-xl h-11 font-semibold gap-2 shadow-lg shadow-primary/20 mt-2"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="h-4 w-4 rounded-full border-2 border-current border-r-transparent animate-spin" />
-                    Giriş yapılıyor...
-                  </>
-                ) : (
-                  <>
-                    Giriş Yap
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
-            </motion.div>
-          </motion.form>
+            <Button type="submit" size="lg"
+              className="w-full h-12 xl:h-14 rounded-2xl font-semibold gap-2 text-sm xl:text-base bg-mesh hover:opacity-90 text-white border-none shadow-lg shadow-primary/25"
+              disabled={anyBusy}>
+              {loading
+                ? <><span className="h-4 w-4 rounded-full border-2 border-white/50 border-t-white animate-spin" /> Giriş yapılıyor...</>
+                : <>Giriş Yap <ArrowRight className="h-4 w-4" /></>}
+            </Button>
+          </form>
 
-          {/* Demo login */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.65 }}
-            className="mt-4"
-          >
-            <div className="relative flex items-center gap-3 mb-4">
-              <div className="flex-1 h-px bg-border/50" />
-              <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest">veya</span>
-              <div className="flex-1 h-px bg-border/50" />
-            </div>
+          {/* Divider */}
+          <div className="relative flex items-center gap-3 my-5 xl:my-6">
+            <div className="flex-1 h-px bg-border/50" />
+            <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest">veya dene</span>
+            <div className="flex-1 h-px bg-border/50" />
+          </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              {/* Manager demo */}
-              <button
-                type="button"
-                onClick={handleDemoLogin}
-                disabled={demoLoading || driverDemoLoading || loading}
-                className="h-11 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold text-foreground/80 hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {demoLoading ? (
-                  <span className="h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />
-                ) : (
-                  <Play className="h-3 w-3 fill-current shrink-0" />
-                )}
-                {demoLoading ? "Hazırlanıyor..." : "Yönetici Demo"}
-              </button>
+          {/* Demo buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <button type="button" onClick={handleDemoLogin} disabled={anyBusy}
+              className="h-16 xl:h-20 rounded-2xl border border-border/70 bg-card/60 hover:bg-muted/60 backdrop-blur-sm transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50 group">
+              {demoLoading
+                ? <span className="h-5 w-5 rounded-full border-2 border-current border-r-transparent animate-spin" />
+                : <>
+                    <div className="flex items-center gap-1.5 text-foreground/80 group-hover:text-foreground transition-colors">
+                      <Play className="h-3.5 w-3.5 fill-current" />
+                      <span className="text-sm font-bold">Yönetici</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Demo hesabı</span>
+                  </>}
+            </button>
 
-              {/* Driver demo */}
-              <button
-                type="button"
-                onClick={handleDriverDemoLogin}
-                disabled={demoLoading || driverDemoLoading || loading}
-                className="h-11 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold text-primary/80 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {driverDemoLoading ? (
-                  <span className="h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />
-                ) : (
-                  <User className="h-3.5 w-3.5 shrink-0" />
-                )}
-                {driverDemoLoading ? "Hazırlanıyor..." : "Şoför Demo"}
-              </button>
-            </div>
+            <button type="button" onClick={handleDriverDemo} disabled={anyBusy}
+              className="h-16 xl:h-20 rounded-2xl border border-primary/25 bg-primary/5 hover:bg-primary/10 backdrop-blur-sm transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50 group">
+              {driverLoading
+                ? <span className="h-5 w-5 rounded-full border-2 border-primary border-r-transparent animate-spin" />
+                : <>
+                    <div className="flex items-center gap-1.5 text-primary/80 group-hover:text-primary transition-colors">
+                      <User className="h-3.5 w-3.5" />
+                      <span className="text-sm font-bold">Şoför</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Demo hesabı</span>
+                  </>}
+            </button>
+          </div>
 
-            <p className="text-center text-[11px] text-muted-foreground mt-2">
-              Gerçek veriler — kayıt gerektirmez
-            </p>
-          </motion.div>
-
-          {/* Register link */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="text-center text-sm text-muted-foreground mt-5"
-          >
-            Şirketiniz yoksa{" "}
-            <Link href="/register" className="text-primary font-semibold hover:underline">
-              kayıt olun
-            </Link>
-          </motion.p>
+          <p className="text-center text-[11px] text-muted-foreground mt-3">
+            Kayıt gerektirmez · Gerçek demo verisi
+          </p>
         </div>
-
-        {/* Bottom glow */}
-        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-2/3 h-12 bg-primary/20 blur-2xl rounded-full pointer-events-none" />
-      </motion.div>
+      </div>
 
       <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
     </div>

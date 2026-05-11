@@ -7,11 +7,11 @@ import {
   Play,
   StopCircle,
   Car,
-  Clock,
   Route,
   Filter,
   X,
   CheckCircle2,
+  Check,
   Download,
   Plus,
   Trash2,
@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/context/auth-context";
 import {
   getVehicles,
+  getMyVehicles,
   getTasks,
   getMyActiveTask,
   startTask,
@@ -82,11 +83,13 @@ export default function TasksPage() {
           <ClipboardList className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Görev Takibi</h1>
+          <h1 className="text-2xl font-bold">
+            {profile?.role === "driver" ? "Şoför Paneli" : "Görev Takibi"}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {profile?.role === "manager"
               ? "Tüm görevleri görüntüle ve yönet"
-              : "Araç görevlerini başlat ve bitir"}
+              : "Seyahatlerinizi başlatın ve takip edin"}
           </p>
         </div>
       </motion.div>
@@ -96,9 +99,10 @@ export default function TasksPage() {
   );
 }
 
-// ─── Staff / Driver View (all non-manager roles) ─────────────
+// ─── Staff / Driver View ──────────────────────────────────────
 
 function StaffView() {
+  const { profile, company } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTask, setActiveTask] = useState<VehicleTask | null | undefined>(undefined);
   const [recentTasks, setRecentTasks] = useState<VehicleTask[]>([]);
@@ -113,10 +117,18 @@ function StaffView() {
   const [endKm, setEndKm] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Live timer — re-renders every second while a task is active
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!activeTask) return;
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [activeTask]);
+
   async function loadAll() {
     try {
       const [v, active, recent] = await Promise.all([
-        getVehicles(),
+        getMyVehicles(),
         getMyActiveTask(),
         getTasks({ status: "completed" }),
       ]);
@@ -142,13 +154,13 @@ function StaffView() {
       const task = await startTask({ vehicleId, startKm: km, description: description.trim() });
       setActiveTask(task);
       setVehicleId(""); setStartKm(""); setDescription("");
-      toast.success("Görev başlatıldı");
+      toast.success("Seyahat başlatıldı");
     } catch (err: unknown) {
       const pgErr = err as { code?: string; message?: string };
       if (pgErr?.code === "23505") {
-        toast.error("Zaten aktif bir göreviniz var");
+        toast.error("Zaten aktif bir seyahatiniz var");
       } else {
-        toast.error(pgErr?.message ?? "Görev başlatılamadı");
+        toast.error(pgErr?.message ?? "Seyahat başlatılamadı");
       }
     } finally {
       setSubmitting(false);
@@ -170,199 +182,351 @@ function StaffView() {
       setActiveTask(null);
       setEndKm("");
       await loadAll();
-      toast.success("Görev tamamlandı");
+      toast.success("Seyahat tamamlandı");
     } catch (err: unknown) {
-      toast.error((err as { message?: string })?.message ?? "Görev bitirilemedi");
+      toast.error((err as { message?: string })?.message ?? "Seyahat bitirilemedi");
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (loading) {
+  if (loading || activeTask === undefined) {
     return (
       <div className="space-y-4">
-        {[0, 1].map((i) => (
-          <div key={i} className="h-48 rounded-3xl bg-muted/40 animate-pulse" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-40 rounded-3xl bg-muted/40 animate-pulse" />
         ))}
       </div>
     );
   }
 
-  const activeVehicle = activeTask
-    ? vehicles.find((v) => v.id === activeTask.vehicleId)
-    : null;
+  const activeVehicle = activeTask ? vehicles.find((v) => v.id === activeTask.vehicleId) : null;
+
+  const todayStr = new Date().toDateString();
+  const todayTasks = recentTasks.filter((t) => new Date(t.startTime).toDateString() === todayStr);
+  const todayKm = todayTasks.reduce((s, t) => s + (t.distance ?? 0), 0);
+  const totalKm = recentTasks.reduce((s, t) => s + (t.distance ?? 0), 0);
+
+  const initials = profile?.fullName
+    ?.split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") ?? "?";
+
+  const inputCls =
+    "w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
 
   return (
-    <div className="space-y-6">
-      {activeTask ? (
-        /* ── Active Task Card ── */
-        <motion.div
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass rounded-3xl p-6 border border-green-500/30 shadow-lg shadow-green-500/10"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-sm font-bold text-green-600 dark:text-green-400 uppercase tracking-wide">
-              Aktif Görev
-            </span>
+    <div className="space-y-5">
+
+      {/* ── Profil & İstatistik ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <div className="glass rounded-3xl p-5 border border-border/40 overflow-hidden relative">
+          <div className="absolute -top-8 -right-8 w-32 h-32 bg-primary/6 rounded-full pointer-events-none" />
+
+          <div className="flex items-start justify-between relative">
+            <div>
+              <p className="text-xs text-muted-foreground">Hoş geldin,</p>
+              <h2 className="text-xl font-bold mt-0.5">{profile?.fullName ?? "Şoför"}</h2>
+              <div className="flex items-center gap-1.5 mt-1">
+                {company?.name && (
+                  <span className="text-xs text-muted-foreground">{company.name}</span>
+                )}
+                {company?.name && <span className="text-muted-foreground/40 text-xs">•</span>}
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                  Şoför
+                </span>
+              </div>
+            </div>
+            <div className="h-12 w-12 rounded-2xl bg-mesh flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+              <span className="text-white font-bold text-base">{initials}</span>
+            </div>
           </div>
 
-          <div className="space-y-2.5 mb-6">
-            <div className="flex items-center gap-2 text-sm">
-              <Car className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="font-semibold">
-                {activeVehicle
-                  ? `${activeVehicle.brand} ${activeVehicle.model} • ${activeVehicle.plate}`
-                  : (activeTask.vehiclePlate ?? "Araç")}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4 shrink-0" />
-              <span>
-                {formatDateTime(activeTask.startTime)} • {formatDuration(activeTask.startTime)} önce
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Route className="h-4 w-4 shrink-0" />
-              <span>Başlangıç KM: {formatKm(activeTask.startKm)} km</span>
-            </div>
-            {activeTask.description && (
-              <p className="text-sm text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
-                {activeTask.description}
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="bg-muted/40 rounded-2xl p-3 text-center">
+              <p className="text-lg font-bold">
+                {activeTask ? todayTasks.length + 1 : todayTasks.length}
               </p>
-            )}
+              <p className="text-[10px] text-muted-foreground mt-0.5">Bugünkü Sefer</p>
+            </div>
+            <div className="bg-muted/40 rounded-2xl p-3 text-center">
+              <p className="text-lg font-bold">{formatKm(todayKm)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Bugün KM</p>
+            </div>
+            <div className="bg-muted/40 rounded-2xl p-3 text-center">
+              <p className="text-lg font-bold">{formatKm(totalKm)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Toplam KM</p>
+            </div>
           </div>
+        </div>
+      </motion.div>
 
-          <div className="space-y-3">
-            <label className="block text-sm font-medium">Bitiş KM</label>
-            <input
-              type="number"
-              min={activeTask.startKm}
-              value={endKm}
-              onChange={(e) => setEndKm(e.target.value)}
-              placeholder={`${activeTask.startKm} veya daha fazla`}
-              className="w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <Button
-              onClick={handleEnd}
-              disabled={submitting || !endKm}
-              className="w-full h-12 rounded-2xl bg-mesh hover:opacity-95 text-white border-none shadow-lg shadow-primary/20 font-semibold gap-2"
-            >
-              <StopCircle className="h-4 w-4" />
-              {submitting ? "Kaydediliyor..." : "Görevi Bitir"}
-            </Button>
-          </div>
-        </motion.div>
-      ) : (
-        /* ── Start Task Form ── */
+      {activeTask ? (
+        /* ── Aktif Seyahat ── */
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass rounded-3xl p-6 border border-border/40"
+          transition={{ delay: 0.1 }}
         >
-          <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
-            <Play className="h-5 w-5 text-primary" />
-            Yeni Görev Başlat
-          </h2>
-
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Araç</label>
-              <select
-                value={vehicleId}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setVehicleId(id);
-                  const v = vehicles.find((x) => x.id === id);
-                  if (v && v.mileage > 0) setStartKm(String(v.mileage));
-                }}
-                className="w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                <option value="">Araç seçin...</option>
-                {vehicles.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.plate} — {v.brand} {v.model} ({v.mileage.toLocaleString("tr-TR")} km)
-                  </option>
-                ))}
-              </select>
+          <div className="glass rounded-3xl border border-green-500/30 shadow-lg shadow-green-500/10 overflow-hidden">
+            <div className="bg-green-500/10 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                  Aktif Seyahat
+                </span>
+              </div>
+              <span className="font-bold tabular-nums text-green-600 dark:text-green-400">
+                {formatDuration(activeTask.startTime)}
+              </span>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Başlangıç KM</label>
-              <input
-                type="number"
-                min="0"
-                value={startKm}
-                onChange={(e) => setStartKm(e.target.value)}
-                placeholder="Örn: 45000"
-                className="w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              {vehicleId && vehicles.find((v) => v.id === vehicleId) && (
-                <p className="text-xs text-muted-foreground">
-                  Son kayıtlı KM: {vehicles.find((v) => v.id === vehicleId)!.mileage.toLocaleString("tr-TR")} km
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-3 bg-muted/40 rounded-2xl p-4">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Car className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold truncate">
+                    {activeVehicle
+                      ? `${activeVehicle.brand} ${activeVehicle.model}`
+                      : (activeTask.vehicleName ?? "Araç")}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {activeVehicle?.plate ?? activeTask.vehiclePlate ?? ""}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Başl. KM</p>
+                  <p className="font-bold">{formatKm(activeTask.startKm)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-muted/30 rounded-xl px-3 py-2">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Başlangıç</p>
+                  <p className="font-medium">{formatDateTime(activeTask.startTime)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-xl px-3 py-2">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Süre</p>
+                  <p className="font-bold">{formatDuration(activeTask.startTime)}</p>
+                </div>
+              </div>
+
+              {activeTask.description && (
+                <p className="text-sm text-muted-foreground bg-muted/40 rounded-xl px-3 py-2.5">
+                  {activeTask.description}
                 </p>
               )}
+
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold">Bitiş KM</label>
+                <input
+                  type="number"
+                  min={activeTask.startKm}
+                  value={endKm}
+                  onChange={(e) => setEndKm(e.target.value)}
+                  placeholder={`${activeTask.startKm} veya daha fazla`}
+                  className="w-full h-14 rounded-2xl border border-border bg-background/60 px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <Button
+                  onClick={handleEnd}
+                  disabled={submitting || !endKm}
+                  className="w-full h-14 rounded-2xl bg-red-500 hover:bg-red-600 text-white border-none shadow-lg font-bold gap-2 text-base"
+                >
+                  <StopCircle className="h-5 w-5" />
+                  {submitting ? "Kaydediliyor..." : "Seyahati Bitir"}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Diğer atanmış araçlar */}
+          {vehicles.filter((v) => v.id !== activeTask.vehicleId).length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                Diğer Araçlarım
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {vehicles
+                  .filter((v) => v.id !== activeTask.vehicleId)
+                  .map((v) => (
+                    <div
+                      key={v.id}
+                      className="glass rounded-2xl px-4 py-3 border border-border/30 flex items-center gap-3"
+                    >
+                      <div className="h-8 w-8 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
+                        <Car className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">{v.plate}</p>
+                        <p className="text-xs text-muted-foreground">{v.brand} {v.model}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {formatKm(v.mileage)} km
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </motion.div>
+      ) : (
+        /* ── Yeni Seyahat Formu ── */
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          <div className="glass rounded-3xl p-6 border border-border/40">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Play className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-bold">Yeni Seyahat Başlat</h2>
+                <p className="text-xs text-muted-foreground">Araç seçip başlangıç KM'yi girin</p>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Açıklama{" "}
-                <span className="text-muted-foreground font-normal">(isteğe bağlı)</span>
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Görev açıklaması..."
-                rows={3}
-                className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-              />
-            </div>
+            <div className="space-y-4">
+              {/* Araç Kartları */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Araçlarım
+                </label>
+                {vehicles.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground bg-muted/20 rounded-2xl">
+                    <Car className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Henüz araç atanmamış</p>
+                    <p className="text-xs mt-0.5">Yöneticinizden araç ataması isteyin</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {vehicles.map((v) => {
+                      const selected = vehicleId === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => {
+                            setVehicleId(v.id);
+                            if (v.mileage > 0) setStartKm(String(v.mileage));
+                            else setStartKm("");
+                          }}
+                          className={`w-full text-left rounded-2xl border px-4 py-3 transition-all flex items-center gap-3 ${
+                            selected
+                              ? "border-primary/60 bg-primary/5 shadow-sm shadow-primary/10"
+                              : "border-border/40 bg-muted/20 hover:border-primary/30 hover:bg-muted/30"
+                          }`}
+                        >
+                          <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            selected ? "bg-primary/15" : "bg-muted/50"
+                          }`}>
+                            <Car className={`h-4 w-4 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-bold ${selected ? "text-primary" : ""}`}>{v.plate}</p>
+                            <p className="text-xs text-muted-foreground">{v.brand} {v.model} • {v.mileage.toLocaleString("tr-TR")} km</p>
+                          </div>
+                          {selected && (
+                            <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                              <Check className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-            <Button
-              onClick={handleStart}
-              disabled={submitting || !vehicleId || !startKm}
-              className="w-full h-12 rounded-2xl bg-mesh hover:opacity-95 text-white border-none shadow-lg shadow-primary/20 font-semibold gap-2"
-            >
-              <Play className="h-4 w-4" />
-              {submitting ? "Başlatılıyor..." : "Görevi Başlat"}
-            </Button>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Başlangıç KM
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={startKm}
+                  onChange={(e) => setStartKm(e.target.value)}
+                  placeholder="Örn: 45000"
+                  className={inputCls}
+                />
+                {vehicleId && vehicles.find((v) => v.id === vehicleId) && (
+                  <p className="text-xs text-muted-foreground">
+                    Son kayıtlı: {vehicles.find((v) => v.id === vehicleId)!.mileage.toLocaleString("tr-TR")} km
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Açıklama{" "}
+                  <span className="normal-case font-normal text-muted-foreground">(isteğe bağlı)</span>
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Nereye gidiyorsunuz?"
+                  rows={2}
+                  className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                />
+              </div>
+
+              <Button
+                onClick={handleStart}
+                disabled={submitting || !vehicleId || !startKm}
+                className="w-full h-14 rounded-2xl bg-mesh hover:opacity-95 text-white border-none shadow-lg shadow-primary/20 font-bold gap-2 text-base"
+              >
+                <Play className="h-5 w-5" />
+                {submitting ? "Başlatılıyor..." : "Seyahate Başla"}
+              </Button>
+            </div>
           </div>
         </motion.div>
       )}
 
-      {/* ── Recent Tasks ── */}
+      {/* ── Son Seyahatler ── */}
       {recentTasks.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.2 }}
         >
-          <h2 className="font-bold text-sm text-muted-foreground mb-3 uppercase tracking-wide">
-            Geçmiş Görevlerim
-          </h2>
+          <h3 className="font-bold text-xs text-muted-foreground mb-3 uppercase tracking-wider">
+            Son Seyahatlerim
+          </h3>
           <div className="space-y-2">
             {recentTasks.map((task) => {
               const v = vehicles.find((x) => x.id === task.vehicleId);
               return (
                 <div
                   key={task.id}
-                  className="glass rounded-2xl px-4 py-3 flex items-center gap-3 border border-border/30"
+                  className="glass rounded-2xl px-4 py-3.5 border border-border/30 flex items-center gap-3"
                 >
-                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                  <div className="h-8 w-8 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {v
-                        ? `${v.brand} ${v.model} • ${v.plate}`
-                        : (task.vehiclePlate ?? "Araç")}
+                    <p className="text-sm font-semibold truncate">
+                      {v ? `${v.brand} ${v.model}` : (task.vehicleName ?? "Araç")}
                     </p>
                     <p className="text-xs text-muted-foreground">
+                      {v?.plate ?? task.vehiclePlate ?? ""}
+                      {" • "}
                       {formatDateTime(task.startTime)}
                       {task.endTime && ` • ${formatDuration(task.startTime, task.endTime)}`}
                     </p>
                   </div>
                   {task.distance != null && (
-                    <span className="text-xs font-bold text-primary shrink-0">
+                    <span className="text-sm font-bold text-primary shrink-0">
                       +{formatKm(task.distance)} km
                     </span>
                   )}
