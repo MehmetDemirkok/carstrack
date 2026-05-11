@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Inter, Outfit, Barlow_Condensed, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ShellWrapper } from "@/components/layout/shell-wrapper";
@@ -12,6 +12,16 @@ import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+const barlowCondensed = Barlow_Condensed({
+  subsets: ["latin"],
+  variable: "--font-barlow",
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-ibm-mono",
+  weight: ["400", "500", "600"],
+});
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
 
@@ -115,11 +125,11 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.variable} ${outfit.variable} font-sans antialiased bg-background text-foreground min-h-[100dvh] flex flex-col`}
+        className={`${inter.variable} ${outfit.variable} ${barlowCondensed.variable} ${ibmPlexMono.variable} font-sans antialiased bg-background text-foreground min-h-[100dvh] flex flex-col`}
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >

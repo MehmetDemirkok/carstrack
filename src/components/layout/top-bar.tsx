@@ -1,37 +1,32 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bell, Moon, Sun, Search, LogOut } from "lucide-react";
+import { Bell, Search, LogOut, Sun, Moon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { useNotifications } from "@/hooks/use-notifications";
 import type { NotificationItem } from "@/hooks/use-notifications";
 import { useCommandPalette } from "@/context/command-palette-context";
+import { useTheme } from "next-themes";
 
 function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
+  return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
 function getGreeting(): string {
   const h = new Date().getHours();
-  if (h < 6) return "İyi geceler";
+  if (h < 6) return "İyi Geceler";
   if (h < 12) return "Günaydın";
-  if (h < 18) return "İyi günler";
-  return "İyi akşamlar";
+  if (h < 18) return "İyi Günler";
+  return "İyi Akşamlar";
 }
 
 export function TopBar() {
-  const { theme, setTheme } = useTheme();
   const { profile, user, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const { setOpen: openPalette } = useCommandPalette();
@@ -49,111 +44,110 @@ export function TopBar() {
   const displayName = profile?.fullName || user?.email?.split("@")[0] || "Değerli Üyemiz";
   const initials = profile?.fullName
     ? getInitials(profile.fullName)
-    : user?.email
-    ? getInitials(user.email.split("@")[0])
-    : "?";
-  const greeting = getGreeting();
-  
+    : user?.email ? getInitials(user.email.split("@")[0]) : "?";
+
   const { notifications, loading: notifLoading, unreadCount, markAllRead } = useNotifications();
 
-  const getTypeColor = (type: NotificationItem["type"]) => {
+  const getTypeDot = (type: NotificationItem["type"]) => {
     switch (type) {
-      case "error": return "text-destructive bg-destructive/10 border-destructive/20";
-      case "urgent": return "text-amber-500 bg-amber-500/10 border-amber-500/20";
-      case "warning": return "text-yellow-500 bg-yellow-500/10 border-yellow-500/20";
-      case "info": return "text-blue-500 bg-blue-500/10 border-blue-500/20";
-      default: return "text-primary bg-primary/10 border-primary/20";
+      case "error": return "#ef4444";
+      case "urgent": return "#f59e0b";
+      case "warning": return "#eab308";
+      case "info": return "#3b82f6";
+      default: return "#ff6b1a";
     }
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full glass border-b border-border/30">
-      <div className="flex h-16 items-center justify-between px-4 md:px-8 w-full">
-        {/* Professional Profile Section */}
-        <Link href="/settings" className="flex items-center gap-3.5 tap-highlight-transparent group hover:bg-muted/40 p-1.5 pr-4 rounded-full transition-colors border border-transparent hover:border-border/50">
-          <Avatar className="h-10 w-10 ring-2 ring-primary/20 shadow-sm transition-transform group-hover:scale-105">
-            <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-white font-bold text-sm">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 glass">
+      <div className="flex h-14 items-center justify-between px-4 md:px-6 w-full">
+
+        {/* Left: greeting + avatar */}
+        <Link
+          href="/settings"
+          className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/60 group"
+        >
+          <Avatar className="h-8 w-8 transition-transform group-hover:scale-105" style={{ border: "1px solid rgba(255,107,26,0.35)" }}>
+            <AvatarFallback className="text-xs font-bold" style={{ background: "rgba(255,107,26,0.15)", color: "#ff6b1a" }}>
               {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col leading-none">
-            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1">
-              {greeting}
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mb-0.5"
+              style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
+              {getGreeting()}
             </span>
-            <span className="text-sm font-bold font-outfit tracking-tight text-foreground group-hover:text-primary transition-colors">
+            <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors"
+              style={{ fontFamily: "var(--font-barlow), sans-serif" }}>
               {displayName}
             </span>
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
-          {/* Search / Command Palette */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full h-10 w-10 hover:bg-primary/10 hidden md:flex items-center justify-center gap-1.5 w-auto px-3"
-            onClick={() => openPalette(true)}
-          >
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <kbd className="text-[10px] font-bold bg-muted/80 border border-border/50 px-1.5 py-0.5 rounded-md text-muted-foreground/70">⌘K</kbd>
+        <div className="flex items-center gap-1">
+          {/* Search */}
+          <Button variant="ghost" size="icon"
+            className="rounded-xl h-9 !w-auto px-3 hidden md:flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            onClick={() => openPalette(true)}>
+            <Search className="h-4 w-4" />
+            <kbd className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-muted border border-border text-muted-foreground"
+              style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
+              ⌘K
+            </kbd>
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full h-10 w-10 hover:bg-primary/10 flex md:hidden"
-            onClick={() => openPalette(true)}
-          >
-            <Search className="h-5 w-5" />
+          <Button variant="ghost" size="icon"
+            className="rounded-xl h-9 w-9 flex md:hidden text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            onClick={() => openPalette(true)}>
+            <Search className="h-4 w-4" />
           </Button>
 
           {/* Theme Toggle */}
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full h-10 w-10 hover:bg-primary/10 transition-transform active:scale-90"
+            className="rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title={theme === "dark" ? "Açık tema" : "Koyu tema"}
           >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-indigo-300" />
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
 
           {/* Logout */}
           {profile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full h-10 w-10 hover:bg-destructive/10 hover:text-destructive transition-colors"
-              title="Çıkış Yap"
-              onClick={signOut}
-            >
+            <Button variant="ghost" size="icon"
+              className="rounded-xl h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Çıkış Yap" onClick={signOut}>
               <LogOut className="h-4 w-4" />
             </Button>
           )}
 
-          {/* Notification Button & Popover */}
+          {/* Notifications */}
           <div className="relative" ref={notifRef}>
             <Button
               variant="ghost"
               size="icon"
-              className={`relative rounded-full h-10 w-10 transition-colors ${showNotifications ? "bg-primary/10 text-primary" : "hover:bg-primary/10"}`}
+              className={`relative rounded-xl h-9 w-9 transition-colors ${showNotifications ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
               onClick={() => {
                 const opening = !showNotifications;
                 setShowNotifications(opening);
                 if (opening) markAllRead();
               }}
             >
-              <Bell className="h-5 w-5" />
+              <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
                 <>
                   <motion.span
                     animate={{ scale: [1, 1.4, 1] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-background shadow-sm"
+                    className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full border border-background"
+                    style={{ background: "#ff6b1a" }}
                   />
                   <motion.span
                     animate={{ scale: [1, 2.2], opacity: [0.6, 0] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
-                    className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-destructive/60"
+                    className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full"
+                    style={{ background: "rgba(255,107,26,0.6)" }}
                   />
                 </>
               )}
@@ -162,48 +156,52 @@ export function TopBar() {
             <AnimatePresence>
               {showNotifications && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="absolute top-14 right-0 w-[320px] max-w-[calc(100vw-1rem)] bg-card/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl shadow-primary/10 overflow-hidden z-50 origin-top-right"
+                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className="absolute top-12 right-0 w-[300px] max-w-[calc(100vw-1rem)] overflow-hidden z-50 origin-top-right bg-card border border-border/50 shadow-2xl"
+                  style={{ borderRadius: 12, boxShadow: "0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,107,26,0.05)" }}
                 >
-                  <div className="p-4 border-b border-border/40 flex justify-between items-center bg-muted/20">
-                    <h3 className="font-outfit font-bold text-sm">Bildirimler</h3>
+                  <div className="px-4 py-3 flex justify-between items-center border-b border-border/50 bg-muted/30">
+                    <h3 className="text-sm font-bold text-foreground tracking-wider"
+                      style={{ fontFamily: "var(--font-barlow), sans-serif" }}>
+                      BİLDİRİMLER
+                    </h3>
                     {unreadCount > 0 && (
-                      <span className="text-[10px] bg-primary/10 text-primary px-2.5 py-1 rounded-full font-bold">
-                        {unreadCount} Yeni
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                        style={{ background: "rgba(255,107,26,0.12)", color: "#ff6b1a", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                        {unreadCount} YENİ
                       </span>
                     )}
                   </div>
-                  
-                  <div className="max-h-[300px] overflow-y-auto">
+
+                  <div className="max-h-[280px] overflow-y-auto">
                     {notifLoading ? (
-                      <div className="p-10 flex flex-col items-center justify-center text-center">
-                        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full mb-2" />
-                        <p className="text-[13px] text-muted-foreground">Bildirimler yükleniyor...</p>
+                      <div className="p-8 flex flex-col items-center justify-center text-center">
+                        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                          className="h-5 w-5 border-2 rounded-full mb-2"
+                          style={{ borderColor: "rgba(255,107,26,0.3)", borderTopColor: "#ff6b1a" }} />
+                        <p className="text-xs text-muted-foreground" style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
+                          Yükleniyor...
+                        </p>
                       </div>
                     ) : notifications.length === 0 ? (
-                      <div className="p-10 flex flex-col items-center justify-center text-center">
-                        <div className="w-16 h-16 rounded-full bg-muted/50 border border-border/50 flex items-center justify-center mb-4 shadow-sm">
-                          <Bell className="h-7 w-7 text-muted-foreground/60" />
+                      <div className="p-8 flex flex-col items-center justify-center text-center">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-3 bg-muted border border-border">
+                          <Bell className="h-5 w-5 text-muted-foreground" />
                         </div>
-                        <p className="text-[15px] font-semibold text-foreground">Henüz bir bildirim yok</p>
-                        <p className="text-[13px] text-muted-foreground mt-1.5 max-w-[220px] leading-relaxed">
-                          Size ait yeni bir uyarı veya gelişme olduğunda burada görünecektir.
-                        </p>
+                        <p className="text-sm font-semibold text-foreground">Bildirim yok</p>
+                        <p className="text-xs text-muted-foreground mt-1">Yeni uyarılar burada görünecek.</p>
                       </div>
                     ) : (
                       <div className="flex flex-col">
                         {notifications.map((notif) => (
-                          <Link
-                            key={notif.id}
-                            href={`/vehicles/${notif.vehicleId}`}
+                          <Link key={notif.id} href={`/vehicles/${notif.vehicleId}`}
                             onClick={() => setShowNotifications(false)}
-                            className="p-4 border-b border-border/30 hover:bg-muted/30 transition-colors block"
-                          >
+                            className="px-4 py-3 block hover:bg-muted/40 transition-colors border-b border-border/30 last:border-0">
                             <div className="flex gap-3">
-                              <div className={`mt-0.5 shrink-0 w-2 h-2 rounded-full ${getTypeColor(notif.type).split(' ')[0].replace('text-', 'bg-')}`} />
+                              <div className="mt-1 shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: getTypeDot(notif.type) }} />
                               <div>
                                 <h4 className="text-sm font-semibold text-foreground leading-tight">{notif.title}</h4>
                                 <p className="text-xs text-muted-foreground mt-1 leading-snug">{notif.description}</p>
@@ -214,15 +212,14 @@ export function TopBar() {
                       </div>
                     )}
                   </div>
-                  
+
                   {notifications.length > 0 && (
-                    <div className="p-3 border-t border-border/40 bg-muted/10 text-center sticky bottom-0">
-                      <span
-                        className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                        onClick={markAllRead}
-                      >
+                    <div className="px-4 py-2.5 text-center border-t border-border/40 bg-muted/20">
+                      <button onClick={markAllRead}
+                        className="text-xs font-medium cursor-pointer hover:text-foreground transition-colors"
+                        style={{ color: "#ff6b1a", background: "none", border: "none", fontFamily: "var(--font-ibm-mono), monospace" }}>
                         Tümünü okundu işaretle
-                      </span>
+                      </button>
                     </div>
                   )}
                 </motion.div>

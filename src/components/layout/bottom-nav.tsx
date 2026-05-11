@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CarFront, Wrench, Activity, Settings, ClipboardList, Users } from "lucide-react";
+import { LayoutDashboard, CarFront, Activity, Settings, ClipboardList, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/context/language-context";
@@ -13,7 +13,6 @@ export function BottomNav() {
   const { t } = useLanguage();
   const { profile, loading } = useAuth();
   const needsProfileCompletion = !!profile && !profile.department;
-
   const isDriver = profile?.role === "driver";
 
   const navItems = isDriver
@@ -34,42 +33,41 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 pb-safe md:hidden">
       <div className="max-w-md mx-auto px-3 pb-2">
-        <div className="glass rounded-3xl border border-border/50 shadow-2xl shadow-primary/10 dark:shadow-black/40 overflow-hidden relative">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+        <div className="overflow-hidden relative rounded-3xl border border-border/50 bg-background/90 shadow-2xl"
+          style={{ backdropFilter: "blur(20px)" }}>
+          {/* Top orange edge line */}
+          <div className="absolute inset-x-0 top-0 h-px"
+            style={{ background: "linear-gradient(90deg, transparent, rgba(255,107,26,0.35), transparent)" }} />
+
           <div className="flex justify-around items-center h-16 px-1">
             {!loading && navItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/" && pathname.startsWith(item.href));
+              const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="relative flex flex-col items-center justify-center flex-1 h-full gap-1 tap-highlight-transparent"
-                >
+                <Link key={item.href} href={item.href}
+                  className="relative flex flex-col items-center justify-center flex-1 h-full gap-1 tap-highlight-transparent">
                   {isActive && (
                     <motion.div
                       layoutId="navPill"
-                      className="absolute inset-y-1.5 inset-x-2 bg-mesh rounded-2xl shadow-lg shadow-primary/30"
+                      className="absolute inset-y-2 inset-x-1 rounded-2xl"
+                      style={{ background: "rgba(255,107,26,0.12)", border: "1px solid rgba(255,107,26,0.22)" }}
                       transition={{ type: "spring", stiffness: 400, damping: 32 }}
                     />
                   )}
                   <div className="relative z-10">
                     <item.icon
-                      className={cn(
-                        "w-5 h-5 transition-all duration-300",
-                        isActive ? "text-white drop-shadow-md" : "text-muted-foreground"
-                      )}
+                      className={cn("w-5 h-5 transition-all duration-300")}
+                      style={{ color: isActive ? "#ff6b1a" : undefined }}
                     />
+                    {!isActive && <item.icon className="w-5 h-5 hidden" />}
                     {item.href === "/settings" && needsProfileCompletion && !isActive && (
-                      <span title="Profil bilgilerinizi tamamlayın" className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background" />
+                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background" />
                     )}
                   </div>
                   <span
-                    className={cn(
-                      "text-[9px] font-semibold transition-colors duration-300 relative z-10",
-                      isActive ? "text-white" : "text-muted-foreground"
+                    className={cn("text-[9px] font-semibold transition-colors duration-300 relative z-10",
+                      isActive ? "text-primary" : "text-muted-foreground"
                     )}
+                    style={isActive ? { fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.04em" } : undefined}
                   >
                     {item.label}
                   </span>

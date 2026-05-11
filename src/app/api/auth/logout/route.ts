@@ -18,23 +18,21 @@ export async function POST() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
-          } catch (_) {
-            // Ignore if setting cookies fails
-          }
+          } catch {}
         },
       },
     }
   );
 
-  // Sign out on the server, this clears the session and cookies
   await supabase.auth.signOut();
 
-  // Also manually wipe any remaining sb- cookies to be absolutely sure
+  // Wipe every sb- cookie in the response — browser deletes them on receipt.
+  const response = NextResponse.json({ success: true });
   cookieStore.getAll().forEach((cookie) => {
     if (cookie.name.startsWith("sb-")) {
-      cookieStore.set(cookie.name, "", { maxAge: 0, path: "/" });
+      response.cookies.set(cookie.name, "", { maxAge: 0, path: "/" });
     }
   });
 
-  return NextResponse.json({ success: true });
+  return response;
 }

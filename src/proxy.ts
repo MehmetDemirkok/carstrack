@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Next.js 16 proxy (replaces middleware.ts).
+// Critical rule: NEVER set httpOnly on Supabase session cookies.
+// The browser client uses document.cookie to read/write them — httpOnly breaks that.
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -13,8 +16,14 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          // Step 1: make downstream server code see the refreshed tokens
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          // Step 2: new response that carries the updated request cookies
           supabaseResponse = NextResponse.next({ request });
+          // Step 3: write cookies to response — use Supabase's options as-is.
+          // Do NOT add httpOnly: Supabase browser client needs document.cookie access.
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
@@ -23,58 +32,87 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Safety timeout for getUser to prevent proxy from hanging the entire request
-  const userPromise = supabase.auth.getUser();
-  const timeoutPromise = new Promise<{ data: { user: null }, error: Error }>((_, reject) =>
-    setTimeout(() => reject(new Error("Auth timeout")), 5000)
-  );
-
+  // Always getUser() (not getSession()) — validates JWT server-side and
+  // triggers a token refresh if the access token is expiring.
   let user = null;
   let staleSession = false;
   try {
-    const { data } = await Promise.race([userPromise, timeoutPromise]) as any;
-    user = data?.user;
-  } catch (err) {
-    const code = (err as { code?: string })?.code;
-    if (code === "refresh_token_not_found" || code === "refresh_token_already_used") {
-      staleSession = true;
-      // Expected: session expired or invalidated — will clear cookies and redirect to login
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      const code = (error as { code?: string })?.code ?? "";
+      if (
+        code === "refresh_token_not_found" ||
+        code === "refresh_token_already_used"
+      ) {
+        staleSession = true;
+      }
+      // "Auth session missing!" is normal for unauthenticated requests — not an error.
     } else {
-      console.error("Proxy auth timeout or error:", err);
+      user = data?.user ?? null;
     }
+  } catch {
+    // Network timeout or unexpected error — don't block the request.
   }
 
   const { pathname } = request.nextUrl;
-  // isAuthOnlyPath: pages that redirect logged-in users away (login/register)
-  const isAuthOnlyPath = pathname.startsWith("/login") || pathname.startsWith("/register");
-  // isPublicPath: pages accessible without a session (includes reset-password and auth/callback — user arrives via email link)
-  const isPublicPath = isAuthOnlyPath || pathname.startsWith("/reset-password") || pathname.startsWith("/auth/callback");
 
+  const isAuthOnlyPath =
+    pathname.startsWith("/login") || pathname.startsWith("/register");
+
+  const isPublicPath =
+    isAuthOnlyPath ||
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/auth/callback") ||
+    pathname.startsWith("/privacy");
+
+  // Stale/expired session → wipe sb- cookies, redirect to login
+  if (staleSession) {
+    const loginUrl = new URL("/login", request.url);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    request.cookies
+      .getAll()
+      .filter(({ name }) => name.startsWith("sb-"))
+      .forEach(({ name }) =>
+        redirectResponse.cookies.set(name, "", { maxAge: 0, path: "/" })
+      );
+    return redirectResponse;
+  }
+
+  // Unauthenticated on a protected page → login
   if (!user && !isPublicPath) {
-    const redirectResponse = NextResponse.redirect(new URL("/login", request.url));
-    supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
-      redirectResponse.cookies.set(name, value, options as Parameters<typeof redirectResponse.cookies.set>[2]);
-    });
-    // If the session was stale, delete all sb- cookies so they don't loop
-    if (staleSession) {
-      request.cookies.getAll()
-        .filter(({ name }) => name.startsWith("sb-"))
-        .forEach(({ name }) => redirectResponse.cookies.delete(name));
-    }
+    const redirectResponse = NextResponse.redirect(
+      new URL("/login", request.url)
+    );
+    supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
+      redirectResponse.cookies.set(
+        name,
+        value,
+        rest as Parameters<typeof redirectResponse.cookies.set>[2]
+      )
+    );
     return redirectResponse;
   }
 
+  // Authenticated on login/register → home
   if (user && isAuthOnlyPath) {
-    const redirectResponse = NextResponse.redirect(new URL("/vehicles", request.url));
-    supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) => {
-      redirectResponse.cookies.set(name, value, options as Parameters<typeof redirectResponse.cookies.set>[2]);
-    });
+    const redirectResponse = NextResponse.redirect(new URL("/", request.url));
+    supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
+      redirectResponse.cookies.set(
+        name,
+        value,
+        rest as Parameters<typeof redirectResponse.cookies.set>[2]
+      )
+    );
     return redirectResponse;
   }
 
+  // Return supabaseResponse (not NextResponse.next()) so refreshed tokens
+  // are delivered to the browser.
   return supabaseResponse;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json|api).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|api|favicon\\.ico|manifest\\.json|robots\\.txt|sitemap\\.xml|apple-icon\\.png|icon\\.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
+  ],
 };

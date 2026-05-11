@@ -4,32 +4,71 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Car, Eye, EyeOff, Mail, Lock, ArrowRight,
-  Play, User, Shield, Activity, Bell, Users,
+  Car, Eye, EyeOff, ArrowRight, Play, User,
+  MapPin, Fuel, Signal, Shield,
+  Wrench, BarChart3, Users, Bell,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ForgotPasswordModal } from "@/components/forgot-password-modal";
 
+const floatingIcons = [
+  { icon: Fuel,   delay: 0 },
+  { icon: Signal, delay: 0.4 },
+  { icon: MapPin, delay: 0.8 },
+  { icon: Shield, delay: 1.2 },
+];
+
+const statCards = [
+  { value: "247",   label: "Araç",  sub: "Aktif Filo" },
+  { value: "99.2%", label: "Uptime",sub: "Kesintisiz" },
+  { value: "7/24",  label: "Takip", sub: "Gerçek Zamanlı" },
+];
+
 const features = [
-  { icon: Car,      text: "Tüm araç bilgilerini tek ekranda takip edin" },
-  { icon: Activity, text: "Filo sağlık skoru ve anlık durum izleme" },
-  { icon: Bell,     text: "Sigorta, muayene ve bakım hatırlatmaları" },
-  { icon: Users,    text: "Çok kullanıcılı ekip yönetimi" },
+  {
+    icon: Car,
+    title: "Araç Takibi",
+    desc: "Tüm araçlarınız tek ekranda — model, km, yakıt ve daha fazlası.",
+  },
+  {
+    icon: Wrench,
+    title: "Bakım Yönetimi",
+    desc: "Periyodik bakım zamanlarını asla kaçırmayın, otomatik hatırlatmalar.",
+  },
+  {
+    icon: Shield,
+    title: "Sigorta & Muayene",
+    desc: "Vade dolmadan önce uyarı alın, belgeleri dijital ortamda saklayın.",
+  },
+  {
+    icon: BarChart3,
+    title: "Filo Analitiği",
+    desc: "Maliyet raporları, filo sağlık skoru ve trend analizleri.",
+  },
+  {
+    icon: Users,
+    title: "Ekip Yönetimi",
+    desc: "Yönetici ve şoför rolleri, görev atama ve koordinasyon.",
+  },
+  {
+    icon: Bell,
+    title: "Akıllı Bildirimler",
+    desc: "Kritik uyarılar anında telefonunuza, hiçbir şeyi kaçırmayın.",
+  },
 ];
 
 export default function LoginPage() {
-  const [email, setEmail]               = useState("");
-  const [password, setPassword]         = useState("");
-  const [showPass, setShowPass]         = useState(false);
-  const [error, setError]               = useState("");
-  const [loading, setLoading]           = useState(false);
-  const [demoLoading, setDemoLoading]   = useState(false);
-  const [driverLoading, setDriverLoading] = useState(false);
-  const [forgotOpen, setForgotOpen]     = useState(false);
+  const [email, setEmail]                   = useState("");
+  const [password, setPassword]             = useState("");
+  const [showPass, setShowPass]             = useState(false);
+  const [error, setError]                   = useState("");
+  const [loading, setLoading]               = useState(false);
+  const [demoLoading, setDemoLoading]       = useState(false);
+  const [driverLoading, setDriverLoading]   = useState(false);
+  const [forgotOpen, setForgotOpen]         = useState(false);
   const router = useRouter();
 
   const anyBusy = loading || demoLoading || driverLoading;
@@ -82,206 +121,406 @@ export default function LoginPage() {
     } finally { setDriverLoading(false); }
   };
 
+  const inputStyle: React.CSSProperties = {
+    background: "rgba(13,21,38,0.9)",
+    borderLeft: "2px solid #ff6b1a",
+    borderTop: "1px solid rgba(255,107,26,0.12)",
+    borderRight: "1px solid rgba(255,107,26,0.12)",
+    borderBottom: "1px solid rgba(255,107,26,0.12)",
+    borderRadius: "0 6px 6px 0",
+    color: "#e8eaf0",
+    fontFamily: "var(--font-ibm-mono), monospace",
+    fontSize: "0.85rem",
+    outline: "none",
+    boxShadow: "none",
+  };
+
   return (
-    <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-background">
+    <div className="auth-page min-h-[100dvh] w-full flex-1 flex flex-col lg:flex-row overflow-x-hidden" style={{ background: "#080c14" }}>
 
-      {/* ── LEFT — brand panel (desktop only) ── */}
-      <div className="hidden lg:flex lg:w-[45%] xl:w-[48%] 2xl:w-[50%] relative overflow-hidden bg-mesh flex-col justify-between p-10 xl:p-14 2xl:p-16">
-        {/* Ambient orbs */}
-        <motion.div animate={{ x:[0,40,0], y:[0,-30,0] }} transition={{ duration:18, repeat:Infinity, ease:"easeInOut" }}
-          className="orb w-[34rem] h-[34rem] -top-48 -right-32 bg-white/10" />
-        <motion.div animate={{ x:[0,-30,0], y:[0,40,0] }} transition={{ duration:24, repeat:Infinity, ease:"easeInOut" }}
-          className="orb w-96 h-96 -bottom-40 -left-20 bg-white/8" />
+      {/* ── LEFT — Vehicle illustration panel (desktop only) ── */}
+      <div
+        className="hidden lg:flex lg:w-[36%] xl:w-[38%] relative overflow-hidden flex-col justify-between"
+        style={{ background: "linear-gradient(160deg, #0d1526 0%, #080c14 100%)" }}
+      >
+        {/* Hex grid */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(255,107,26,0.05)' stroke-width='0.8'/%3E%3C/svg%3E")`,
+            backgroundSize: "60px 52px",
+          }}
+        />
+        <motion.div className="absolute inset-0 pointer-events-none"
+          animate={{ backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"] }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          style={{
+            background: "linear-gradient(135deg, rgba(255,107,26,0.04) 0%, transparent 50%, rgba(13,21,38,0.8) 100%)",
+            backgroundSize: "200% 200%",
+          }}
+        />
 
-        {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="bg-white/15 backdrop-blur-sm p-3 rounded-2xl border border-white/20 shadow-lg">
-            <Car className="h-6 w-6 text-white" />
+        <div className="relative z-10 flex flex-col justify-between h-full p-8 xl:p-10">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl"
+              style={{ background: "rgba(255,107,26,0.15)", border: "1px solid rgba(255,107,26,0.3)" }}>
+              <Car className="h-5 w-5" style={{ color: "#ff6b1a" }} />
+            </div>
+            <div>
+              <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "#e8eaf0", fontWeight: 800, fontSize: "1.15rem" }}>
+                Cars<span style={{ color: "#ff6b1a" }}>Track</span>
+              </span>
+              <p style={{ color: "#4a5568", fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace", marginTop: 2 }}>
+                Filo Yönetim Sistemi
+              </p>
+            </div>
           </div>
-          <div>
-            <span className="font-outfit font-black text-2xl text-white tracking-tight">CarsTrack</span>
-            <p className="text-white/60 text-xs font-medium mt-0.5">Filo Yönetim Sistemi</p>
-          </div>
-        </div>
 
-        {/* Hero */}
-        <div className="relative z-10 space-y-10">
-          <div className="space-y-4">
-            <h2 className="text-4xl xl:text-5xl 2xl:text-6xl font-outfit font-black text-white leading-tight">
-              Filonuzu tam<br />kontrolde tutun
-            </h2>
-            <p className="text-white/65 text-base xl:text-lg leading-relaxed max-w-sm">
-              Araç bakımından sigorta takibine, servis geçmişinden ekip yönetimine kadar tek platform.
-            </p>
-          </div>
-          <div className="space-y-4">
-            {features.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-3.5">
-                <div className="h-10 w-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
-                  <Icon className="h-4.5 w-4.5 text-white" style={{ width:"18px", height:"18px" }} />
-                </div>
-                <span className="text-white/80 text-sm xl:text-base font-medium">{text}</span>
+          {/* Center: vehicle illustration */}
+          <div className="flex flex-col items-center justify-center flex-1 py-6">
+            <div className="relative flex items-center justify-center" style={{ width: 230, height: 230 }}>
+              {[1, 2, 3].map((i) => (
+                <motion.div key={i} className="absolute rounded-full"
+                  style={{ width: 70 + i * 50, height: 70 + i * 50, border: `1px solid rgba(255,107,26,${0.35 - i * 0.08})` }}
+                  animate={{ scale: [1, 1.08, 1], opacity: [0.7, 0.3, 0.7] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
+                />
+              ))}
+              <div className="relative z-10" style={{ width: 100, height: 100 }}>
+                <svg viewBox="0 0 100 160" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", height: "100%" }}>
+                  <rect x="18" y="30" width="64" height="100" rx="14" fill="#1a2540" stroke="rgba(255,107,26,0.5)" strokeWidth="1.5"/>
+                  <rect x="26" y="48" width="48" height="60" rx="8" fill="#0d1526" stroke="rgba(255,107,26,0.3)" strokeWidth="1"/>
+                  <rect x="29" y="50" width="42" height="22" rx="5" fill="rgba(255,107,26,0.12)" stroke="rgba(255,107,26,0.4)" strokeWidth="0.8"/>
+                  <rect x="29" y="88" width="42" height="16" rx="5" fill="rgba(255,107,26,0.08)" stroke="rgba(255,107,26,0.3)" strokeWidth="0.8"/>
+                  <rect x="20" y="30" width="14" height="8" rx="3" fill="rgba(255,107,26,0.7)"/>
+                  <rect x="66" y="30" width="14" height="8" rx="3" fill="rgba(255,107,26,0.7)"/>
+                  <rect x="20" y="122" width="14" height="8" rx="3" fill="rgba(255,80,50,0.6)"/>
+                  <rect x="66" y="122" width="14" height="8" rx="3" fill="rgba(255,80,50,0.6)"/>
+                  <rect x="6" y="38" width="14" height="28" rx="5" fill="#1a2540" stroke="rgba(255,107,26,0.4)" strokeWidth="1"/>
+                  <rect x="80" y="38" width="14" height="28" rx="5" fill="#1a2540" stroke="rgba(255,107,26,0.4)" strokeWidth="1"/>
+                  <rect x="6" y="94" width="14" height="28" rx="5" fill="#1a2540" stroke="rgba(255,107,26,0.4)" strokeWidth="1"/>
+                  <rect x="80" y="94" width="14" height="28" rx="5" fill="#1a2540" stroke="rgba(255,107,26,0.4)" strokeWidth="1"/>
+                  <line x1="50" y1="50" x2="50" y2="106" stroke="rgba(255,107,26,0.15)" strokeWidth="1" strokeDasharray="4 3"/>
+                </svg>
               </div>
-            ))}
+              {floatingIcons.map(({ icon: Icon, delay }, idx) => {
+                const angles = [315, 45, 135, 225];
+                const rad = (angles[idx] * Math.PI) / 180;
+                const r = 105;
+                return (
+                  <motion.div key={idx} className="absolute flex items-center justify-center rounded-lg"
+                    style={{
+                      left: "50%", top: "50%",
+                      marginLeft: Math.cos(rad) * r - 14,
+                      marginTop: Math.sin(rad) * r - 14,
+                      width: 28, height: 28,
+                      background: "rgba(255,107,26,0.1)",
+                      border: "1px solid rgba(255,107,26,0.25)",
+                    }}
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 2, repeat: Infinity, delay, ease: "easeInOut" }}>
+                    <Icon style={{ color: "#ff6b1a", width: 12, height: 12 }} />
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Footer badge */}
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2">
-            <Shield className="h-3.5 w-3.5 text-white/70" />
-            <span className="text-white/70 text-xs font-medium">Güvenli · Hızlı · Güvenilir</span>
+          {/* Stats */}
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              {statCards.map(({ value, label, sub }, i) => (
+                <motion.div key={label} className="flex-1 rounded-lg p-2.5"
+                  style={{ background: "rgba(255,107,26,0.06)", border: "1px solid rgba(255,107,26,0.14)" }}
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + i * 0.15, duration: 0.5 }}>
+                  <div style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#ff6b1a", fontSize: "0.95rem", fontWeight: 600 }}>{value}</div>
+                  <div style={{ color: "#e8eaf0", fontSize: "0.6rem", fontFamily: "var(--font-barlow), sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>{label}</div>
+                  <div style={{ color: "#4a5568", fontSize: "0.58rem" }}>{sub}</div>
+                </motion.div>
+              ))}
+            </div>
+            <p style={{ color: "#4a5568", fontSize: "0.72rem", fontStyle: "italic", textAlign: "center" }}>
+              Filosunu gerçek zamanlı takip et.
+            </p>
           </div>
         </div>
       </div>
 
-      {/* ── RIGHT — form panel ── */}
-      <div className="flex-1 flex flex-col lg:overflow-y-auto relative">
-        <div className="absolute inset-0 bg-mesh-soft pointer-events-none" />
+      {/* ── RIGHT — form + features ── */}
+      <motion.div
+        className="flex-1 flex flex-col lg:overflow-y-auto relative"
+        initial={{ x: 50, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        style={{ background: "#080c14" }}
+      >
+        {/* Diagonal line pattern */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(255,107,26,0.015) 40px, rgba(255,107,26,0.015) 41px)`,
+          }}
+        />
 
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center justify-between px-5 pt-8 pb-4 relative z-10">
           <div className="flex items-center gap-2.5">
-            <div className="bg-mesh p-2.5 rounded-xl shadow-md shadow-primary/30">
-              <Car className="h-5 w-5 text-white" />
+            <div className="p-2 rounded-lg"
+              style={{ background: "rgba(255,107,26,0.15)", border: "1px solid rgba(255,107,26,0.3)" }}>
+              <Car className="h-5 w-5" style={{ color: "#ff6b1a" }} />
             </div>
-            <span className="font-outfit font-black text-xl text-gradient">CarsTrack</span>
+            <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "#e8eaf0", fontWeight: 800, fontSize: "1.15rem" }}>
+              Cars<span style={{ color: "#ff6b1a" }}>Track</span>
+            </span>
           </div>
-          <Link href="/register" className="text-xs text-primary font-semibold">
+          <Link href="/register" style={{ color: "#ff6b1a", fontSize: "0.75rem", fontWeight: 600 }}>
             Kayıt ol →
           </Link>
         </div>
 
-        {/* Form area — fills remaining height on mobile, centered on desktop */}
-        <div className="flex-1 flex flex-col justify-center relative z-10 px-5 sm:px-8 md:px-12 lg:px-14 xl:px-20 2xl:px-28 py-6 lg:py-12">
+        {/* Main content — 2 columns on desktop */}
+        <div className="flex-1 flex flex-col justify-center items-center relative z-10 px-4 py-8 lg:py-10">
+          <div className="w-full max-w-5xl flex flex-col lg:flex-row lg:gap-0 lg:items-start lg:justify-center">
 
-          {/* Desktop header */}
-          <div className="hidden lg:block mb-8 xl:mb-10">
-            <h1 className="text-3xl xl:text-4xl font-outfit font-bold tracking-tight">Hesabınıza girin</h1>
-            <p className="text-muted-foreground mt-2">
-              Hesabınız yok mu?{" "}
-              <Link href="/register" className="text-primary font-semibold hover:underline underline-offset-4">
-                Ücretsiz kayıt olun
-              </Link>
-            </p>
-          </div>
-
-          {/* Mobile header */}
-          <div className="lg:hidden mb-6">
-            <h1 className="text-2xl font-outfit font-bold tracking-tight">Giriş Yap</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Hesabınız yok mu?{" "}
-              <Link href="/register" className="text-primary font-semibold hover:underline">
-                Kayıt olun
-              </Link>
-            </p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4 xl:space-y-5">
-            {/* Email */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">E-posta</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ornek@sirket.com"
-                  className="h-12 xl:h-14 rounded-2xl bg-muted/50 border-border/60 pl-11 text-sm xl:text-base focus:bg-background transition-colors"
-                  required
-                  autoComplete="email"
-                />
+            {/* ── FORM COLUMN ── */}
+            <div className="w-full lg:w-[400px] lg:shrink-0">
+              {/* Breadcrumb */}
+              <div className="mb-6">
+                <span style={{
+                  fontFamily: "var(--font-ibm-mono), monospace", color: "#ff6b1a",
+                  fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase",
+                  display: "block", marginBottom: "0.75rem",
+                }}>
+                  ▸ SİSTEM GİRİŞİ
+                </span>
+                <h1 style={{
+                  fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif",
+                  fontSize: "2.4rem", fontWeight: 800, color: "#e8eaf0", lineHeight: 1.1,
+                }}>
+                  Panele Giriş
+                </h1>
+                <p style={{ color: "#4a5568", fontSize: "0.82rem", marginTop: "0.4rem" }}>
+                  Filo yönetim sistemine erişmek için kimlik bilgilerinizi girin.
+                </p>
               </div>
-            </div>
 
-            {/* Password */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Şifre</label>
-                <button type="button" onClick={() => setForgotOpen(true)}
-                  className="text-xs text-primary/80 hover:text-primary transition-colors font-medium" tabIndex={-1}>
-                  Şifremi Unuttum?
+              <form onSubmit={handleLogin} className="space-y-4">
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <label htmlFor="login-email" style={{ color: "#4a5568", fontSize: "0.65rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    E-posta
+                  </label>
+                  <Input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                    placeholder="ornek@sirket.com" className="h-11 pl-4 border-0" style={inputStyle}
+                    required autoComplete="email" />
+                </div>
+
+                {/* Password */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="login-password" style={{ color: "#4a5568", fontSize: "0.65rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                      Şifre
+                    </label>
+                    <button type="button" onClick={() => setForgotOpen(true)} tabIndex={-1}
+                      style={{ color: "rgba(255,107,26,0.7)", fontSize: "0.68rem", fontFamily: "var(--font-ibm-mono), monospace", background: "none", border: "none", cursor: "pointer" }}>
+                      Şifremi Unuttum?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Input id="login-password" type={showPass ? "text" : "password"} value={password}
+                      onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
+                      className="h-11 pl-4 pr-11 border-0" style={inputStyle} required autoComplete="current-password" />
+                    <button type="button" onClick={() => setShowPass(v => !v)} tabIndex={-1}
+                      className="absolute right-3 top-1/2 -translate-y-1/2"
+                      style={{ color: "#4a5568", background: "none", border: "none", cursor: "pointer" }}>
+                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error */}
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: [0, -6, 6, -4, 4, 0] }}
+                    transition={{ duration: 0.4 }}
+                    className="flex items-center gap-2.5 px-4 py-3"
+                    style={{ background: "rgba(220,38,38,0.08)", borderLeft: "2px solid rgba(220,38,38,0.6)", borderRadius: "0 6px 6px 0" }}>
+                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: "#dc2626" }} />
+                    <p style={{ color: "#f87171", fontFamily: "var(--font-ibm-mono), monospace", fontSize: "0.75rem" }}>{error}</p>
+                  </motion.div>
+                )}
+
+                {/* Submit */}
+                <button type="submit" disabled={anyBusy} className="w-full h-11 relative overflow-hidden transition-all disabled:opacity-60"
+                  style={{
+                    background: "linear-gradient(90deg, #ff6b1a 0%, #d4500f 100%)",
+                    clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))",
+                    color: "#fff", fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif",
+                    fontWeight: 700, fontSize: "0.9rem", letterSpacing: "0.12em",
+                    border: "none", cursor: anyBusy ? "not-allowed" : "pointer",
+                  }}>
+                  {loading
+                    ? <span style={{ animation: "blink 1s step-start infinite" }}>BAĞLANIYOR...</span>
+                    : <span className="flex items-center justify-center gap-2">SİSTEM GİRİŞİ <ArrowRight className="h-4 w-4" /></span>
+                  }
+                </button>
+              </form>
+
+              {/* Divider */}
+              <div className="relative flex items-center gap-3 my-5">
+                <div className="flex-1 h-px" style={{ background: "rgba(255,107,26,0.12)" }} />
+                <span style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+                  veya dene
+                </span>
+                <div className="flex-1 h-px" style={{ background: "rgba(255,107,26,0.12)" }} />
+              </div>
+
+              {/* Demo buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" onClick={handleDemoLogin} disabled={anyBusy}
+                  className="h-16 transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50"
+                  style={{
+                    background: "rgba(13,21,38,0.8)", border: "1px solid rgba(255,107,26,0.14)",
+                    clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
+                    cursor: anyBusy ? "not-allowed" : "pointer",
+                  }}>
+                  {demoLoading
+                    ? <span className="h-5 w-5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(255,107,26,0.3)", borderTopColor: "#ff6b1a" }} />
+                    : <>
+                        <div className="flex items-center gap-1.5">
+                          <Play className="h-3.5 w-3.5 fill-current" style={{ color: "#ff6b1a" }} />
+                          <span style={{ fontFamily: "var(--font-barlow), sans-serif", fontWeight: 700, fontSize: "0.82rem", letterSpacing: "0.05em", color: "#e8eaf0" }}>YÖNETİCİ</span>
+                        </div>
+                        <span style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>Demo hesabı</span>
+                      </>
+                  }
+                </button>
+                <button type="button" onClick={handleDriverDemo} disabled={anyBusy}
+                  className="h-16 transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50"
+                  style={{
+                    background: "rgba(255,107,26,0.06)", border: "1px solid rgba(255,107,26,0.22)",
+                    clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
+                    cursor: anyBusy ? "not-allowed" : "pointer",
+                  }}>
+                  {driverLoading
+                    ? <span className="h-5 w-5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(255,107,26,0.3)", borderTopColor: "#ff6b1a" }} />
+                    : <>
+                        <div className="flex items-center gap-1.5">
+                          <User className="h-3.5 w-3.5" style={{ color: "#ff6b1a" }} />
+                          <span style={{ fontFamily: "var(--font-barlow), sans-serif", fontWeight: 700, fontSize: "0.82rem", letterSpacing: "0.05em", color: "#e8eaf0" }}>ŞOFÖR</span>
+                        </div>
+                        <span style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>Demo hesabı</span>
+                      </>
+                  }
                 </button>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
-                <Input
-                  type={showPass ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="h-12 xl:h-14 rounded-2xl bg-muted/50 border-border/60 pl-11 pr-12 text-sm xl:text-base focus:bg-background transition-colors"
-                  required
-                  autoComplete="current-password"
-                />
-                <button type="button" onClick={() => setShowPass(v => !v)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors" tabIndex={-1}>
-                  {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+
+              <p style={{ color: "#4a5568", fontSize: "0.65rem", fontFamily: "var(--font-ibm-mono), monospace", textAlign: "center", marginTop: "0.6rem" }}>
+                Kayıt gerektirmez · Gerçek demo verisi
+              </p>
+              <p style={{ color: "#4a5568", fontSize: "0.78rem", textAlign: "center", marginTop: "1.25rem" }}>
+                Hesabınız yok mu?{" "}
+                <Link href="/register" style={{ color: "#ff6b1a", fontWeight: 600 }}>Kayıt İsteği Oluştur</Link>
+              </p>
             </div>
 
-            {/* Error */}
-            {error && (
-              <motion.div initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }}
-                className="flex items-center gap-2.5 bg-destructive/8 border border-destructive/25 rounded-2xl px-4 py-3">
-                <div className="h-1.5 w-1.5 rounded-full bg-destructive shrink-0" />
-                <p className="text-sm text-destructive">{error}</p>
-              </motion.div>
-            )}
+            {/* ── FEATURES COLUMN — desktop only ── */}
+            <motion.div
+              className="hidden lg:flex flex-col justify-center pl-10 xl:pl-14 ml-10 xl:ml-14"
+              style={{ borderLeft: "1px solid rgba(255,107,26,0.1)", flex: 1, minWidth: 0 }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
+              {/* Heading */}
+              <div className="mb-8">
+                <span style={{
+                  fontFamily: "var(--font-ibm-mono), monospace", color: "#ff6b1a",
+                  fontSize: "0.65rem", letterSpacing: "0.15em", textTransform: "uppercase",
+                  display: "block", marginBottom: "0.6rem",
+                }}>
+                  ▸ NEDEN CARSTRACK?
+                </span>
+                <h2 style={{
+                  fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif",
+                  fontSize: "1.9rem", fontWeight: 800, color: "#e8eaf0", lineHeight: 1.15,
+                }}>
+                  Filo yönetiminin<br />
+                  <span style={{ color: "#ff6b1a" }}>akıllı</span> yolu
+                </h2>
+                <p style={{ color: "#4a5568", fontSize: "0.82rem", marginTop: "0.6rem", lineHeight: 1.6, maxWidth: 320 }}>
+                  Araç bakımından sigorta takibine, servis geçmişinden ekip koordinasyonuna kadar tek platform.
+                </p>
+              </div>
 
-            {/* Submit */}
-            <Button type="submit" size="lg"
-              className="w-full h-12 xl:h-14 rounded-2xl font-semibold gap-2 text-sm xl:text-base bg-mesh hover:opacity-90 text-white border-none shadow-lg shadow-primary/25"
-              disabled={anyBusy}>
-              {loading
-                ? <><span className="h-4 w-4 rounded-full border-2 border-white/50 border-t-white animate-spin" /> Giriş yapılıyor...</>
-                : <>Giriş Yap <ArrowRight className="h-4 w-4" /></>}
-            </Button>
-          </form>
-
-          {/* Divider */}
-          <div className="relative flex items-center gap-3 my-5 xl:my-6">
-            <div className="flex-1 h-px bg-border/50" />
-            <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest">veya dene</span>
-            <div className="flex-1 h-px bg-border/50" />
-          </div>
-
-          {/* Demo buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={handleDemoLogin} disabled={anyBusy}
-              className="h-16 xl:h-20 rounded-2xl border border-border/70 bg-card/60 hover:bg-muted/60 backdrop-blur-sm transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50 group">
-              {demoLoading
-                ? <span className="h-5 w-5 rounded-full border-2 border-current border-r-transparent animate-spin" />
-                : <>
-                    <div className="flex items-center gap-1.5 text-foreground/80 group-hover:text-foreground transition-colors">
-                      <Play className="h-3.5 w-3.5 fill-current" />
-                      <span className="text-sm font-bold">Yönetici</span>
+              {/* Feature grid */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                {features.map(({ icon: Icon, title, desc }, i) => (
+                  <motion.div
+                    key={title}
+                    className="flex gap-3 p-3 rounded-xl"
+                    style={{
+                      background: "rgba(255,107,26,0.04)",
+                      border: "1px solid rgba(255,107,26,0.1)",
+                    }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + i * 0.08, duration: 0.4 }}
+                  >
+                    <div
+                      className="shrink-0 flex items-center justify-center rounded-lg mt-0.5"
+                      style={{
+                        width: 32, height: 32,
+                        background: "rgba(255,107,26,0.1)",
+                        border: "1px solid rgba(255,107,26,0.2)",
+                      }}
+                    >
+                      <Icon style={{ color: "#ff6b1a", width: 15, height: 15 }} />
                     </div>
-                    <span className="text-[10px] text-muted-foreground">Demo hesabı</span>
-                  </>}
-            </button>
-
-            <button type="button" onClick={handleDriverDemo} disabled={anyBusy}
-              className="h-16 xl:h-20 rounded-2xl border border-primary/25 bg-primary/5 hover:bg-primary/10 backdrop-blur-sm transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50 group">
-              {driverLoading
-                ? <span className="h-5 w-5 rounded-full border-2 border-primary border-r-transparent animate-spin" />
-                : <>
-                    <div className="flex items-center gap-1.5 text-primary/80 group-hover:text-primary transition-colors">
-                      <User className="h-3.5 w-3.5" />
-                      <span className="text-sm font-bold">Şoför</span>
+                    <div className="min-w-0">
+                      <p style={{
+                        color: "#e8eaf0", fontWeight: 700, fontSize: "0.78rem",
+                        fontFamily: "var(--font-barlow), sans-serif", letterSpacing: "0.02em",
+                      }}>
+                        {title}
+                      </p>
+                      <p style={{ color: "#4a5568", fontSize: "0.7rem", lineHeight: 1.4, marginTop: 2 }}>
+                        {desc}
+                      </p>
                     </div>
-                    <span className="text-[10px] text-muted-foreground">Demo hesabı</span>
-                  </>}
-            </button>
-          </div>
+                  </motion.div>
+                ))}
+              </div>
 
-          <p className="text-center text-[11px] text-muted-foreground mt-3">
-            Kayıt gerektirmez · Gerçek demo verisi
-          </p>
+              {/* Bottom trust badge */}
+              <div className="mt-6 flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {["A", "B", "C"].map((l) => (
+                    <div key={l} className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ring-2"
+                      style={{ background: "rgba(255,107,26,0.15)", color: "#ff6b1a" }}>
+                      {l}
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <p style={{ color: "#e8eaf0", fontSize: "0.72rem", fontWeight: 600 }}>
+                    500+ şirket güveniyor
+                  </p>
+                  <p style={{ color: "#4a5568", fontSize: "0.65rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                    Türkiye genelinde aktif kullanım
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+          </div>
         </div>
-      </div>
+      </motion.div>
+
+      <style>{`
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+      `}</style>
 
       <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
     </div>

@@ -32,77 +32,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = createClient();
 
+    // Load profile directly via the browser Supabase client.
+    // This avoids the cookie-timing race that occurs when an API route is called
+    // immediately after signInWithPassword (cookies may not have reached the server yet).
     async function loadProfile(userId: string, metadataCompanyId?: string) {
       try {
-        console.log("loadProfile: Fetching profile for", userId);
-        
-        // If we have metadata, we can partially set the state immediately to unblock the UI
         if (metadataCompanyId) {
-          console.log("loadProfile: Using metadata company_id", metadataCompanyId);
           setCompany({ id: metadataCompanyId, name: "Yükleniyor...", createdAt: "", inviteCode: "" });
         }
 
-        // Use server API route instead of client-side Supabase to avoid
-        // browser auth session hanging issues
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, companies(id, name, created_at, invite_code)")
+          .eq("id", userId)
+          .single();
 
-        const res = await fetch("/api/auth/profile", {
-          signal: controller.signal,
-          credentials: "same-origin",
-        });
-        clearTimeout(timeoutId);
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          console.error("Profile API error:", res.status, body);
-
-          if (res.status === 401) {
-            // User session is invalid server-side — clear it and redirect to login
-            console.warn("User session invalid, signing out...");
-            await supabase.auth.signOut();
-            if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-              window.location.href = "/login";
-            }
-            return;
-          }
-
-          // If we had metadata, we already set the companyId, so we can proceed
+        if (error || !data) {
+          console.error("loadProfile error:", error?.message ?? "no data");
           if (metadataCompanyId) return;
           setProfile(null);
           setCompany(null);
           return;
         }
 
-        const { profile: profileData, company: companyData } = await res.json();
+        const comp = (
+          Array.isArray(data.companies) ? data.companies[0] : data.companies
+        ) as Record<string, string> | null | undefined;
 
-        if (profileData) {
-          console.log("loadProfile: Profile found", profileData.fullName);
-          setProfile(profileData);
+        setProfile({
+          id: data.id,
+          companyId: data.company_id,
+          role: data.role as "manager" | "driver",
+          fullName: data.full_name,
+          department: (data.department as string) || "",
+          avatarUrl: (data.avatar_url as string) || undefined,
+          notifyByEmail: data.notify_by_email !== false,
+          createdAt: data.created_at,
+        });
 
-          if (companyData) {
-            setCompany(companyData);
-
-            // Auto-migrate: If metadata is missing, update it now for future speed
-            if (!metadataCompanyId) {
-              console.log("loadProfile: Auto-migrating company_id to metadata...");
-              supabase.auth.updateUser({ data: { company_id: companyData.id } })
-                .catch((err: unknown) => console.error("Metadata migration failed:", err));
-            }
-          } else {
-            setCompany(null);
+        if (comp?.id) {
+          setCompany({
+            id: comp.id,
+            name: comp.name,
+            createdAt: comp.created_at,
+            inviteCode: comp.invite_code,
+          });
+          // Back-fill company_id into user metadata for faster loads next time
+          if (!metadataCompanyId) {
+            supabase.auth.updateUser({ data: { company_id: comp.id } })
+              .catch((err: unknown) => console.error("Metadata migration failed:", err));
           }
         } else {
-          console.log("loadProfile: No profile data");
-          setProfile(null);
           setCompany(null);
         }
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          console.error("Profile fetch timed out after 10s");
-        } else {
-          console.error("Failed to load profile", err);
-        }
+        console.error("Failed to load profile", err);
         setProfile(null);
         setCompany(null);
       }
@@ -166,12 +150,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear server-side cookies
-      await fetch("/api/auth/logout", { method: "POST" });
-      
-      // Clear client-side session just in case
+      // Client-side first: clears in-memory session and removes cookies via browser client
       const supabase = createClient();
       await supabase.auth.signOut();
+      // Server-side: ensures sb- cookies are wiped in the response
+      await fetch("/api/auth/logout", { method: "POST" });
     } catch (err) {
       console.error("Sign out error", err);
     } finally {
@@ -179,19 +162,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setProfile(null);
       setCompany(null);
-      
-      try {
-        if (typeof document !== "undefined") {
-          document.cookie.split(";").forEach((c) => {
-            if (c.trim().startsWith("sb-")) {
-              document.cookie = c.replace(/^ +/, "").replace(/=.*/, `=;expires=${new Date(0).toUTCString()};path=/`);
-            }
-          });
-        }
-      } catch (e) {
-        console.error("Cookie clear error", e);
-      }
-
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }

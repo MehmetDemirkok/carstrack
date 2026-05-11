@@ -12,7 +12,7 @@ export function ShellWrapper({ children }: { children: React.ReactNode }) {
   const isAuthPage = AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   if (isAuthPage) {
-    return <>{children}</>;
+    return <div className="w-full flex-1 flex flex-col overflow-x-hidden">{children}</div>;
   }
 
   return (

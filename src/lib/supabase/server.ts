@@ -14,10 +14,14 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
+            // Use Supabase's options as-is — do NOT add httpOnly.
+            // Browser client needs document.cookie access to session cookies.
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
-          } catch {}
+          } catch {
+            // Server Components cannot set cookies — the proxy handles refresh.
+          }
         },
       },
     }
