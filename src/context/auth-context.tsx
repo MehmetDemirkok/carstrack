@@ -112,23 +112,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION" || event === "SIGNED_IN") {
         if (!initializedRef.current || event === "SIGNED_IN") {
           if (u) {
-            try {
-              await loadProfile(u.id, u.user_metadata?.company_id);
-            } catch (err) {
-              console.error("Auth profile load failed:", err);
+            // Unblock the UI immediately — pages can start fetching with companyId
+            // from metadata without waiting for the full profile Supabase query.
+            const metaCompanyId = u.user_metadata?.company_id as string | undefined;
+            if (metaCompanyId) {
+              // Partial company so requireCompanyId() returns instantly
+              setCompany(prev => prev ?? { id: metaCompanyId, name: "", createdAt: "", inviteCode: "" });
             }
+            setLoading(false);
+            initializedRef.current = true;
+            // Load full profile in background — updates profile + fills company name
+            loadProfile(u.id, metaCompanyId).catch((err) =>
+              console.error("Auth profile load failed:", err)
+            );
           } else {
             setProfile(null);
             setCompany(null);
+            setLoading(false);
+            initializedRef.current = true;
           }
+        }
+      } else {
+        // Other events: USER_UPDATED, etc. — non-blocking profile refresh
+        if (u) loadProfile(u.id, u.user_metadata?.company_id).catch(() => {});
+        if (!initializedRef.current) {
           setLoading(false);
           initializedRef.current = true;
         }
-      } else {
-        // Other events: USER_UPDATED, etc.
-        if (u) await loadProfile(u.id, u.user_metadata?.company_id);
-        setLoading(false);
-        initializedRef.current = true;
       }
     });
 

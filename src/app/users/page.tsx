@@ -47,7 +47,7 @@ type DriverWithAssignment = Profile & { assignedVehicleIds: string[] };
 // ─── Page ────────────────────────────────────────────────────
 
 export default function UsersPage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, user } = useAuth();
   const router = useRouter();
 
   const [members, setMembers] = useState<Profile[]>([]);
@@ -95,14 +95,14 @@ export default function UsersPage() {
   }
 
   useEffect(() => {
-    if (!authLoading) loadAll();
-  }, [authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (user) loadAll();
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!authLoading && profile?.role !== "manager") router.replace("/tasks");
-  }, [authLoading, profile, router]);
+    if (profile && profile.role !== "manager") router.replace("/tasks");
+  }, [profile, router]);
 
-  if (authLoading || !profile || profile.role !== "manager") return null;
+  if (profile && profile.role !== "manager") return null;
 
   // Lookup maps
   const assignmentMap = new Map(drivers.map((d) => [d.id, d.assignedVehicleIds]));

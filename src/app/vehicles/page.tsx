@@ -37,7 +37,7 @@ const tireColor = {
 
 export default function VehiclesPage() {
   const guardDemo = useDemoGuard();
-  const { loading: authLoading, company } = useAuth();
+  const { user } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -61,8 +61,9 @@ export default function VehiclesPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && company) loadData();
-  }, [authLoading, company]);
+    if (!user) return;
+    loadData();
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleSelection = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -90,8 +91,14 @@ export default function VehiclesPage() {
   };
 
   if (loading) return (
-    <div className="p-4 pt-10 text-center text-muted-foreground flex flex-col items-center gap-2">
-      <p>Araçlar yükleniyor...</p>
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="h-7 w-32 rounded-xl bg-muted/40 animate-pulse" />
+        <div className="h-9 w-28 rounded-xl bg-muted/40 animate-pulse" />
+      </div>
+      {[1,2,3,4].map(i => (
+        <div key={i} className="h-28 rounded-2xl bg-muted/40 animate-pulse" />
+      ))}
     </div>
   );
 

@@ -52,7 +52,7 @@ const fadeLeft = { hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, tra
 
 export default function HistoryPage() {
   const guardDemo = useDemoGuard();
-  const { loading: authLoading, company } = useAuth();
+  const { user } = useAuth();
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
@@ -88,8 +88,8 @@ export default function HistoryPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && company) reload();
-  }, [authLoading, company, reload]);
+    if (user) reload();
+  }, [user?.id, reload]);
 
   const filtered = records.filter((r) => {
     if (filter !== "all" && r.type !== filter) return false;

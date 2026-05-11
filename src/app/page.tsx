@@ -60,31 +60,32 @@ const categoryIcon = {
 };
 
 export default function Dashboard() {
-  const { loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [alerts, setAlerts] = useState<FleetAlert[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!user) return;
     let cancelled = false;
+    setDataLoading(true);
     (async () => {
       try {
         const [v, r] = await Promise.all([getVehicles(), getRecords()]);
         if (cancelled) return;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setVehicles(v);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRecords(r);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setAlerts(getFleetAlerts(v));
       } catch (err) {
         const msg = err instanceof Error ? err.message : JSON.stringify(err);
         console.error("Dashboard load failed:", msg);
+      } finally {
+        if (!cancelled) setDataLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [authLoading]);
+  }, [user?.id]);
 
   const scores = vehicles.map((v) => calculateHealthScore(v));
   const fleetScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
@@ -113,6 +114,28 @@ export default function Dashboard() {
 
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
   const warningCount = alerts.filter((a) => a.severity === "warning").length;
+
+  if (dataLoading) return (
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8">
+        <div className="lg:col-span-7 space-y-5">
+          <div className="h-40 md:h-52 rounded-3xl bg-muted/40 animate-pulse" />
+          <div className="space-y-3">
+            {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl bg-muted/40 animate-pulse" />)}
+          </div>
+        </div>
+        <div className="lg:col-span-5 space-y-5">
+          <div className="h-32 rounded-2xl bg-muted/40 animate-pulse" />
+          <div className="grid grid-cols-3 gap-3">
+            {[1,2,3].map(i => <div key={i} className="h-24 rounded-2xl bg-muted/40 animate-pulse" />)}
+          </div>
+          <div className="space-y-2">
+            {[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl bg-muted/40 animate-pulse" />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-4 md:p-8 space-y-6 relative">

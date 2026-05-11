@@ -1,6 +1,29 @@
 import { createClient } from "./supabase/client";
 import type { Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask } from "./types";
 
+// ─── TTL data cache ───────────────────────────────────────────
+// Keeps data in memory for 60 seconds so navigating between pages is instant.
+const dataCache = new Map<string, { value: unknown; expiresAt: number }>();
+const CACHE_TTL = 60_000; // 1 minute
+
+function getCached<T>(key: string): T | undefined {
+  const entry = dataCache.get(key);
+  if (entry && entry.expiresAt > Date.now()) return entry.value as T;
+  dataCache.delete(key);
+  return undefined;
+}
+
+function setCached<T>(key: string, value: T): T {
+  dataCache.set(key, { value, expiresAt: Date.now() + CACHE_TTL });
+  return value;
+}
+
+function bustCache(prefix: string) {
+  for (const key of dataCache.keys()) {
+    if (key.startsWith(prefix)) dataCache.delete(key);
+  }
+}
+
 // ─── Auth helpers ─────────────────────────────────────────────
 
 // Cached per-user. Always resolves the current session first so a logout +
@@ -11,6 +34,7 @@ let cachedUserId: string | null = null;
 export function clearCompanyCache() {
   cachedCompanyId = null;
   cachedUserId = null;
+  dataCache.clear();
 }
 
 let companyIdPromise: Promise<string> | null = null;
@@ -182,15 +206,18 @@ function toRecord(row: Record<string, unknown>): ServiceRecord {
 // ─── Vehicles ─────────────────────────────────────────────────
 
 export async function getVehicles(): Promise<Vehicle[]> {
-  const supabase = createClient();
   const companyId = await requireCompanyId();
+  const cacheKey = `vehicles:${companyId}`;
+  const cached = getCached<Vehicle[]>(cacheKey);
+  if (cached) return cached;
+  const supabase = createClient();
   const { data, error } = await supabase
     .from("vehicles")
     .select("*")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []).map(toVehicle);
+  return setCached(cacheKey, (data ?? []).map(toVehicle));
 }
 
 export async function getVehicle(id: string): Promise<Vehicle | null> {
@@ -218,6 +245,7 @@ export async function addVehicle(
     .select()
     .single();
   if (error) throw error;
+  bustCache(`vehicles:${companyId}`);
   return toVehicle(inserted);
 }
 
@@ -231,6 +259,7 @@ export async function updateVehicle(id: string, updates: Partial<Vehicle>): Prom
     .eq("id", id)
     .eq("company_id", companyId);
   if (error) throw error;
+  bustCache(`vehicles:${companyId}`);
 }
 
 export async function deleteVehicle(id: string): Promise<void> {
@@ -242,6 +271,7 @@ export async function deleteVehicle(id: string): Promise<void> {
     .eq("id", id)
     .eq("company_id", companyId);
   if (error) throw error;
+  bustCache(`vehicles:${companyId}`);
 }
 
 export async function deleteVehicles(ids: string[]): Promise<void> {
@@ -254,34 +284,40 @@ export async function deleteVehicles(ids: string[]): Promise<void> {
     .in("id", ids)
     .eq("company_id", companyId);
   if (error) throw error;
+  bustCache(`vehicles:${companyId}`);
 }
 
 // ─── Records ─────────────────────────────────────────────────
 
 export async function getRecords(): Promise<ServiceRecord[]> {
+  const companyId = await requireCompanyId();
+  const cacheKey = `records:${companyId}`;
+  const cached = getCached<ServiceRecord[]>(cacheKey);
+  if (cached) return cached;
   try {
     const res = await fetch("/api/records", { credentials: "same-origin" });
     if (!res.ok) throw new Error(`Records fetch failed: ${res.status}`);
     const { records } = await res.json();
-    return records ?? [];
+    return setCached(cacheKey, records ?? []);
   } catch (err) {
     console.error("getRecords server fetch failed, trying client fallback:", err);
-    // Fallback to client-side query
     const supabase = createClient();
-    const companyId = await requireCompanyId();
     const { data, error } = await supabase
       .from("service_records")
       .select("*")
       .eq("company_id", companyId)
       .order("date", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map(toRecord);
+    return setCached(cacheKey, (data ?? []).map(toRecord));
   }
 }
 
 export async function getVehicleRecords(vehicleId: string): Promise<ServiceRecord[]> {
-  const supabase = createClient();
   const companyId = await requireCompanyId();
+  const cacheKey = `vrecords:${companyId}:${vehicleId}`;
+  const cached = getCached<ServiceRecord[]>(cacheKey);
+  if (cached) return cached;
+  const supabase = createClient();
   const { data, error } = await supabase
     .from("service_records")
     .select("*")
@@ -289,7 +325,7 @@ export async function getVehicleRecords(vehicleId: string): Promise<ServiceRecor
     .eq("company_id", companyId)
     .order("date", { ascending: false });
   if (error) throw error;
-  return (data ?? []).map(toRecord);
+  return setCached(cacheKey, (data ?? []).map(toRecord));
 }
 
 export async function addRecord(
@@ -324,13 +360,18 @@ export async function deleteRecord(id: string): Promise<void> {
     .eq("id", id)
     .eq("company_id", companyId);
   if (error) throw error;
+  bustCache(`records:${companyId}`);
+  bustCache(`vrecords:${companyId}`);
 }
 
 // ─── Drivers / Profiles ──────────────────────────────────────
 
 export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: string[] })[]> {
-  const supabase = createClient();
   const companyId = await requireCompanyId();
+  const cacheKey = `drivers:${companyId}`;
+  const cached = getCached<(Profile & { assignedVehicleIds: string[] })[]>(cacheKey);
+  if (cached) return cached;
+  const supabase = createClient();
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select("*, vehicle_assignments(vehicle_id)")
@@ -339,7 +380,7 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: str
     .order("full_name");
   if (error) throw error;
 
-  return (profiles ?? []).map((row: Record<string, unknown>) => ({
+  return setCached(cacheKey, (profiles ?? []).map((row: Record<string, unknown>) => ({
     id: row.id as string,
     companyId: row.company_id as string,
     role: row.role as Profile["role"],
@@ -350,7 +391,7 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: str
     assignedVehicleIds: Array.isArray(row.vehicle_assignments)
       ? (row.vehicle_assignments as { vehicle_id: string }[]).map((a) => a.vehicle_id)
       : [],
-  }));
+  })));
 }
 
 // ─── Assignments ─────────────────────────────────────────────
@@ -392,6 +433,10 @@ export async function getMyVehicles(): Promise<Vehicle[]> {
   const userId = session?.user?.id;
   if (!userId) return [];
 
+  const cacheKey = `myvehicles:${userId}`;
+  const cached = getCached<Vehicle[]>(cacheKey);
+  if (cached) return cached;
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
@@ -400,13 +445,11 @@ export async function getMyVehicles(): Promise<Vehicle[]> {
 
   if (profile?.role !== "driver") return getVehicles();
 
-  // Use the API route so the server-side admin client can bypass RLS on
-  // vehicle_assignments (drivers may not have a SELECT policy on that table).
   try {
     const res = await fetch("/api/my-vehicles");
     if (!res.ok) return [];
     const json = await res.json() as { vehicles?: Record<string, unknown>[] };
-    return (json.vehicles ?? []).map(toVehicle);
+    return setCached(cacheKey, (json.vehicles ?? []).map(toVehicle));
   } catch {
     return [];
   }
@@ -431,15 +474,18 @@ export async function unassignVehicle(vehicleId: string, driverId: string): Prom
 }
 
 export async function getMembers(): Promise<Profile[]> {
-  const supabase = createClient();
   const companyId = await requireCompanyId();
+  const cacheKey = `members:${companyId}`;
+  const cached = getCached<Profile[]>(cacheKey);
+  if (cached) return cached;
+  const supabase = createClient();
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("company_id", companyId)
     .order("full_name");
   if (error) throw error;
-  return (data ?? []).map((row: Record<string, unknown>) => ({
+  return setCached(cacheKey, (data ?? []).map((row: Record<string, unknown>) => ({
     id: row.id as string,
     companyId: row.company_id as string,
     role: row.role as Profile["role"],
@@ -447,7 +493,7 @@ export async function getMembers(): Promise<Profile[]> {
     department: (row.department as string) || "",
     notifyByEmail: row.notify_by_email !== false,
     createdAt: row.created_at as string,
-  }));
+  })));
 }
 
 export async function updateMemberProfile(
