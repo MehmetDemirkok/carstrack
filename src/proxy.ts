@@ -61,6 +61,21 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Static / crawler-facing files must NEVER be redirected to login.
+  // The matcher regex should already exclude these, but an explicit guard
+  // ensures correctness even if the matcher is bypassed in some edge case.
+  const isStaticAsset =
+    pathname === "/sitemap.xml" ||
+    pathname === "/robots.txt" ||
+    pathname === "/manifest.json" ||
+    pathname.endsWith(".ico") ||
+    pathname.endsWith(".png") ||
+    pathname.endsWith(".svg") ||
+    pathname.endsWith(".txt") ||
+    pathname.endsWith(".xml");
+
+  if (isStaticAsset) return supabaseResponse;
+
   const isAuthOnlyPath =
     pathname.startsWith("/login") || pathname.startsWith("/register");
 
