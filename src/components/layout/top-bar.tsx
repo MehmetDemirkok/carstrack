@@ -57,7 +57,7 @@ export function TopBar() {
       case "urgent": return "#f59e0b";
       case "warning": return "#eab308";
       case "info": return "#3b82f6";
-      default: return "#ff6b1a";
+      default: return "#6366f1";
     }
   };
 
@@ -70,8 +70,8 @@ export function TopBar() {
           href="/settings"
           className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/60 group"
         >
-          <Avatar className="h-8 w-8 transition-transform group-hover:scale-105" style={{ border: "1px solid rgba(255,107,26,0.35)" }}>
-            <AvatarFallback className="text-xs font-bold" style={{ background: "rgba(255,107,26,0.15)", color: "#ff6b1a" }}>
+          <Avatar className="h-8 w-8 transition-transform group-hover:scale-105" style={{ border: "1px solid rgba(99,102,241,0.35)" }}>
+            <AvatarFallback className="text-xs font-bold" style={{ background: "rgba(99,102,241,0.15)", color: "#6366f1" }}>
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -145,13 +145,13 @@ export function TopBar() {
                     animate={{ scale: [1, 1.4, 1] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
                     className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full border border-background"
-                    style={{ background: "#ff6b1a" }}
+                    style={{ background: "#6366f1" }}
                   />
                   <motion.span
                     animate={{ scale: [1, 2.2], opacity: [0.6, 0] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
                     className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full"
-                    style={{ background: "rgba(255,107,26,0.6)" }}
+                    style={{ background: "rgba(99,102,241,0.6)" }}
                   />
                 </>
               )}
@@ -165,7 +165,7 @@ export function TopBar() {
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.18, ease: "easeOut" }}
                   className="absolute top-12 right-0 w-[300px] max-w-[calc(100vw-1rem)] overflow-hidden z-50 origin-top-right bg-card border border-border/50 shadow-2xl"
-                  style={{ borderRadius: 12, boxShadow: "0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,107,26,0.05)" }}
+                  style={{ borderRadius: 12, boxShadow: "0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(99,102,241,0.05)" }}
                 >
                   <div className="px-4 py-3 flex justify-between items-center border-b border-border/50 bg-muted/30">
                     <h3 className="text-sm font-bold text-foreground tracking-wider"
@@ -174,7 +174,7 @@ export function TopBar() {
                     </h3>
                     {unreadCount > 0 && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
-                        style={{ background: "rgba(255,107,26,0.12)", color: "#ff6b1a", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                        style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1", fontFamily: "var(--font-ibm-mono), monospace" }}>
                         {unreadCount} YENİ
                       </span>
                     )}
@@ -185,7 +185,7 @@ export function TopBar() {
                       <div className="p-8 flex flex-col items-center justify-center text-center">
                         <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
                           className="h-5 w-5 border-2 rounded-full mb-2"
-                          style={{ borderColor: "rgba(255,107,26,0.3)", borderTopColor: "#ff6b1a" }} />
+                          style={{ borderColor: "rgba(99,102,241,0.3)", borderTopColor: "#6366f1" }} />
                         <p className="text-xs text-muted-foreground" style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
                           Yükleniyor...
                         </p>
@@ -221,7 +221,7 @@ export function TopBar() {
                     <div className="px-4 py-2.5 text-center border-t border-border/40 bg-muted/20">
                       <button onClick={markAllRead}
                         className="text-xs font-medium cursor-pointer hover:text-foreground transition-colors"
-                        style={{ color: "#ff6b1a", background: "none", border: "none", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                        style={{ color: "#6366f1", background: "none", border: "none", fontFamily: "var(--font-ibm-mono), monospace" }}>
                         Tümünü okundu işaretle
                       </button>
                     </div>

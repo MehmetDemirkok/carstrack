@@ -60,9 +60,9 @@ const CATEGORIES: { id: CategoryId; labelKey: TranslationKey; Icon: React.Elemen
 ];
 
 const CATEGORY_COLORS: Record<Exclude<CategoryId, "all">, string> = {
-  vehicles:    "text-blue-500",
+  vehicles:    "text-violet-500",
   maintenance: "text-orange-500",
-  tasks:       "text-purple-500",
+  tasks:       "text-violet-500",
   account:     "text-teal-500",
 };
 

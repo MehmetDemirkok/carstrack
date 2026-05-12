@@ -60,10 +60,10 @@ const statusLabel = { good: "İyi", warning: "Yaklaşıyor", overdue: "Gecikmeli
 const statusIcon = { good: CheckCircle2, warning: AlertTriangle, overdue: XCircle };
 
 const typeColor = {
-  routine: "bg-blue-500/10 text-blue-500",
+  routine: "bg-violet-500/10 text-violet-500",
   repair: "bg-orange-500/10 text-orange-500",
   tire: "bg-teal-500/10 text-teal-500",
-  inspection: "bg-purple-500/10 text-purple-500",
+  inspection: "bg-violet-500/10 text-violet-500",
   battery: "bg-yellow-500/10 text-yellow-500",
   other: "bg-gray-500/10 text-gray-500",
 };
@@ -436,8 +436,8 @@ export default function VehicleDetailPage() {
                   {/* Son Servis — only when maintenance data exists */}
                   {hasAnyMaintenanceData && (
                     <div className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm flex items-center gap-3">
-                      <div className="p-2 bg-blue-500/10 rounded-xl shrink-0">
-                        <Clock className="h-5 w-5 text-blue-500" />
+                      <div className="p-2 bg-violet-500/10 rounded-xl shrink-0">
+                        <Clock className="h-5 w-5 text-violet-500" />
                       </div>
                       <div className="flex-1">
                         <p className="text-xs text-muted-foreground">Son Servis</p>
@@ -494,7 +494,7 @@ export default function VehicleDetailPage() {
                         </h3>
                         {vehicle.tireBrand && <p className="text-[11px] text-muted-foreground mt-1">{vehicle.tireBrand} {vehicle.tireSize && `• ${vehicle.tireSize}`}</p>}
                       </div>
-                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold ${vehicle.tireStatus === "Yazlık" ? "bg-orange-500/10 border-orange-500/20 text-orange-600" : vehicle.tireStatus === "Kışlık" ? "bg-blue-500/10 border-blue-500/20 text-blue-600" : "bg-teal-500/10 border-teal-500/20 text-teal-600"}`}>
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold ${vehicle.tireStatus === "Yazlık" ? "bg-orange-500/10 border-orange-500/20 text-orange-600" : vehicle.tireStatus === "Kışlık" ? "bg-violet-500/10 border-violet-500/20 text-violet-600" : "bg-teal-500/10 border-teal-500/20 text-teal-600"}`}>
                         {vehicle.tireStatus === "Yazlık" ? <Sun className="h-4 w-4" /> : vehicle.tireStatus === "Kışlık" ? <Snowflake className="h-4 w-4" /> : <Layers className="h-4 w-4" />}
                         {vehicle.tireStatus}
                       </div>
@@ -563,9 +563,9 @@ export default function VehicleDetailPage() {
                 <TabsContent value="docs" className="space-y-3 outline-none">
                   <div className="bg-card rounded-2xl p-5 border border-border/40 shadow-sm space-y-4">
                     {[
-                      { icon: ShieldCheck, iconBg: "bg-blue-500/10", iconColor: "text-blue-500", label: "Kasko & Sigorta", sub: vehicle.insuranceCompany || "—", date: vehicle.insuranceExpiry },
+                      { icon: ShieldCheck, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "Kasko & Sigorta", sub: vehicle.insuranceCompany || "—", date: vehicle.insuranceExpiry },
                       { icon: ShieldCheck, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500", label: "Yurtdışı Sigortası (Yeşil Kart)", sub: vehicle.greenCardCompany || "—", date: vehicle.greenCardExpiry },
-                      { icon: CalendarDays, iconBg: "bg-purple-500/10", iconColor: "text-purple-500", label: "TÜVTÜRK Muayene", sub: "", date: vehicle.inspectionExpiry },
+                      { icon: CalendarDays, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "TÜVTÜRK Muayene", sub: "", date: vehicle.inspectionExpiry },
                     ].map((doc, i) => {
                       const days = daysUntil(doc.date);
                       return (

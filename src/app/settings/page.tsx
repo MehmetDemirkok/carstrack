@@ -480,8 +480,8 @@ export default function SettingsPage() {
             <CardContent className="p-2">
               <SettingItem
                 icon={mounted && theme === "dark" ? Moon : Sun}
-                iconBg="bg-purple-500/10"
-                iconColor="text-purple-500"
+                iconBg="bg-violet-500/10"
+                iconColor="text-violet-500"
                 label={t("settings_theme")}
                 description={!mounted ? undefined : theme === "dark" ? t("settings_theme_dark") : theme === "light" ? t("settings_theme_light") : t("settings_theme_system")}
                 trailing={<Toggle on={mounted && theme === "dark"} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />}
@@ -502,8 +502,8 @@ export default function SettingsPage() {
               />
               <SettingItem
                 icon={Mail}
-                iconBg="bg-sky-500/10"
-                iconColor="text-sky-500"
+                iconBg="bg-violet-500/10"
+                iconColor="text-violet-500"
                 label={emailNotifSaving ? t("notif_email_saving") : t("notif_email")}
                 description={t("notif_email_desc")}
                 trailing={<Toggle on={emailNotif} onToggle={handleEmailNotifToggle} />}
@@ -511,8 +511,8 @@ export default function SettingsPage() {
               />
               <SettingItem
                 icon={Languages}
-                iconBg="bg-blue-500/10"
-                iconColor="text-blue-500"
+                iconBg="bg-violet-500/10"
+                iconColor="text-violet-500"
                 label={t("settings_language")}
                 description={locale === "tr" ? t("lang_tr") : t("lang_en")}
                 trailing={
@@ -621,7 +621,7 @@ export default function SettingsPage() {
         <DialogContent className="rounded-3xl max-w-[320px]">
           <DialogHeader>
             <DialogTitle className="font-outfit flex items-center gap-2">
-              <Globe className="h-5 w-5 text-blue-500" /> {t("lang_title")}
+              <Globe className="h-5 w-5 text-violet-500" /> {t("lang_title")}
             </DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-2">

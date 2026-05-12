@@ -29,8 +29,8 @@ function getPasswordStrength(pwd: string): { bars: number; label: string; color:
   if (/[^A-Za-z0-9]/.test(pwd)) s++;
   const bars = s <= 1 ? 1 : s === 2 ? 2 : s <= 3 ? 2 : s === 4 ? 3 : 4;
   const labels = ["", "Zayıf", "Orta", "İyi", "Güçlü"];
-  const colors = ["", "bg-red-500", "bg-orange-400", "bg-blue-500", "bg-emerald-500"];
-  const textColors = ["", "text-red-500", "text-orange-400", "text-blue-500", "text-emerald-500"];
+  const colors = ["", "bg-red-500", "bg-orange-400", "bg-violet-500", "bg-emerald-500"];
+  const textColors = ["", "text-red-500", "text-orange-400", "text-violet-500", "text-emerald-500"];
   return { bars, label: labels[bars], color: colors[bars], textColor: textColors[bars] } as ReturnType<typeof getPasswordStrength> & { textColor: string };
 }
 

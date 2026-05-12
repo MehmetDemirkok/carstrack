@@ -45,25 +45,25 @@ export function Sidebar() {
       <div
         className="absolute inset-0 pointer-events-none opacity-60 dark:opacity-100"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(255,107,26,0.06)' stroke-width='0.8'/%3E%3C/svg%3E")`,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(99,102,241,0.06)' stroke-width='0.8'/%3E%3C/svg%3E")`,
           backgroundSize: "60px 52px",
         }}
       />
       {/* Ambient top glow */}
       <div className="absolute -top-16 -left-8 w-48 h-48 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(255,107,26,0.07) 0%, transparent 70%)" }} />
+        style={{ background: "radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%)" }} />
 
       {/* Logo */}
       <div className="p-6 relative">
         <Link href="/" className="flex items-center gap-3 group">
           <div className="p-2.5 rounded-xl transition-shadow"
-            style={{ background: "rgba(255,107,26,0.12)", border: "1px solid rgba(255,107,26,0.28)" }}>
-            <Car className="h-5 w-5" style={{ color: "#ff6b1a" }} />
+            style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.28)" }}>
+            <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
           </div>
           <div className="flex flex-col leading-none">
             <span className="text-foreground font-extrabold text-lg tracking-tight"
               style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif" }}>
-              Cars<span style={{ color: "#ff6b1a" }}>Track</span>
+              Cars<span style={{ color: "#6366f1" }}>Track</span>
             </span>
             <span className="text-muted-foreground mt-0.5"
               style={{ fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
@@ -74,7 +74,7 @@ export function Sidebar() {
       </div>
 
       {/* Divider */}
-      <div className="mx-4 h-px mb-2" style={{ background: "rgba(255,107,26,0.1)" }} />
+      <div className="mx-4 h-px mb-2" style={{ background: "rgba(99,102,241,0.1)" }} />
 
       <div className="flex-1 px-3 space-y-0.5 overflow-y-auto no-scrollbar relative">
         {!loading && navItems.map((item) => {
@@ -92,8 +92,8 @@ export function Sidebar() {
                   layoutId="sidebar-active"
                   className="absolute inset-0 rounded-xl"
                   style={{
-                    background: "rgba(255,107,26,0.12)",
-                    borderLeft: "2px solid #ff6b1a",
+                    background: "rgba(99,102,241,0.12)",
+                    borderLeft: "2px solid #6366f1",
                   }}
                   transition={{ type: "spring", stiffness: 320, damping: 28 }}
                 />
@@ -101,7 +101,7 @@ export function Sidebar() {
               <div className="relative shrink-0">
                 <item.icon
                   className="relative z-10 transition-all"
-                  style={{ width: 18, height: 18, color: isActive ? "#ff6b1a" : undefined }}
+                  style={{ width: 18, height: 18, color: isActive ? "#6366f1" : undefined }}
                 />
                 {item.href === "/settings" && profile && !profile.department && !isActive && (
                   <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background z-20" />
@@ -112,7 +112,7 @@ export function Sidebar() {
                 <motion.span
                   layoutId="sidebar-active-dot"
                   className="ml-auto h-1.5 w-1.5 rounded-full relative z-10"
-                  style={{ background: "#ff6b1a" }}
+                  style={{ background: "#6366f1" }}
                 />
               )}
             </Link>
@@ -122,15 +122,15 @@ export function Sidebar() {
 
       {/* Bottom: user + add vehicle */}
       <div className="p-3 space-y-2 relative">
-        <div className="mx-1 h-px mb-3" style={{ background: "rgba(255,107,26,0.1)" }} />
+        <div className="mx-1 h-px mb-3" style={{ background: "rgba(99,102,241,0.1)" }} />
 
         {profile && (
           <Link href="/settings"
             className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/50 transition-colors group"
             title={profile.fullName}>
-            <Avatar className="h-8 w-8" style={{ border: "1px solid rgba(255,107,26,0.28)" }}>
+            <Avatar className="h-8 w-8" style={{ border: "1px solid rgba(99,102,241,0.28)" }}>
               <AvatarFallback className="text-xs font-bold"
-                style={{ background: "rgba(255,107,26,0.12)", color: "#ff6b1a" }}>
+                style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -148,7 +148,7 @@ export function Sidebar() {
           <Link href="/vehicles/new" className="block w-full">
             <button className="w-full h-11 rounded-xl flex items-center justify-center gap-2 transition-all font-bold"
               style={{
-                background: "linear-gradient(90deg, #ff6b1a 0%, #d4500f 100%)",
+                background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)",
                 color: "#fff",
                 border: "none",
                 fontSize: "0.82rem",

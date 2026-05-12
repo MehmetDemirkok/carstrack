@@ -22,7 +22,7 @@ const categoryIcon = {
 const severityRing = {
   critical: "bg-red-500/15 text-red-500",
   warning: "bg-orange-500/15 text-orange-500",
-  info: "bg-blue-500/15 text-blue-500",
+  info: "bg-violet-500/15 text-violet-500",
 };
 
 const severityLabel = {
@@ -34,7 +34,7 @@ const severityLabel = {
 const severityBar = {
   critical: "bg-red-500",
   warning: "bg-orange-500",
-  info: "bg-blue-500",
+  info: "bg-violet-500",
 };
 
 export function NotificationsPopover() {

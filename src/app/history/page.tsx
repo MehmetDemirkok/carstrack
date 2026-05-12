@@ -20,10 +20,10 @@ import {
 import { exportServiceHistoryExcel } from "@/lib/export";
 
 const typeConfig: Record<ServiceType, { icon: React.ElementType; color: string; dot: string; label: string }> = {
-  routine: { icon: CheckCircle2, color: "bg-blue-500/10 text-blue-500", dot: "bg-blue-500", label: "Periyodik" },
+  routine: { icon: CheckCircle2, color: "bg-violet-500/10 text-violet-500", dot: "bg-violet-500", label: "Periyodik" },
   repair: { icon: AlertTriangle, color: "bg-orange-500/10 text-orange-500", dot: "bg-orange-500", label: "Onarım" },
   tire: { icon: Disc3, color: "bg-teal-500/10 text-teal-500", dot: "bg-teal-500", label: "Lastik" },
-  inspection: { icon: ClipboardList, color: "bg-purple-500/10 text-purple-500", dot: "bg-purple-500", label: "Muayene" },
+  inspection: { icon: ClipboardList, color: "bg-violet-500/10 text-violet-500", dot: "bg-violet-500", label: "Muayene" },
   battery: { icon: BatteryCharging, color: "bg-yellow-500/10 text-yellow-500", dot: "bg-yellow-500", label: "Akü" },
   other: { icon: Wrench, color: "bg-gray-500/10 text-gray-500", dot: "bg-gray-500", label: "Diğer" },
 };

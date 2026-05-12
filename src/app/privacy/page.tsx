@@ -18,15 +18,15 @@ export default function PrivacyPage() {
   const sections = [
     {
       icon: Eye,
-      iconBg: "bg-blue-500/10",
-      iconColor: "text-blue-500",
+      iconBg: "bg-violet-500/10",
+      iconColor: "text-violet-500",
       title: t("privacy_data_title"),
       body: t("privacy_data_desc"),
     },
     {
       icon: Database,
-      iconBg: "bg-purple-500/10",
-      iconColor: "text-purple-500",
+      iconBg: "bg-violet-500/10",
+      iconColor: "text-violet-500",
       title: t("privacy_storage_title"),
       body: t("privacy_storage_desc"),
     },

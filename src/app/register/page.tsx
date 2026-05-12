@@ -6,12 +6,13 @@ import Link from "next/link";
 import {
   Car, Eye, EyeOff, ArrowRight, CheckCircle2,
   Building2, Hash, Users, User, Mail, Lock,
-  MapPin, Fuel, Signal, Shield, Home,
+  MapPin, Fuel, Signal, Shield, Home, Sun, Moon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 
 const item = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0 } };
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } } };
@@ -89,16 +90,18 @@ export default function RegisterPage() {
     setTimeout(() => { router.push("/"); router.refresh(); }, 1400);
   };
 
+  const { setTheme } = useTheme();
+
   const strength = getPasswordStrength(form.password);
 
   const inputStyle: React.CSSProperties = {
-    background: "rgba(13,21,38,0.9)",
-    borderLeft: "2px solid #ff6b1a",
-    borderTop: "1px solid rgba(255,107,26,0.12)",
-    borderRight: "1px solid rgba(255,107,26,0.12)",
-    borderBottom: "1px solid rgba(255,107,26,0.12)",
+    background: "var(--card)",
+    borderLeft: "2px solid #6366f1",
+    borderTop: "1px solid rgba(99,102,241,0.12)",
+    borderRight: "1px solid rgba(99,102,241,0.12)",
+    borderBottom: "1px solid rgba(99,102,241,0.12)",
     borderRadius: "0 6px 6px 0",
-    color: "#e8eaf0",
+    color: "var(--foreground)",
     fontFamily: "var(--font-ibm-mono), monospace",
     fontSize: "0.85rem",
     outline: "none",
@@ -106,18 +109,18 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="auth-page min-h-[100dvh] w-full flex-1 flex flex-col lg:flex-row overflow-x-hidden" style={{ background: "#080c14" }}>
+    <div className="auth-page min-h-[100dvh] w-full flex-1 flex flex-col lg:flex-row overflow-x-hidden bg-background">
 
       {/* ── LEFT — Fleet panel (desktop only) ── */}
       <div
         className="hidden lg:flex lg:w-[42%] relative overflow-hidden flex-col justify-between"
-        style={{ background: "linear-gradient(160deg, #0d1526 0%, #080c14 100%)" }}
+        style={{ background: "linear-gradient(160deg, #12122e 0%, #0d0d21 100%)" }}
       >
         {/* Hex grid */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(255,107,26,0.05)' stroke-width='0.8'/%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(99,102,241,0.05)' stroke-width='0.8'/%3E%3C/svg%3E")`,
             backgroundSize: "60px 52px",
           }}
         />
@@ -126,7 +129,7 @@ export default function RegisterPage() {
           animate={{ backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"] }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
           style={{
-            background: "linear-gradient(135deg, rgba(255,107,26,0.04) 0%, transparent 50%, rgba(13,21,38,0.8) 100%)",
+            background: "linear-gradient(135deg, rgba(99,102,241,0.04) 0%, transparent 50%, rgba(14,14,45,0.8) 100%)",
             backgroundSize: "200% 200%",
           }}
         />
@@ -136,13 +139,13 @@ export default function RegisterPage() {
           <div className="flex items-center gap-3">
             <div
               className="p-2.5 rounded-xl"
-              style={{ background: "rgba(255,107,26,0.15)", border: "1px solid rgba(255,107,26,0.3)" }}
+              style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}
             >
-              <Car className="h-5 w-5" style={{ color: "#ff6b1a" }} />
+              <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
             </div>
             <div>
               <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "#e8eaf0", fontWeight: 800, fontSize: "1.2rem" }}>
-                Cars<span style={{ color: "#ff6b1a" }}>Track</span>
+                Cars<span style={{ color: "#6366f1" }}>Track</span>
               </span>
               <p style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", marginTop: 2 }}>
                 Filo Yönetim Sistemi
@@ -159,7 +162,7 @@ export default function RegisterPage() {
                   className="absolute rounded-full"
                   style={{
                     width: 70 + i * 52, height: 70 + i * 52,
-                    border: `1px solid rgba(255,107,26,${0.35 - i * 0.08})`,
+                    border: `1px solid rgba(99,102,241,${0.35 - i * 0.08})`,
                   }}
                   animate={{ scale: [1, 1.08, 1], opacity: [0.7, 0.3, 0.7] }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
@@ -167,19 +170,19 @@ export default function RegisterPage() {
               ))}
               <div className="relative z-10" style={{ width: 100, height: 100 }}>
                 <svg viewBox="0 0 100 160" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", height: "100%" }}>
-                  <rect x="18" y="30" width="64" height="100" rx="14" fill="#1a2540" stroke="rgba(255,107,26,0.5)" strokeWidth="1.5"/>
-                  <rect x="26" y="48" width="48" height="60" rx="8" fill="#0d1526" stroke="rgba(255,107,26,0.3)" strokeWidth="1"/>
-                  <rect x="29" y="50" width="42" height="22" rx="5" fill="rgba(255,107,26,0.12)" stroke="rgba(255,107,26,0.4)" strokeWidth="0.8"/>
-                  <rect x="29" y="88" width="42" height="16" rx="5" fill="rgba(255,107,26,0.08)" stroke="rgba(255,107,26,0.3)" strokeWidth="0.8"/>
-                  <rect x="20" y="30" width="14" height="8" rx="3" fill="rgba(255,107,26,0.7)"/>
-                  <rect x="66" y="30" width="14" height="8" rx="3" fill="rgba(255,107,26,0.7)"/>
-                  <rect x="20" y="122" width="14" height="8" rx="3" fill="rgba(255,80,50,0.6)"/>
-                  <rect x="66" y="122" width="14" height="8" rx="3" fill="rgba(255,80,50,0.6)"/>
-                  <rect x="6" y="38" width="14" height="28" rx="5" fill="#1a2540" stroke="rgba(255,107,26,0.4)" strokeWidth="1"/>
-                  <rect x="80" y="38" width="14" height="28" rx="5" fill="#1a2540" stroke="rgba(255,107,26,0.4)" strokeWidth="1"/>
-                  <rect x="6" y="94" width="14" height="28" rx="5" fill="#1a2540" stroke="rgba(255,107,26,0.4)" strokeWidth="1"/>
-                  <rect x="80" y="94" width="14" height="28" rx="5" fill="#1a2540" stroke="rgba(255,107,26,0.4)" strokeWidth="1"/>
-                  <line x1="50" y1="50" x2="50" y2="106" stroke="rgba(255,107,26,0.15)" strokeWidth="1" strokeDasharray="4 3"/>
+                  <rect x="18" y="30" width="64" height="100" rx="14" fill="#1a1a3f" stroke="rgba(99,102,241,0.5)" strokeWidth="1.5"/>
+                  <rect x="26" y="48" width="48" height="60" rx="8" fill="#12122e" stroke="rgba(99,102,241,0.3)" strokeWidth="1"/>
+                  <rect x="29" y="50" width="42" height="22" rx="5" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.4)" strokeWidth="0.8"/>
+                  <rect x="29" y="88" width="42" height="16" rx="5" fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0.3)" strokeWidth="0.8"/>
+                  <rect x="20" y="30" width="14" height="8" rx="3" fill="rgba(99,102,241,0.7)"/>
+                  <rect x="66" y="30" width="14" height="8" rx="3" fill="rgba(99,102,241,0.7)"/>
+                  <rect x="20" y="122" width="14" height="8" rx="3" fill="rgba(129,140,248,0.6)"/>
+                  <rect x="66" y="122" width="14" height="8" rx="3" fill="rgba(129,140,248,0.6)"/>
+                  <rect x="6" y="38" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
+                  <rect x="80" y="38" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
+                  <rect x="6" y="94" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
+                  <rect x="80" y="94" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
+                  <line x1="50" y1="50" x2="50" y2="106" stroke="rgba(99,102,241,0.15)" strokeWidth="1" strokeDasharray="4 3"/>
                 </svg>
               </div>
               {floatingIcons.map(({ icon: Icon, delay }, idx) => {
@@ -196,13 +199,13 @@ export default function RegisterPage() {
                       left: "50%", top: "50%",
                       marginLeft: x - 14, marginTop: y - 14,
                       width: 28, height: 28,
-                      background: "rgba(255,107,26,0.1)",
-                      border: "1px solid rgba(255,107,26,0.25)",
+                      background: "rgba(99,102,241,0.1)",
+                      border: "1px solid rgba(99,102,241,0.25)",
                     }}
                     animate={{ opacity: [0.4, 1, 0.4] }}
                     transition={{ duration: 2, repeat: Infinity, delay, ease: "easeInOut" }}
                   >
-                    <Icon style={{ color: "#ff6b1a", width: 12, height: 12 }} />
+                    <Icon style={{ color: "#6366f1", width: 12, height: 12 }} />
                   </motion.div>
                 );
               })}
@@ -216,12 +219,12 @@ export default function RegisterPage() {
                 <motion.div
                   key={label}
                   className="flex-1 rounded-lg p-2.5"
-                  style={{ background: "rgba(255,107,26,0.06)", border: "1px solid rgba(255,107,26,0.14)" }}
+                  style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.14)" }}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + i * 0.15, duration: 0.5 }}
                 >
-                  <div style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#ff6b1a", fontSize: "0.95rem", fontWeight: 600 }}>{value}</div>
+                  <div style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#6366f1", fontSize: "0.95rem", fontWeight: 600 }}>{value}</div>
                   <div style={{ color: "#e8eaf0", fontSize: "0.62rem", fontFamily: "var(--font-barlow), sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>{label}</div>
                   <div style={{ color: "#4a5568", fontSize: "0.58rem" }}>{sub}</div>
                 </motion.div>
@@ -236,16 +239,15 @@ export default function RegisterPage() {
 
       {/* ── RIGHT — form panel ── */}
       <motion.div
-        className="flex-1 flex flex-col lg:overflow-y-auto relative"
+        className="flex-1 flex flex-col lg:overflow-y-auto relative bg-background"
         initial={{ x: 50, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        style={{ background: "#080c14" }}
       >
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(255,107,26,0.018) 40px, rgba(255,107,26,0.018) 41px)`,
+            backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(99,102,241,0.018) 40px, rgba(99,102,241,0.018) 41px)`,
           }}
         />
 
@@ -254,15 +256,39 @@ export default function RegisterPage() {
           <div className="flex items-center gap-2.5">
             <div
               className="p-2 rounded-lg"
-              style={{ background: "rgba(255,107,26,0.15)", border: "1px solid rgba(255,107,26,0.3)" }}
+              style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}
             >
-              <Car className="h-5 w-5" style={{ color: "#ff6b1a" }} />
+              <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
             </div>
-            <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "#e8eaf0", fontWeight: 800, fontSize: "1.15rem" }}>
-              Cars<span style={{ color: "#ff6b1a" }}>Track</span>
+            <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "var(--foreground)", fontWeight: 800, fontSize: "1.15rem" }}>
+              Cars<span style={{ color: "#6366f1" }}>Track</span>
             </span>
           </div>
-          <Link href="/login" style={{ color: "#ff6b1a", fontSize: "0.75rem", fontWeight: 600 }}>Giriş yap →</Link>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
+              className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors relative"
+              style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", color: "#6366f1" }}
+            >
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </button>
+            <Link href="/login" style={{ color: "#6366f1", fontSize: "0.75rem", fontWeight: 600 }}>Giriş yap →</Link>
+          </div>
+        </div>
+
+        {/* Desktop theme toggle — top right corner */}
+        <div className="hidden lg:flex absolute top-5 right-5 z-20">
+          <button
+            type="button"
+            onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
+            className="h-9 w-9 flex items-center justify-center rounded-xl transition-all hover:scale-105 relative"
+            style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", color: "#6366f1" }}
+          >
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          </button>
         </div>
 
         {/* Form area — centered, max-width constrained */}
@@ -273,9 +299,9 @@ export default function RegisterPage() {
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 mb-5 transition-colors group"
-              style={{ color: "#4a5568", fontSize: "0.72rem", fontFamily: "var(--font-ibm-mono), monospace", textDecoration: "none" }}
+              style={{ color: "var(--muted-foreground)", fontSize: "0.72rem", fontFamily: "var(--font-ibm-mono), monospace", textDecoration: "none" }}
             >
-              <Home className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" style={{ color: "#ff6b1a" }} />
+              <Home className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" style={{ color: "#6366f1" }} />
               <span className="group-hover:text-foreground transition-colors" style={{ color: "inherit" }}>Ana Sayfaya Dön</span>
             </Link>
 
@@ -285,34 +311,34 @@ export default function RegisterPage() {
                 <div key={s} className="flex items-center gap-2">
                   <div
                     className="w-2 h-2 rounded-full"
-                    style={{ background: s === 1 ? "#ff6b1a" : "rgba(255,107,26,0.22)", border: "1px solid rgba(255,107,26,0.35)" }}
+                    style={{ background: s === 1 ? "#6366f1" : "rgba(99,102,241,0.22)", border: "1px solid rgba(99,102,241,0.35)" }}
                   />
-                  {s < 2 && <div className="w-8 h-px" style={{ background: "rgba(255,107,26,0.18)" }} />}
+                  {s < 2 && <div className="w-8 h-px" style={{ background: "rgba(99,102,241,0.18)" }} />}
                 </div>
               ))}
-              <span style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", marginLeft: 6 }}>
+              <span style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", marginLeft: 6 }}>
                 ADIM 1 / 2
               </span>
             </div>
 
             {/* Header */}
             <div className="mb-5">
-              <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#ff6b1a", fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: "0.6rem" }}>
+              <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#6366f1", fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: "0.6rem" }}>
                 ▸ YENİ HESAP
               </span>
-              <h1 style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", fontSize: "2.2rem", fontWeight: 800, color: "#e8eaf0", lineHeight: 1.1 }}>
+              <h1 style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", fontSize: "2.2rem", fontWeight: 800, color: "var(--foreground)", lineHeight: 1.1 }}>
                 Sisteme Kayıt Ol
               </h1>
-              <p style={{ color: "#4a5568", fontSize: "0.8rem", marginTop: "0.4rem" }}>
+              <p style={{ color: "var(--muted-foreground)", fontSize: "0.8rem", marginTop: "0.4rem" }}>
                 Filo takip sistemine erişim için hesap oluşturun.{" "}
-                <Link href="/login" style={{ color: "#ff6b1a", fontWeight: 600 }}>Giriş yapın</Link>
+                <Link href="/login" style={{ color: "#6366f1", fontWeight: 600 }}>Giriş yapın</Link>
               </p>
             </div>
 
             {/* Mode Switcher */}
             <div
               className="flex mb-5 gap-1 p-1 rounded-lg"
-              style={{ background: "rgba(13,21,38,0.9)", border: "1px solid rgba(255,107,26,0.1)" }}
+              style={{ background: "rgba(14,14,45,0.9)", border: "1px solid rgba(99,102,241,0.1)" }}
             >
               {([
                 { id: "create" as Mode, icon: Building2, label: "Şirket Kur" },
@@ -324,9 +350,9 @@ export default function RegisterPage() {
                   onClick={() => switchMode(id)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md transition-all"
                   style={{
-                    background: mode === id ? "rgba(255,107,26,0.14)" : "transparent",
-                    border: mode === id ? "1px solid rgba(255,107,26,0.28)" : "1px solid transparent",
-                    color: mode === id ? "#ff6b1a" : "#4a5568",
+                    background: mode === id ? "rgba(99,102,241,0.14)" : "transparent",
+                    border: mode === id ? "1px solid rgba(99,102,241,0.28)" : "1px solid transparent",
+                    color: mode === id ? "#6366f1" : "#4a5568",
                     fontFamily: "var(--font-barlow), sans-serif",
                     fontWeight: 700,
                     fontSize: "0.8rem",
@@ -354,17 +380,17 @@ export default function RegisterPage() {
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
                   >
-                    <CheckCircle2 className="h-20 w-20" style={{ color: "#ff6b1a" }} />
+                    <CheckCircle2 className="h-20 w-20" style={{ color: "#6366f1" }} />
                   </motion.div>
-                  <p style={{ fontFamily: "var(--font-barlow), sans-serif", fontWeight: 800, fontSize: "1.5rem", color: "#e8eaf0", textAlign: "center" }}>
+                  <p style={{ fontFamily: "var(--font-barlow), sans-serif", fontWeight: 800, fontSize: "1.5rem", color: "var(--foreground)", textAlign: "center" }}>
                     {mode === "create" ? "Şirket Oluşturuldu!" : "Katılım Başarılı!"}
                   </p>
                   {mode === "join" && joinedCompany && (
-                    <p style={{ color: "#4a5568", textAlign: "center" }}>
-                      <span style={{ color: "#e8eaf0", fontWeight: 600 }}>{joinedCompany}</span> şirketine katıldınız.
+                    <p style={{ color: "var(--muted-foreground)", textAlign: "center" }}>
+                      <span style={{ color: "var(--foreground)", fontWeight: 600 }}>{joinedCompany}</span> şirketine katıldınız.
                     </p>
                   )}
-                  <p style={{ color: "#4a5568", fontSize: "0.78rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                  <p style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
                     Yönlendiriliyorsunuz...
                   </p>
                 </motion.div>
@@ -384,14 +410,14 @@ export default function RegisterPage() {
               >
                 {mode === "create" ? (
                   <motion.div variants={item} className="space-y-1">
-                    <label htmlFor="reg-company" style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    <label htmlFor="reg-company" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                       Şirket / Filo Adı
                     </label>
                     <Input id="reg-company" value={form.companyName} onChange={set("companyName")} placeholder="ABC Lojistik" className="h-11 pl-4 border-0" style={inputStyle} required />
                   </motion.div>
                 ) : (
                   <motion.div variants={item} className="space-y-1">
-                    <label htmlFor="reg-invite" style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    <label htmlFor="reg-invite" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                       Davet Kodu
                     </label>
                     <Input
@@ -404,28 +430,28 @@ export default function RegisterPage() {
                       maxLength={8}
                       required
                     />
-                    <p style={{ color: "#4a5568", fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace", paddingLeft: 2 }}>
+                    <p style={{ color: "var(--muted-foreground)", fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace", paddingLeft: 2 }}>
                       Yöneticinizden aldığınız 8 haneli kodu girin.
                     </p>
                   </motion.div>
                 )}
 
                 <motion.div variants={item} className="space-y-1">
-                  <label htmlFor="reg-fullname" style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  <label htmlFor="reg-fullname" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                     Ad Soyad
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "#4a5568" }} />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
                     <Input id="reg-fullname" value={form.fullName} onChange={set("fullName")} placeholder="Ahmet Yılmaz" className="h-11 pl-9 border-0" style={inputStyle} required />
                   </div>
                 </motion.div>
 
                 <motion.div variants={item} className="space-y-1">
-                  <label htmlFor="reg-email" style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  <label htmlFor="reg-email" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                     E-posta
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "#4a5568" }} />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
                     <Input
                       id="reg-email"
                       type="email"
@@ -442,11 +468,11 @@ export default function RegisterPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <motion.div variants={item} className="space-y-1">
-                    <label htmlFor="reg-password" style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    <label htmlFor="reg-password" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                       Şifre
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "#4a5568" }} />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
                       <Input
                         id="reg-password"
                         type={showPass ? "text" : "password"}
@@ -459,18 +485,18 @@ export default function RegisterPage() {
                         autoComplete="new-password"
                       />
                       <button type="button" onClick={() => setShowPass(v => !v)} tabIndex={-1}
-                        className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "#4a5568", background: "none", border: "none", cursor: "pointer" }}>
+                        className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer" }}>
                         {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </motion.div>
 
                   <motion.div variants={item} className="space-y-1">
-                    <label htmlFor="reg-confirm" style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    <label htmlFor="reg-confirm" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                       Tekrar
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "#4a5568" }} />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
                       <Input
                         id="reg-confirm"
                         type={showConfirm ? "text" : "password"}
@@ -483,7 +509,7 @@ export default function RegisterPage() {
                         autoComplete="new-password"
                       />
                       <button type="button" onClick={() => setShowConfirm(v => !v)} tabIndex={-1}
-                        className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "#4a5568", background: "none", border: "none", cursor: "pointer" }}>
+                        className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer" }}>
                         {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
@@ -498,11 +524,11 @@ export default function RegisterPage() {
                         <div
                           key={seg}
                           className="h-1 flex-1 rounded-full transition-all duration-300"
-                          style={{ background: seg <= strength.level ? "#ff6b1a" : "rgba(255,107,26,0.12)" }}
+                          style={{ background: seg <= strength.level ? "#6366f1" : "rgba(99,102,241,0.12)" }}
                         />
                       ))}
                     </div>
-                    <p style={{ color: strength.level >= 3 ? "#ff6b1a" : "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                    <p style={{ color: strength.level >= 3 ? "#6366f1" : "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
                       {strength.label}
                     </p>
                   </motion.div>
@@ -528,7 +554,7 @@ export default function RegisterPage() {
                     disabled={loading || success}
                     className="w-full h-11 relative overflow-hidden transition-all disabled:opacity-60"
                     style={{
-                      background: "linear-gradient(90deg, #ff6b1a 0%, #d4500f 100%)",
+                      background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)",
                       clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))",
                       color: "#fff",
                       fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif",

@@ -43,12 +43,12 @@ const severityIcon = { critical: AlertTriangle, warning: AlertTriangle, info: In
 const severityStyle = {
   critical: "bg-red-500/5 border-red-500/20 dark:bg-red-500/10",
   warning: "bg-orange-500/5 border-orange-500/20 dark:bg-orange-500/10",
-  info: "bg-blue-500/5 border-blue-500/20 dark:bg-blue-500/10",
+  info: "bg-violet-500/5 border-violet-500/20 dark:bg-violet-500/10",
 };
 const severityIconStyle = {
   critical: "bg-red-500/15 text-red-500",
   warning: "bg-orange-500/15 text-orange-500",
-  info: "bg-blue-500/15 text-blue-500",
+  info: "bg-violet-500/15 text-violet-500",
 };
 
 const categoryIcon = {
@@ -304,7 +304,7 @@ export default function Dashboard() {
           {/* Quick stats */}
           <motion.div variants={fadeUp} className="grid grid-cols-3 gap-3 md:gap-4">
             {[
-              { icon: Car, value: String(vehicles.length), label: "Araç", color: "text-blue-500", bg: "bg-blue-500/10", ring: "from-blue-500/40 to-blue-500/0" },
+              { icon: Car, value: String(vehicles.length), label: "Araç", color: "text-violet-500", bg: "bg-violet-500/10", ring: "from-violet-500/40 to-violet-500/0" },
               { icon: AlertTriangle, value: String(criticalCount + warningCount), label: "Uyarı", color: "text-orange-500", bg: "bg-orange-500/10", ring: "from-orange-500/40 to-orange-500/0" },
               { icon: CheckCircle2, value: String(records.length), label: "Servis", color: "text-emerald-500", bg: "bg-emerald-500/10", ring: "from-emerald-500/40 to-emerald-500/0" },
             ].map((stat, i) => (
@@ -328,7 +328,7 @@ export default function Dashboard() {
               <div className="space-y-2 md:space-y-2.5">
                 {alerts.slice(0, 4).map((alert) => {
                   const Icon = categoryIcon[alert.category];
-                  const accentBar = alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-orange-500" : "bg-blue-500";
+                  const accentBar = alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-orange-500" : "bg-violet-500";
                   return (
                     <Link href={`/vehicles/${alert.vehicleId}`} key={alert.id}>
                       <motion.div

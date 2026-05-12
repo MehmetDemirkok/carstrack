@@ -31,7 +31,7 @@ const cardAnim = {
 
 const tireColor = {
   "Yazlık": "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-  "Kışlık": "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  "Kışlık": "bg-violet-500/10 text-violet-600 dark:text-violet-400",
   "Dört Mevsim": "bg-teal-500/10 text-teal-600 dark:text-teal-400",
 };
 
