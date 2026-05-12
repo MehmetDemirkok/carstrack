@@ -22,7 +22,7 @@ export function BottomNav() {
         { href: "/settings", icon: Settings, label: t("nav_settings") },
       ]
     : [
-        { href: "/", icon: LayoutDashboard, label: t("nav_dashboard") },
+        { href: "/dashboard", icon: LayoutDashboard, label: t("nav_dashboard") },
         { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
         { href: "/tasks", icon: ClipboardList, label: t("nav_tasks") },
         { href: "/users", icon: Users, label: "Ekip" },
@@ -41,7 +41,7 @@ export function BottomNav() {
 
           <div className="flex justify-around items-center h-16 px-1">
             {!loading && navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+              const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
               return (
                 <Link key={item.href} href={item.href}
                   className="relative flex flex-col items-center justify-center flex-1 h-full gap-1 tap-highlight-transparent">

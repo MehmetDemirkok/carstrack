@@ -311,7 +311,7 @@ export default function SettingsPage() {
 
     setShowClearData(false);
     toast.success("Başarılı", { description: "Veriler başarıyla temizlendi." });
-    router.push("/");
+    router.push("/dashboard");
     router.refresh();
   };
 

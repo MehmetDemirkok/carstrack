@@ -191,7 +191,7 @@ export function NotificationsPopover() {
                 <Popover.Close
                   render={
                     <Link
-                      href="/"
+                      href="/dashboard"
                       className="block w-full text-center text-xs font-bold text-primary hover:bg-primary/5 rounded-xl py-2 transition-colors"
                     />
                   }

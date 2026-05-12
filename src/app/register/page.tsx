@@ -87,7 +87,7 @@ export default function RegisterPage() {
     toast.success(mode === "create" ? "Şirket oluşturuldu!" : "Şirkete katıldınız!");
     const supabase = createClient();
     await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
-    setTimeout(() => { router.push("/"); router.refresh(); }, 1400);
+    setTimeout(() => { router.push("/dashboard"); router.refresh(); }, 1400);
   };
 
   const { setTheme } = useTheme();
@@ -297,7 +297,7 @@ export default function RegisterPage() {
 
             {/* Back to home */}
             <Link
-              href="/"
+              href="/dashboard"
               className="inline-flex items-center gap-1.5 mb-5 transition-colors group"
               style={{ color: "var(--muted-foreground)", fontSize: "0.72rem", fontFamily: "var(--font-ibm-mono), monospace", textDecoration: "none" }}
             >

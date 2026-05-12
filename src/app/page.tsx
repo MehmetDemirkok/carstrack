@@ -1,449 +1,500 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
+import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
-import { calculateHealthScore, getFleetAlerts } from "@/lib/store";
-import { getVehicles, getRecords } from "@/lib/db";
-import type { Vehicle, ServiceRecord, FleetAlert } from "@/lib/types";
-import { useAuth } from "@/context/auth-context";
-import { HealthScoreBreakdown } from "@/components/health-score-breakdown";
-import { FleetRiskOverview } from "@/components/fleet-risk-overview";
 import {
-  Car,
-  ChevronRight,
-  AlertTriangle,
-  Info,
-  Shield,
-  Wrench,
-  Plus,
-  Disc3,
-  Calendar,
-  Sparkles,
-  Clock,
-  BatteryCharging,
-  CheckCircle2,
+  Car, Wrench, Shield, BarChart3, Users, Bell,
+  CheckCircle2, ArrowRight, FileText, ChevronRight,
+  CalendarDays, Gauge, Disc3,
 } from "lucide-react";
 
-const stagger = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.07 } },
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
+
+export const metadata: Metadata = {
+  title: "CarsTrack — Araç Bakım Takip ve Filo Yönetim Sistemi",
+  description:
+    "Araçlarınızın bakım takvimi, sigorta ve muayene tarihleri, servis geçmişi ve filo sağlık analizi. Türkiye'nin akıllı araç takip uygulaması ile periyodik bakımları asla kaçırmayın.",
+  keywords: [
+    "araç bakım takip",
+    "araç servis takip",
+    "filo yönetim sistemi",
+    "araç sigorta muayene takip",
+    "periyodik bakım hatırlatıcı",
+    "araç masraf yönetimi",
+    "servis geçmişi takip",
+    "araç bakım programı",
+    "filo takip uygulaması",
+    "fleet management türkiye",
+    "araç bakım uygulaması",
+    "carstrack",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: APP_URL,
+    siteName: "CarsTrack",
+    title: "CarsTrack — Araç Bakım Takip ve Filo Yönetim Sistemi",
+    description:
+      "Araçlarınızın bakım takvimi, sigorta ve muayene tarihleri, servis geçmişi ve filo sağlık analizi.",
+    images: [{ url: `${APP_URL}/og-image.png`, width: 1200, height: 630, alt: "CarsTrack Araç Bakım Takip" }],
+    locale: "tr_TR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CarsTrack — Araç Bakım Takip ve Filo Yönetim Sistemi",
+    description: "Araçlarınızın bakım takvimi, sigorta ve muayene tarihlerini tek yerden yönetin.",
+    images: [`${APP_URL}/og-image.png`],
+  },
 };
-const fadeUp = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
-};
 
-const severityIcon = { critical: AlertTriangle, warning: AlertTriangle, info: Info };
-const severityStyle = {
-  critical: "bg-red-500/5 border-red-500/20 dark:bg-red-500/10",
-  warning: "bg-orange-500/5 border-orange-500/20 dark:bg-orange-500/10",
-  info: "bg-violet-500/5 border-violet-500/20 dark:bg-violet-500/10",
-};
-const severityIconStyle = {
-  critical: "bg-red-500/15 text-red-500",
-  warning: "bg-orange-500/15 text-orange-500",
-  info: "bg-violet-500/15 text-violet-500",
-};
+const features = [
+  {
+    icon: Wrench,
+    title: "Bakım Takibi",
+    desc: "Yağ değişimi, fren, filtre gibi periyodik bakımları otomatik takip edin. Kilometre ve zaman bazlı hatırlatmalarla asla kaçırmayın.",
+    color: "#6366f1",
+    bg: "rgba(99,102,241,0.1)",
+  },
+  {
+    icon: Shield,
+    title: "Sigorta & Muayene",
+    desc: "Kasko, trafik sigortası ve TÜVTÜRK muayene sürelerini takip edin. Vade dolmadan önce otomatik uyarı alın.",
+    color: "#10b981",
+    bg: "rgba(16,185,129,0.1)",
+  },
+  {
+    icon: FileText,
+    title: "Servis Geçmişi",
+    desc: "Tüm servis ve onarım kayıtlarını dijital arşivde tutun. PDF ve Excel formatında dışa aktarın, paylaşın.",
+    color: "#3b82f6",
+    bg: "rgba(59,130,246,0.1)",
+  },
+  {
+    icon: BarChart3,
+    title: "Filo Analitiği",
+    desc: "Araç sağlık skoru, maliyet dağılımı ve bakım trendi raporları ile filonuzun gerçek durumunu görün.",
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.1)",
+  },
+  {
+    icon: Users,
+    title: "Ekip Yönetimi",
+    desc: "Yönetici ve şoför rolleri ile araç atama, seyahat takibi ve koordinasyonu kolayca yönetin.",
+    color: "#ec4899",
+    bg: "rgba(236,72,153,0.1)",
+  },
+  {
+    icon: Bell,
+    title: "Akıllı Bildirimler",
+    desc: "Kritik bakım ve belge uyarıları anında bildirim olarak ulaşır. E-posta ile de otomatik hatırlatma alın.",
+    color: "#f97316",
+    bg: "rgba(249,115,22,0.1)",
+  },
+];
 
-const categoryIcon = {
-  insurance: Shield,
-  "green-card": Shield,
-  inspection: Calendar,
-  maintenance: Wrench,
-  tire: Disc3,
-};
+const steps = [
+  {
+    num: "01",
+    title: "Araçlarınızı Ekleyin",
+    desc: "Plaka, marka, model ve kilometre bilgilerini girin. Araç başına bakım kaliplerini tanımlayın.",
+    icon: Car,
+  },
+  {
+    num: "02",
+    title: "Bakım Verilerini Girin",
+    desc: "Son servis tarihi ve km bilgilerini kaydedin. Sigorta ve muayene bitiş tarihlerini ekleyin.",
+    icon: CalendarDays,
+  },
+  {
+    num: "03",
+    title: "Sisteme Bırakın",
+    desc: "CarsTrack otomatik olarak takip eder, hesaplar ve zamanı geldiğinde sizi uyarır.",
+    icon: CheckCircle2,
+  },
+];
 
-export default function Dashboard() {
-  const { user } = useAuth();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [records, setRecords] = useState<ServiceRecord[]>([]);
-  const [alerts, setAlerts] = useState<FleetAlert[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+const faqs = [
+  {
+    q: "CarsTrack nedir?",
+    a: "CarsTrack, araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini, servis kayıtlarını ve filo durumunu dijital ortamda yönetmenizi sağlayan Türkçe bir araç takip uygulamasıdır. Bireysel araç sahiplerinden şirket filolarına kadar her ölçekte kullanılabilir.",
+  },
+  {
+    q: "CarsTrack ücretsiz mi kullanılabilir?",
+    a: "Evet, CarsTrack temel özellikleriyle tamamen ücretsiz kullanılabilir. Kayıt olmak için kredi kartı gerekmez.",
+  },
+  {
+    q: "Kaç araç ekleyebilirim?",
+    a: "İstediğiniz kadar araç ekleyebilir ve tüm araçlarınızı tek panelden yönetebilirsiniz. Araç sayısında herhangi bir kısıtlama yoktur.",
+  },
+  {
+    q: "Mobil cihazlarda kullanılabilir mi?",
+    a: "Evet, CarsTrack Progressive Web App (PWA) teknolojisiyle geliştirilmiştir. Telefon ve tabletlerde uygulama gibi çalışır, ana ekrana ekleyerek hızlıca erişebilirsiniz.",
+  },
+  {
+    q: "Araç bakım hatırlatıcısı nasıl çalışır?",
+    a: "Her araç için kilometre ve zaman bazlı bakım aralıkları tanımlayabilirsiniz. Son bakım tarihini ve kilometresini girdiğinizde CarsTrack otomatik olarak bir sonraki bakım zamanını hesaplar, yaklaşan ve geciken bakımlar için uyarı verir.",
+  },
+  {
+    q: "Verilerimi dışa aktarabilir miyim?",
+    a: "Evet, araç raporlarını ve servis geçmişini PDF ve Excel (XLSX) formatında dışa aktarabilirsiniz. Dilediğiniz zaman verilerinizin tam sahibi sizsiniz.",
+  },
+];
 
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    setDataLoading(true);
-    (async () => {
-      try {
-        const [v, r] = await Promise.all([getVehicles(), getRecords()]);
-        if (cancelled) return;
-        setVehicles(v);
-        setRecords(r);
-        setAlerts(getFleetAlerts(v));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : JSON.stringify(err);
-        console.error("Dashboard load failed:", msg);
-      } finally {
-        if (!cancelled) setDataLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [user?.id]);
+const stats = [
+  { value: "247+", label: "Aktif Araç", icon: Car },
+  { value: "99.2%", label: "Kesintisiz Çalışma", icon: Gauge },
+  { value: "7/24", label: "Gerçek Zamanlı Takip", icon: CheckCircle2 },
+  { value: "6", label: "Bakım Kategorisi", icon: Disc3 },
+];
 
-  const scores = vehicles.map((v) => calculateHealthScore(v));
-  const fleetScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+export default function LandingPage() {
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map(({ q, a }) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
+  };
 
-  const upcomingMaintenance = vehicles.flatMap((v) =>
-    v.maintenanceItems
-      .filter((item) => {
-        if (item.intervalKm && item.lastDoneMileage !== undefined) {
-          const remaining = (item.lastDoneMileage + item.intervalKm) - v.mileage;
-          if (remaining <= 3000) return true;
-        }
-        return false;
-      })
-      .map((item) => ({
-        vehicle: v,
-        item,
-        remaining: item.lastDoneMileage !== undefined && item.intervalKm
-          ? (item.lastDoneMileage + item.intervalKm) - v.mileage
-          : null,
-      }))
-  ).slice(0, 4);
+  const softwareSchema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "CarsTrack",
+    url: APP_URL,
+    description:
+      "Araç bakım takibi, sigorta ve muayene yönetimi, servis geçmişi ve filo analizi.",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web, iOS, Android",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "TRY" },
+    inLanguage: "tr-TR",
+    screenshot: `${APP_URL}/og-image.png`,
+  };
 
-  const recentRecords = [...records]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 3);
-
-  const criticalCount = alerts.filter((a) => a.severity === "critical").length;
-  const warningCount = alerts.filter((a) => a.severity === "warning").length;
-
-  if (dataLoading) return (
-    <div className="p-4 md:p-8 space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8">
-        <div className="lg:col-span-7 space-y-5">
-          <div className="h-40 md:h-52 rounded-3xl bg-muted/40 animate-pulse" />
-          <div className="space-y-3">
-            {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl bg-muted/40 animate-pulse" />)}
-          </div>
-        </div>
-        <div className="lg:col-span-5 space-y-5">
-          <div className="h-32 rounded-2xl bg-muted/40 animate-pulse" />
-          <div className="grid grid-cols-3 gap-3">
-            {[1,2,3].map(i => <div key={i} className="h-24 rounded-2xl bg-muted/40 animate-pulse" />)}
-          </div>
-          <div className="space-y-2">
-            {[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl bg-muted/40 animate-pulse" />)}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const orgSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "CarsTrack",
+    url: APP_URL,
+    logo: `${APP_URL}/logo.svg`,
+    description: "Araç bakım takip ve filo yönetim sistemi",
+  };
 
   return (
-    <div className="p-4 md:p-8 space-y-6 relative">
-      {/* Ambient page background */}
-      <div className="absolute inset-0 -z-10 bg-mesh-soft pointer-events-none" />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+      />
 
-      <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8">
-        {/* LEFT */}
-        <div className="lg:col-span-7 space-y-5 lg:space-y-8">
-          {/* Fleet Health Hero */}
-          <motion.div variants={fadeUp}>
-            <Card className="rounded-3xl border-none shadow-2xl shadow-primary/30 overflow-hidden relative bg-mesh glow shimmer">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.18),_transparent_55%)]" />
-              <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-white/8 rounded-full blur-3xl animate-float-slow" />
-              <div className="absolute -left-12 top-1/2 w-32 h-32 bg-[color:var(--primary-3)]/30 rounded-full blur-3xl animate-float-slow" style={{ animationDelay: "2s" }} />
-              <CardContent className="p-5 md:p-8 relative z-10">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-primary-foreground/70 text-xs md:text-sm font-medium">Filo Sağlık Skoru</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-5xl md:text-7xl font-black font-outfit text-primary-foreground tracking-tight">
-                        {vehicles.length > 0 ? fleetScore : "—"}
-                      </span>
-                      {vehicles.length > 0 && (
-                        <span className="text-primary-foreground/60 text-sm md:text-base font-medium">/100</span>
-                      )}
-                    </div>
-                    <p className="text-primary-foreground/60 text-[11px] md:text-sm">
-                      {vehicles.length === 0
-                        ? "Henüz araç eklenmedi"
-                        : fleetScore >= 85
-                        ? "Filonuz genel olarak iyi durumda"
-                        : fleetScore >= 65
-                        ? "Bazı araçlar dikkat gerektiriyor"
-                        : "Acil bakım gerektiren araçlar var"}
-                    </p>
-                    {(criticalCount > 0 || warningCount > 0) && (
-                      <div className="flex gap-2 mt-2">
-                        {criticalCount > 0 && (
-                          <span className="text-[10px] bg-red-500/20 text-red-200 px-2 py-0.5 rounded-full font-semibold">
-                            {criticalCount} kritik
-                          </span>
-                        )}
-                        {warningCount > 0 && (
-                          <span className="text-[10px] bg-orange-500/20 text-orange-200 px-2 py-0.5 rounded-full font-semibold">
-                            {warningCount} uyarı
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <svg className="w-20 h-20 md:w-32 md:h-32 -rotate-90" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
-                      {vehicles.length > 0 && (
-                        <circle
-                          cx="50" cy="50" r="42" fill="none"
-                          stroke="rgba(255,255,255,0.9)" strokeWidth="8"
-                          strokeDasharray={`${fleetScore * 2.64} ${264 - fleetScore * 2.64}`}
-                          strokeLinecap="round"
-                        />
-                      )}
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Sparkles className="h-6 w-6 md:h-10 md:w-10 text-primary-foreground/80" />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+      <div className="min-h-screen bg-background text-foreground">
 
-          {/* Vehicle Cards */}
-          <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-4">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-xs md:text-sm font-semibold uppercase tracking-widest"><span className="text-gradient">Araçlarım</span></h2>
-              <Link href="/vehicles">
-                <Button variant="ghost" size="sm" className="text-[11px] md:text-xs text-primary h-7 px-2 gap-1 hover:bg-primary/10">
-                  Tümünü Gör <ChevronRight className="h-3 w-3" />
-                </Button>
+        {/* ── Navbar ── */}
+        <nav
+          className="sticky top-0 z-50 border-b border-border/40"
+          style={{ background: "rgba(9,9,11,0.85)", backdropFilter: "blur(20px)" }}
+        >
+          <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div
+                className="p-2 rounded-xl"
+                style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.28)" }}
+              >
+                <Car className="h-4 w-4" style={{ color: "#6366f1" }} />
+              </div>
+              <span
+                className="font-extrabold text-lg tracking-tight"
+                style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif" }}
+              >
+                Cars<span style={{ color: "#6366f1" }}>Track</span>
+              </span>
+            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/login"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted/50"
+              >
+                Giriş Yap
+              </Link>
+              <Link
+                href="/register"
+                className="px-4 py-2 text-sm font-bold rounded-xl transition-all"
+                style={{
+                  background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)",
+                  color: "#fff",
+                }}
+              >
+                Ücretsiz Başla
               </Link>
             </div>
+          </div>
+        </nav>
 
-            {vehicles.length === 0 ? (
-              <Link href="/vehicles/new">
-                <Card className="rounded-2xl border-dashed border-2 border-border/40 hover:border-primary/40 transition-colors">
-                  <CardContent className="p-8 flex flex-col items-center text-center gap-3">
-                    <div className="p-3 bg-primary/10 rounded-2xl">
-                      <Plus className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm">İlk aracını ekle</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Filonu yönetmeye başla</p>
-                    </div>
-                  </CardContent>
-                </Card>
+        {/* ── Hero ── */}
+        <section
+          className="relative overflow-hidden py-20 px-4 text-center"
+          style={{ background: "linear-gradient(160deg, #12122e 0%, #0d0d21 60%, #09090b 100%)" }}
+        >
+          {/* Hex grid */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-40"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(99,102,241,0.07)' stroke-width='0.8'/%3E%3C/svg%3E")`,
+              backgroundSize: "60px 52px",
+            }}
+          />
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-64 pointer-events-none"
+            style={{ background: "radial-gradient(ellipse, rgba(99,102,241,0.15) 0%, transparent 70%)" }}
+          />
+
+          <div className="relative max-w-3xl mx-auto space-y-6">
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-2"
+              style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", color: "#a5b4fc" }}
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              Ücretsiz kullanmaya başlayın
+            </div>
+
+            <h1
+              className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight"
+              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
+            >
+              Araç Filonuzu{" "}
+              <span style={{ color: "#6366f1" }}>Akıllıca</span>{" "}
+              Yönetin
+            </h1>
+
+            <p className="text-base md:text-lg text-white/60 max-w-xl mx-auto leading-relaxed">
+              Bakım takvimi, sigorta ve muayene süreleri, servis geçmişi ve filo sağlık analizi —
+              araçlarınızla ilgili her şey tek platformda.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all"
+                style={{
+                  background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)",
+                  color: "#fff",
+                  boxShadow: "0 0 24px rgba(99,102,241,0.35)",
+                }}
+              >
+                Hemen Ücretsiz Dene <ArrowRight className="h-4 w-4" />
               </Link>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 md:gap-4">
-                {vehicles.map((vehicle) => {
-                  const score = calculateHealthScore(vehicle);
-                  return (
-                    <Link href={`/vehicles/${vehicle.id}`} key={vehicle.id} className="block tap-highlight-transparent">
-                      <motion.div whileTap={{ scale: 0.98 }}>
-                        <Card className="rounded-2xl overflow-hidden shadow-sm border-border/40 hover-lift">
-                          <div className="flex h-[108px] md:h-32">
-                            <div className="w-[120px] md:w-[160px] relative shrink-0 bg-muted">
-                              {vehicle.image ? (
-                                <Image src={vehicle.image} alt={vehicle.plate} fill className="object-cover" sizes="160px" />
-                              ) : (
-                                <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 to-primary/10 flex items-center justify-center">
-                                  <Car className="h-10 w-10 text-primary/30" />
-                                </div>
-                              )}
-                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-card" />
-                            </div>
-                            <div className="flex-1 p-3 md:p-4 flex flex-col justify-between min-w-0">
-                              <div className="flex justify-between items-start gap-2">
-                                <div className="min-w-0">
-                                  <span className="font-outfit font-bold text-sm md:text-base tracking-tight block truncate">{vehicle.plate}</span>
-                                  <span className="text-[11px] md:text-xs text-muted-foreground">{vehicle.brand} {vehicle.model} • {vehicle.year}</span>
-                                </div>
-                                <Badge variant="outline" className={`text-[10px] md:text-xs h-5 md:h-6 px-1.5 rounded-lg font-bold shrink-0 border-none ${score >= 85 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : score >= 65 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-red-500/10 text-red-600 dark:text-red-400"}`}>
-                                  {score}
-                                </Badge>
-                              </div>
-                              <div className="space-y-1 md:space-y-1.5">
-                                <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
-                                  <span>{vehicle.mileage.toLocaleString("tr-TR")} km</span>
-                                  <span className="font-semibold text-foreground">{vehicle.color}</span>
-                                </div>
-                                <Progress
-                                  value={score}
-                                  className="h-1.5 md:h-2"
-                                  indicatorClassName={score >= 85 ? "bg-emerald-500" : score >= 65 ? "bg-amber-500" : "bg-red-500"}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-                      </motion.div>
-                    </Link>
-                  );
-                })}
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm border border-white/10 text-white/70 hover:text-white hover:border-white/20 transition-all"
+              >
+                Giriş Yap
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Stats ── */}
+        <section className="border-y border-border/40 py-8 px-4">
+          <div className="max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
+            {stats.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <p
+                  className="text-2xl font-black"
+                  style={{ fontFamily: "var(--font-outfit), sans-serif", color: "#6366f1" }}
+                >
+                  {stat.value}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 font-medium">{stat.label}</p>
               </div>
-            )}
-          </motion.div>
-        </div>
-
-        {/* RIGHT */}
-        <div className="lg:col-span-5 space-y-5 lg:space-y-8">
-          {/* Health Score Breakdown */}
-          {vehicles.length > 0 && (
-            <motion.div variants={fadeUp}>
-              <HealthScoreBreakdown vehicles={vehicles} />
-            </motion.div>
-          )}
-
-          {/* Fleet Risk Overview */}
-          {vehicles.length > 0 && (
-            <motion.div variants={fadeUp}>
-              <FleetRiskOverview vehicles={vehicles} />
-            </motion.div>
-          )}
-
-          {/* Quick stats */}
-          <motion.div variants={fadeUp} className="grid grid-cols-3 gap-3 md:gap-4">
-            {[
-              { icon: Car, value: String(vehicles.length), label: "Araç", color: "text-violet-500", bg: "bg-violet-500/10", ring: "from-violet-500/40 to-violet-500/0" },
-              { icon: AlertTriangle, value: String(criticalCount + warningCount), label: "Uyarı", color: "text-orange-500", bg: "bg-orange-500/10", ring: "from-orange-500/40 to-orange-500/0" },
-              { icon: CheckCircle2, value: String(records.length), label: "Servis", color: "text-emerald-500", bg: "bg-emerald-500/10", ring: "from-emerald-500/40 to-emerald-500/0" },
-            ].map((stat, i) => (
-              <Card key={i} className="rounded-2xl border-border/40 shadow-sm hover-lift relative overflow-hidden group">
-                <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${stat.ring} opacity-0 group-hover:opacity-100 transition-opacity`} />
-                <CardContent className="p-3 md:p-4 flex flex-col items-center text-center gap-1.5">
-                  <div className={`p-2 md:p-3 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform`}>
-                    <stat.icon className={`h-4 w-4 md:h-5 md:w-5 ${stat.color}`} />
-                  </div>
-                  <span className="text-lg md:text-2xl font-bold font-outfit leading-none tracking-tight">{stat.value}</span>
-                  <span className="text-[10px] md:text-xs text-muted-foreground font-medium">{stat.label}</span>
-                </CardContent>
-              </Card>
             ))}
-          </motion.div>
+          </div>
+        </section>
 
-          {/* Alerts */}
-          {alerts.length > 0 && (
-            <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-3">
-              <h2 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-widest px-1">Uyarılar</h2>
-              <div className="space-y-2 md:space-y-2.5">
-                {alerts.slice(0, 4).map((alert) => {
-                  const Icon = categoryIcon[alert.category];
-                  const accentBar = alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-orange-500" : "bg-violet-500";
-                  return (
-                    <Link href={`/vehicles/${alert.vehicleId}`} key={alert.id}>
-                      <motion.div
-                        whileTap={{ scale: 0.98 }}
-                        className={`relative p-3.5 pl-4 rounded-2xl border flex gap-3 items-start transition-all cursor-pointer overflow-hidden hover-lift ${severityStyle[alert.severity]}`}
-                      >
-                        <div className={`absolute left-0 top-2 bottom-2 w-1 rounded-r ${accentBar}`} />
-                        <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${severityIconStyle[alert.severity]}`}>
-                          <Icon className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <h3 className="font-semibold text-xs">{alert.title}</h3>
-                            <span className="text-[9px] font-bold text-muted-foreground shrink-0">{alert.vehiclePlate}</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{alert.description}</p>
-                        </div>
-                      </motion.div>
-                    </Link>
-                  );
-                })}
-                {alerts.length > 4 && (
-                  <Link href="/history">
-                    <p className="text-[11px] text-center text-primary font-medium py-1">{alerts.length - 4} uyarı daha →</p>
-                  </Link>
-                )}
-              </div>
-            </motion.div>
-          )}
+        {/* ── Features ── */}
+        <section className="py-16 px-4 max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <h2
+              className="text-2xl md:text-3xl font-black tracking-tight mb-3"
+              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
+            >
+              Her Şey Tek Yerde
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Araç yönetiminde ihtiyaç duyacağınız tüm araçlar, tek bir platformda ve ücretsiz.
+            </p>
+          </div>
 
-          {/* Upcoming Maintenance */}
-          {upcomingMaintenance.length > 0 && (
-            <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-3">
-              <h2 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-widest px-1">Yaklaşan Bakımlar</h2>
-              <Card className="rounded-2xl border-border/40 shadow-sm">
-                <CardContent className="p-0">
-                  {upcomingMaintenance.map((um, i) => (
-                    <div key={`${um.vehicle.id}-${um.item.id}`}>
-                      {i > 0 && <div className="h-px bg-border/40 mx-4" />}
-                      <Link href={`/vehicles/${um.vehicle.id}`} className="flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors rounded-2xl">
-                        <div className={`p-2 rounded-xl shrink-0 ${um.remaining !== null && um.remaining <= 500 ? "bg-red-500/10" : "bg-amber-500/10"}`}>
-                          <Wrench className={`h-4 w-4 ${um.remaining !== null && um.remaining <= 500 ? "text-red-500" : "text-amber-500"}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold truncate">{um.item.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{um.vehicle.plate}</p>
-                        </div>
-                        {um.remaining !== null && (
-                          <span className={`text-xs font-bold shrink-0 ${um.remaining <= 500 ? "text-red-500" : "text-amber-500"}`}>
-                            {um.remaining <= 0 ? "Gecikmeli" : `${um.remaining.toLocaleString("tr-TR")} km`}
-                          </span>
-                        )}
-                      </Link>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {features.map((f) => (
+              <article
+                key={f.title}
+                className="rounded-2xl p-5 border border-border/40 bg-card space-y-3 hover:border-border/80 transition-colors"
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: f.bg }}
+                >
+                  <f.icon className="h-5 w-5" style={{ color: f.color }} />
+                </div>
+                <h3 className="font-bold text-sm">{f.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {/* ── How It Works ── */}
+        <section
+          className="py-16 px-4"
+          style={{ background: "rgba(99,102,241,0.03)", borderTop: "1px solid rgba(99,102,241,0.08)", borderBottom: "1px solid rgba(99,102,241,0.08)" }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2
+                className="text-2xl md:text-3xl font-black tracking-tight mb-3"
+                style={{ fontFamily: "var(--font-outfit), sans-serif" }}
+              >
+                3 Adımda Başlayın
+              </h2>
+              <p className="text-sm text-muted-foreground">Dakikalar içinde araçlarınızı sisteme ekleyin.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {steps.map((step, i) => (
+                <div key={step.num} className="relative">
+                  {i < steps.length - 1 && (
+                    <div
+                      className="hidden md:block absolute top-5 left-[calc(100%-8px)] w-full h-px z-0"
+                      style={{ background: "linear-gradient(90deg, rgba(99,102,241,0.3), transparent)" }}
+                    />
+                  )}
+                  <div className="relative z-10 text-center space-y-3">
+                    <div
+                      className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center"
+                      style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)" }}
+                    >
+                      <step.icon className="h-5 w-5" style={{ color: "#6366f1" }} />
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Recent Activity */}
-          {recentRecords.length > 0 && (
-            <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <h2 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-widest">Son Servis</h2>
-                <Link href="/history">
-                  <Button variant="ghost" size="sm" className="text-[11px] text-primary h-7 px-2 gap-1 hover:bg-primary/10">
-                    Tümü <ChevronRight className="h-3 w-3" />
-                  </Button>
-                </Link>
-              </div>
-              <Card className="rounded-2xl border-border/40 shadow-sm">
-                <CardContent className="p-0">
-                  {recentRecords.map((record, i) => {
-                    const vehicle = vehicles.find((v) => v.id === record.vehicleId);
-                    return (
-                      <div key={record.id}>
-                        {i > 0 && <div className="h-px bg-border/40 mx-4" />}
-                        <div className="flex items-center gap-3 p-4">
-                          <div className="p-2 bg-primary/10 rounded-xl shrink-0">
-                            <Clock className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold truncate">{record.title}</p>
-                            <p className="text-[10px] text-muted-foreground">{vehicle?.plate} • {record.date.split("-").reverse().join(".")}</p>
-                          </div>
-                          <span className="text-[10px] font-medium text-muted-foreground shrink-0">{record.mileage.toLocaleString("tr-TR")} km</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {vehicles.length === 0 && alerts.length === 0 && (
-            <motion.div variants={fadeUp}>
-              <Card className="rounded-2xl border-border/40 shadow-sm bg-primary/5 border-primary/20">
-                <CardContent className="p-5 flex items-center gap-3">
-                  <div className="p-2.5 bg-primary/10 rounded-xl shrink-0">
-                    <BatteryCharging className="h-5 w-5 text-primary" />
+                    <span
+                      className="block text-xs font-black"
+                      style={{ color: "#6366f1", fontFamily: "var(--font-ibm-mono), monospace" }}
+                    >
+                      {step.num}
+                    </span>
+                    <h3 className="font-bold text-sm">{step.title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{step.desc}</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold">Başlamaya hazır!</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      İlk aracını ekleyerek filonu yönetmeye başla.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </div>
-      </motion.div>
-    </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── FAQ ── */}
+        <section className="py-16 px-4 max-w-3xl mx-auto">
+          <div className="text-center mb-10">
+            <h2
+              className="text-2xl md:text-3xl font-black tracking-tight mb-3"
+              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
+            >
+              Sık Sorulan Sorular
+            </h2>
+            <p className="text-sm text-muted-foreground">CarsTrack hakkında merak ettikleriniz.</p>
+          </div>
+
+          <div className="space-y-3">
+            {faqs.map((faq) => (
+              <details
+                key={faq.q}
+                className="group rounded-2xl border border-border/40 bg-card overflow-hidden"
+              >
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer list-none select-none font-semibold text-sm hover:bg-muted/30 transition-colors">
+                  <span>{faq.q}</span>
+                  <ChevronRight
+                    className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-3 transition-transform group-open:rotate-90"
+                  />
+                </summary>
+                <div className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed border-t border-border/30 pt-3">
+                  {faq.a}
+                </div>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        {/* ── CTA Banner ── */}
+        <section className="py-16 px-4">
+          <div
+            className="max-w-2xl mx-auto text-center rounded-3xl p-10 space-y-5"
+            style={{
+              background: "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(79,70,229,0.08) 100%)",
+              border: "1px solid rgba(99,102,241,0.2)",
+            }}
+          >
+            <div
+              className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center"
+              style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.28)" }}
+            >
+              <Car className="h-7 w-7" style={{ color: "#6366f1" }} />
+            </div>
+            <h2
+              className="text-2xl md:text-3xl font-black tracking-tight"
+              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
+            >
+              Araçlarınızı Hemen Takibe Alın
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Ücretsiz hesap oluşturun, dakikalar içinde ilk aracınızı ekleyin.
+              Kredi kartı gerekmez.
+            </p>
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all"
+              style={{
+                background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)",
+                color: "#fff",
+                boxShadow: "0 0 32px rgba(99,102,241,0.3)",
+              }}
+            >
+              Ücretsiz Başla <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </section>
+
+        {/* ── Footer ── */}
+        <footer className="border-t border-border/40 py-8 px-4">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Car className="h-4 w-4" style={{ color: "#6366f1" }} />
+              <span className="font-bold text-sm">
+                Cars<span style={{ color: "#6366f1" }}>Track</span>
+              </span>
+              <span className="text-muted-foreground text-xs ml-2">
+                © {new Date().getFullYear()} Tüm hakları saklıdır.
+              </span>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <Link href="/privacy" className="hover:text-foreground transition-colors">
+                Gizlilik Politikası
+              </Link>
+              <Link href="/login" className="hover:text-foreground transition-colors">
+                Giriş Yap
+              </Link>
+              <Link href="/register" className="hover:text-foreground transition-colors">
+                Kayıt Ol
+              </Link>
+            </div>
+          </div>
+        </footer>
+
+      </div>
+    </>
   );
 }

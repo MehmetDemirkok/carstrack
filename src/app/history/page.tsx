@@ -15,9 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link";
 import {
   Wrench, CheckCircle2, AlertTriangle, Disc3, Car, Plus,
-  Filter, Trash2, BatteryCharging, ClipboardList, Download,
+  Filter, Trash2, BatteryCharging, ClipboardList, Download, FileDown,
 } from "lucide-react";
 import { exportServiceHistoryExcel } from "@/lib/export";
+import { exportServiceHistoryPDF } from "@/lib/pdf-export";
 
 const typeConfig: Record<ServiceType, { icon: React.ElementType; color: string; dot: string; label: string }> = {
   routine: { icon: CheckCircle2, color: "bg-violet-500/10 text-violet-500", dot: "bg-violet-500", label: "Periyodik" },
@@ -148,6 +149,16 @@ export default function HistoryPage() {
           <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} kayıt</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full h-9 w-9 shadow-sm border-border/50"
+            title="PDF'e Aktar"
+            disabled={filtered.length === 0}
+            onClick={() => exportServiceHistoryPDF(filtered, vehicles)}
+          >
+            <FileDown className="h-4 w-4" />
+          </Button>
           <Button
             variant="outline"
             size="icon"

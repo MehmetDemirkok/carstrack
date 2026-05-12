@@ -88,7 +88,7 @@ export default function LoginPage() {
       return;
     }
     toast.success("Giriş başarılı");
-    router.push("/");
+    router.push("/dashboard");
     router.refresh();
   };
 
@@ -102,7 +102,7 @@ export default function LoginPage() {
       const { error: authError } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password });
       if (authError) { toast.error("Demo girişi başarısız"); return; }
       toast.success("Yönetici demo'ya hoş geldiniz!");
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     } finally { setDemoLoading(false); }
   };

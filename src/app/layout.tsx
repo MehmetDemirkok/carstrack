@@ -96,19 +96,17 @@ export const viewport: Viewport = {
 
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "WebApplication",
+  "@type": "WebSite",
   name: "CarsTrack",
   url: APP_URL,
   description:
     "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin.",
-  applicationCategory: "BusinessApplication",
-  operatingSystem: "Web",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "TRY",
-  },
   inLanguage: "tr-TR",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${APP_URL}/vehicles?q={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
 };
 
 export default function RootLayout({

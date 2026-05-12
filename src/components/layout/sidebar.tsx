@@ -25,7 +25,7 @@ export function Sidebar() {
         { icon: Settings, label: t("nav_settings"), href: "/settings" },
       ]
     : [
-        { icon: LayoutDashboard, label: t("nav_dashboard"), href: "/" },
+        { icon: LayoutDashboard, label: t("nav_dashboard"), href: "/dashboard" },
         { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
         { icon: ClipboardList, label: t("nav_tasks"), href: "/tasks" },
         { icon: Users, label: "Ekip", href: "/users" },
@@ -55,7 +55,7 @@ export function Sidebar() {
 
       {/* Logo */}
       <div className="p-6 relative">
-        <Link href="/" className="flex items-center gap-3 group">
+        <Link href="/dashboard" className="flex items-center gap-3 group">
           <div className="p-2.5 rounded-xl transition-shadow"
             style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.28)" }}>
             <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
@@ -78,7 +78,7 @@ export function Sidebar() {
 
       <div className="flex-1 px-3 space-y-0.5 overflow-y-auto no-scrollbar relative">
         {!loading && navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}

@@ -66,6 +66,7 @@ export async function proxy(request: NextRequest) {
 
   const isPublicPath =
     isAuthOnlyPath ||
+    pathname === "/" ||
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/auth/callback") ||
     pathname.startsWith("/privacy");
@@ -99,9 +100,9 @@ export async function proxy(request: NextRequest) {
     return redirectResponse;
   }
 
-  // Authenticated on login/register → home
-  if (user && isAuthOnlyPath) {
-    const redirectResponse = NextResponse.redirect(new URL("/", request.url));
+  // Authenticated on login/register or landing page → dashboard
+  if (user && (isAuthOnlyPath || pathname === "/")) {
+    const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
     supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
       redirectResponse.cookies.set(
         name,

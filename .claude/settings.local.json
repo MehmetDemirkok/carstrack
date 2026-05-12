@@ -39,7 +39,12 @@
       "Read(//tmp/**)",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.get\\('dependencies',{}\\).items\\(\\) if 'supabase' in k.lower\\(\\) or 'next' in k.lower\\(\\)}, indent=2\\)\\)\")",
       "Bash(python3 -m json.tool)",
-      "Bash(perl -i -pe ' *)"
+      "Bash(perl -i -pe ' *)",
+      "Bash(curl -L \"https://fonts.gstatic.com/s/roboto/v32/KFOmCnqEu92Fr1Mu4mxP.ttf\" -o /Users/mehmetdemirkok/Downloads/carstrack/public/fonts/Roboto-Regular.ttf --silent)",
+      "Bash(curl -L \"https://fonts.gstatic.com/s/roboto/v32/KFOlCnqEu92Fr1MmWUlfBBc-.ttf\" -o /Users/mehmetdemirkok/Downloads/carstrack/public/fonts/Roboto-Bold.ttf --silent)",
+      "Bash(curl -L \"https://fonts.gstatic.com/s/roboto/v32/KFOlCnqEu92Fr1MmWUlfBBc4AMP6lQ.woff2\" -o /tmp/test.woff2 --silent)",
+      "Bash(curl -L \"https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf\" -o /Users/mehmetdemirkok/Downloads/carstrack/public/fonts/Roboto-Bold.ttf --silent)",
+      "Bash(curl -L \"https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Regular.ttf\" -o /Users/mehmetdemirkok/Downloads/carstrack/public/fonts/Roboto-Regular.ttf --silent)"
     ]
   }
 }

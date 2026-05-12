@@ -7,8 +7,17 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/login", "/register", "/privacy", "/og-image.png", "/manifest.json"],
-        disallow: ["/", "/vehicles", "/history", "/analytics", "/settings", "/users", "/tasks", "/api/"],
+        allow: ["/", "/login", "/register", "/privacy"],
+        disallow: [
+          "/dashboard",
+          "/vehicles",
+          "/history",
+          "/analytics",
+          "/settings",
+          "/users",
+          "/tasks",
+          "/api/",
+        ],
       },
     ],
     sitemap: `${APP_URL}/sitemap.xml`,

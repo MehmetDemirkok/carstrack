@@ -13,8 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import {
   Shield, Calendar, Disc3, Wrench, CheckCircle2, AlertTriangle,
-  XCircle, Car, ChevronRight, Activity,
+  XCircle, Car, ChevronRight, Activity, FileDown,
 } from "lucide-react";
+import { exportFleetStatusPDF } from "@/lib/pdf-export";
+import { Button } from "@/components/ui/button";
 import { DocumentAutomation } from "@/components/document-automation";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
@@ -86,7 +88,7 @@ export default function FleetStatusPage() {
           <p className="text-xs text-muted-foreground mt-0.5">Bakım ve belge özeti</p>
         </div>
         {vehicles.length > 0 && (
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 items-center">
             {criticalCount > 0 && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
                 <XCircle className="h-3 w-3" /> {criticalCount} kritik
@@ -102,6 +104,15 @@ export default function FleetStatusPage() {
                 <CheckCircle2 className="h-3 w-3" /> Filo sağlıklı
               </span>
             )}
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full h-9 w-9 shadow-sm border-border/50 shrink-0"
+              title="PDF Raporu İndir"
+              onClick={() => exportFleetStatusPDF(vehicles)}
+            >
+              <FileDown className="h-4 w-4" />
+            </Button>
           </div>
         )}
       </div>

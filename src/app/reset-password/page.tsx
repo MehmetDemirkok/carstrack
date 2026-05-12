@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
     toast.success("Şifre güncellendi!", { description: "Yeni şifrenizle giriş yapabilirsiniz." });
     setStatus("success");
     setTimeout(() => {
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     }, 2000);
   };

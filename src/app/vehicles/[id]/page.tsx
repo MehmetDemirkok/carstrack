@@ -30,8 +30,9 @@ import {
   ChevronLeft, Settings, Trash2, Car, Fuel, Gauge, MapPin, Disc3,
   Sun, Snowflake, Layers, BatteryCharging, ShieldCheck, CalendarDays,
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
-  Palette, Zap, Hash, ChevronRight, Pencil,
+  Palette, Zap, Hash, ChevronRight, Pencil, FileDown,
 } from "lucide-react";
+import { exportVehicleReportPDF } from "@/lib/pdf-export";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
 const fadeUp = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
@@ -230,6 +231,9 @@ export default function VehicleDetailPage() {
           </Button>
           <span className="font-outfit font-bold text-sm">{vehicle.plate}</span>
           <div className="flex gap-1">
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-primary/10" onClick={() => exportVehicleReportPDF(vehicle, records)}>
+              <FileDown className="h-4 w-4 text-muted-foreground" />
+            </Button>
             <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => setShowDelete(true)}>
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -255,6 +259,9 @@ export default function VehicleDetailPage() {
           <div className="flex gap-3">
             <Button variant="outline" className="gap-2 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => setShowDelete(true)}>
               <Trash2 className="h-4 w-4" /> Sil
+            </Button>
+            <Button variant="outline" className="gap-2 rounded-xl" onClick={() => exportVehicleReportPDF(vehicle, records)}>
+              <FileDown className="h-4 w-4" /> PDF
             </Button>
             <Button variant="outline" className="gap-2 rounded-xl" onClick={openEdit}>
               <Settings className="h-4 w-4" /> Düzenle
