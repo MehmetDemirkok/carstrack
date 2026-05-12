@@ -14,6 +14,10 @@ import { addVehicle } from "@/lib/db";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, CheckCircle2, Camera, Info } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
+import { getVehicles } from "@/lib/db";
+import { canAddVehicle } from "@/lib/plans";
+import { UpgradeModal } from "@/components/upgrade-modal";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
 const FUEL_TYPES: FuelType[] = ["Benzin", "Dizel", "LPG", "Hibrit", "Elektrik"];
@@ -81,10 +85,24 @@ function Field({ label, required, children }: { label: string; required?: boolea
 export default function NewVehiclePage() {
   const router = useRouter();
   const guardDemo = useDemoGuard();
+  const { company } = useAuth();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [limitChecked, setLimitChecked] = useState(false);
+
+  // Sayfa açılınca limit kontrolü yap
+  useState(() => {
+    if (!company) return;
+    getVehicles().then((vehicles) => {
+      if (!canAddVehicle(company.plan ?? "free", vehicles.length)) {
+        setShowUpgrade(true);
+      }
+      setLimitChecked(true);
+    }).catch(() => setLimitChecked(true));
+  });
 
   const set = (key: keyof FormData, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -171,6 +189,8 @@ export default function NewVehiclePage() {
   }
 
   return (
+    <>
+    <UpgradeModal open={showUpgrade} onClose={() => { setShowUpgrade(false); router.back(); }} reason="vehicle" />
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="sticky top-0 z-50 glass border-b border-border/30">
@@ -426,5 +446,6 @@ export default function NewVehiclePage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

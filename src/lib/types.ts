@@ -1,10 +1,14 @@
 export type UserRole = "manager" | "driver";
+export type PlanType = "free" | "pro" | "fleet";
 
 export interface Company {
   id: string;
   name: string;
   createdAt: string;
   inviteCode?: string;
+  plan: PlanType;
+  planExpiresAt?: string;
+  iyzicoSubRef?: string;
 }
 
 export interface Profile {

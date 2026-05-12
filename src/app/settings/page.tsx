@@ -9,13 +9,39 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Database, Trash2, Car,
-  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail,
+  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Zap, CreditCard,
 } from "lucide-react";
+import { PLANS } from "@/lib/plans";
+import type { PlanType } from "@/lib/types";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+
+function CancelSubscriptionButton() {
+  const [loading, setLoading] = useState(false);
+  const handleCancel = async () => {
+    if (!confirm("Aboneliğinizi iptal etmek istediğinize emin misiniz? Plan hemen ücretsize dönecek.")) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/payment/cancel", { method: "POST" });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) { toast.error("Hata", { description: data.error }); return; }
+      toast.success("Abonelik iptal edildi");
+      window.location.reload();
+    } finally { setLoading(false); }
+  };
+  return (
+    <button onClick={handleCancel} disabled={loading} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-destructive/5 transition-colors">
+      <div className="p-2 rounded-xl bg-destructive/10 shrink-0"><CreditCard className="h-4 w-4 text-destructive" /></div>
+      <div className="flex-1 text-left">
+        <p className="text-sm font-medium text-destructive">Aboneliği İptal Et</p>
+        <p className="text-xs text-muted-foreground">Ücretsiz plana dön</p>
+      </div>
+    </button>
+  );
+}
 import { useLanguage } from "@/context/language-context";
 import type { Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
@@ -580,6 +606,60 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Plan Bilgisi */}
+        {profile?.role === "manager" && (() => {
+          const planType = (company?.plan ?? "free") as PlanType;
+          const planDef  = PLANS[planType];
+          return (
+            <motion.div variants={fadeUp} className="space-y-1">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">Abonelik</h3>
+              <Card className="rounded-2xl border-border/40 shadow-sm overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="p-4 flex items-center justify-between border-b border-border/40">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl" style={{ background: `${planDef.color}18` }}>
+                        <Zap className="h-4 w-4" style={{ color: planDef.color }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold" style={{ color: planDef.color }}>{planDef.name} Plan</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {planType === "free"
+                            ? "2 araç · 3 kullanıcı"
+                            : planType === "pro"
+                            ? "10 araç · 10 kullanıcı"
+                            : "Sınırsız araç · Sınırsız kullanıcı"}
+                        </p>
+                      </div>
+                    </div>
+                    {planType !== "free" && company?.planExpiresAt && (
+                      <div className="text-right">
+                        <p className="text-[10px] text-muted-foreground">Yenileme</p>
+                        <p className="text-xs font-semibold">{new Date(company.planExpiresAt).toLocaleDateString("tr-TR")}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2">
+                    {planType === "free" ? (
+                      <Link href="/pricing">
+                        <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-primary/5 transition-colors">
+                          <div className="p-2 rounded-xl bg-primary/10 shrink-0"><Zap className="h-4 w-4 text-primary" /></div>
+                          <div className="flex-1 text-left">
+                            <p className="text-sm font-medium">Planı Yükselt</p>
+                            <p className="text-xs text-muted-foreground">Profesyonel plan ₺299/ay&apos;dan başlıyor</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </Link>
+                    ) : (
+                      <CancelSubscriptionButton />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })()}
 
         {/* Account / Logout */}
         <motion.div variants={fadeUp} className="space-y-1">

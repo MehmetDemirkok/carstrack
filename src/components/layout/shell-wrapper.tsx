@@ -5,12 +5,12 @@ import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { BottomNav } from "./bottom-nav";
 
-const AUTH_PATHS = ["/login", "/register", "/reset-password", "/"];
+const AUTH_PATHS = ["/login", "/register", "/reset-password", "/", "/pricing", "/payment"];
 
 export function ShellWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthPage = AUTH_PATHS.some((p) =>
-    p === "/" ? pathname === "/" : pathname === p || pathname.startsWith(p + "/")
+    p === "/" ? pathname === "/" : pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p)
   );
 
   if (isAuthPage) {

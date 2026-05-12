@@ -38,12 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function loadProfile(userId: string, metadataCompanyId?: string) {
       try {
         if (metadataCompanyId) {
-          setCompany({ id: metadataCompanyId, name: "Yükleniyor...", createdAt: "", inviteCode: "" });
+          setCompany({ id: metadataCompanyId, name: "Yükleniyor...", createdAt: "", inviteCode: "", plan: "free" });
         }
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, companies(id, name, created_at, invite_code)")
+          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, companies(id, name, created_at, invite_code, plan, plan_expires_at, iyzico_sub_ref)")
           .eq("id", userId)
           .single();
 
@@ -76,7 +76,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: comp.name,
             createdAt: comp.created_at,
             inviteCode: comp.invite_code,
-          });
+            plan: (comp.plan as string) || "free",
+            planExpiresAt: comp.plan_expires_at as string | undefined,
+            iyzicoSubRef: comp.iyzico_sub_ref as string | undefined,
+          } as import("@/lib/types").Company);
           // Back-fill company_id into user metadata for faster loads next time
           if (!metadataCompanyId) {
             supabase.auth.updateUser({ data: { company_id: comp.id } })
@@ -117,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const metaCompanyId = u.user_metadata?.company_id as string | undefined;
             if (metaCompanyId) {
               // Partial company so requireCompanyId() returns instantly
-              setCompany(prev => prev ?? { id: metaCompanyId, name: "", createdAt: "", inviteCode: "" });
+              setCompany(prev => prev ?? { id: metaCompanyId, name: "", createdAt: "", inviteCode: "", plan: "free" });
             }
             setLoading(false);
             initializedRef.current = true;

@@ -12,6 +12,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["iyzipay"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
