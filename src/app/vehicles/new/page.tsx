@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -94,7 +94,7 @@ export default function NewVehiclePage() {
   const [limitChecked, setLimitChecked] = useState(false);
 
   // Sayfa açılınca limit kontrolü yap
-  useState(() => {
+  useEffect(() => {
     if (!company) return;
     getVehicles().then((vehicles) => {
       if (!canAddVehicle(company.plan ?? "free", vehicles.length)) {
@@ -102,7 +102,7 @@ export default function NewVehiclePage() {
       }
       setLimitChecked(true);
     }).catch(() => setLimitChecked(true));
-  });
+  }, [company]);
 
   const set = (key: keyof FormData, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));

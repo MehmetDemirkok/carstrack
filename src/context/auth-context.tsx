@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, companies(id, name, created_at, invite_code, plan, plan_expires_at, stripe_sub_id, stripe_customer_id)")
+          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, companies(id, name, created_at, invite_code)")
           .eq("id", userId)
           .single();
 
@@ -76,10 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: comp.name,
             createdAt: comp.created_at,
             inviteCode: comp.invite_code,
-            plan: (comp.plan as string) || "free",
-            planExpiresAt: comp.plan_expires_at as string | undefined,
-            stripeSubId: comp.stripe_sub_id as string | undefined,
-            stripeCustomerId: comp.stripe_customer_id as string | undefined,
+            plan: "free",
           } as import("@/lib/types").Company);
           // Back-fill company_id into user metadata for faster loads next time
           if (!metadataCompanyId) {
