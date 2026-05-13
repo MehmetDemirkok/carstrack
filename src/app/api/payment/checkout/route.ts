@@ -1,38 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { initSubscriptionCheckout, IYZICO_CHECKOUT_URL } from "@/lib/iyzico";
-import { PLANS } from "@/lib/plans";
+import { stripe, STRIPE_PRICE_IDS } from "@/lib/stripe-server";
 import type { PlanType } from "@/lib/types";
-import { v4 as uuidv4 } from "uuid";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json() as {
-      plan: PlanType;
-      phone: string;
-      address: string;
-      city: string;
-      identityNumber: string;
-    };
-
-    const { plan, phone, address, city, identityNumber } = body;
+    const { plan } = await req.json() as { plan: PlanType };
 
     if (!plan || !["pro", "fleet"].includes(plan)) {
       return NextResponse.json({ error: "Geçersiz plan" }, { status: 400 });
     }
 
-    const planDef = PLANS[plan];
-    if (!planDef.iyzicoRef) {
+    const priceId = STRIPE_PRICE_IDS[plan as "pro" | "fleet"];
+    if (!priceId) {
       return NextResponse.json(
         { error: "Ödeme sistemi henüz yapılandırılmamış. Lütfen daha sonra tekrar deneyin." },
         { status: 503 }
       );
     }
 
-    // Kullanıcı bilgilerini al
+    // Kullanıcı kimliği doğrula
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,66 +36,62 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, full_name, company_id, companies(plan)")
+      .select("company_id, full_name, companies(plan, stripe_customer_id)")
       .eq("id", user.id)
       .single();
 
     if (!profile) return NextResponse.json({ error: "Profil bulunamadı" }, { status: 404 });
 
-    // Zaten bu plana sahipse engelle
-    const companyData = (Array.isArray(profile.companies) ? profile.companies[0] : profile.companies) as { plan: string } | null;
-    const currentPlan = companyData?.plan ?? "free";
-    if (currentPlan === plan) {
+    const company = (
+      Array.isArray(profile.companies) ? profile.companies[0] : profile.companies
+    ) as { plan: string; stripe_customer_id: string | null } | null;
+
+    if (company?.plan === plan) {
       return NextResponse.json({ error: "Zaten bu plana sahipsiniz" }, { status: 400 });
     }
 
-    const nameParts = (profile.full_name ?? "Kullanıcı").split(" ");
-    const firstName = nameParts[0] ?? "Kullanıcı";
-    const lastName  = nameParts.slice(1).join(" ") || firstName;
-    const conversationId = uuidv4();
+    // Stripe Customer oluştur ya da mevcut olanı kullan
+    let customerId = company?.stripe_customer_id ?? null;
 
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      ?? req.headers.get("x-real-ip")
-      ?? "85.34.78.112";
-
-    const request = {
-      locale: "tr",
-      conversationId,
-      callbackUrl: `${APP_URL}/api/payment/callback`,
-      pricingPlanReferenceCode: planDef.iyzicoRef,
-      subscriptionInitialStatus: "ACTIVE",
-      buyer: {
-        id: user.id,
-        name: firstName,
-        surname: lastName,
-        identityNumber: identityNumber || "11111111111",
+    if (!customerId) {
+      const customer = await stripe.customers.create({
         email: user.email,
-        gsmNumber: phone.startsWith("+") ? phone : `+90${phone.replace(/^0/, "")}`,
-        registrationDate: new Date(user.created_at).toISOString().replace("T", " ").slice(0, 19),
-        lastLoginDate: new Date().toISOString().replace("T", " ").slice(0, 19),
-        registrationAddress: address || "Türkiye",
-        city: city || "Istanbul",
-        country: "Turkey",
-        zipCode: "34000",
-        ip,
-      },
-    };
+        name: profile.full_name ?? undefined,
+        metadata: { company_id: profile.company_id, user_id: user.id },
+      });
+      customerId = customer.id;
 
-    const result = await initSubscriptionCheckout(request);
-
-    if (result.status !== "success") {
-      console.error("iyzico checkout error:", result);
-      return NextResponse.json(
-        { error: (result.errorMessage as string) ?? "Ödeme başlatılamadı" },
-        { status: 400 }
+      // company'ye kaydet
+      const adminClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
+      await adminClient
+        .from("companies")
+        .update({ stripe_customer_id: customerId })
+        .eq("id", profile.company_id);
     }
 
-    // Token ile iyzico hosted checkout URL'i döndür
-    const checkoutUrl = `${IYZICO_CHECKOUT_URL}?token=${result.token}`;
-    return NextResponse.json({ checkoutUrl, token: result.token });
+    // Stripe Checkout Session — hosted payment form
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${APP_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${APP_URL}/pricing`,
+      subscription_data: {
+        metadata: { company_id: profile.company_id, plan },
+      },
+      metadata: { company_id: profile.company_id, plan },
+      locale: "tr",
+      allow_promotion_codes: true,
+      billing_address_collection: "auto",
+      tax_id_collection: { enabled: true },
+    });
+
+    return NextResponse.json({ checkoutUrl: session.url });
   } catch (err) {
-    console.error("Payment checkout error:", err);
-    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
+    console.error("Stripe checkout error:", err);
+    return NextResponse.json({ error: "Ödeme başlatılamadı. Lütfen tekrar deneyin." }, { status: 500 });
   }
 }

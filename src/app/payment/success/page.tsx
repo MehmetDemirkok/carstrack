@@ -3,32 +3,31 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Car, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Car, Loader2, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { PLANS } from "@/lib/plans";
 import type { PlanType } from "@/lib/types";
 
 function PaymentSuccessContent() {
-  const params = useSearchParams();
-  const router = useRouter();
-  const status = params.get("status");
-  const plan   = params.get("plan") as PlanType | null;
-  const msg    = params.get("msg");
-
-  const isOk  = status === "ok";
+  const params  = useSearchParams();
+  const router  = useRouter();
+  const status  = params.get("status");
+  const plan    = params.get("plan") as PlanType | null;
+  const isOk    = status === "ok";
   const planDef = plan ? PLANS[plan] : null;
 
   useEffect(() => {
-    // Başarılı ödeme sonrası auth context'i yenile
     if (isOk) {
-      setTimeout(() => router.refresh(), 500);
+      // Auth context planı yenilemesi için kısa bekle
+      const t = setTimeout(() => router.refresh(), 1200);
+      return () => clearTimeout(t);
     }
   }, [isOk, router]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="max-w-md w-full text-center space-y-6">
-        {/* Icon */}
+
         <div
           className="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center"
           style={{
@@ -38,7 +37,7 @@ function PaymentSuccessContent() {
         >
           {isOk
             ? <CheckCircle2 className="h-10 w-10" style={{ color: "#10b981" }} />
-            : <XCircle className="h-10 w-10" style={{ color: "#ef4444" }} />
+            : <XCircle      className="h-10 w-10" style={{ color: "#ef4444" }} />
           }
         </div>
 
@@ -50,7 +49,9 @@ function PaymentSuccessContent() {
               </h1>
               <p className="text-muted-foreground text-sm mt-2">
                 {planDef?.name} planına geçişiniz tamamlandı.
-                {planDef && ` ${planDef.vehicleLimit === Infinity ? "Sınırsız" : planDef.vehicleLimit} araç`} ile filonuzu yönetebilirsiniz.
+                {planDef && planDef.vehicleLimit !== Infinity
+                  ? ` ${planDef.vehicleLimit} araç`
+                  : " Sınırsız araç"} ile filonuzu yönetebilirsiniz.
               </p>
             </div>
 
@@ -59,9 +60,7 @@ function PaymentSuccessContent() {
                 className="rounded-2xl p-4 text-left space-y-2"
                 style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)" }}
               >
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Aktif Plan
-                </p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Aktif Plan</p>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Car className="h-4 w-4" style={{ color: planDef.color }} />
@@ -69,19 +68,23 @@ function PaymentSuccessContent() {
                   </div>
                   <span className="text-sm font-bold">₺{planDef.price}/ay</span>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Fatura ve abonelik yönetimi için Stripe Müşteri Portalını kullanabilirsiniz.
+                </p>
               </div>
             )}
 
             <div className="flex gap-3">
               <Link href="/dashboard" className="flex-1">
-                <Button className="w-full rounded-xl font-bold" style={{ background: "linear-gradient(90deg, #6366f1, #4f46e5)", color: "#fff" }}>
-                  Dashboard&apos;a Git
+                <Button
+                  className="w-full rounded-xl font-bold gap-2"
+                  style={{ background: "linear-gradient(90deg, #6366f1, #4f46e5)", color: "#fff" }}
+                >
+                  Dashboard <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <Link href="/settings">
-                <Button variant="outline" className="rounded-xl">
-                  Ayarlar
-                </Button>
+                <Button variant="outline" className="rounded-xl">Ayarlar</Button>
               </Link>
             </div>
           </>
@@ -92,22 +95,20 @@ function PaymentSuccessContent() {
                 Ödeme Başarısız
               </h1>
               <p className="text-muted-foreground text-sm mt-2">
-                {msg === "payment_failed"
-                  ? "Ödeme işlemi tamamlanamadı. Kart bilgilerinizi kontrol edip tekrar deneyin."
-                  : "Bir hata oluştu. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin."}
+                Ödeme işlemi tamamlanamadı. Kart bilgilerinizi kontrol edip tekrar deneyin veya farklı bir kart kullanın.
               </p>
             </div>
-
             <div className="flex gap-3 justify-center">
               <Link href="/pricing">
-                <Button className="rounded-xl font-bold" style={{ background: "linear-gradient(90deg, #6366f1, #4f46e5)", color: "#fff" }}>
+                <Button
+                  className="rounded-xl font-bold"
+                  style={{ background: "linear-gradient(90deg, #6366f1, #4f46e5)", color: "#fff" }}
+                >
                   Tekrar Dene
                 </Button>
               </Link>
               <Link href="/dashboard">
-                <Button variant="outline" className="rounded-xl">
-                  Dashboard
-                </Button>
+                <Button variant="outline" className="rounded-xl">Dashboard</Button>
               </Link>
             </div>
           </>

@@ -7,34 +7,34 @@ import { useAuth } from "@/context/auth-context";
 import { PLANS } from "@/lib/plans";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, ArrowLeft, Loader2, Car } from "lucide-react";
+import { CheckCircle2, XCircle, ArrowLeft, Loader2, Car, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { PlanType } from "@/lib/types";
 
 function PlanCard({
   plan,
   currentPlan,
+  loading,
   onSelect,
 }: {
   plan: typeof PLANS.pro;
   currentPlan: PlanType;
+  loading: boolean;
   onSelect: (plan: PlanType) => void;
 }) {
-  const isCurrent = currentPlan === plan.id;
+  const isCurrent  = currentPlan === plan.id;
   const isDowngrade = plan.id === "free";
+  const isHighlighted = plan.id === "pro";
 
   return (
     <div
-      className="relative rounded-3xl border p-6 flex flex-col gap-5 transition-all"
+      className="relative rounded-3xl border p-6 flex flex-col gap-5 transition-all duration-200"
       style={{
-        borderColor: plan.id === "pro" ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.08)",
-        background: plan.id === "pro"
+        borderColor: isHighlighted ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.08)",
+        background: isHighlighted
           ? "linear-gradient(145deg, rgba(99,102,241,0.08) 0%, rgba(79,70,229,0.04) 100%)"
           : "rgba(255,255,255,0.02)",
-        boxShadow: plan.id === "pro" ? "0 0 40px rgba(99,102,241,0.1)" : "none",
+        boxShadow: isHighlighted ? "0 0 40px rgba(99,102,241,0.1)" : "none",
       }}
     >
       {plan.badge && plan.id !== "free" && (
@@ -47,7 +47,10 @@ function PlanCard({
       )}
 
       <div>
-        <h3 className="font-black text-lg" style={{ fontFamily: "var(--font-outfit)", color: plan.id === "free" ? undefined : plan.color }}>
+        <h3
+          className="font-black text-lg"
+          style={{ fontFamily: "var(--font-outfit)", color: plan.id !== "free" ? plan.color : undefined }}
+        >
           {plan.name}
         </h3>
         <div className="mt-2 flex items-end gap-1">
@@ -64,7 +67,7 @@ function PlanCard({
         </div>
         {plan.price > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
-            Yıllık ödemede ₺{plan.yearlyPrice}/yıl (2 ay hediye)
+            Yıllık ödemede ₺{plan.yearlyPrice}/yıl — 2 ay ücretsiz
           </p>
         )}
       </div>
@@ -85,8 +88,8 @@ function PlanCard({
       </div>
 
       <Button
-        className="w-full rounded-xl font-bold h-11"
-        disabled={isCurrent || isDowngrade}
+        className="w-full rounded-xl font-bold h-11 gap-2"
+        disabled={isCurrent || isDowngrade || loading}
         onClick={() => !isCurrent && !isDowngrade && onSelect(plan.id)}
         style={
           !isCurrent && !isDowngrade
@@ -95,118 +98,10 @@ function PlanCard({
         }
         variant={isCurrent || isDowngrade ? "outline" : "default"}
       >
-        {isCurrent ? "Mevcut Plan" : isDowngrade ? "Ücretsiz Plan" : "Planı Seç"}
+        {loading && !isCurrent && !isDowngrade && <Loader2 className="h-4 w-4 animate-spin" />}
+        {isCurrent ? "Mevcut Plan" : isDowngrade ? "Ücretsiz Plan" : "Planı Seç →"}
       </Button>
     </div>
-  );
-}
-
-function CheckoutModal({
-  open,
-  plan,
-  onClose,
-}: {
-  open: boolean;
-  plan: PlanType | null;
-  onClose: () => void;
-}) {
-  const [phone, setPhone] = useState("");
-  const [city, setCity] = useState("");
-  const [address, setAddress] = useState("");
-  const [identityNumber, setIdentityNumber] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!plan) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/payment/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, phone, address, city, identityNumber }),
-      });
-      const data = await res.json() as { checkoutUrl?: string; error?: string };
-      if (!res.ok || data.error) {
-        toast.error("Hata", { description: data.error ?? "Ödeme başlatılamadı" });
-        return;
-      }
-      // iyzico checkout sayfasına yönlendir
-      window.location.href = data.checkoutUrl!;
-    } catch {
-      toast.error("Hata", { description: "Bağlantı hatası" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const planDef = plan ? PLANS[plan] : null;
-  const iLabel = "text-xs font-medium text-muted-foreground";
-  const iCls = "rounded-xl h-10 bg-muted/30 border-border/40 text-sm";
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md rounded-3xl">
-        <DialogHeader>
-          <DialogTitle className="font-outfit text-lg">
-            {planDef?.name} Plan — Ödeme Bilgileri
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          <p className="text-xs text-muted-foreground">
-            iyzico güvenli ödeme altyapısı kullanılmaktadır. Kart bilgilerinizi bir sonraki adımda iyzico formuna gireceksiniz.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className={iLabel}>Telefon <span className="text-destructive">*</span></Label>
-              <Input className={iCls} placeholder="05XX XXX XX XX" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-            </div>
-            <div className="space-y-1">
-              <Label className={iLabel}>Şehir <span className="text-destructive">*</span></Label>
-              <Input className={iCls} placeholder="İstanbul" value={city} onChange={(e) => setCity(e.target.value)} required />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label className={iLabel}>Fatura Adresi <span className="text-destructive">*</span></Label>
-            <Input className={iCls} placeholder="Mahalle, cadde, no..." value={address} onChange={(e) => setAddress(e.target.value)} required />
-          </div>
-
-          <div className="space-y-1">
-            <Label className={iLabel}>TC Kimlik No <span className="text-destructive">*</span></Label>
-            <Input className={iCls} placeholder="XXXXXXXXXXX (11 hane)" maxLength={11} value={identityNumber} onChange={(e) => setIdentityNumber(e.target.value)} required />
-            <p className="text-[10px] text-muted-foreground">Yasal ödeme kaydı için zorunludur. Bilgileriniz şifreli olarak saklanır.</p>
-          </div>
-
-          <div
-            className="rounded-xl p-3 flex items-center justify-between"
-            style={{ background: `rgba(99,102,241,0.08)`, border: "1px solid rgba(99,102,241,0.2)" }}
-          >
-            <span className="text-sm font-medium">{planDef?.name} Plan</span>
-            <span className="font-black text-sm" style={{ color: planDef?.color }}>
-              ₺{planDef?.price}/ay
-            </span>
-          </div>
-
-          <div className="flex gap-2 pt-1">
-            <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={onClose}>
-              İptal
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1 rounded-xl font-bold gap-2"
-              disabled={loading}
-              style={{ background: "linear-gradient(90deg, #6366f1, #4f46e5)", color: "#fff", border: "none" }}
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Ödemeye Geç
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -214,7 +109,31 @@ export default function PricingPage() {
   const { company } = useAuth();
   const router = useRouter();
   const currentPlan = (company?.plan ?? "free") as PlanType;
-  const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSelect = async (plan: PlanType) => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/payment/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json() as { checkoutUrl?: string; error?: string };
+
+      if (!res.ok || data.error) {
+        toast.error("Hata", { description: data.error ?? "Ödeme başlatılamadı" });
+        return;
+      }
+
+      // Stripe hosted checkout sayfasına yönlendir
+      window.location.href = data.checkoutUrl!;
+    } catch {
+      toast.error("Bağlantı hatası", { description: "Lütfen tekrar deneyin." });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -224,23 +143,20 @@ export default function PricingPage() {
           <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <Car className="h-4 w-4" style={{ color: "#6366f1" }} />
             <span className="font-bold text-sm">
               Cars<span style={{ color: "#6366f1" }}>Track</span>
             </span>
-          </div>
-          <span className="text-muted-foreground text-sm">Fiyatlandırma</span>
+          </Link>
+          <span className="text-muted-foreground text-sm">/ Fiyatlandırma</span>
         </div>
       </nav>
 
-      <div className="max-w-5xl mx-auto px-4 py-12 space-y-10">
+      <div className="max-w-5xl mx-auto px-4 py-12 space-y-10 pb-24">
         {/* Başlık */}
         <div className="text-center space-y-3">
-          <h1
-            className="text-3xl md:text-4xl font-black tracking-tight"
-            style={{ fontFamily: "var(--font-outfit)" }}
-          >
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight" style={{ fontFamily: "var(--font-outfit)" }}>
             Filonuza Uygun Planı Seçin
           </h1>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -263,30 +179,50 @@ export default function PricingPage() {
               key={planId}
               plan={PLANS[planId]}
               currentPlan={currentPlan}
-              onSelect={(p) => setSelectedPlan(p)}
+              loading={loading}
+              onSelect={handleSelect}
             />
           ))}
         </div>
 
-        {/* Güven sembolleri */}
-        <div className="text-center space-y-2">
-          <p className="text-xs text-muted-foreground">
-            🔒 iyzico ile güvenli ödeme · ↩ İstediğiniz zaman iptal · 🏦 Türk Lirası faturalama
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Sorularınız için:{" "}
-            <a href="mailto:destek@carstrack.app" className="text-primary hover:underline">
-              destek@carstrack.app
-            </a>
-          </p>
+        {/* Stripe güven sembolleri */}
+        <div
+          className="rounded-2xl p-5 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left"
+          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: "rgba(99,102,241,0.1)" }}
+          >
+            <ShieldCheck className="h-6 w-6" style={{ color: "#6366f1" }} />
+          </div>
+          <div>
+            <p className="text-sm font-bold">Stripe ile Güvenli Ödeme</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Kart bilgileriniz Stripe altyapısında şifreli olarak işlenir. CarsTrack kart numaranıza erişemez.
+              Visa, Mastercard, American Express desteklenir.
+            </p>
+          </div>
+          <div className="shrink-0 flex items-center gap-2 opacity-60">
+            {["VISA", "MC", "AMEX"].map((c) => (
+              <div
+                key={c}
+                className="px-2 py-1 rounded-md text-[10px] font-black border"
+                style={{ borderColor: "rgba(255,255,255,0.15)" }}
+              >
+                {c}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <CheckoutModal
-        open={!!selectedPlan}
-        plan={selectedPlan}
-        onClose={() => setSelectedPlan(null)}
-      />
+        <p className="text-center text-xs text-muted-foreground">
+          Sorularınız için:{" "}
+          <a href="mailto:destek@carstrack.app" className="text-primary hover:underline">
+            destek@carstrack.app
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

@@ -634,7 +634,7 @@ export default function SettingsPage() {
                     </div>
                     {planType !== "free" && company?.planExpiresAt && (
                       <div className="text-right">
-                        <p className="text-[10px] text-muted-foreground">Yenileme</p>
+                        <p className="text-[10px] text-muted-foreground">Sonraki Ödeme</p>
                         <p className="text-xs font-semibold">{new Date(company.planExpiresAt).toLocaleDateString("tr-TR")}</p>
                       </div>
                     )}

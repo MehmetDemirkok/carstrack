@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { cancelSubscription } from "@/lib/iyzico";
+import { stripe } from "@/lib/stripe-server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("company_id, role, companies(iyzico_sub_ref, plan)")
+      .select("company_id, role, companies(stripe_sub_id, plan)")
       .eq("id", user.id)
       .single();
 
@@ -26,35 +26,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Sadece yöneticiler aboneliği iptal edebilir" }, { status: 403 });
     }
 
-    const company = (Array.isArray(profile.companies) ? profile.companies[0] : profile.companies) as { iyzico_sub_ref: string | null; plan: string } | null;
-    if (!company?.iyzico_sub_ref) {
+    const company = (
+      Array.isArray(profile.companies) ? profile.companies[0] : profile.companies
+    ) as { stripe_sub_id: string | null; plan: string } | null;
+
+    if (!company?.stripe_sub_id) {
       return NextResponse.json({ error: "Aktif abonelik bulunamadı" }, { status: 404 });
     }
 
-    const result = await cancelSubscription(company.iyzico_sub_ref);
-    if (result.status !== "success") {
-      return NextResponse.json({ error: (result.errorMessage as string) ?? "İptal başarısız" }, { status: 400 });
-    }
+    // Dönem sonunda iptal — kullanıcı kalan günleri kullanabilir
+    await stripe.subscriptions.update(company.stripe_sub_id, {
+      cancel_at_period_end: true,
+    });
 
-    // Admin client ile güncelle
-    const adminClient = createClient(
+    const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await adminClient
-      .from("companies")
-      .update({ plan: "free", plan_expires_at: null, iyzico_sub_ref: null, plan_updated_at: new Date().toISOString() })
-      .eq("id", profile.company_id);
+    await db.from("subscriptions").update({
+      status:      "cancelled",
+      cancelled_at: new Date().toISOString(),
+      updated_at:   new Date().toISOString(),
+    }).eq("stripe_sub_id", company.stripe_sub_id);
 
-    await adminClient
-      .from("subscriptions")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-      .eq("iyzico_sub_ref", company.iyzico_sub_ref);
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "Aboneliğiniz dönem sonunda iptal edilecek." });
   } catch (err) {
     console.error("Cancel subscription error:", err);
-    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
+    return NextResponse.json({ error: "İptal işlemi başarısız" }, { status: 500 });
   }
 }

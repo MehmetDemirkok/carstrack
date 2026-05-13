@@ -16,18 +16,18 @@ export async function GET(req: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("company_id, companies(plan, plan_expires_at, iyzico_sub_ref)")
+      .select("company_id, companies(plan, plan_expires_at, stripe_sub_id)")
       .eq("id", user.id)
       .single();
 
-    const company = (Array.isArray(profile?.companies) ? profile?.companies[0] : profile?.companies) as {
-      plan: string; plan_expires_at: string | null; iyzico_sub_ref: string | null;
-    } | null;
+    const company = (
+      Array.isArray(profile?.companies) ? profile?.companies[0] : profile?.companies
+    ) as { plan: string; plan_expires_at: string | null; stripe_sub_id: string | null } | null;
 
     return NextResponse.json({
-      plan:          company?.plan ?? "free",
-      planExpiresAt: company?.plan_expires_at ?? null,
-      hasSubscription: !!company?.iyzico_sub_ref,
+      plan:            company?.plan ?? "free",
+      planExpiresAt:   company?.plan_expires_at ?? null,
+      hasSubscription: !!company?.stripe_sub_id,
     });
   } catch (err) {
     console.error("Payment status error:", err);

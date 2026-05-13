@@ -4,14 +4,14 @@ export interface PlanDefinition {
   id: PlanType;
   name: string;
   badge: string;
-  price: number;          // TRY/ay
-  yearlyPrice: number;    // TRY/yıl
-  vehicleLimit: number;   // Infinity = sınırsız
+  price: number;
+  yearlyPrice: number;
+  vehicleLimit: number;
   userLimit: number;
   color: string;
   features: string[];
   notFeatures: string[];
-  iyzicoRef: string | undefined;
+  stripePriceId: string | undefined;
 }
 
 export const PLANS: Record<PlanType, PlanDefinition> = {
@@ -38,14 +38,14 @@ export const PLANS: Record<PlanType, PlanDefinition> = {
       "Gelişmiş analitik",
       "Öncelikli destek",
     ],
-    iyzicoRef: undefined,
+    stripePriceId: undefined,
   },
   pro: {
     id: "pro",
     name: "Profesyonel",
     badge: "En Popüler",
     price: 299,
-    yearlyPrice: 2_490,   // 2 ay hediye
+    yearlyPrice: 2_490,
     vehicleLimit: 10,
     userLimit: 10,
     color: "#6366f1",
@@ -61,7 +61,7 @@ export const PLANS: Record<PlanType, PlanDefinition> = {
       "Öncelikli destek",
     ],
     notFeatures: [],
-    iyzicoRef: process.env.IYZIPAY_PRO_PLAN_REF,
+    stripePriceId: process.env.STRIPE_PRO_PRICE_ID,
   },
   fleet: {
     id: "fleet",
@@ -82,7 +82,7 @@ export const PLANS: Record<PlanType, PlanDefinition> = {
       "Fatura & KDV desteği",
     ],
     notFeatures: [],
-    iyzicoRef: process.env.IYZIPAY_FLEET_PLAN_REF,
+    stripePriceId: process.env.STRIPE_FLEET_PRICE_ID,
   },
 };
 

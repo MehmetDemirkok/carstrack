@@ -8,7 +8,8 @@ export interface Company {
   inviteCode?: string;
   plan: PlanType;
   planExpiresAt?: string;
-  iyzicoSubRef?: string;
+  stripeSubId?: string;
+  stripeCustomerId?: string;
 }
 
 export interface Profile {

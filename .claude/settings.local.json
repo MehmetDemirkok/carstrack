@@ -45,7 +45,9 @@
       "Bash(curl -L \"https://fonts.gstatic.com/s/roboto/v32/KFOlCnqEu92Fr1MmWUlfBBc4AMP6lQ.woff2\" -o /tmp/test.woff2 --silent)",
       "Bash(curl -L \"https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf\" -o /Users/mehmetdemirkok/Downloads/carstrack/public/fonts/Roboto-Bold.ttf --silent)",
       "Bash(curl -L \"https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Regular.ttf\" -o /Users/mehmetdemirkok/Downloads/carstrack/public/fonts/Roboto-Regular.ttf --silent)",
-      "Bash(grep -E \"\\\\.tsx$|^d\")"
+      "Bash(grep -E \"\\\\.tsx$|^d\")",
+      "Bash(npm uninstall *)",
+      "Bash(npm ls *)"
     ]
   }
 }
