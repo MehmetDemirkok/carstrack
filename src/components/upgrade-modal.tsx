@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Zap, Car, Users, ArrowRight, X } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PLANS } from "@/lib/plans";
 
 interface UpgradeModalProps {
@@ -34,13 +34,14 @@ const REASON_TEXT = {
 };
 
 export function UpgradeModal({ open, onClose, onDismiss, reason = "vehicle" }: UpgradeModalProps) {
+  const router = useRouter();
   const info = REASON_TEXT[reason];
   const Icon = info.icon;
   const pro = PLANS.pro;
   const dismiss = onDismiss ?? onClose;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && dismiss()}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden" showCloseButton={false}>
         {/* Header gradient */}
         <div
@@ -98,14 +99,13 @@ export function UpgradeModal({ open, onClose, onDismiss, reason = "vehicle" }: U
           </div>
 
           <div className="flex gap-2">
-            <Link href="/pricing" onClick={onClose} className="flex-1">
-              <Button
-                className="w-full rounded-xl gap-2 font-bold"
-                style={{ background: "linear-gradient(90deg, #6366f1, #4f46e5)", color: "#fff" }}
-              >
-                Planları Gör <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+            <Button
+              className="flex-1 rounded-xl gap-2 font-bold"
+              style={{ background: "linear-gradient(90deg, #6366f1, #4f46e5)", color: "#fff" }}
+              onClick={() => router.push("/pricing")}
+            >
+              Planları Gör <ArrowRight className="h-4 w-4" />
+            </Button>
             <Button variant="outline" className="rounded-xl" onClick={dismiss}>
               Şimdi Değil
             </Button>

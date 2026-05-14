@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, startTransition } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -86,27 +86,25 @@ export default function NewVehiclePage() {
   const router = useRouter();
   const guardDemo = useDemoGuard();
   const { company } = useAuth();
+  const limitChecked = useRef(false);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [limitChecked, setLimitChecked] = useState(false);
 
-  // Sayfa açılınca limit kontrolü yap
+  // Sayfa açılınca limit kontrolü yap (tek seferlik)
   useEffect(() => {
-    if (!company) return;
-    let mounted = true;
+    if (!company || limitChecked.current) return;
+    limitChecked.current = true;
+    let active = true;
     getVehicles().then((vehicles) => {
-      if (!mounted) return;
-      startTransition(() => {
-        if (!canAddVehicle(company.plan ?? "free", vehicles.length)) {
-          setShowUpgrade(true);
-        }
-        setLimitChecked(true);
-      });
-    }).catch(() => { if (mounted) startTransition(() => setLimitChecked(true)); });
-    return () => { mounted = false; };
+      if (!active) return;
+      if (!canAddVehicle(company.plan ?? "free", vehicles.length)) {
+        setShowUpgrade(true);
+      }
+    }).catch(() => {});
+    return () => { active = false; };
   }, [company]);
 
   const set = (key: keyof FormData, value: string) =>
@@ -195,7 +193,7 @@ export default function NewVehiclePage() {
 
   return (
     <>
-    <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} onDismiss={() => { setShowUpgrade(false); router.back(); }} reason="vehicle" />
+    <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} reason="vehicle" />
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="sticky top-0 z-50 glass border-b border-border/30">
