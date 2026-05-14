@@ -47,7 +47,8 @@
       "Bash(curl -L \"https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Regular.ttf\" -o /Users/mehmetdemirkok/Downloads/carstrack/public/fonts/Roboto-Regular.ttf --silent)",
       "Bash(grep -E \"\\\\.tsx$|^d\")",
       "Bash(npm uninstall *)",
-      "Bash(npm ls *)"
+      "Bash(npm ls *)",
+      "Bash(xargs cat)"
     ]
   }
 }

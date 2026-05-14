@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -96,12 +96,17 @@ export default function NewVehiclePage() {
   // Sayfa açılınca limit kontrolü yap
   useEffect(() => {
     if (!company) return;
+    let mounted = true;
     getVehicles().then((vehicles) => {
-      if (!canAddVehicle(company.plan ?? "free", vehicles.length)) {
-        setShowUpgrade(true);
-      }
-      setLimitChecked(true);
-    }).catch(() => setLimitChecked(true));
+      if (!mounted) return;
+      startTransition(() => {
+        if (!canAddVehicle(company.plan ?? "free", vehicles.length)) {
+          setShowUpgrade(true);
+        }
+        setLimitChecked(true);
+      });
+    }).catch(() => { if (mounted) startTransition(() => setLimitChecked(true)); });
+    return () => { mounted = false; };
   }, [company]);
 
   const set = (key: keyof FormData, value: string) =>
@@ -190,7 +195,7 @@ export default function NewVehiclePage() {
 
   return (
     <>
-    <UpgradeModal open={showUpgrade} onClose={() => { setShowUpgrade(false); router.back(); }} reason="vehicle" />
+    <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} onDismiss={() => { setShowUpgrade(false); router.back(); }} reason="vehicle" />
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="sticky top-0 z-50 glass border-b border-border/30">

@@ -10,6 +10,7 @@ import { PLANS } from "@/lib/plans";
 interface UpgradeModalProps {
   open: boolean;
   onClose: () => void;
+  onDismiss?: () => void;
   reason?: "vehicle" | "user" | "feature";
   currentPlan?: string;
 }
@@ -32,20 +33,21 @@ const REASON_TEXT = {
   },
 };
 
-export function UpgradeModal({ open, onClose, reason = "vehicle" }: UpgradeModalProps) {
+export function UpgradeModal({ open, onClose, onDismiss, reason = "vehicle" }: UpgradeModalProps) {
   const info = REASON_TEXT[reason];
   const Icon = info.icon;
   const pro = PLANS.pro;
+  const dismiss = onDismiss ?? onClose;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden">
+    <Dialog open={open} onOpenChange={(v) => !v && dismiss()}>
+      <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden" showCloseButton={false}>
         {/* Header gradient */}
         <div
           className="p-6 pb-4"
           style={{ background: "linear-gradient(135deg, #12122e 0%, #1a1a3e 100%)" }}
         >
-          <DialogClose className="absolute top-4 right-4 rounded-full p-1.5 text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+          <DialogClose onClick={dismiss} className="absolute top-4 right-4 rounded-full p-1.5 text-white/50 hover:text-white hover:bg-white/10 transition-colors">
             <X className="h-4 w-4" />
           </DialogClose>
 
@@ -104,7 +106,7 @@ export function UpgradeModal({ open, onClose, reason = "vehicle" }: UpgradeModal
                 Planları Gör <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Button variant="outline" className="rounded-xl" onClick={onClose}>
+            <Button variant="outline" className="rounded-xl" onClick={dismiss}>
               Şimdi Değil
             </Button>
           </div>
