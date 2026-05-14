@@ -163,7 +163,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex flex-col justify-between h-full p-8 xl:p-10">
           {/* Logo */}
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="p-2.5 rounded-xl"
               style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}>
               <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
@@ -176,7 +176,7 @@ export default function LoginPage() {
                 Filo Yönetim Sistemi
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Center: vehicle illustration */}
           <div className="flex flex-col items-center justify-center flex-1 py-6">
@@ -265,7 +265,7 @@ export default function LoginPage() {
 
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center justify-between px-5 pt-8 pb-4 relative z-10">
-          <div className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="p-2 rounded-lg"
               style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}>
               <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
@@ -273,7 +273,7 @@ export default function LoginPage() {
             <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "var(--foreground)", fontWeight: 800, fontSize: "1.15rem" }}>
               Cars<span style={{ color: "#6366f1" }}>Track</span>
             </span>
-          </div>
+          </Link>
           <div className="flex items-center gap-3">
             <button
               type="button"
