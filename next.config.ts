@@ -26,6 +26,16 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      // Never cache HTML pages — ensures users always get the latest deploy
+      // Static assets below override this with long-lived immutable headers
+      {
+        source: "/((?!_next\\/static|_next\\/image|fonts\\/).*)",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" },
+        ],
+      },
       // Long-lived cache for versioned static assets
       {
         source: "/_next/static/(.*)",
