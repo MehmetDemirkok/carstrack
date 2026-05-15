@@ -78,6 +78,11 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
 }
 
+function parseKm(value: string | number): number {
+  if (typeof value === "number") return Math.round(value);
+  return parseInt(value.replace(/\./g, "").replace(/,/g, ""), 10) || 0;
+}
+
 function daysBadge(days: number) {
   if (days < 0) return "bg-red-500/10 text-red-600 dark:text-red-400";
   if (days < 30) return "bg-orange-500/10 text-orange-600 dark:text-orange-400";
@@ -181,7 +186,7 @@ export default function VehicleDetailPage() {
         ? {
             ...item,
             lastDoneDate: maintEditDate || undefined,
-            lastDoneMileage: maintEditKm ? parseInt(maintEditKm) : undefined,
+            lastDoneMileage: maintEditKm ? parseKm(maintEditKm) : undefined,
           }
         : item
     );
@@ -204,7 +209,7 @@ export default function VehicleDetailPage() {
         date: recordForm.date,
         type: recordForm.type,
         title: recordForm.title,
-        mileage: parseInt(recordForm.mileage) || vehicle.mileage,
+        mileage: recordForm.mileage ? parseKm(recordForm.mileage) : vehicle.mileage,
         serviceCenter: recordForm.serviceCenter,
         notes: recordForm.notes,
       });
@@ -721,7 +726,7 @@ export default function VehicleDetailPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="number" value={editData.mileage || ""} onChange={(e) => setEditData((d) => ({ ...d, mileage: parseInt(e.target.value) || d.mileage }))} /></div>
+                <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="text" inputMode="numeric" value={editData.mileage || ""} onChange={(e) => setEditData((d) => ({ ...d, mileage: parseKm(e.target.value) || d.mileage }))} /></div>
                 <div className="space-y-1"><Label className={iLabel}>Şasi No</Label><Input className={iCls} value={editData.chassisNo || ""} onChange={(e) => setEditData((d) => ({ ...d, chassisNo: e.target.value }))} /></div>
               </div>
 
@@ -791,7 +796,7 @@ export default function VehicleDetailPage() {
             </div>
             <div className="space-y-1"><Label className={iLabel}>Başlık</Label><Input className={iCls} placeholder="Periyodik bakım..." value={recordForm.title} onChange={(e) => setRecordForm((f) => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="number" placeholder={String(vehicle.mileage)} value={recordForm.mileage} onChange={(e) => setRecordForm((f) => ({ ...f, mileage: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="text" inputMode="numeric" placeholder={String(vehicle.mileage)} value={recordForm.mileage} onChange={(e) => setRecordForm((f) => ({ ...f, mileage: e.target.value }))} /></div>
               <div className="space-y-1"><Label className={iLabel}>Servis Noktası</Label><Input className={iCls} placeholder="Yetkili servis..." value={recordForm.serviceCenter} onChange={(e) => setRecordForm((f) => ({ ...f, serviceCenter: e.target.value }))} /></div>
             </div>
             <div className="space-y-1">
@@ -859,7 +864,7 @@ export default function VehicleDetailPage() {
             {maintEditItem?.intervalKm && (
               <div className="space-y-1">
                 <Label className={iLabel}>Son Yapılma km</Label>
-                <Input className={iCls} type="number" placeholder="0" value={maintEditKm} onChange={(e) => setMaintEditKm(e.target.value)} />
+                <Input className={iCls} type="text" inputMode="numeric" placeholder="100000" value={maintEditKm} onChange={(e) => setMaintEditKm(e.target.value)} />
               </div>
             )}
           </div>

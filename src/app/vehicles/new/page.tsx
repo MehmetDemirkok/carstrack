@@ -13,7 +13,7 @@ import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle } from "@/lib/db";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, CheckCircle2, Camera, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, CheckCircle2, Camera, Info, ChevronDown } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getVehicles } from "@/lib/db";
 import { canAddVehicle } from "@/lib/plans";
@@ -24,6 +24,78 @@ const FUEL_TYPES: FuelType[] = ["Benzin", "Dizel", "LPG", "Hibrit", "Elektrik"];
 const TRANSMISSIONS: TransmissionType[] = ["Manuel", "Otomatik", "CVT", "DSG", "Yarı Otomatik"];
 const TIRE_SEASONS: TireSeasonType[] = ["Yazlık", "Kışlık", "Dört Mevsim"];
 const COLORS = ["Beyaz","Siyah","Gri","Gümüş","Kırmızı","Mavi","Yeşil","Kahverengi","Bej","Sarı","Turuncu","Mor","Diğer"];
+
+function AutocompleteInput({
+  options, value, onChange, placeholder, className, allowFreeText = false,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  className?: string;
+  allowFreeText?: boolean;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered = query.trim()
+    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const select = (opt: string) => { onChange(opt); setQuery(opt); setOpen(false); };
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          placeholder={placeholder}
+          className={`${className} w-full pr-8`}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (allowFreeText) onChange(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => {
+            setTimeout(() => {
+              if (!allowFreeText && !options.includes(query)) {
+                setQuery(value);
+              }
+            }, 150);
+          }}
+        />
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+          {filtered.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${opt === value ? "text-primary font-semibold" : "text-foreground"}`}
+              onMouseDown={() => select(opt)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const steps = [
   { id: 1, title: "Kimlik", icon: Car },
@@ -110,6 +182,9 @@ export default function NewVehiclePage() {
   const set = (key: keyof FormData, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const parseKm = (value: string) =>
+    parseInt(value.replace(/\./g, "").replace(/,/g, ""), 10) || 0;
+
   const handleFile = (file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
@@ -123,7 +198,7 @@ export default function NewVehiclePage() {
     if (guardDemo()) return;
     setSaving(true);
     setError("");
-    const mileage = parseInt(form.mileage) || 0;
+    const mileage = parseKm(form.mileage);
     const maintenanceItems = MAINTENANCE_TEMPLATES.map((t) => ({ ...t }));
 
     const data: Omit<Vehicle, "id" | "createdAt" | "updatedAt"> = {
@@ -144,7 +219,7 @@ export default function NewVehiclePage() {
       tireBrand: form.tireBrand,
       tireSize: form.tireSize,
       tireInstallDate: form.tireInstallDate,
-      tireMileage: parseInt(form.tireMileage) || 0,
+      tireMileage: parseKm(form.tireMileage),
       batteryBrand: form.batteryBrand,
       batteryCapacity: form.batteryCapacity,
       batteryInstallDate: form.batteryInstallDate,
@@ -154,8 +229,8 @@ export default function NewVehiclePage() {
       greenCardExpiry: form.greenCardExpiry,
       inspectionExpiry: form.inspectionExpiry,
       lastServiceDate: form.lastServiceDate,
-      lastServiceMileage: parseInt(form.lastServiceMileage) || 0,
-      nextServiceMileage: (parseInt(form.lastServiceMileage) || 0) + 10000,
+      lastServiceMileage: parseKm(form.lastServiceMileage),
+      nextServiceMileage: parseKm(form.lastServiceMileage) + 10000,
       maintenanceItems,
       notes: form.notes,
     };
@@ -258,10 +333,13 @@ export default function NewVehiclePage() {
                     </Field>
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Marka" required>
-                        <Select value={form.brand} onValueChange={(v) => v && set("brand", v)}>
-                          <SelectTrigger className={cls}><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                          <SelectContent>{BRANDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <AutocompleteInput
+                          options={BRANDS}
+                          value={form.brand}
+                          onChange={(v) => set("brand", v)}
+                          placeholder="BMW, Toyota..."
+                          className={cls}
+                        />
                       </Field>
                       <Field label="Model" required>
                         <Input className={cls} placeholder="320i, Corolla..." value={form.model} onChange={(e) => set("model", e.target.value)} />
@@ -272,10 +350,14 @@ export default function NewVehiclePage() {
                         <Input className={cls} type="number" placeholder="2024" value={form.year} onChange={(e) => set("year", e.target.value)} />
                       </Field>
                       <Field label="Renk">
-                        <Select value={form.color} onValueChange={(v) => v && set("color", v)}>
-                          <SelectTrigger className={cls}><SelectValue /></SelectTrigger>
-                          <SelectContent>{COLORS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <AutocompleteInput
+                          options={COLORS}
+                          value={form.color}
+                          onChange={(v) => set("color", v)}
+                          placeholder="Beyaz, Siyah..."
+                          className={cls}
+                          allowFreeText
+                        />
                       </Field>
                     </div>
                   </CardContent>
@@ -288,7 +370,7 @@ export default function NewVehiclePage() {
               <Card className="rounded-2xl border-border/40">
                 <CardContent className="p-4 space-y-4">
                   <Field label="Kilometre">
-                    <Input className={cls} type="number" placeholder="45000" value={form.mileage} onChange={(e) => set("mileage", e.target.value)} />
+                    <Input className={cls} type="text" inputMode="numeric" placeholder="45000" value={form.mileage} onChange={(e) => set("mileage", e.target.value)} />
                   </Field>
                   <Field label="Motor Hacmi (L)">
                     <Input className={cls} placeholder="2.0" value={form.engineVolume} onChange={(e) => set("engineVolume", e.target.value)} />

@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${APP_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${APP_URL}/api/payment/callback?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${APP_URL}/pricing`,
       subscription_data: {
         metadata: { company_id: profile.company_id, plan },
