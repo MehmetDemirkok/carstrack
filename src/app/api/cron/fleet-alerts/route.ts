@@ -51,7 +51,18 @@ export async function GET(req: Request) {
   }
   const userEmailMap = new Map(usersData.users.map((u) => [u.id, u.email ?? ""]));
 
-  // ── 3. Tüm profiller (rol + company_id + ad soyad + bildirim tercihi) ──
+  // ── 3. Ücretli plan şirket ID'lerini çek ────────────────────────
+  const { data: paidCompanies, error: companiesErr } = await admin
+    .from("companies")
+    .select("id")
+    .in("plan", ["pro", "fleet"]);
+  if (companiesErr) {
+    console.error("[cron/fleet-alerts] companies error:", companiesErr);
+    return NextResponse.json({ error: "Failed to load companies" }, { status: 500 });
+  }
+  const paidCompanyIds = new Set((paidCompanies ?? []).map((c: { id: string }) => c.id));
+
+  // ── 4. Tüm profiller (rol + company_id + ad soyad + bildirim tercihi) ──
   const { data: profiles, error: profilesErr } = await admin
     .from("profiles")
     .select("id, company_id, role, full_name, notify_by_email")
@@ -61,7 +72,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Failed to load profiles" }, { status: 500 });
   }
 
-  // ── 4. Sürücü → araç atamaları ─────────────────────────────────
+  // ── 5. Sürücü → araç atamaları ─────────────────────────────────
   const { data: assignments } = await admin
     .from("vehicle_assignments")
     .select("driver_id, vehicle_id");
@@ -72,14 +83,14 @@ export async function GET(req: Request) {
     ])
   );
 
-  // ── 5. Tüm araçlar (tek sorgu, RLS bypass) ──────────────────────
+  // ── 6. Tüm araçlar (tek sorgu, RLS bypass) ──────────────────────
   const { data: rawVehicles, error: vehiclesErr } = await admin.from("vehicles").select("*");
   if (vehiclesErr) {
     console.error("[cron/fleet-alerts] vehicles error:", vehiclesErr);
     return NextResponse.json({ error: "Failed to load vehicles" }, { status: 500 });
   }
 
-  // ── 6. Araçları şirket bazında grupla + uyarıları hesapla ───────
+  // ── 7. Araçları şirket bazında grupla + uyarıları hesapla ───────
   const vehiclesByCompany = new Map<string, ReturnType<typeof toVehicleFromRow>[]>();
   for (const row of rawVehicles ?? []) {
     const companyId = row.company_id as string;
@@ -101,11 +112,19 @@ export async function GET(req: Request) {
     }
   }
 
-  // ── 7. Her kullanıcıyı işle ──────────────────────────────────────
+  // ── 8. Her kullanıcıyı işle ──────────────────────────────────────
   const results: { userId: string; status: string; alertCount?: number }[] = [];
 
   for (const profile of profiles ?? []) {
     const userId = profile.id as string;
+    const companyId = profile.company_id as string;
+
+    // Sadece ücretli plan şirketlere gönder
+    if (!paidCompanyIds.has(companyId)) {
+      results.push({ userId, status: "skipped_free_plan" });
+      continue;
+    }
+
     const email = userEmailMap.get(userId);
     if (!email) continue;
 
@@ -181,11 +200,12 @@ export async function GET(req: Request) {
     }
   }
 
-  // ── 11. Özet döndür ─────────────────────────────────────────────
+  // ── 9. Özet döndür ──────────────────────────────────────────────
   const sent = results.filter((r) => r.status === "sent").length;
   const errors = results.filter((r) => r.status === "error").length;
+  const freePlanSkipped = results.filter((r) => r.status === "skipped_free_plan").length;
   const skipped = results.filter((r) => r.status.startsWith("skipped")).length;
 
-  console.log(`[cron/fleet-alerts] done — sent:${sent} errors:${errors} skipped:${skipped}`);
-  return NextResponse.json({ ok: true, sent, errors, skipped, total: results.length });
+  console.log(`[cron/fleet-alerts] done — sent:${sent} errors:${errors} skipped:${skipped} (free_plan:${freePlanSkipped})`);
+  return NextResponse.json({ ok: true, sent, errors, skipped, freePlanSkipped, total: results.length });
 }

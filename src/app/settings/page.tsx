@@ -11,8 +11,9 @@ import {
   Smartphone, Languages, Info, Database, Trash2, Car,
   Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Zap, CreditCard,
 } from "lucide-react";
-import { PLANS } from "@/lib/plans";
+import { PLANS, isPaidPlan } from "@/lib/plans";
 import type { PlanType } from "@/lib/types";
+import { UpgradeModal } from "@/components/upgrade-modal";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -229,12 +230,18 @@ export default function SettingsPage() {
   // E-posta bildirimleri
   const [emailNotif, setEmailNotif] = useState(true);
   const [emailNotifSaving, setEmailNotifSaving] = useState(false);
+  const [showEmailUpgrade, setShowEmailUpgrade] = useState(false);
 
   useEffect(() => {
     if (profile?.notifyByEmail !== undefined) setEmailNotif(profile.notifyByEmail);
   }, [profile?.notifyByEmail]);
 
   const handleEmailNotifToggle = async () => {
+    const currentPlan = (company?.plan ?? "free") as PlanType;
+    if (!isPaidPlan(currentPlan)) {
+      setShowEmailUpgrade(true);
+      return;
+    }
     const next = !emailNotif;
     setEmailNotif(next);
     setEmailNotifSaving(true);
@@ -354,6 +361,11 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 space-y-5 pb-28">
+      <UpgradeModal
+        open={showEmailUpgrade}
+        onClose={() => setShowEmailUpgrade(false)}
+        reason="feature"
+      />
       <h1 className="text-2xl font-outfit font-bold tracking-tight">{t("settings_title")}</h1>
 
       <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
