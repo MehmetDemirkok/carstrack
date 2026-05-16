@@ -17,6 +17,7 @@ import {
   Trash2,
   AlertTriangle,
   Users,
+  Flag,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import {
@@ -569,6 +570,12 @@ function ManagerView() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteSubmitting, setDeleteSubmitting]   = useState(false);
 
+  // End task (manager)
+  const [taskToEnd, setTaskToEnd]         = useState<VehicleTask | null>(null);
+  const [showEndTask, setShowEndTask]     = useState(false);
+  const [managerEndKm, setManagerEndKm]   = useState("");
+  const [endSubmitting, setEndSubmitting] = useState(false);
+
   const hasFilters = fVehicle || fMember || fDept || fFrom || fTo || fStatus;
 
   const departments = Array.from(
@@ -644,6 +651,34 @@ function ManagerView() {
       toast.error((err as { message?: string })?.message ?? "Görev oluşturulamadı");
     } finally {
       setAddSubmitting(false);
+    }
+  }
+
+  function openEndTask(task: VehicleTask) {
+    setTaskToEnd(task);
+    setManagerEndKm("");
+    setShowEndTask(true);
+  }
+
+  async function confirmEndTask() {
+    if (!taskToEnd) return;
+    const km = parseInt(managerEndKm, 10);
+    if (!managerEndKm || isNaN(km)) { toast.error("Geçerli bir bitiş KM girin"); return; }
+    if (km < taskToEnd.startKm) {
+      toast.error(`Bitiş KM, başlangıç KM'den (${formatKm(taskToEnd.startKm)}) küçük olamaz`);
+      return;
+    }
+    setEndSubmitting(true);
+    try {
+      await endTask(taskToEnd.id, km);
+      setShowEndTask(false);
+      setTaskToEnd(null);
+      toast.success("Görev tamamlandı");
+      loadAll();
+    } catch (err: unknown) {
+      toast.error((err as { message?: string })?.message ?? "Görev bitirilemedi");
+    } finally {
+      setEndSubmitting(false);
     }
   }
 
@@ -798,6 +833,15 @@ function ManagerView() {
                         {isActive && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
                         {isActive ? "Aktif" : "Tamamlandı"}
                       </span>
+                      {isActive && (
+                        <button
+                          onClick={() => openEndTask(task)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
+                          title="Görevi Bitir"
+                        >
+                          <Flag className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => requestDelete(task)}
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
@@ -868,12 +912,23 @@ function ManagerView() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{formatDateTime(task.startTime)}</td>
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => requestDelete(task)}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {isActive && (
+                            <button
+                              onClick={() => openEndTask(task)}
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
+                              title="Görevi Bitir"
+                            >
+                              <Flag className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => requestDelete(task)}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1043,6 +1098,67 @@ function ManagerView() {
                 disabled={addSubmitting}
               >
                 {addSubmitting ? "Oluşturuluyor..." : "Evet, Oluştur"}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ── END TASK DIALOG ── */}
+      {showEndTask && taskToEnd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !endSubmitting && setShowEndTask(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative bg-card rounded-3xl border border-green-500/30 shadow-2xl w-full max-w-sm p-6 space-y-5"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-500/10 rounded-xl">
+                <Flag className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-base">Görevi Bitir</h2>
+                <p className="text-xs text-muted-foreground">
+                  {taskToEnd.vehiclePlate ?? "—"} · {taskToEnd.driverName ?? "—"}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-muted/40 rounded-2xl p-3 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Başlangıç KM</span>
+                <span className="font-semibold">{formatKm(taskToEnd.startKm)} km</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Süre</span>
+                <span className="font-semibold">{formatDuration(taskToEnd.startTime)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Bitiş KM</label>
+              <input
+                type="number"
+                min={taskToEnd.startKm}
+                value={managerEndKm}
+                onChange={(e) => setManagerEndKm(e.target.value)}
+                placeholder={`${taskToEnd.startKm} veya daha fazla`}
+                className="w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowEndTask(false)} disabled={endSubmitting}>
+                İptal
+              </Button>
+              <Button
+                className="flex-1 rounded-xl bg-green-600 hover:bg-green-700 text-white border-none font-semibold"
+                onClick={confirmEndTask}
+                disabled={endSubmitting || !managerEndKm}
+              >
+                {endSubmitting ? "Kaydediliyor..." : "Görevi Tamamla"}
               </Button>
             </div>
           </motion.div>

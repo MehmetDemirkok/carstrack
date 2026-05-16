@@ -11,6 +11,8 @@ import { CheckCircle2, XCircle, ArrowLeft, Loader2, Car, ShieldCheck } from "luc
 import { toast } from "sonner";
 import type { PlanType } from "@/lib/types";
 
+const DEMO_EMAIL = "demo@carstrack.app";
+
 function PlanCard({
   plan,
   currentPlan,
@@ -106,12 +108,21 @@ function PlanCard({
 }
 
 export default function PricingPage() {
-  const { company } = useAuth();
+  const { company, user } = useAuth();
   const router = useRouter();
   const currentPlan = (company?.plan ?? "free") as PlanType;
   const [loading, setLoading] = useState(false);
 
   const handleSelect = async (plan: PlanType) => {
+    if (user?.email === DEMO_EMAIL) {
+      toast.warning("Demo Hesabı", {
+        description: "Demo hesabında ödeme yapılamaz. Gerçek bir hesap oluşturun.",
+        action: { label: "Kayıt Ol", onClick: () => router.push("/register") },
+        duration: 5000,
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/payment/checkout", {

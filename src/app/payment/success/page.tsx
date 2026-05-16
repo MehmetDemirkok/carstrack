@@ -18,8 +18,8 @@ function PaymentSuccessContent() {
 
   useEffect(() => {
     if (isOk) {
-      // Auth context planı yenilemesi için kısa bekle
-      const t = setTimeout(() => router.refresh(), 1200);
+      // Dashboard'a yönlendir — sayfa yüklenince auth context planı Supabase'den taze okur
+      const t = setTimeout(() => router.push("/dashboard"), 2500);
       return () => clearTimeout(t);
     }
   }, [isOk, router]);

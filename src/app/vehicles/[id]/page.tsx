@@ -702,6 +702,49 @@ export default function VehicleDetailPage() {
             <DialogTitle className="font-outfit">Araç Düzenle</DialogTitle>
           </DialogHeader>
           <div className="py-3 space-y-5">
+            {/* Fotoğraf */}
+            <div className="space-y-2">
+              <Label className={iLabel}>Araç Fotoğrafı</Label>
+              <div className="relative h-36 rounded-2xl overflow-hidden border-2 border-dashed border-border/50 bg-muted/30 group">
+                {editData.image ? (
+                  <>
+                    <Image src={editData.image} alt="Araç" fill className="object-cover" sizes="600px" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                      <label className="cursor-pointer bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors">
+                        Değiştir
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onloadend = () => setEditData((d) => ({ ...d, image: reader.result as string }));
+                          reader.readAsDataURL(file);
+                        }} />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setEditData((d) => ({ ...d, image: "" }))}
+                        className="bg-red-500/80 hover:bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors"
+                      >
+                        Sil
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <label className="absolute inset-0 cursor-pointer flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                    <Car className="h-8 w-8 opacity-30" />
+                    <span className="text-xs font-medium">Fotoğraf ekle</span>
+                    <span className="text-[10px] opacity-60">Tıkla veya dosya seç</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onloadend = () => setEditData((d) => ({ ...d, image: reader.result as string }));
+                      reader.readAsDataURL(file);
+                    }} />
+                  </label>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Kimlik</p>
