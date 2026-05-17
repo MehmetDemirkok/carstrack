@@ -20,6 +20,29 @@ import { canAddVehicle } from "@/lib/plans";
 import { UpgradeModal } from "@/components/upgrade-modal";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
+const MODELS: Record<string, string[]> = {
+  "Audi":          ["A1","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","TT","R8","e-tron","e-tron GT","RS3","RS4","RS5","RS6","RS7"],
+  "BMW":           ["116i","118i","120i","M135i","218i","220i","M240i","316i","318i","320i","320d","330i","M3","418i","420i","430i","M4","520i","530i","540i","M5","730i","740i","X1","X2","X3","X4","X5","X6","X7","Z4","i3","i4","i5","i7","iX"],
+  "Chevrolet":     ["Spark","Aveo","Cruze","Malibu","Camaro","Corvette","Equinox","Trax","Traverse","Suburban","Tahoe","Silverado"],
+  "Citroën":       ["C1","C3","C3 Aircross","C4","C4 X","C5","C5 Aircross","C5 X","Berlingo","SpaceTourer","Jumpy","ë-C4"],
+  "Dacia":         ["Sandero","Sandero Stepway","Logan","Logan MCV","Duster","Dokker","Lodgy","Spring","Jogger","Bigster"],
+  "Fiat":          ["500","500C","500X","500e","Panda","Punto","Tipo","Tipo Cross","Egea","Egea Cross","Doblo","Fiorino","Ducato"],
+  "Ford":          ["Fiesta","Focus","Mondeo","Mustang","Mustang Mach-E","Puma","Kuga","Explorer","Edge","Ranger","Transit","Transit Connect","Transit Courier","EcoSport","Galaxy","S-Max"],
+  "Honda":         ["Jazz","Civic","Civic Type R","Accord","HR-V","CR-V","e","ZR-V","Pilot","Ridgeline","e:Ny1"],
+  "Hyundai":       ["i10","i20","i30","i30 N","Elantra","Sonata","Tucson","Santa Fe","Kona","Venue","Ioniq","Ioniq 5","Ioniq 6","Bayon","Nexo"],
+  "Kia":           ["Picanto","Rio","Ceed","Ceed SW","ProCeed","Cerato","Stinger","Sportage","Sorento","Niro","EV6","EV9","XCeed"],
+  "Mercedes-Benz": ["A 180","A 200","A 250","B 180","B 200","C 180","C 200","C 220d","C 300","E 200","E 220d","E 300","S 400","S 450","GLA 200","GLA 250","GLB 200","GLC 200","GLC 300","GLE 300d","GLE 350","GLS 400","CLA 200","CLA 250","CLS 300","AMG GT","EQA","EQB","EQC","EQE","EQS","Vito","Sprinter"],
+  "Nissan":        ["Micra","Note","Leaf","Juke","Qashqai","X-Trail","Ariya","Navara","NV200","Pulsar","Patrol"],
+  "Opel":          ["Corsa","Corsa-e","Astra","Astra Sports Tourer","Insignia","Grandland","Grandland X","Crossland","Mokka","Zafira","Combo","Vivaro"],
+  "Peugeot":       ["108","208","308","308 SW","408","508","508 SW","2008","3008","5008","Rifter","Partner","Traveller","Expert","e-208","e-2008"],
+  "Renault":       ["Clio","Megane","Megane E-Tech","Laguna","Fluence","Symbol","Zoe","Captur","Kadjar","Koleos","Trafic","Master","Arkana","Austral","Espace"],
+  "Seat":          ["Ibiza","Leon","Leon ST","Arona","Ateca","Tarraco","Cupra Born","Cupra Formentor","Cupra Leon"],
+  "Škoda":         ["Fabia","Scala","Octavia","Octavia Combi","Superb","Superb Combi","Kamiq","Karoq","Kodiaq","Enyaq","Citigo"],
+  "Tesla":         ["Model 3","Model S","Model X","Model Y","Cybertruck"],
+  "Toyota":        ["Aygo","Aygo X","Yaris","Yaris Cross","Corolla","Corolla Cross","Camry","C-HR","RAV4","Prius","Land Cruiser","Hilux","HiAce","bZ4X","Proace"],
+  "Volkswagen":    ["Polo","Golf","Golf Variant","Passat","Passat Variant","Arteon","T-Cross","T-Roc","Tiguan","Touareg","ID.3","ID.4","ID.5","ID.7","Caddy","Transporter","Amarok"],
+  "Volvo":         ["S60","S90","V60","V60 Cross Country","V90","V90 Cross Country","XC40","XC60","XC90","C40 Recharge","EX30","EX90"],
+};
 const FUEL_TYPES: FuelType[] = ["Benzin", "Dizel", "LPG", "Hibrit", "Elektrik"];
 const TRANSMISSIONS: TransmissionType[] = ["Manuel", "Otomatik", "CVT", "DSG", "Yarı Otomatik"];
 const TIRE_SEASONS: TireSeasonType[] = ["Yazlık", "Kışlık", "Dört Mevsim"];
@@ -53,7 +76,9 @@ function AutocompleteInput({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const select = (opt: string) => { onChange(opt); setQuery(opt); setOpen(false); };
+  const [activeIdx, setActiveIdx] = useState(-1);
+
+  const select = (opt: string) => { onChange(opt); setQuery(opt); setOpen(false); setActiveIdx(-1); };
 
   return (
     <div ref={ref} className="relative">
@@ -62,30 +87,48 @@ function AutocompleteInput({
           type="text"
           value={query}
           placeholder={placeholder}
-          className={`${className} w-full pr-8`}
+          className={`${className} w-full pr-8 border px-3 outline-none`}
           onChange={(e) => {
             setQuery(e.target.value);
             if (allowFreeText) onChange(e.target.value);
             setOpen(true);
+            setActiveIdx(-1);
           }}
           onFocus={() => setOpen(true)}
           onBlur={() => {
             setTimeout(() => {
-              if (!allowFreeText && !options.includes(query)) {
-                setQuery(value);
+              if (!allowFreeText) {
+                const match = options.find(o => o.toLowerCase() === query.toLowerCase());
+                if (match) { onChange(match); setQuery(match); }
+                else setQuery(value);
               }
             }, 150);
+          }}
+          onKeyDown={(e) => {
+            if (!open) return;
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setActiveIdx(i => Math.min(i + 1, filtered.length - 1));
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setActiveIdx(i => Math.max(i - 1, 0));
+            } else if (e.key === "Enter" && filtered.length > 0) {
+              e.preventDefault();
+              select(activeIdx >= 0 ? filtered[activeIdx] : filtered[0]);
+            } else if (e.key === "Escape") {
+              setOpen(false);
+            }
           }}
         />
         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
       </div>
       {open && filtered.length > 0 && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-          {filtered.map((opt) => (
+          {filtered.map((opt, i) => (
             <button
               key={opt}
               type="button"
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${opt === value ? "text-primary font-semibold" : "text-foreground"}`}
+              className={`w-full text-left px-3 py-2 text-sm transition-colors ${i === activeIdx ? "bg-primary/10 text-primary" : opt === value ? "text-primary font-semibold hover:bg-muted" : "text-foreground hover:bg-muted"}`}
               onMouseDown={() => select(opt)}
             >
               {opt}
@@ -342,7 +385,14 @@ export default function NewVehiclePage() {
                         />
                       </Field>
                       <Field label="Model" required>
-                        <Input className={cls} placeholder="320i, Corolla..." value={form.model} onChange={(e) => set("model", e.target.value)} />
+                        <AutocompleteInput
+                          options={MODELS[form.brand] ?? []}
+                          value={form.model}
+                          onChange={(v) => set("model", v)}
+                          placeholder="320i, Corolla..."
+                          className={cls}
+                          allowFreeText
+                        />
                       </Field>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
