@@ -9,6 +9,7 @@ import { CommandPaletteProvider } from "@/context/command-palette-context";
 import { CommandPalette } from "@/components/command-palette";
 import { ProfileCompletionNotice } from "@/components/profile-completion-notice";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
@@ -144,6 +145,7 @@ export default function RootLayout({
           </LanguageProvider>
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
