@@ -48,7 +48,8 @@
       "Bash(grep -E \"\\\\.tsx$|^d\")",
       "Bash(npm uninstall *)",
       "Bash(npm ls *)",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(npx shadcn *)"
     ]
   }
 }

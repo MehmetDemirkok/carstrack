@@ -18,6 +18,7 @@ import { useAuth } from "@/context/auth-context";
 import { getVehicles } from "@/lib/db";
 import { canAddVehicle } from "@/lib/plans";
 import { UpgradeModal } from "@/components/upgrade-modal";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
 const MODELS: Record<string, string[]> = {
@@ -465,7 +466,7 @@ export default function NewVehiclePage() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Takılma Tarihi">
-                        <Input className={cls} type="date" value={form.tireInstallDate} onChange={(e) => set("tireInstallDate", e.target.value)} />
+                        <DatePicker value={form.tireInstallDate} onChange={(v) => set("tireInstallDate", v)} />
                       </Field>
                       <Field label="Takıldığındaki km">
                         <Input className={cls} type="number" placeholder="0" value={form.tireMileage} onChange={(e) => set("tireMileage", e.target.value)} />
@@ -496,7 +497,7 @@ export default function NewVehiclePage() {
                       </Field>
                     </div>
                     <Field label="Değişim Tarihi">
-                      <Input className={cls} type="date" value={form.batteryInstallDate} onChange={(e) => set("batteryInstallDate", e.target.value)} />
+                      <DatePicker value={form.batteryInstallDate} onChange={(v) => set("batteryInstallDate", v)} />
                     </Field>
                   </CardContent>
                 </Card>
@@ -512,7 +513,7 @@ export default function NewVehiclePage() {
                     <Input className={cls} placeholder="Allianz, Axa..." value={form.insuranceCompany} onChange={(e) => set("insuranceCompany", e.target.value)} />
                   </Field>
                   <Field label="Sigorta Bitiş Tarihi">
-                    <Input className={cls} type="date" value={form.insuranceExpiry} onChange={(e) => set("insuranceExpiry", e.target.value)} />
+                    <DatePicker value={form.insuranceExpiry} onChange={(v) => set("insuranceExpiry", v)} />
                   </Field>
                   <div className="h-px bg-border/40" />
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Yurtdışı Sigortası (Yeşil Kart)</h3>
@@ -520,15 +521,15 @@ export default function NewVehiclePage() {
                     <Input className={cls} placeholder="Allianz, Axa..." value={form.greenCardCompany} onChange={(e) => set("greenCardCompany", e.target.value)} />
                   </Field>
                   <Field label="Yeşil Kart Bitiş Tarihi">
-                    <Input className={cls} type="date" value={form.greenCardExpiry} onChange={(e) => set("greenCardExpiry", e.target.value)} />
+                    <DatePicker value={form.greenCardExpiry} onChange={(v) => set("greenCardExpiry", v)} />
                   </Field>
                   <div className="h-px bg-border/40" />
                   <Field label="TÜVTÜRK Muayene Bitiş">
-                    <Input className={cls} type="date" value={form.inspectionExpiry} onChange={(e) => set("inspectionExpiry", e.target.value)} />
+                    <DatePicker value={form.inspectionExpiry} onChange={(v) => set("inspectionExpiry", v)} />
                   </Field>
                   <div className="h-px bg-border/40" />
                   <Field label="Son Servis Tarihi">
-                    <Input className={cls} type="date" value={form.lastServiceDate} onChange={(e) => set("lastServiceDate", e.target.value)} />
+                    <DatePicker value={form.lastServiceDate} onChange={(v) => set("lastServiceDate", v)} />
                   </Field>
                   <Field label="Son Servisteki km">
                     <Input className={cls} type="number" placeholder="0" value={form.lastServiceMileage} onChange={(e) => set("lastServiceMileage", e.target.value)} />

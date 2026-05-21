@@ -33,6 +33,7 @@ import {
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown,
 } from "lucide-react";
 import { exportVehicleReportPDF } from "@/lib/pdf-export";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
 const fadeUp = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
@@ -931,10 +932,10 @@ export default function VehicleDetailPage() {
                     <SelectContent>{TIRE_SEASONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1"><Label className={iLabel}>Sigorta Bitiş</Label><Input className={iCls} type="date" value={editData.insuranceExpiry || ""} onChange={(e) => setEditData((d) => ({ ...d, insuranceExpiry: e.target.value }))} /></div>
-                <div className="space-y-1"><Label className={iLabel}>Yeşil Kart Bitiş</Label><Input className={iCls} type="date" value={editData.greenCardExpiry || ""} onChange={(e) => setEditData((d) => ({ ...d, greenCardExpiry: e.target.value }))} /></div>
-                <div className="space-y-1"><Label className={iLabel}>Muayene Bitiş</Label><Input className={iCls} type="date" value={editData.inspectionExpiry || ""} onChange={(e) => setEditData((d) => ({ ...d, inspectionExpiry: e.target.value }))} /></div>
-                <div className="space-y-1"><Label className={iLabel}>Son Servis Tarihi</Label><Input className={iCls} type="date" value={editData.lastServiceDate || ""} onChange={(e) => setEditData((d) => ({ ...d, lastServiceDate: e.target.value }))} /></div>
+                <div className="space-y-1"><Label className={iLabel}>Sigorta Bitiş</Label><DatePicker value={editData.insuranceExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, insuranceExpiry: v }))} /></div>
+                <div className="space-y-1"><Label className={iLabel}>Yeşil Kart Bitiş</Label><DatePicker value={editData.greenCardExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, greenCardExpiry: v }))} /></div>
+                <div className="space-y-1"><Label className={iLabel}>Muayene Bitiş</Label><DatePicker value={editData.inspectionExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, inspectionExpiry: v }))} /></div>
+                <div className="space-y-1"><Label className={iLabel}>Son Servis Tarihi</Label><DatePicker value={editData.lastServiceDate || ""} onChange={(v) => setEditData((d) => ({ ...d, lastServiceDate: v }))} /></div>
               </div>
             </div>
           </div>
@@ -955,7 +956,7 @@ export default function VehicleDetailPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className={iLabel}>Tarih</Label>
-                <Input className={iCls} type="date" value={recordForm.date} onChange={(e) => setRecordForm((f) => ({ ...f, date: e.target.value }))} />
+                <DatePicker value={recordForm.date} onChange={(v) => setRecordForm((f) => ({ ...f, date: v }))} />
               </div>
               <div className="space-y-1">
                 <Label className={iLabel}>Tür</Label>
@@ -1034,7 +1035,7 @@ export default function VehicleDetailPage() {
             <p className="text-xs text-muted-foreground">En son ne zaman yapıldığını girin. Boş bırakırsanız kayıt temizlenir.</p>
             <div className="space-y-1">
               <Label className={iLabel}>Son Yapılma Tarihi</Label>
-              <Input className={iCls} type="date" value={maintEditDate} onChange={(e) => setMaintEditDate(e.target.value)} />
+              <DatePicker value={maintEditDate} onChange={setMaintEditDate} />
             </div>
             {maintEditItem?.intervalKm && (
               <div className="space-y-1">
