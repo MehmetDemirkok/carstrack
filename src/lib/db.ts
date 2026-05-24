@@ -510,6 +510,17 @@ export async function updateMemberProfile(
   if (updates.department !== undefined) patch.department = updates.department;
   const { error } = await supabase.from("profiles").update(patch).eq("id", memberId);
   if (error) throw error;
+  bustCache("members:");
+}
+
+export async function updateMemberRole(
+  memberId: string,
+  role: "manager" | "driver"
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("profiles").update({ role }).eq("id", memberId);
+  if (error) throw error;
+  bustCache("members:");
 }
 
 export async function unassignDriver(driverId: string): Promise<void> {

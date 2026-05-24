@@ -217,7 +217,8 @@ export default function VehicleDetailPage() {
   const router = useRouter();
   const id = params.id as string;
   const guardDemo = useDemoGuard();
-  const { loading: authLoading, company } = useAuth();
+  const { loading: authLoading, company, profile } = useAuth();
+  const isDriver = profile?.role === "driver";
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [records, setRecords] = useState<ServiceRecord[]>([]);
@@ -355,12 +356,16 @@ export default function VehicleDetailPage() {
             <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-primary/10" onClick={() => exportVehicleReportPDF(vehicle, records)}>
               <FileDown className="h-4 w-4 text-muted-foreground" />
             </Button>
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => setShowDelete(true)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-primary/10" onClick={openEdit}>
-              <Settings className="h-4 w-4 text-muted-foreground" />
-            </Button>
+            {!isDriver && (
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => setShowDelete(true)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            {!isDriver && (
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-primary/10" onClick={openEdit}>
+                <Settings className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -378,15 +383,19 @@ export default function VehicleDetailPage() {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="gap-2 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => setShowDelete(true)}>
-              <Trash2 className="h-4 w-4" /> Sil
-            </Button>
+            {!isDriver && (
+              <Button variant="outline" className="gap-2 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => setShowDelete(true)}>
+                <Trash2 className="h-4 w-4" /> Sil
+              </Button>
+            )}
             <Button variant="outline" className="gap-2 rounded-xl" onClick={() => exportVehicleReportPDF(vehicle, records)}>
               <FileDown className="h-4 w-4" /> PDF
             </Button>
-            <Button variant="outline" className="gap-2 rounded-xl" onClick={openEdit}>
-              <Settings className="h-4 w-4" /> Düzenle
-            </Button>
+            {!isDriver && (
+              <Button variant="outline" className="gap-2 rounded-xl" onClick={openEdit}>
+                <Settings className="h-4 w-4" /> Düzenle
+              </Button>
+            )}
           </div>
         </div>
 
@@ -779,12 +788,14 @@ export default function VehicleDetailPage() {
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <span className="text-[11px] font-bold">{record.mileage.toLocaleString("tr-TR")} km</span>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={() => {
-                                  setRecordToDelete(record.id);
-                                  setShowDeleteRecord(true);
-                                }}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
+                                {!isDriver && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={() => {
+                                    setRecordToDelete(record.id);
+                                    setShowDeleteRecord(true);
+                                  }}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
                               </div>
                             </div>
                             {record.notes && (

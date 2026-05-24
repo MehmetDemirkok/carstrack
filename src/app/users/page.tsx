@@ -13,6 +13,7 @@ import {
   assignVehicle,
   unassignVehicle,
   updateMemberProfile,
+  updateMemberRole,
 } from "@/lib/db";
 import type { Vehicle, VehicleTask, Profile } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ export default function UsersPage() {
   const [editMember, setEditMember] = useState<Profile | null>(null);
   const [editName, setEditName] = useState("");
   const [editDept, setEditDept] = useState("");
+  const [editRole, setEditRole] = useState<"manager" | "driver">("driver");
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Assign dialog
@@ -117,6 +119,7 @@ export default function UsersPage() {
     setEditMember(member);
     setEditName(member.fullName);
     setEditDept(member.department ?? "");
+    setEditRole(member.role);
   }
 
   async function saveEdit() {
@@ -125,6 +128,9 @@ export default function UsersPage() {
     setEditSubmitting(true);
     try {
       await updateMemberProfile(editMember.id, { fullName: editName.trim(), department: editDept.trim() });
+      if (editRole !== editMember.role) {
+        await updateMemberRole(editMember.id, editRole);
+      }
       setEditMember(null);
       toast.success("Profil güncellendi");
       await loadAll();
@@ -363,9 +369,44 @@ export default function UsersPage() {
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Departman / Ünvan</label>
                 <input type="text" value={editDept} onChange={(e) => setEditDept(e.target.value)} placeholder="Örn: Lojistik, Dağıtım, Kurye" className={inputCls} />
               </div>
-              <div className="bg-muted/40 rounded-2xl px-4 py-3 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Rol</span>
-                <span className="text-xs font-semibold">{editMember.role === "manager" ? "Şirket Yetkilisi" : "Sürücü"}</span>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rol</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditRole("driver")}
+                    disabled={editMember.id === user?.id}
+                    className={`flex-1 h-10 rounded-xl text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      editRole === "driver"
+                        ? "bg-muted border-primary text-primary"
+                        : "bg-background border-border text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    Sürücü
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditRole("manager")}
+                    disabled={editMember.id === user?.id}
+                    className={`flex-1 h-10 rounded-xl text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      editRole === "manager"
+                        ? "bg-primary/10 border-primary text-primary"
+                        : "bg-background border-border text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    Şirket Yetkilisi
+                  </button>
+                </div>
+                {editRole !== editMember.role && (
+                  <p className="text-[11px] text-amber-500 dark:text-amber-400">
+                    {editRole === "manager"
+                      ? "Bu kullanıcı şirkette 2. yetkili olarak tüm yetkilere sahip olacak."
+                      : "Bu kullanıcının yönetici yetkileri kaldırılacak."}
+                  </p>
+                )}
+                {editMember.id === user?.id && (
+                  <p className="text-[11px] text-muted-foreground">Kendi rolünüzü değiştiremezsiniz.</p>
+                )}
               </div>
             </div>
 

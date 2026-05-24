@@ -13,7 +13,7 @@ import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle } from "@/lib/db";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, CheckCircle2, Camera, Info, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getVehicles } from "@/lib/db";
 import { canAddVehicle } from "@/lib/plans";
@@ -201,7 +201,8 @@ function Field({ label, required, children }: { label: string; required?: boolea
 export default function NewVehiclePage() {
   const router = useRouter();
   const guardDemo = useDemoGuard();
-  const { company } = useAuth();
+  const { company, profile } = useAuth();
+
   const limitChecked = useRef(false);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
@@ -295,6 +296,29 @@ export default function NewVehiclePage() {
   };
 
   const cls = "rounded-xl h-11 bg-muted/30 border-border/40 text-sm focus-visible:ring-primary/30";
+
+  if (profile?.role === "driver") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }} className="mb-6">
+          <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center">
+            <ShieldCheck className="h-10 w-10 text-destructive" />
+          </div>
+        </motion.div>
+        <motion.h2 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="text-xl font-outfit font-bold">
+          Yetkiniz Yok
+        </motion.h2>
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="text-sm text-muted-foreground mt-2 max-w-xs">
+          Araç eklemek için şirket yetkilisi iznine ihtiyacınız var. Lütfen şirketinizin yetkilisiyle iletişime geçin.
+        </motion.p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}>
+          <Button variant="outline" className="mt-6 rounded-xl" onClick={() => router.back()}>
+            Geri Dön
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (done) {
     return (

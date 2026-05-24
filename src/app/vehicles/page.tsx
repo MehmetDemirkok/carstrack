@@ -37,7 +37,8 @@ const tireColor = {
 
 export default function VehiclesPage() {
   const guardDemo = useDemoGuard();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isDriver = profile?.role === "driver";
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -133,7 +134,7 @@ export default function VehiclesPage() {
               <Download className="h-4 w-4" />
             </Button>
           )}
-          {vehicles.length > 0 && (
+          {!isDriver && vehicles.length > 0 && (
             <Button
               variant={isSelectionMode ? "default" : "outline"}
               size="sm"
@@ -143,7 +144,7 @@ export default function VehiclesPage() {
               {isSelectionMode ? "İptal" : "Seç"}
             </Button>
           )}
-          {!isSelectionMode && (
+          {!isDriver && !isSelectionMode && (
             <Link href="/vehicles/new">
               <Button size="sm" className="rounded-full h-9 px-4 gap-1.5 shadow-md font-semibold">
                 <Plus className="h-4 w-4" />
