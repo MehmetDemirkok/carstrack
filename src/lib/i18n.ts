@@ -73,7 +73,7 @@ export const translations = {
     // Account
     settings_account: "Hesap",
     settings_logout: "Çıkış Yap",
-    role_manager: "Yönetici",
+    role_manager: "Şirket Yetkilisi",
     role_driver: "Sürücü",
 
     // Privacy page
@@ -122,8 +122,8 @@ export const translations = {
     help_q10: "Görevi nasıl başlatır ve bitiririm?",
     help_a10: "Görevler listesinde göreve tıklayın, 'Başlat' butonuyla aktif edin. Tamamlanınca 'Bitir' butonuna basın.",
     // Hesap & Ayarlar
-    help_q11: "Şoför nasıl ekleniyor?",
-    help_a11: "Ayarlar > Kullanıcılar bölümünden 'Şoför Ekle'ye basın. Şoför davet e-postası alacak ve şirkete katılacak.",
+    help_q11: "Sürücü nasıl ekleniyor?",
+    help_a11: "Ayarlar > Kullanıcılar bölümünden 'Sürücü Ekle'ye basın. Sürücü davet e-postası alacak ve şirkete katılacak.",
     help_q12: "Şifremi unuttum, ne yapmalıyım?",
     help_a12: "Giriş ekranındaki 'Şifremi Unuttum' bağlantısına tıklayın. E-posta adresinize sıfırlama linki gönderilir.",
     help_q13: "Servis verilerimi Excel'e aktarabilir miyim?",

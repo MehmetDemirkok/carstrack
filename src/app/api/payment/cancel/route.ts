@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (profile?.role !== "manager") {
-      return NextResponse.json({ error: "Sadece yöneticiler aboneliği iptal edebilir" }, { status: 403 });
+      return NextResponse.json({ error: "Sadece şirket yetkilileri aboneliği iptal edebilir" }, { status: 403 });
     }
 
     const company = (

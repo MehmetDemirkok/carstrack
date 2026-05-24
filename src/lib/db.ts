@@ -122,6 +122,8 @@ function toVehicle(row: Record<string, unknown>): Vehicle {
     year: row.year as number,
     color: (row.color as string) || "",
     image: (row.image as string) || "",
+    imagePosition: (row.image_position as number) ?? 50,
+    imageZoom: (row.image_zoom as number) ?? 100,
     mileage: (row.mileage as number) || 0,
     engineType: (row.engine_type as string) || "",
     engineVolume: (row.engine_volume as string) || "",
@@ -161,6 +163,8 @@ function toDbVehicle(v: Partial<Vehicle>, companyId?: string) {
   if (v.year !== undefined) obj.year = v.year;
   if (v.color !== undefined) obj.color = v.color;
   if (v.image !== undefined) obj.image = v.image;
+  if (v.imagePosition !== undefined) obj.image_position = v.imagePosition;
+  if (v.imageZoom !== undefined) obj.image_zoom = v.imageZoom;
   if (v.mileage !== undefined) obj.mileage = v.mileage;
   if (v.engineType !== undefined) obj.engine_type = v.engineType;
   if (v.engineVolume !== undefined) obj.engine_volume = v.engineVolume;

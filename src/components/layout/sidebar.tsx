@@ -138,7 +138,7 @@ export function Sidebar() {
               <span className="text-sm font-semibold text-foreground truncate">{profile.fullName || "Kullanıcı"}</span>
               <span className="text-muted-foreground mt-0.5"
                 style={{ fontSize: "0.58rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
-                {profile.role === "manager" ? "YÖNETİCİ" : "ŞOFÖR"}
+                {profile.role === "manager" ? "ŞİRKET YETKİLİSİ" : "SÜRÜCÜ"}
               </span>
             </div>
           </Link>

@@ -77,7 +77,7 @@ const features = [
   {
     icon: Users,
     title: "Ekip Yönetimi",
-    desc: "Yönetici ve şoför rolleri ile araç atama, seyahat takibi ve koordinasyonu kolayca yönetin.",
+    desc: "Şirket yetkilisi ve sürücü rolleri ile araç atama, seyahat takibi ve koordinasyonu kolayca yönetin.",
     color: "#ec4899",
     bg: "rgba(236,72,153,0.1)",
   },

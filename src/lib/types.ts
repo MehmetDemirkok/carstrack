@@ -53,6 +53,8 @@ export interface Vehicle {
   year: number;
   color: string;
   image?: string;
+  imagePosition?: number;
+  imageZoom?: number;
   mileage: number;
   engineType: string;
   engineVolume: string;

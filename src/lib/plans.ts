@@ -26,7 +26,7 @@ export const PLANS: Record<PlanType, PlanDefinition> = {
     color: "#6b7280",
     features: [
       "2 araç",
-      "3 kullanıcı (1 yönetici + 2 şoför)",
+      "3 kullanıcı (1 şirket yetkilisi + 2 sürücü)",
       "Bakım takibi",
       "Sigorta & muayene takibi",
       "Servis geçmişi",

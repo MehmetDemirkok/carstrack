@@ -431,7 +431,7 @@ export default function RegisterPage() {
                       required
                     />
                     <p style={{ color: "var(--muted-foreground)", fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace", paddingLeft: 2 }}>
-                      Yöneticinizden aldığınız 8 haneli kodu girin.
+                      Şirket yetkilisinden aldığınız 8 haneli kodu girin.
                     </p>
                   </motion.div>
                 )}

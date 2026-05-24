@@ -499,7 +499,7 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <div className="bg-muted/50 border border-border/40 rounded-xl px-4 py-3 text-xs text-muted-foreground">
-                    Davet kodu henüz oluşturulmamış. Lütfen yönetici ile iletişime geçin.
+                    Davet kodu henüz oluşturulmamış. Lütfen şirket yetkilisi ile iletişime geçin.
                   </div>
                 )}
 

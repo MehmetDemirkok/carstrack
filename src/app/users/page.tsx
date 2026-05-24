@@ -203,7 +203,7 @@ export default function UsersPage() {
         {[
           { label: "Toplam Üye", value: members.length, Icon: Users, accent: false },
           { label: "Aktif Seyahat", value: activeCount, Icon: Route, accent: activeCount > 0 },
-          { label: "Şoför", value: driverCount, Icon: Car, accent: false },
+          { label: "Sürücü", value: driverCount, Icon: Car, accent: false },
         ].map(({ label, value, Icon, accent }) => (
           <div
             key={label}
@@ -264,7 +264,7 @@ export default function UsersPage() {
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                         member.role === "manager" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                       }`}>
-                        {member.role === "manager" ? "Yönetici" : "Şoför"}
+                        {member.role === "manager" ? "Şirket Yetkilisi" : "Sürücü"}
                       </span>
                     </div>
 
@@ -365,7 +365,7 @@ export default function UsersPage() {
               </div>
               <div className="bg-muted/40 rounded-2xl px-4 py-3 flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Rol</span>
-                <span className="text-xs font-semibold">{editMember.role === "manager" ? "Yönetici" : "Şoför"}</span>
+                <span className="text-xs font-semibold">{editMember.role === "manager" ? "Şirket Yetkilisi" : "Sürücü"}</span>
               </div>
             </div>
 
@@ -465,7 +465,7 @@ export default function UsersPage() {
 
               {availableVehicles.length === 0 && currentVehicles.length > 0 && (
                 <p className="text-xs text-muted-foreground text-center bg-muted/30 rounded-2xl px-4 py-3">
-                  Tüm araçlar bu şoföre atanmış
+                  Tüm araçlar bu sürücüye atanmış
                 </p>
               )}
 

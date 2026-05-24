@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const DRIVER_EMAIL     = "sofor@carstrack.app";
 const DRIVER_PASSWORD  = "Sofor1234!";
-const DRIVER_FULL_NAME = "Ahmet Şoför";
+const DRIVER_FULL_NAME = "Ahmet Sürücü";
 
 function ts(daysAgo: number, hour: number, minute = 0): string {
   const d = new Date();
@@ -104,7 +104,7 @@ export async function POST() {
 
     if (!company) {
       return NextResponse.json(
-        { error: "Demo şirketi bulunamadı. Önce yönetici demoyu başlatın." },
+        { error: "Demo şirketi bulunamadı. Önce şirket yetkilisi demoyu başlatın." },
         { status: 404 }
       );
     }

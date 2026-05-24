@@ -85,7 +85,7 @@ export default function TasksPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">
-            {profile?.role === "driver" ? "Şoför Paneli" : "Görev Takibi"}
+            {profile?.role === "driver" ? "Sürücü Paneli" : "Görev Takibi"}
           </h1>
           <p className="text-sm text-muted-foreground">
             {profile?.role === "manager"
@@ -233,14 +233,14 @@ function StaffView() {
           <div className="flex items-start justify-between relative">
             <div>
               <p className="text-xs text-muted-foreground">Hoş geldin,</p>
-              <h2 className="text-xl font-bold mt-0.5">{profile?.fullName ?? "Şoför"}</h2>
+              <h2 className="text-xl font-bold mt-0.5">{profile?.fullName ?? "Sürücü"}</h2>
               <div className="flex items-center gap-1.5 mt-1">
                 {company?.name && (
                   <span className="text-xs text-muted-foreground">{company.name}</span>
                 )}
                 {company?.name && <span className="text-muted-foreground/40 text-xs">•</span>}
                 <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
-                  Şoför
+                  Sürücü
                 </span>
               </div>
             </div>
@@ -406,7 +406,7 @@ function StaffView() {
                   <div className="text-center py-6 text-muted-foreground bg-muted/20 rounded-2xl">
                     <Car className="h-8 w-8 mx-auto mb-2 opacity-30" />
                     <p className="text-sm">Henüz araç atanmamış</p>
-                    <p className="text-xs mt-0.5">Yöneticinizden araç ataması isteyin</p>
+                    <p className="text-xs mt-0.5">Şirket yetkilisinden araç ataması isteyin</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -1054,7 +1054,7 @@ function ManagerView() {
               <div>
                 <h2 className="font-bold text-base">Kritik İşlem Onayı</h2>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Yönetici olarak görev oluşturmak, seçilen personele <span className="font-semibold text-foreground">araç kullanım yetkisi</span> verir ve kilometre takibini başlatır. Bu işlem sistemde kalıcı bir kayıt oluşturur.
+                  Şirket yetkilisi olarak görev oluşturmak, seçilen personele <span className="font-semibold text-foreground">araç kullanım yetkisi</span> verir ve kilometre takibini başlatır. Bu işlem sistemde kalıcı bir kayıt oluşturur.
                 </p>
               </div>
 

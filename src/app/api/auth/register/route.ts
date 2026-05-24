@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         .single();
 
       if (companyError || !company) {
-        return NextResponse.json({ error: "Geçersiz davet kodu. Yöneticinizden kontrol edin." }, { status: 400 });
+        return NextResponse.json({ error: "Geçersiz davet kodu. Şirket yetkilinizden kontrol edin." }, { status: 400 });
       }
 
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({

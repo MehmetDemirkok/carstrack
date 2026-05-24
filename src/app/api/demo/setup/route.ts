@@ -8,7 +8,7 @@ const DEMO_FULL_NAME    = "Demo Kullanıcı";
 
 const DRIVER_EMAIL     = "sofor@carstrack.app";
 const DRIVER_PASSWORD  = "Sofor1234!";
-const DRIVER_FULL_NAME = "Ahmet Şoför";
+const DRIVER_FULL_NAME = "Ahmet Sürücü";
 
 // Always relative to today
 const D = {
@@ -75,7 +75,7 @@ function makeMaintItems(mileage: number, scenario: MaintScenario) {
 
 function buildVehicles(companyId: string) {
   return [
-    // 1. BMW 320i — Sağlıklı, yöneticinin aracı
+    // 1. BMW 320i — Sağlıklı, şirket yetkilisinin aracı
     {
       company_id: companyId,
       plate: "34 ABK 001",

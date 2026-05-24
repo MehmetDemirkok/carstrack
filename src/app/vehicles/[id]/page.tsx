@@ -393,7 +393,18 @@ export default function VehicleDetailPage() {
         {/* Hero image */}
         <div className="relative h-56 md:h-80 w-full bg-muted md:rounded-3xl overflow-hidden shadow-md">
           {vehicle.image ? (
-            <Image src={vehicle.image} alt={vehicle.brand} fill className="object-cover" sizes="768px" />
+            <Image
+              src={vehicle.image}
+              alt={vehicle.brand}
+              fill
+              className="object-cover"
+              sizes="768px"
+              style={{
+                objectPosition: `center ${vehicle.imagePosition ?? 50}%`,
+                transform: `scale(${(vehicle.imageZoom ?? 100) / 100})`,
+                transformOrigin: `center ${vehicle.imagePosition ?? 50}%`,
+              }}
+            />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 to-primary/10 flex items-center justify-center">
               <Car className="h-24 w-24 text-primary/30" />
@@ -824,7 +835,21 @@ export default function VehicleDetailPage() {
               <div className="relative h-36 rounded-2xl overflow-hidden border-2 border-dashed border-border/50 bg-muted/30 group">
                 {editData.image ? (
                   <>
-                    <Image src={editData.image} alt="Araç" fill className="object-cover" sizes="600px" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={editData.image}
+                      alt="Araç"
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        objectPosition: `center ${editData.imagePosition ?? 50}%`,
+                        transform: `scale(${(editData.imageZoom ?? 100) / 100})`,
+                        transformOrigin: `center ${editData.imagePosition ?? 50}%`,
+                      }}
+                    />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                       <label className="cursor-pointer bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors">
                         Değiştir
@@ -860,6 +885,35 @@ export default function VehicleDetailPage() {
                   </label>
                 )}
               </div>
+              {editData.image && (
+                <div className="space-y-1.5 px-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">Üst</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={editData.imagePosition ?? 50}
+                      onChange={(e) => setEditData((d) => ({ ...d, imagePosition: Number(e.target.value) }))}
+                      className="flex-1 accent-primary cursor-pointer"
+                    />
+                    <span className="text-[10px] text-muted-foreground w-12 shrink-0">Alt</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">Uzak</span>
+                    <input
+                      type="range"
+                      min={100}
+                      max={300}
+                      step={5}
+                      value={editData.imageZoom ?? 100}
+                      onChange={(e) => setEditData((d) => ({ ...d, imageZoom: Number(e.target.value) }))}
+                      className="flex-1 accent-primary cursor-pointer"
+                    />
+                    <span className="text-[10px] text-muted-foreground w-12 shrink-0">Yakın</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">

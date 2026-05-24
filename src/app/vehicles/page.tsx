@@ -179,7 +179,18 @@ export default function VehiclesPage() {
                     {/* Hero */}
                     <div className="h-48 relative bg-muted overflow-hidden">
                       {vehicle.image ? (
-                        <Image src={vehicle.image} alt={vehicle.plate} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="448px" />
+                        <Image
+                          src={vehicle.image}
+                          alt={vehicle.plate}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-700"
+                          sizes="448px"
+                          style={{
+                            objectPosition: `center ${vehicle.imagePosition ?? 50}%`,
+                            transform: `scale(${(vehicle.imageZoom ?? 100) / 100})`,
+                            transformOrigin: `center ${vehicle.imagePosition ?? 50}%`,
+                          }}
+                        />
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 to-primary/10 group-hover:scale-105 transition-transform duration-700 flex items-center justify-center">
                           <Car className="h-20 w-20 text-primary/30" />

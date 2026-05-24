@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Car, Eye, EyeOff, ArrowRight, Play, User,
+  Car, Eye, EyeOff, ArrowRight,
   MapPin, Fuel, Signal, Shield,
   Wrench, BarChart3, Users, Bell, Sun, Moon,
 } from "lucide-react";
@@ -52,7 +52,7 @@ const features = [
   {
     icon: Users,
     title: "Ekip Yönetimi",
-    desc: "Yönetici ve şoför rolleri, görev atama ve koordinasyon.",
+    desc: "Şirket yetkilisi ve sürücü rolleri, görev atama ve koordinasyon.",
   },
   {
     icon: Bell,
@@ -67,13 +67,11 @@ export default function LoginPage() {
   const [showPass, setShowPass]             = useState(false);
   const [error, setError]                   = useState("");
   const [loading, setLoading]               = useState(false);
-  const [demoLoading, setDemoLoading]       = useState(false);
-  const [driverLoading, setDriverLoading]   = useState(false);
   const [forgotOpen, setForgotOpen]         = useState(false);
   const router = useRouter();
   const { setTheme } = useTheme();
 
-  const anyBusy = loading || demoLoading || driverLoading;
+  const anyBusy = loading;
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -90,37 +88,6 @@ export default function LoginPage() {
     toast.success("Giriş başarılı");
     router.push("/dashboard");
     router.refresh();
-  };
-
-  const handleDemoLogin = async () => {
-    setDemoLoading(true);
-    try {
-      const res  = await fetch("/api/demo/setup", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || data.error) { toast.error("Demo başlatılamadı"); return; }
-      const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password });
-      if (authError) { toast.error("Demo girişi başarısız"); return; }
-      toast.success("Yönetici demo'ya hoş geldiniz!");
-      router.push("/dashboard");
-      router.refresh();
-    } finally { setDemoLoading(false); }
-  };
-
-  const handleDriverDemo = async () => {
-    setDriverLoading(true);
-    try {
-      await fetch("/api/demo/setup", { method: "POST" });
-      const res  = await fetch("/api/demo/driver-setup", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || data.error) { toast.error("Şoför demo başlatılamadı"); return; }
-      const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password });
-      if (authError) { toast.error("Şoför demo girişi başarısız"); return; }
-      toast.success("Şoför demo'ya hoş geldiniz!");
-      router.push("/tasks");
-      router.refresh();
-    } finally { setDriverLoading(false); }
   };
 
   const inputStyle: React.CSSProperties = {
@@ -392,58 +359,6 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {/* Divider */}
-              <div className="relative flex items-center gap-3 my-5">
-                <div className="flex-1 h-px" style={{ background: "rgba(99,102,241,0.12)" }} />
-                <span style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.15em", textTransform: "uppercase" }}>
-                  veya dene
-                </span>
-                <div className="flex-1 h-px" style={{ background: "rgba(99,102,241,0.12)" }} />
-              </div>
-
-              {/* Demo buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={handleDemoLogin} disabled={anyBusy}
-                  className="h-16 transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50"
-                  style={{
-                    background: "rgba(14,14,45,0.8)", border: "1px solid rgba(99,102,241,0.14)",
-                    clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
-                    cursor: anyBusy ? "not-allowed" : "pointer",
-                  }}>
-                  {demoLoading
-                    ? <span className="h-5 w-5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(99,102,241,0.3)", borderTopColor: "#6366f1" }} />
-                    : <>
-                        <div className="flex items-center gap-1.5">
-                          <Play className="h-3.5 w-3.5 fill-current" style={{ color: "#6366f1" }} />
-                          <span style={{ fontFamily: "var(--font-barlow), sans-serif", fontWeight: 700, fontSize: "0.82rem", letterSpacing: "0.05em", color: "var(--foreground)" }}>YÖNETİCİ</span>
-                        </div>
-                        <span style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>Demo hesabı</span>
-                      </>
-                  }
-                </button>
-                <button type="button" onClick={handleDriverDemo} disabled={anyBusy}
-                  className="h-16 transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50"
-                  style={{
-                    background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.22)",
-                    clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
-                    cursor: anyBusy ? "not-allowed" : "pointer",
-                  }}>
-                  {driverLoading
-                    ? <span className="h-5 w-5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(99,102,241,0.3)", borderTopColor: "#6366f1" }} />
-                    : <>
-                        <div className="flex items-center gap-1.5">
-                          <User className="h-3.5 w-3.5" style={{ color: "#6366f1" }} />
-                          <span style={{ fontFamily: "var(--font-barlow), sans-serif", fontWeight: 700, fontSize: "0.82rem", letterSpacing: "0.05em", color: "var(--foreground)" }}>ŞOFÖR</span>
-                        </div>
-                        <span style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>Demo hesabı</span>
-                      </>
-                  }
-                </button>
-              </div>
-
-              <p style={{ color: "var(--muted-foreground)", fontSize: "0.65rem", fontFamily: "var(--font-ibm-mono), monospace", textAlign: "center", marginTop: "0.6rem" }}>
-                Kayıt gerektirmez · Gerçek demo verisi
-              </p>
               <p style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", textAlign: "center", marginTop: "1.25rem" }}>
                 Hesabınız yok mu?{" "}
                 <Link href="/register" style={{ color: "#6366f1", fontWeight: 600 }}>Kayıt İsteği Oluştur</Link>
