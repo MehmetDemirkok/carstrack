@@ -462,7 +462,7 @@ export default function VehicleDetailPage() {
               { icon: Gauge, label: "Vites", value: vehicle.transmission.replace("Yarı Otomatik", "Y. Otm.") },
               vehicle.power ? { icon: Zap, label: "Güç", value: `${vehicle.power} HP` } : null,
               { icon: MapPin, label: "Km", value: `${(vehicle.mileage / 1000).toFixed(0)}K` },
-            ].filter(Boolean).map((spec, i) => (
+            ].filter((s): s is NonNullable<typeof s> => s !== null).map((spec, i) => (
               <div key={i} className="bg-muted/50 rounded-2xl p-2.5 flex flex-col items-center gap-1 border border-border/30">
                 <spec.icon className="h-4 w-4 text-primary" />
                 <span className="text-[9px] text-muted-foreground font-medium">{spec.label}</span>
@@ -623,7 +623,7 @@ export default function VehicleDetailPage() {
                       vehicle.engineType ? { icon: Hash, label: "Motor Kodu", value: vehicle.engineType } : null,
                       { icon: MapPin, label: "Kilometre", value: `${vehicle.mileage.toLocaleString("tr-TR")} km` },
                       vehicle.chassisNo ? { icon: FileText, label: "Şasi No", value: vehicle.chassisNo } : null,
-                    ].filter(Boolean).map((row, i) => (
+                    ].filter((r): r is NonNullable<typeof r> => r !== null).map((row, i) => (
                       <div key={i} className="flex items-center gap-3 px-4 py-3">
                         <row.icon className="h-4 w-4 text-muted-foreground shrink-0" />
                         <span className="text-xs text-muted-foreground flex-1">{row.label}</span>
