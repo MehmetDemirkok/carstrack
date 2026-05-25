@@ -150,6 +150,8 @@ const steps = [
 
 interface FormData {
   image: string;
+  imagePosition: number;
+  imageZoom: number;
   plate: string;
   brand: string;
   model: string;
@@ -178,7 +180,7 @@ interface FormData {
 }
 
 const defaultForm: FormData = {
-  image: "", plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
+  image: "", imagePosition: 50, imageZoom: 100, plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
   color: "Beyaz", mileage: "", engineVolume: "",
   fuelType: "Benzin", transmission: "Otomatik",
   tireStatus: "Yazlık", tireBrand: "", tireSize: "", tireInstallDate: "", tireMileage: "0",
@@ -248,6 +250,8 @@ export default function NewVehiclePage() {
 
     const data: Omit<Vehicle, "id" | "createdAt" | "updatedAt"> = {
       image: form.image,
+      imagePosition: form.imagePosition,
+      imageZoom: form.imageZoom,
       plate: form.plate.toUpperCase(),
       brand: form.brand,
       model: form.model,
@@ -376,12 +380,30 @@ export default function NewVehiclePage() {
             {step === 1 && (
               <>
                 {/* Image upload */}
-                <div>
+                <div className="space-y-2">
                   <label className="block cursor-pointer">
                     <div className={`relative h-44 rounded-2xl border-2 border-dashed border-border/50 overflow-hidden bg-muted/30 flex items-center justify-center hover:border-primary/50 transition-colors ${form.image ? "border-transparent" : ""}`}>
                       {form.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={form.image} alt="Araç" className="w-full h-full object-cover" />
+                        <>
+                          <div
+                            className="absolute inset-0 scale-110"
+                            style={{
+                              backgroundImage: `url(${form.image})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: `center ${form.imagePosition}%`,
+                              filter: "blur(14px) brightness(0.55) saturate(1.4)",
+                            }}
+                          />
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              backgroundImage: `url(${form.image})`,
+                              backgroundSize: "contain",
+                              backgroundPosition: `center ${form.imagePosition}%`,
+                              backgroundRepeat: "no-repeat",
+                            }}
+                          />
+                        </>
                       ) : (
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Camera className="h-8 w-8" />
@@ -392,6 +414,22 @@ export default function NewVehiclePage() {
                     </div>
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] ?? null)} />
                   </label>
+                  {form.image && (
+                    <div className="space-y-1.5 px-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">Üst</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={form.imagePosition}
+                          onChange={(e) => setForm((prev) => ({ ...prev, imagePosition: Number(e.target.value) }))}
+                          className="flex-1 accent-primary cursor-pointer"
+                        />
+                        <span className="text-[10px] text-muted-foreground w-12 shrink-0">Alt</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Card className="rounded-2xl border-border/40">

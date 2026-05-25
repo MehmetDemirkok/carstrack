@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
-import Image from "next/image";
 import Link from "next/link";
 import {
   getVehicles, updateVehicle, deleteVehicle, getVehicle,
@@ -402,18 +401,26 @@ export default function VehicleDetailPage() {
         {/* Hero image */}
         <div className="relative h-56 md:h-80 w-full bg-muted md:rounded-3xl overflow-hidden shadow-md">
           {vehicle.image ? (
-            <Image
-              src={vehicle.image}
-              alt={vehicle.brand}
-              fill
-              className="object-cover"
-              sizes="768px"
-              style={{
-                objectPosition: `center ${vehicle.imagePosition ?? 50}%`,
-                transform: `scale(${(vehicle.imageZoom ?? 100) / 100})`,
-                transformOrigin: `center ${vehicle.imagePosition ?? 50}%`,
-              }}
-            />
+            <>
+              <div
+                className="absolute inset-0 scale-110"
+                style={{
+                  backgroundImage: `url(${vehicle.image})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: `center ${vehicle.imagePosition ?? 50}%`,
+                  filter: "blur(18px) brightness(0.55) saturate(1.4)",
+                }}
+              />
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `url(${vehicle.image})`,
+                  backgroundSize: "contain",
+                  backgroundPosition: `center ${vehicle.imagePosition ?? 50}%`,
+                  backgroundRepeat: "no-repeat",
+                }}
+              />
+            </>
           ) : (
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 to-primary/10 flex items-center justify-center">
               <Car className="h-24 w-24 text-primary/30" />
@@ -449,13 +456,13 @@ export default function VehicleDetailPage() {
 
         <motion.div variants={stagger} initial="hidden" animate="show" className="p-4 md:p-0 space-y-5 md:space-y-6 pb-28 md:pb-10 mt-4">
           {/* Spec chips */}
-          <motion.div variants={fadeUp} className="grid grid-cols-4 gap-2">
+          <motion.div variants={fadeUp} className={`grid gap-2 ${vehicle.power ? "grid-cols-4" : "grid-cols-3"}`}>
             {[
               { icon: Fuel, label: "Yakıt", value: vehicle.fuelType },
               { icon: Gauge, label: "Vites", value: vehicle.transmission.replace("Yarı Otomatik", "Y. Otm.") },
-              { icon: Zap, label: "Güç", value: vehicle.power ? `${vehicle.power} HP` : "—" },
+              vehicle.power ? { icon: Zap, label: "Güç", value: `${vehicle.power} HP` } : null,
               { icon: MapPin, label: "Km", value: `${(vehicle.mileage / 1000).toFixed(0)}K` },
-            ].map((spec, i) => (
+            ].filter(Boolean).map((spec, i) => (
               <div key={i} className="bg-muted/50 rounded-2xl p-2.5 flex flex-col items-center gap-1 border border-border/30">
                 <spec.icon className="h-4 w-4 text-primary" />
                 <span className="text-[9px] text-muted-foreground font-medium">{spec.label}</span>
@@ -611,12 +618,12 @@ export default function VehicleDetailPage() {
                       { icon: Palette, label: "Renk", value: vehicle.color },
                       { icon: Fuel, label: "Yakıt Tipi", value: vehicle.fuelType },
                       { icon: Gauge, label: "Vites Kutusu", value: vehicle.transmission },
-                      { icon: Zap, label: "Motor Hacmi", value: vehicle.engineVolume ? `${vehicle.engineVolume} L` : "—" },
-                      { icon: Zap, label: "Motor Gücü", value: vehicle.power ? `${vehicle.power} HP` : "—" },
-                      { icon: Hash, label: "Motor Kodu", value: vehicle.engineType || "—" },
+                      vehicle.engineVolume ? { icon: Zap, label: "Motor Hacmi", value: `${vehicle.engineVolume} L` } : null,
+                      vehicle.power ? { icon: Zap, label: "Motor Gücü", value: `${vehicle.power} HP` } : null,
+                      vehicle.engineType ? { icon: Hash, label: "Motor Kodu", value: vehicle.engineType } : null,
                       { icon: MapPin, label: "Kilometre", value: `${vehicle.mileage.toLocaleString("tr-TR")} km` },
-                      { icon: FileText, label: "Şasi No", value: vehicle.chassisNo || "—" },
-                    ].map((row, i) => (
+                      vehicle.chassisNo ? { icon: FileText, label: "Şasi No", value: vehicle.chassisNo } : null,
+                    ].filter(Boolean).map((row, i) => (
                       <div key={i} className="flex items-center gap-3 px-4 py-3">
                         <row.icon className="h-4 w-4 text-muted-foreground shrink-0" />
                         <span className="text-xs text-muted-foreground flex-1">{row.label}</span>
@@ -846,19 +853,24 @@ export default function VehicleDetailPage() {
               <div className="relative h-36 rounded-2xl overflow-hidden border-2 border-dashed border-border/50 bg-muted/30 group">
                 {editData.image ? (
                   <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={editData.image}
-                      alt="Araç"
+                    {/* Blurred backdrop */}
+                    <div
+                      className="absolute inset-0 scale-110"
                       style={{
-                        position: "absolute",
-                        inset: 0,
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        objectPosition: `center ${editData.imagePosition ?? 50}%`,
-                        transform: `scale(${(editData.imageZoom ?? 100) / 100})`,
-                        transformOrigin: `center ${editData.imagePosition ?? 50}%`,
+                        backgroundImage: `url(${editData.image})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: `center ${editData.imagePosition ?? 50}%`,
+                        filter: "blur(14px) brightness(0.55) saturate(1.4)",
+                      }}
+                    />
+                    {/* Full image */}
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: `url(${editData.image})`,
+                        backgroundSize: "contain",
+                        backgroundPosition: `center ${editData.imagePosition ?? 50}%`,
+                        backgroundRepeat: "no-repeat",
                       }}
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
@@ -909,19 +921,6 @@ export default function VehicleDetailPage() {
                       className="flex-1 accent-primary cursor-pointer"
                     />
                     <span className="text-[10px] text-muted-foreground w-12 shrink-0">Alt</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">Uzak</span>
-                    <input
-                      type="range"
-                      min={100}
-                      max={300}
-                      step={5}
-                      value={editData.imageZoom ?? 100}
-                      onChange={(e) => setEditData((d) => ({ ...d, imageZoom: Number(e.target.value) }))}
-                      className="flex-1 accent-primary cursor-pointer"
-                    />
-                    <span className="text-[10px] text-muted-foreground w-12 shrink-0">Yakın</span>
                   </div>
                 </div>
               )}

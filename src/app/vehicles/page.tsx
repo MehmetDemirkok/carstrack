@@ -11,7 +11,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import Image from "next/image";
 import Link from "next/link";
 import {
   Car, ChevronRight, Plus, Gauge, Trash2,
@@ -180,18 +179,28 @@ export default function VehiclesPage() {
                     {/* Hero */}
                     <div className="h-48 relative bg-muted overflow-hidden">
                       {vehicle.image ? (
-                        <Image
-                          src={vehicle.image}
-                          alt={vehicle.plate}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-700"
-                          sizes="448px"
-                          style={{
-                            objectPosition: `center ${vehicle.imagePosition ?? 50}%`,
-                            transform: `scale(${(vehicle.imageZoom ?? 100) / 100})`,
-                            transformOrigin: `center ${vehicle.imagePosition ?? 50}%`,
-                          }}
-                        />
+                        <>
+                          {/* Blurred backdrop fills letterbox areas */}
+                          <div
+                            className="absolute inset-0 scale-110 transition-transform duration-700 group-hover:scale-125"
+                            style={{
+                              backgroundImage: `url(${vehicle.image})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: `center ${vehicle.imagePosition ?? 50}%`,
+                              filter: "blur(18px) brightness(0.55) saturate(1.4)",
+                            }}
+                          />
+                          {/* Full car, unclipped */}
+                          <div
+                            className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"
+                            style={{
+                              backgroundImage: `url(${vehicle.image})`,
+                              backgroundSize: "contain",
+                              backgroundPosition: `center ${vehicle.imagePosition ?? 50}%`,
+                              backgroundRepeat: "no-repeat",
+                            }}
+                          />
+                        </>
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 to-primary/10 group-hover:scale-105 transition-transform duration-700 flex items-center justify-center">
                           <Car className="h-20 w-20 text-primary/30" />
