@@ -76,12 +76,12 @@ export async function GET(req: Request) {
   const { data: assignments } = await admin
     .from("vehicle_assignments")
     .select("driver_id, vehicle_id");
-  const driverVehicleMap = new Map(
-    (assignments ?? []).map((a: { driver_id: string; vehicle_id: string }) => [
-      a.driver_id,
-      a.vehicle_id,
-    ])
-  );
+  const driverVehicleMap = new Map<string, string[]>();
+  for (const a of assignments ?? [] as { driver_id: string; vehicle_id: string }[]) {
+    const ids = driverVehicleMap.get(a.driver_id) ?? [];
+    ids.push(a.vehicle_id);
+    driverVehicleMap.set(a.driver_id, ids);
+  }
 
   // ── 6. Tüm araçlar (tek sorgu, RLS bypass) ──────────────────────
   const { data: rawVehicles, error: vehiclesErr } = await admin.from("vehicles").select("*");
@@ -133,9 +133,9 @@ export async function GET(req: Request) {
     if (profile.role === "manager") {
       userAlerts = alertsByCompany.get(profile.company_id as string) ?? [];
     } else {
-      // Sürücü: yalnızca atanmış aracın uyarıları
-      const vehicleId = driverVehicleMap.get(userId);
-      userAlerts = vehicleId ? (alertsByVehicle.get(vehicleId) ?? []) : [];
+      // Sürücü: atanmış tüm araçların uyarıları
+      const vehicleIds = driverVehicleMap.get(userId) ?? [];
+      userAlerts = vehicleIds.flatMap((vId) => alertsByVehicle.get(vId) ?? []);
     }
 
     if (userAlerts.length === 0) {

@@ -25,16 +25,19 @@ export async function GET() {
     // 3. Use admin client to bypass RLS on vehicle_assignments
     const admin = createAdminClient();
 
-    const { data: assignments } = await admin
+    const { data: assignments, error: assignErr } = await admin
       .from("vehicle_assignments")
       .select("vehicle_id")
       .eq("driver_id", user.id);
+
+    console.log("[my-vehicles] driver:", user.id, "assignments:", assignments, "err:", assignErr);
 
     if (!assignments || assignments.length === 0) {
       return NextResponse.json({ vehicles: [] });
     }
 
     const vehicleIds = (assignments as { vehicle_id: string }[]).map((a) => a.vehicle_id);
+    console.log("[my-vehicles] vehicleIds:", vehicleIds, "company_id:", profile.company_id);
 
     // 4. Fetch the vehicles — scope to company_id for safety
     const { data: rows, error: vErr } = await admin
@@ -43,6 +46,8 @@ export async function GET() {
       .in("id", vehicleIds)
       .eq("company_id", profile.company_id as string)
       .order("created_at", { ascending: false });
+
+    console.log("[my-vehicles] rows count:", rows?.length, "vErr:", vErr);
 
     if (vErr || !rows) {
       return NextResponse.json({ vehicles: [] });

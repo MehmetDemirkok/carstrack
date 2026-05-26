@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
 import { calculateHealthScore, getFleetAlerts } from "@/lib/store";
-import { getVehicles, getRecords } from "@/lib/db";
+import { getMyVehicles, getRecords } from "@/lib/db";
 import type { Vehicle, ServiceRecord, FleetAlert } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
 import { HealthScoreBreakdown } from "@/components/health-score-breakdown";
@@ -72,10 +72,11 @@ export default function Dashboard() {
     setDataLoading(true);
     (async () => {
       try {
-        const [v, r] = await Promise.all([getVehicles(), getRecords()]);
+        const [v, r] = await Promise.all([getMyVehicles(), getRecords()]);
         if (cancelled) return;
+        const vehicleIds = new Set(v.map((x) => x.id));
         setVehicles(v);
-        setRecords(r);
+        setRecords(r.filter((rec) => vehicleIds.has(rec.vehicleId)));
         setAlerts(getFleetAlerts(v));
       } catch (err) {
         const msg = err instanceof Error ? err.message : JSON.stringify(err);

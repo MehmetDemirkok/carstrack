@@ -464,7 +464,9 @@ export async function assignVehicle(vehicleId: string, driverId: string): Promis
   const { error } = await supabase
     .from("vehicle_assignments")
     .insert({ vehicle_id: vehicleId, driver_id: driverId });
-  if (error && error.code !== "23505") throw error; // ignore duplicate-key
+  if (error && error.code !== "23505") throw error; // ignore duplicate (same vehicle already assigned)
+  bustCache("drivers:");
+  bustCache(`myvehicles:${driverId}`);
 }
 
 export async function unassignVehicle(vehicleId: string, driverId: string): Promise<void> {
@@ -475,6 +477,8 @@ export async function unassignVehicle(vehicleId: string, driverId: string): Prom
     .eq("driver_id", driverId)
     .eq("vehicle_id", vehicleId);
   if (error) throw error;
+  bustCache("drivers:");
+  bustCache(`myvehicles:${driverId}`);
 }
 
 export async function getMembers(): Promise<Profile[]> {
