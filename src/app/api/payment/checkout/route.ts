@@ -1,29 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import { stripe, STRIPE_PRICE_IDS } from "@/lib/stripe-server";
+import { cookies, headers } from "next/headers";
+import { buildMerchantOid, createPaytrToken, MERCHANT_ID } from "@/lib/paytr-server";
+import { PLANS } from "@/lib/plans";
 import type { PlanType } from "@/lib/types";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
 
 export async function POST(req: NextRequest) {
   try {
+    // Ödeme sistemi henüz aktif değil
+    if (process.env.NEXT_PUBLIC_PAYMENT_ENABLED !== "true") {
+      return NextResponse.json(
+        { error: "Ödeme sistemi yakında aktif olacak. Şu an tüm özellikler ücretsiz kullanılabilir." },
+        { status: 503 }
+      );
+    }
+
     const { plan } = await req.json() as { plan: PlanType };
 
     if (!plan || !["pro", "fleet"].includes(plan)) {
       return NextResponse.json({ error: "Geçersiz plan" }, { status: 400 });
     }
 
-    const priceId = STRIPE_PRICE_IDS[plan as "pro" | "fleet"];
-    if (!priceId) {
+    if (!MERCHANT_ID) {
       return NextResponse.json(
         { error: "Ödeme sistemi henüz yapılandırılmamış. Lütfen daha sonra tekrar deneyin." },
         { status: 503 }
       );
     }
 
-    // Kullanıcı kimliği doğrula
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("company_id, full_name, companies(plan, stripe_customer_id)")
+      .select("company_id, full_name, companies(plan)")
       .eq("id", user.id)
       .single();
 
@@ -44,55 +50,38 @@ export async function POST(req: NextRequest) {
 
     const company = (
       Array.isArray(profile.companies) ? profile.companies[0] : profile.companies
-    ) as { plan: string; stripe_customer_id: string | null } | null;
+    ) as { plan: string } | null;
 
     if (company?.plan === plan) {
       return NextResponse.json({ error: "Zaten bu plana sahipsiniz" }, { status: 400 });
     }
 
-    // Stripe Customer oluştur ya da mevcut olanı kullan
-    let customerId = company?.stripe_customer_id ?? null;
+    const planDef = PLANS[plan];
+    const merchantOid = buildMerchantOid(plan as "pro" | "fleet", profile.company_id);
 
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: profile.full_name ?? undefined,
-        metadata: { company_id: profile.company_id, user_id: user.id },
-      });
-      customerId = customer.id;
+    const headerStore = await headers();
+    const forwarded   = headerStore.get("x-forwarded-for");
+    const userIp      = forwarded?.split(",")[0]?.trim() ?? "127.0.0.1";
 
-      // company'ye kaydet
-      const adminClient = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      );
-      await adminClient
-        .from("companies")
-        .update({ stripe_customer_id: customerId })
-        .eq("id", profile.company_id);
-    }
-
-    // Stripe Checkout Session — hosted payment form
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${APP_URL}/api/payment/callback?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${APP_URL}/pricing`,
-      subscription_data: {
-        metadata: { company_id: profile.company_id, plan },
-      },
-      metadata: { company_id: profile.company_id, plan },
-      locale: "tr",
-      allow_promotion_codes: true,
-      billing_address_collection: "auto",
-      customer_update: { name: "auto", address: "auto" },
-      tax_id_collection: { enabled: true },
+    const token = await createPaytrToken({
+      merchantOid,
+      userIp,
+      email:              user.email ?? "",
+      paymentAmountKurus: planDef.price * 100,
+      userName:           profile.full_name ?? user.email ?? "",
+      userAddress:        "Türkiye",
+      userPhone:          "05000000000",
+      userBasket:         [[`CarsTrack ${planDef.name} Plan`, (planDef.price * 100).toString(), 1]],
+      okUrl:   `${APP_URL}/api/payment/callback?status=ok&oid=${merchantOid}`,
+      failUrl: `${APP_URL}/api/payment/callback?status=fail`,
+      testMode: process.env.PAYTR_TEST_MODE === "1",
     });
 
-    return NextResponse.json({ checkoutUrl: session.url });
+    return NextResponse.json({
+      checkoutUrl: `https://www.paytr.com/odeme/guvenli/${token}`,
+    });
   } catch (err) {
-    console.error("Stripe checkout error:", err);
+    console.error("PayTR checkout error:", err);
     return NextResponse.json({ error: "Ödeme başlatılamadı. Lütfen tekrar deneyin." }, { status: 500 });
   }
 }

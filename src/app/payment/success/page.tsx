@@ -69,7 +69,7 @@ function PaymentSuccessContent() {
                   <span className="text-sm font-bold">₺{planDef.price}/ay</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Fatura ve abonelik yönetimi için Stripe Müşteri Portalını kullanabilirsiniz.
+                  Abonelik yönetimi için Ayarlar sayfasını ziyaret edebilirsiniz.
                 </p>
               </div>
             )}

@@ -1,31 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe-server";
-import { PLANS } from "@/lib/plans";
-import type { PlanType } from "@/lib/types";
+import { parseMerchantOid } from "@/lib/paytr-server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
 
-// Stripe success URL'den dönen session_id ile ödeme durumunu doğrula
-export async function GET(req: NextRequest) {
-  const sessionId = new URL(req.url).searchParams.get("session_id");
-  if (!sessionId) {
-    return NextResponse.redirect(`${APP_URL}/payment/success?status=error`);
-  }
+// PayTR, ödeme sonrası kullanıcıyı bu URL'e yönlendirir (GET).
+// ok_url  → ?status=ok&oid={merchantOid}
+// fail_url → ?status=fail
+export function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get("status");
+  const oid    = searchParams.get("oid") ?? "";
 
-  try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    const plan    = session.metadata?.plan as PlanType | undefined;
-    const planDef = plan ? PLANS[plan] : null;
-
-    if (session.payment_status === "paid" && plan && planDef) {
-      return NextResponse.redirect(
-        `${APP_URL}/payment/success?status=ok&plan=${plan}&session_id=${sessionId}`
-      );
+  if (status === "ok" && oid) {
+    try {
+      const { plan } = parseMerchantOid(oid);
+      return NextResponse.redirect(`${APP_URL}/payment/success?status=ok&plan=${plan}`);
+    } catch {
+      // geçersiz oid — genel başarı sayfasına yönlendir
     }
-
-    return NextResponse.redirect(`${APP_URL}/payment/success?status=error&msg=payment_failed`);
-  } catch (err) {
-    console.error("Session verify error:", err);
-    return NextResponse.redirect(`${APP_URL}/payment/success?status=error`);
   }
+
+  return NextResponse.redirect(`${APP_URL}/payment/success?status=error`);
 }

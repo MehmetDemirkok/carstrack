@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { stripe } from "@/lib/stripe-server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,23 +33,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Aktif abonelik bulunamadı" }, { status: 404 });
     }
 
-    // Dönem sonunda iptal — kullanıcı kalan günleri kullanabilir
-    await stripe.subscriptions.update(company.stripe_sub_id, {
-      cancel_at_period_end: true,
-    });
-
     const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // PayTR'de manuel iptal: dönem sonunda free'ye düşmek üzere işaretle
     await db.from("subscriptions").update({
-      status:      "cancelled",
+      status:       "cancelled",
       cancelled_at: new Date().toISOString(),
       updated_at:   new Date().toISOString(),
     }).eq("stripe_sub_id", company.stripe_sub_id);
 
-    return NextResponse.json({ success: true, message: "Aboneliğiniz dönem sonunda iptal edilecek." });
+    return NextResponse.json({
+      success: true,
+      message: "Aboneliğiniz dönem sonunda iptal edilecek. Kalan sürenizi kullanmaya devam edebilirsiniz.",
+    });
   } catch (err) {
     console.error("Cancel subscription error:", err);
     return NextResponse.json({ error: "İptal işlemi başarısız" }, { status: 500 });

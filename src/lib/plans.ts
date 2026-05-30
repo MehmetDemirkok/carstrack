@@ -11,7 +11,6 @@ export interface PlanDefinition {
   color: string;
   features: string[];
   notFeatures: string[];
-  stripePriceId: string | undefined;
 }
 
 export const PLANS: Record<PlanType, PlanDefinition> = {
@@ -38,7 +37,6 @@ export const PLANS: Record<PlanType, PlanDefinition> = {
       "Gelişmiş analitik",
       "Öncelikli destek",
     ],
-    stripePriceId: undefined,
   },
   pro: {
     id: "pro",
@@ -61,7 +59,6 @@ export const PLANS: Record<PlanType, PlanDefinition> = {
       "Öncelikli destek",
     ],
     notFeatures: [],
-    stripePriceId: process.env.STRIPE_PRO_PRICE_ID,
   },
   fleet: {
     id: "fleet",
@@ -82,7 +79,6 @@ export const PLANS: Record<PlanType, PlanDefinition> = {
       "Fatura & KDV desteği",
     ],
     notFeatures: [],
-    stripePriceId: process.env.STRIPE_FLEET_PRICE_ID,
   },
 };
 

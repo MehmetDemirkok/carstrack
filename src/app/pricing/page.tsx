@@ -7,22 +7,25 @@ import { useAuth } from "@/context/auth-context";
 import { PLANS } from "@/lib/plans";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, ArrowLeft, Loader2, Car, ShieldCheck } from "lucide-react";
+import { CheckCircle2, XCircle, ArrowLeft, Loader2, Car, ShieldCheck, Clock } from "lucide-react";
 import { toast } from "sonner";
 import type { PlanType } from "@/lib/types";
 
 const DEMO_EMAIL = "demo@carstrack.app";
+const PAYMENT_ENABLED = process.env.NEXT_PUBLIC_PAYMENT_ENABLED === "true";
 
 function PlanCard({
   plan,
   currentPlan,
   loading,
   onSelect,
+  paymentEnabled,
 }: {
   plan: typeof PLANS.pro;
   currentPlan: PlanType;
   loading: boolean;
   onSelect: (plan: PlanType) => void;
+  paymentEnabled: boolean;
 }) {
   const isCurrent  = currentPlan === plan.id;
   const isDowngrade = plan.id === "free";
@@ -89,20 +92,36 @@ function PlanCard({
         ))}
       </div>
 
-      <Button
-        className="w-full rounded-xl font-bold h-11 gap-2"
-        disabled={isCurrent || isDowngrade || loading}
-        onClick={() => !isCurrent && !isDowngrade && onSelect(plan.id)}
-        style={
-          !isCurrent && !isDowngrade
-            ? { background: `linear-gradient(90deg, ${plan.color}, ${plan.color}cc)`, color: "#fff", border: "none" }
-            : undefined
-        }
-        variant={isCurrent || isDowngrade ? "outline" : "default"}
-      >
-        {loading && !isCurrent && !isDowngrade && <Loader2 className="h-4 w-4 animate-spin" />}
-        {isCurrent ? "Mevcut Plan" : isDowngrade ? "Ücretsiz Plan" : "Planı Seç →"}
-      </Button>
+      {!paymentEnabled && !isCurrent && !isDowngrade ? (
+        <Button
+          className="w-full rounded-xl font-bold h-11 gap-2 opacity-70"
+          variant="outline"
+          onClick={() =>
+            toast.info("Ödeme sistemi çok yakında!", {
+              description: "PayTR entegrasyonu tamamlanıyor. Hazır olduğunda buradan geçiş yapabilirsiniz.",
+              duration: 4000,
+            })
+          }
+        >
+          <Clock className="h-4 w-4" />
+          Yakında Aktif
+        </Button>
+      ) : (
+        <Button
+          className="w-full rounded-xl font-bold h-11 gap-2"
+          disabled={isCurrent || isDowngrade || loading}
+          onClick={() => !isCurrent && !isDowngrade && onSelect(plan.id)}
+          style={
+            !isCurrent && !isDowngrade
+              ? { background: `linear-gradient(90deg, ${plan.color}, ${plan.color}cc)`, color: "#fff", border: "none" }
+              : undefined
+          }
+          variant={isCurrent || isDowngrade ? "outline" : "default"}
+        >
+          {loading && !isCurrent && !isDowngrade && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isCurrent ? "Mevcut Plan" : isDowngrade ? "Ücretsiz Plan" : "Planı Seç →"}
+        </Button>
+      )}
     </div>
   );
 }
@@ -137,7 +156,7 @@ export default function PricingPage() {
         return;
       }
 
-      // Stripe hosted checkout sayfasına yönlendir
+      // PayTR ödeme sayfasına yönlendir
       window.location.href = data.checkoutUrl!;
     } catch {
       toast.error("Bağlantı hatası", { description: "Lütfen tekrar deneyin." });
@@ -183,6 +202,22 @@ export default function PricingPage() {
           )}
         </div>
 
+        {/* Ödeme sistemi yakında banner */}
+        {!PAYMENT_ENABLED && (
+          <div
+            className="rounded-2xl p-4 flex items-center gap-3"
+            style={{ background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.25)" }}
+          >
+            <Clock className="h-5 w-5 shrink-0" style={{ color: "#ca8a04" }} />
+            <div>
+              <p className="text-sm font-bold" style={{ color: "#ca8a04" }}>Ödeme sistemi yakında aktif olacak</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Şu an tüm özellikler ücretsiz kullanılabilir. Ücretli planlar kısa sürede açılacak.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Plan Kartları */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {(["free", "pro", "fleet"] as PlanType[]).map((planId) => (
@@ -192,11 +227,12 @@ export default function PricingPage() {
               currentPlan={currentPlan}
               loading={loading}
               onSelect={handleSelect}
+              paymentEnabled={PAYMENT_ENABLED}
             />
           ))}
         </div>
 
-        {/* Stripe güven sembolleri */}
+        {/* PayTR güven sembolleri */}
         <div
           className="rounded-2xl p-5 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left"
           style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
@@ -208,14 +244,14 @@ export default function PricingPage() {
             <ShieldCheck className="h-6 w-6" style={{ color: "#6366f1" }} />
           </div>
           <div>
-            <p className="text-sm font-bold">Stripe ile Güvenli Ödeme</p>
+            <p className="text-sm font-bold">PayTR ile Güvenli Ödeme</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Kart bilgileriniz Stripe altyapısında şifreli olarak işlenir. CarsTrack kart numaranıza erişemez.
-              Visa, Mastercard, American Express desteklenir.
+              Kart bilgileriniz PayTR güvenli altyapısında 256-bit SSL ile şifreli olarak işlenir.
+              CarsTrack kart numaranıza erişemez. Visa ve Mastercard desteklenir.
             </p>
           </div>
           <div className="shrink-0 flex items-center gap-2 opacity-60">
-            {["VISA", "MC", "AMEX"].map((c) => (
+            {["VISA", "MC", "PayTR"].map((c) => (
               <div
                 key={c}
                 className="px-2 py-1 rounded-md text-[10px] font-black border"
