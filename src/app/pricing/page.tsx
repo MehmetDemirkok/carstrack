@@ -98,7 +98,7 @@ function PlanCard({
           variant="outline"
           onClick={() =>
             toast.info("Ödeme sistemi çok yakında!", {
-              description: "PayTR entegrasyonu tamamlanıyor. Hazır olduğunda buradan geçiş yapabilirsiniz.",
+              description: "iyzico entegrasyonu tamamlanıyor. Hazır olduğunda buradan geçiş yapabilirsiniz.",
               duration: 4000,
             })
           }
@@ -144,20 +144,19 @@ export default function PricingPage() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/payment/checkout", {
+      const res = await fetch("/api/payment/iyzico/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
       });
-      const data = await res.json() as { checkoutUrl?: string; error?: string };
+      const data = await res.json() as { paymentPageUrl?: string; error?: string };
 
       if (!res.ok || data.error) {
         toast.error("Hata", { description: data.error ?? "Ödeme başlatılamadı" });
         return;
       }
 
-      // PayTR ödeme sayfasına yönlendir
-      window.location.href = data.checkoutUrl!;
+      window.location.href = data.paymentPageUrl!;
     } catch {
       toast.error("Bağlantı hatası", { description: "Lütfen tekrar deneyin." });
     } finally {
@@ -244,14 +243,14 @@ export default function PricingPage() {
             <ShieldCheck className="h-6 w-6" style={{ color: "#6366f1" }} />
           </div>
           <div>
-            <p className="text-sm font-bold">PayTR ile Güvenli Ödeme</p>
+            <p className="text-sm font-bold">iyzico ile Güvenli Ödeme</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Kart bilgileriniz PayTR güvenli altyapısında 256-bit SSL ile şifreli olarak işlenir.
+              Kart bilgileriniz iyzico güvenli altyapısında 256-bit SSL ile şifreli olarak işlenir.
               CarsTrack kart numaranıza erişemez. Visa ve Mastercard desteklenir.
             </p>
           </div>
           <div className="shrink-0 flex items-center gap-2 opacity-60">
-            {["VISA", "MC", "PayTR"].map((c) => (
+            {["VISA", "MC", "iyzico"].map((c) => (
               <div
                 key={c}
                 className="px-2 py-1 rounded-md text-[10px] font-black border"
