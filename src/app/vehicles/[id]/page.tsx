@@ -188,6 +188,25 @@ function AutocompleteInput({
   );
 }
 
+async function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.src = url;
+  });
+}
+
 function daysUntil(dateStr: string): number {
   if (!dateStr) return 999;
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
@@ -850,7 +869,7 @@ export default function VehicleDetailPage() {
             {/* Fotoğraf */}
             <div className="space-y-2">
               <Label className={iLabel}>Araç Fotoğrafı</Label>
-              <div className="relative h-36 rounded-2xl overflow-hidden border-2 border-dashed border-border/50 bg-muted/30 group">
+              <div className="relative h-36 rounded-2xl overflow-hidden border-2 border-dashed border-border/50 bg-muted/30">
                 {editData.image ? (
                   <>
                     {/* Blurred backdrop */}
@@ -873,15 +892,16 @@ export default function VehicleDetailPage() {
                         backgroundRepeat: "no-repeat",
                       }}
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    {/* Always-visible action bar at bottom */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm flex items-center justify-center gap-3 py-2">
                       <label className="cursor-pointer bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors">
                         Değiştir
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const reader = new FileReader();
-                          reader.onloadend = () => setEditData((d) => ({ ...d, image: reader.result as string }));
-                          reader.readAsDataURL(file);
+                          const compressed = await compressImage(file);
+                          setEditData((d) => ({ ...d, image: compressed }));
+                          e.target.value = "";
                         }} />
                       </label>
                       <button
@@ -898,12 +918,12 @@ export default function VehicleDetailPage() {
                     <Car className="h-8 w-8 opacity-30" />
                     <span className="text-xs font-medium">Fotoğraf ekle</span>
                     <span className="text-[10px] opacity-60">Tıkla veya dosya seç</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const reader = new FileReader();
-                      reader.onloadend = () => setEditData((d) => ({ ...d, image: reader.result as string }));
-                      reader.readAsDataURL(file);
+                      const compressed = await compressImage(file);
+                      setEditData((d) => ({ ...d, image: compressed }));
+                      e.target.value = "";
                     }} />
                   </label>
                 )}

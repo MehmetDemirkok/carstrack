@@ -49,6 +49,25 @@ const TRANSMISSIONS: TransmissionType[] = ["Manuel", "Otomatik", "CVT", "DSG", "
 const TIRE_SEASONS: TireSeasonType[] = ["Yazlık", "Kışlık", "Dört Mevsim"];
 const COLORS = ["Beyaz","Siyah","Gri","Gümüş","Kırmızı","Mavi","Yeşil","Kahverengi","Bej","Sarı","Turuncu","Mor","Diğer"];
 
+async function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.src = url;
+  });
+}
+
 function AutocompleteInput({
   options, value, onChange, placeholder, className, allowFreeText = false,
 }: {
@@ -232,11 +251,10 @@ export default function NewVehiclePage() {
   const parseKm = (value: string) =>
     parseInt(value.replace(/\./g, "").replace(/,/g, ""), 10) || 0;
 
-  const handleFile = (file: File | null) => {
+  const handleFile = async (file: File | null) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => set("image", reader.result as string);
-    reader.readAsDataURL(file);
+    const compressed = await compressImage(file);
+    set("image", compressed);
   };
 
   const [error, setError] = useState<string>("");

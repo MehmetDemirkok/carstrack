@@ -50,7 +50,10 @@
       "Bash(npm ls *)",
       "Bash(xargs cat)",
       "Bash(npx shadcn *)",
-      "Bash(grep *)"
+      "Bash(grep *)",
+      "Bash(npm --version)",
+      "Skill(update-config)",
+      "Bash(claude mcp *)"
     ]
   }
 }
