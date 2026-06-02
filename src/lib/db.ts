@@ -352,6 +352,8 @@ export async function addRecord(
     .select()
     .single();
   if (error) throw error;
+  bustCache(`records:${companyId}`);
+  bustCache(`vrecords:${companyId}`);
   return toRecord(inserted);
 }
 

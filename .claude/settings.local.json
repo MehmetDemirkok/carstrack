@@ -53,7 +53,10 @@
       "Bash(grep *)",
       "Bash(npm --version)",
       "Skill(update-config)",
-      "Bash(claude mcp *)"
+      "Bash(claude mcp *)",
+      "mcp__supabase__list_projects",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__list_tables"
     ]
   }
 }

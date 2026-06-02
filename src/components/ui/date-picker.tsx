@@ -24,7 +24,7 @@ export function DatePicker({
   disabled,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
-  const [coords, setCoords] = React.useState({ top: 0, left: 0, width: 0 });
+  const [coords, setCoords] = React.useState({ top: 0, left: 0, width: 0, openUpward: false });
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
@@ -37,10 +37,13 @@ export function DatePicker({
   const handleOpen = () => {
     if (disabled || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpward = spaceBelow < 340 && rect.top > 340;
     setCoords({
-      top: rect.bottom + window.scrollY + 4,
-      left: rect.left + window.scrollX,
+      top: openUpward ? rect.top : rect.bottom + 4,
+      left: rect.left,
       width: rect.width,
+      openUpward,
     });
     setOpen(true);
   };
@@ -76,8 +79,10 @@ export function DatePicker({
         <div
           ref={dropdownRef}
           style={{
-            position: "absolute",
-            top: coords.top,
+            position: "fixed",
+            ...(coords.openUpward
+              ? { bottom: window.innerHeight - coords.top + 4 }
+              : { top: coords.top }),
             left: coords.left,
             minWidth: Math.max(coords.width, 320),
             zIndex: 9999,
