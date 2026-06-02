@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Database, Trash2, Car,
-  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Zap, CreditCard,
+  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Zap, CreditCard, Lock,
 } from "lucide-react";
 import { PLANS, isPaidPlan } from "@/lib/plans";
 import type { PlanType } from "@/lib/types";
@@ -221,6 +221,43 @@ export default function SettingsPage() {
   const [showAbout, setShowAbout] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showEmailChange, setShowEmailChange] = useState(false);
+  const [emailChangeForm, setEmailChangeForm] = useState({ newEmail: "", password: "" });
+  const [emailChanging, setEmailChanging] = useState(false);
+
+  const handleChangeEmail = async () => {
+    const { newEmail, password } = emailChangeForm;
+    if (!newEmail || !password) return;
+    if (newEmail === user?.email) {
+      toast.error("Aynı adres", { description: "Yeni e-posta mevcut adresinizle aynı." });
+      return;
+    }
+    setEmailChanging(true);
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: user!.email!,
+        password,
+      });
+      if (authError) {
+        toast.error("Şifre hatalı", { description: "Mevcut şifrenizi doğru girdiğinizden emin olun." });
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      if (error) throw error;
+      setShowEmailChange(false);
+      setEmailChangeForm({ newEmail: "", password: "" });
+      toast.success("Onay e-postası gönderildi", {
+        description: "Mevcut e-posta adresinize onay bağlantısı gönderildi. Onayladıktan sonra e-postanız değişecek.",
+        duration: 7000,
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Hata", { description: "E-posta değiştirilemedi. Lütfen tekrar deneyin." });
+    } finally {
+      setEmailChanging(false);
+    }
+  };
 
   // Notifications
   const [notifSupported, setNotifSupported] = useState(false);
@@ -678,6 +715,14 @@ export default function SettingsPage() {
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">{t("settings_account")}</h3>
           <Card className="rounded-2xl border-border/40 shadow-sm">
             <CardContent className="p-2">
+              <SettingItem
+                icon={Mail}
+                iconBg="bg-blue-500/10"
+                iconColor="text-blue-500"
+                label="E-posta Adresini Değiştir"
+                description={user?.email ?? "—"}
+                onClick={() => setShowEmailChange(true)}
+              />
               <button
                 onClick={signOut}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-destructive/5 transition-colors tap-highlight-transparent text-left cursor-pointer"
@@ -798,6 +843,63 @@ export default function SettingsPage() {
 
       {/* ── Help & Support Dialog ── */}
       <HelpDialog open={showHelp} onOpenChange={setShowHelp} />
+
+      {/* ── Email Change Dialog ── */}
+      <Dialog open={showEmailChange} onOpenChange={(o) => { setShowEmailChange(o); if (!o) setEmailChangeForm({ newEmail: "", password: "" }); }}>
+        <DialogContent className="rounded-3xl max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <Mail className="h-5 w-5 text-blue-500" /> E-posta Adresini Değiştir
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Kimliğinizi doğrulamak için mevcut şifrenizi girin. Değişiklik için <span className="font-semibold text-foreground">eski e-posta adresinize</span> onay bağlantısı gönderilecek.
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Yeni E-posta Adresi</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="email"
+                    value={emailChangeForm.newEmail}
+                    onChange={(e) => setEmailChangeForm((f) => ({ ...f, newEmail: e.target.value }))}
+                    placeholder="yeni@ornek.com"
+                    className="w-full h-10 rounded-xl border border-border bg-muted/40 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    value={emailChangeForm.password}
+                    onChange={(e) => setEmailChangeForm((f) => ({ ...f, password: e.target.value }))}
+                    placeholder="••••••••"
+                    onKeyDown={(e) => { if (e.key === "Enter") handleChangeEmail(); }}
+                    className="w-full h-10 rounded-xl border border-border bg-muted/40 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
+            <Button
+              onClick={handleChangeEmail}
+              disabled={emailChanging || !emailChangeForm.newEmail || !emailChangeForm.password}
+              className="rounded-xl flex-1"
+            >
+              {emailChanging
+                ? <span className="h-4 w-4 rounded-full border-2 border-white border-r-transparent animate-spin" />
+                : "Onay Gönder"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

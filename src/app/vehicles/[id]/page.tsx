@@ -29,7 +29,7 @@ import {
   ChevronLeft, Settings, Trash2, Car, Fuel, Gauge, MapPin, Disc3,
   Sun, Snowflake, Layers, BatteryCharging, ShieldCheck, CalendarDays,
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
-  Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown,
+  Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
 } from "lucide-react";
 import { exportVehicleReportPDF } from "@/lib/pdf-export";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -259,6 +259,13 @@ export default function VehicleDetailPage() {
     serviceCenter: "",
     notes: "",
   });
+  const [recordMaintIds, setRecordMaintIds] = useState<string[]>([]);
+  const [tireForm, setTireForm] = useState<{ season: TireSeasonType; brand: string; size: string; qty: string }>({
+    season: "Yazlık",
+    brand: "",
+    size: "",
+    qty: "",
+  });
 
   const reload = useCallback(async () => {
     try {
@@ -339,17 +346,28 @@ export default function VehicleDetailPage() {
   const handleAddRecord = async () => {
     if (guardDemo()) { setShowAddRecord(false); return; }
     try {
+      const recordMileage = recordForm.mileage ? parseKm(recordForm.mileage) : vehicle.mileage;
       await addRecord({
         vehicleId: vehicle.id,
         date: recordForm.date,
         type: recordForm.type,
         title: recordForm.title,
-        mileage: recordForm.mileage ? parseKm(recordForm.mileage) : vehicle.mileage,
+        mileage: recordMileage,
         serviceCenter: recordForm.serviceCenter,
         notes: recordForm.notes,
       });
+      if (recordForm.type === "tire") {
+        await updateVehicle(vehicle.id, {
+          tireStatus: tireForm.season,
+          tireBrand: tireForm.brand || vehicle.tireBrand,
+          tireSize: tireForm.size || vehicle.tireSize,
+          tireInstallDate: recordForm.date,
+          tireMileage: recordMileage,
+        });
+      }
       setShowAddRecord(false);
       setRecordForm({ date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
+      setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" });
       reload();
       toast.success("Kayıt Eklendi", { description: "Servis kaydı başarıyla eklendi." });
     } catch (err) {
@@ -1031,7 +1049,7 @@ export default function VehicleDetailPage() {
       </Dialog>
 
       {/* ── ADD RECORD DIALOG ── */}
-      <Dialog open={showAddRecord} onOpenChange={setShowAddRecord}>
+      <Dialog open={showAddRecord} onOpenChange={(o) => { setShowAddRecord(o); if (!o) { setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); } }}>
         <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl">
           <DialogHeader>
             <DialogTitle className="font-outfit">Servis Kaydı Ekle</DialogTitle>
@@ -1054,6 +1072,48 @@ export default function VehicleDetailPage() {
                 </Select>
               </div>
             </div>
+
+            {/* ── Lastik detayları — sadece type === "tire" ── */}
+            {recordForm.type === "tire" && (
+              <div className="rounded-2xl border border-teal-500/20 bg-teal-500/5 p-3 space-y-3">
+                <p className="text-xs font-semibold text-teal-600 flex items-center gap-1.5">
+                  <Disc3 className="h-3.5 w-3.5" /> Lastik Detayları
+                </p>
+                <div className="space-y-1">
+                  <Label className={iLabel}>Mevsim</Label>
+                  <div className="flex gap-2">
+                    {(["Yazlık", "Kışlık", "Dört Mevsim"] as TireSeasonType[]).map((s) => (
+                      <button
+                        type="button"
+                        key={s}
+                        onClick={() => setTireForm((f) => ({ ...f, season: s }))}
+                        className={`flex-1 flex items-center justify-center gap-1 rounded-xl border py-2 text-xs font-medium transition-colors ${
+                          tireForm.season === s ? "border-primary/50 bg-primary/10 text-primary" : "border-border/40 bg-muted/20"
+                        }`}
+                      >
+                        {s === "Yazlık" ? <Sun className="h-3.5 w-3.5" /> : s === "Kışlık" ? <Snowflake className="h-3.5 w-3.5" /> : <Layers className="h-3.5 w-3.5" />}
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className={iLabel}>Marka</Label>
+                    <Input className={iCls} placeholder="Pirelli, Michelin..." value={tireForm.brand} onChange={(e) => setTireForm((f) => ({ ...f, brand: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className={iLabel}>Ölçü</Label>
+                    <Input className={iCls} placeholder="205/55R16" value={tireForm.size} onChange={(e) => setTireForm((f) => ({ ...f, size: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className={iLabel}>Değiştirilen Adet</Label>
+                  <Input className={iCls} type="text" inputMode="numeric" placeholder="4" value={tireForm.qty} onChange={(e) => setTireForm((f) => ({ ...f, qty: e.target.value }))} />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1"><Label className={iLabel}>Başlık</Label><Input className={iCls} placeholder="Periyodik bakım..." value={recordForm.title} onChange={(e) => setRecordForm((f) => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="text" inputMode="numeric" placeholder={String(vehicle.mileage)} value={recordForm.mileage} onChange={(e) => setRecordForm((f) => ({ ...f, mileage: e.target.value }))} /></div>
