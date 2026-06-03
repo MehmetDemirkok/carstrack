@@ -13,7 +13,7 @@ import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle } from "@/lib/db";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileSearch, FileText, XCircle } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getVehicles } from "@/lib/db";
 import { canAddVehicle } from "@/lib/plans";
@@ -67,6 +67,63 @@ async function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<
     img.src = url;
   });
 }
+
+// ── Document scanning helpers ─────────────────────────────────
+
+interface ExtractedDocData {
+  plate?: string;
+  brand?: string;
+  model?: string;
+  year?: string;
+  chassisNo?: string;
+  color?: string;
+  fuelType?: string;
+  engineVolume?: string;
+  mileage?: string;
+  insuranceCompany?: string;
+  insuranceExpiry?: string;
+  greenCardCompany?: string;
+  greenCardExpiry?: string;
+  inspectionExpiry?: string;
+}
+
+const SCAN_FIELD_LABELS: Record<string, string> = {
+  plate: "Plaka",
+  brand: "Marka",
+  model: "Model",
+  year: "Yıl",
+  chassisNo: "Şasi No",
+  color: "Renk",
+  fuelType: "Yakıt",
+  engineVolume: "Motor Hacmi",
+  mileage: "Kilometre",
+  insuranceCompany: "Sigorta Şirketi",
+  insuranceExpiry: "Sigorta Bitiş",
+  greenCardCompany: "Yeşil Kart Şirketi",
+  greenCardExpiry: "Yeşil Kart Bitiş",
+  inspectionExpiry: "Muayene Bitiş",
+};
+
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatScanValue(key: string, value: string): string {
+  if ((key === "insuranceExpiry" || key === "greenCardExpiry" || key === "inspectionExpiry") && value.includes("-")) {
+    return value.split("-").reverse().join(".");
+  }
+  return value;
+}
+
+// ─────────────────────────────────────────────────────────────
 
 function AutocompleteInput({
   options, value, onChange, placeholder, className, allowFreeText = false,
@@ -231,6 +288,11 @@ export default function NewVehiclePage() {
   const [done, setDone] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  // Document scan state
+  const [scanFile, setScanFile] = useState<File | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [extracted, setExtracted] = useState<ExtractedDocData | null>(null);
+
   // Sayfa açılınca limit kontrolü yap (tek seferlik)
   useEffect(() => {
     if (!company || limitChecked.current) return;
@@ -258,6 +320,90 @@ export default function NewVehiclePage() {
   };
 
   const [error, setError] = useState<string>("");
+
+  const handleScanFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const SCAN_MAX = 5 * 1024 * 1024; // 5 MB
+    const allowed = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
+    const ext = "." + (file.name.split(".").pop()?.toLowerCase() ?? "");
+    const allowedExts = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+    if (!allowed.includes(file.type) && !allowedExts.includes(ext)) {
+      toast.error("Desteklenmeyen dosya", { description: "PDF veya görsel (JPG, PNG, WebP) seçin." });
+      e.target.value = "";
+      return;
+    }
+    if (file.size > SCAN_MAX) {
+      toast.error("Dosya çok büyük", { description: "Tarama için maksimum dosya boyutu 5 MB'dır." });
+      e.target.value = "";
+      return;
+    }
+    setScanFile(file);
+    setExtracted(null);
+    e.target.value = "";
+  };
+
+  const handleScan = async () => {
+    if (!scanFile) return;
+    setScanning(true);
+    try {
+      const base64 = await fileToBase64(scanFile);
+      const mimeType = scanFile.type || "application/octet-stream";
+      const res = await fetch("/api/extract-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ fileData: base64, mimeType }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { data } = await res.json() as { data: ExtractedDocData };
+      if (!data || Object.keys(data).length === 0) {
+        toast.warning("Bilgi bulunamadı", { description: "Belge okunamadı veya bilgi çıkarılamadı." });
+        return;
+      }
+      setExtracted(data);
+      toast.success("Tarama tamamlandı", { description: "Bulunan bilgileri inceleyip uygulayabilirsiniz." });
+    } catch (err) {
+      console.error("Scan error:", err);
+      toast.error("Tarama başarısız", { description: "Belge okunamadı. Lütfen tekrar deneyin." });
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleApplyExtracted = () => {
+    if (!extracted) return;
+    const updates: Partial<FormData> = {};
+    if (extracted.plate) updates.plate = extracted.plate;
+    if (extracted.brand) updates.brand = extracted.brand;
+    if (extracted.model) updates.model = extracted.model;
+    if (extracted.year) updates.year = extracted.year;
+    if (extracted.color) updates.color = extracted.color;
+    if (extracted.fuelType && ["Benzin","Dizel","LPG","Hibrit","Elektrik"].includes(extracted.fuelType))
+      updates.fuelType = extracted.fuelType as FormData["fuelType"];
+    if (extracted.engineVolume) updates.engineVolume = extracted.engineVolume;
+    if (extracted.mileage) updates.mileage = extracted.mileage;
+    if (extracted.insuranceCompany) updates.insuranceCompany = extracted.insuranceCompany;
+    if (extracted.insuranceExpiry) updates.insuranceExpiry = extracted.insuranceExpiry;
+    if (extracted.greenCardCompany) updates.greenCardCompany = extracted.greenCardCompany;
+    if (extracted.greenCardExpiry) updates.greenCardExpiry = extracted.greenCardExpiry;
+    if (extracted.inspectionExpiry) updates.inspectionExpiry = extracted.inspectionExpiry;
+
+    setForm((prev) => ({ ...prev, ...updates }));
+
+    const prevStepKeys = ["plate","brand","model","year","color","fuelType","engineVolume","mileage"];
+    const hasPrevStep = prevStepKeys.some((k) => updates[k as keyof FormData] !== undefined);
+
+    toast.warning("Bilgileri kontrol edin", {
+      description: hasPrevStep
+        ? "AI çıkarımı hatalı olabilir. Lütfen tüm adımlara geri dönerek doldurulan alanları tek tek doğrulayın."
+        : "AI çıkarımı hatalı olabilir. Lütfen aşağıdaki alanları tek tek kontrol edip onaylayın.",
+      duration: 8000,
+    });
+
+    setExtracted(null);
+    setScanFile(null);
+  };
 
   const handleSubmit = async () => {
     if (guardDemo()) return;
@@ -586,6 +732,114 @@ export default function NewVehiclePage() {
 
             {/* ── STEP 4: BELGELER ── */}
             {step === 4 && (
+              <>
+              {/* AI belge tarayıcı */}
+              <Card className="rounded-2xl border-primary/20 bg-primary/5">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 bg-primary/15 rounded-lg shrink-0">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Belge ile Otomatik Doldur</p>
+                      <p className="text-[11px] text-muted-foreground">Ruhsat, sigorta veya muayene belgesi yükleyin — AI alanları doldursun</p>
+                    </div>
+                  </div>
+
+                  {!scanFile && !extracted && (
+                    <label className="block cursor-pointer">
+                      <div className="border-2 border-dashed border-primary/20 rounded-xl p-5 flex flex-col items-center gap-2 hover:border-primary/40 hover:bg-primary/5 transition-colors">
+                        <FileSearch className="h-7 w-7 text-primary/40" />
+                        <p className="text-xs font-medium text-center text-muted-foreground">Belge seçmek için tıklayın</p>
+                        <p className="text-[10px] text-muted-foreground/70">PDF veya görsel (JPG, PNG, WebP) • Maks. 5 MB</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        className="hidden"
+                        onChange={handleScanFileSelect}
+                      />
+                    </label>
+                  )}
+
+                  {scanFile && !extracted && (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2.5 bg-background/60 rounded-xl px-3 py-2.5 border border-border/40">
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${scanFile.type === "application/pdf" ? "bg-red-500/10" : "bg-blue-500/10"}`}>
+                          <FileText className={`h-4 w-4 ${scanFile.type === "application/pdf" ? "text-red-500" : "text-blue-500"}`} />
+                        </div>
+                        <p className="text-xs font-medium truncate flex-1">{scanFile.name}</p>
+                        <button
+                          type="button"
+                          onClick={() => { setScanFile(null); setExtracted(null); }}
+                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <Button
+                        className="w-full rounded-xl gap-2"
+                        onClick={handleScan}
+                        disabled={scanning}
+                      >
+                        {scanning ? (
+                          <>
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                              className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
+                            />
+                            Belge okunuyor…
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4" />
+                            Belgeyi Tara ve Doldur
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                  {extracted && (
+                    <div className="space-y-2.5">
+                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Şu bilgiler bulundu:
+                      </p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {(Object.entries(extracted) as [string, string][])
+                          .filter(([, v]) => v)
+                          .map(([k, v]) => (
+                            <div key={k} className="bg-emerald-500/8 border border-emerald-500/20 rounded-lg px-2.5 py-1.5 min-w-0">
+                              <p className="text-[9px] text-muted-foreground uppercase tracking-wide">{SCAN_FIELD_LABELS[k] ?? k}</p>
+                              <p className="text-xs font-semibold truncate">{formatScanValue(k, v)}</p>
+                            </div>
+                          ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl flex-1 text-xs"
+                          onClick={() => { setExtracted(null); setScanFile(null); }}
+                        >
+                          İptal
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="rounded-xl flex-1 gap-1.5 text-xs"
+                          onClick={handleApplyExtracted}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Verileri Uygula
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card className="rounded-2xl border-border/40">
                 <CardContent className="p-4 space-y-4">
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Zorunlu Mali Sorumluluk Sigortası</h3>
@@ -624,6 +878,7 @@ export default function NewVehiclePage() {
                   </Field>
                 </CardContent>
               </Card>
+              </>
             )}
 
           </motion.div>

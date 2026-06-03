@@ -9,13 +9,15 @@ import Link from "next/link";
 import {
   getVehicles, updateVehicle, deleteVehicle, getVehicle,
   getVehicleRecords, addRecord, deleteRecord,
+  getVehicleDocuments, addVehicleDocument, updateVehicleDocument,
+  deleteVehicleDocument, getDocumentSignedUrl, uploadDocumentFile,
 } from "@/lib/db";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import {
   calculateHealthScore, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES,
 } from "@/lib/store";
-import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType } from "@/lib/types";
+import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -30,6 +32,8 @@ import {
   Sun, Snowflake, Layers, BatteryCharging, ShieldCheck, CalendarDays,
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
+  Shield, Download, Upload,
+  type LucideIcon,
 } from "lucide-react";
 import { exportVehicleReportPDF } from "@/lib/pdf-export";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -73,6 +77,50 @@ const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
   { value: "battery", label: "Akü" },
   { value: "other", label: "Diğer" },
 ];
+
+const DOC_TYPE_OPTIONS: { value: DocumentType; label: string; defaultTitle: string }[] = [
+  { value: "ruhsat",           label: "Ruhsat",           defaultTitle: "Araç Ruhsatı" },
+  { value: "trafik_sigortasi", label: "Trafik Sigortası", defaultTitle: "Trafik Sigortası Poliçesi" },
+  { value: "kasko",            label: "Kasko",            defaultTitle: "Kasko Poliçesi" },
+  { value: "muayene",          label: "Muayene",          defaultTitle: "TÜVTÜRK Muayene Belgesi" },
+  { value: "egzoz",            label: "Egzoz Emisyon",    defaultTitle: "Egzoz Emisyon Belgesi" },
+  { value: "diger",            label: "Diğer",            defaultTitle: "" },
+];
+
+const DOC_TYPE_META: Record<DocumentType, { label: string; Icon: LucideIcon; bg: string; color: string }> = {
+  ruhsat:           { label: "Ruhsat",           Icon: FileText,    bg: "bg-blue-500/10",    color: "text-blue-500" },
+  trafik_sigortasi: { label: "Trafik Sigortası", Icon: Shield,      bg: "bg-violet-500/10",  color: "text-violet-500" },
+  kasko:            { label: "Kasko",            Icon: ShieldCheck, bg: "bg-emerald-500/10", color: "text-emerald-500" },
+  muayene:          { label: "Muayene",          Icon: CalendarDays,bg: "bg-indigo-500/10",  color: "text-indigo-500" },
+  egzoz:            { label: "Egzoz Emisyon",    Icon: Zap,         bg: "bg-yellow-500/10",  color: "text-yellow-600 dark:text-yellow-400" },
+  diger:            { label: "Diğer",            Icon: FileText,    bg: "bg-gray-500/10",    color: "text-gray-500" },
+};
+
+function getDocStatus(expiryDate?: string): { label: string; cls: string } {
+  if (!expiryDate) return { label: "Geçerli", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" };
+  const days = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / 86400000);
+  if (days < 0)   return { label: "Süresi Doldu",    cls: "bg-red-500/10 text-red-600 dark:text-red-400" };
+  if (days <= 30)  return { label: `${days}g kaldı`, cls: "bg-orange-500/10 text-orange-600 dark:text-orange-400" };
+  if (days <= 90)  return { label: `${days}g kaldı`, cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
+  return { label: "Geçerli", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" };
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function validateDocFile(file: File): string | null {
+  const allowedMime = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
+  const allowedExt  = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+  const ext = "." + (file.name.split(".").pop()?.toLowerCase() ?? "");
+  if (!allowedMime.includes(file.type) && !allowedExt.includes(ext))
+    return "Desteklenmeyen dosya türü. PDF veya görüntü (JPG, PNG, WebP) seçin.";
+  if (file.size > 20 * 1024 * 1024)
+    return "Dosya boyutu 20 MB'ı aşamaz.";
+  return null;
+}
 
 const statusColor = { good: "bg-emerald-500", warning: "bg-amber-500", overdue: "bg-red-500" };
 const statusBadge = {
@@ -267,6 +315,22 @@ export default function VehicleDetailPage() {
     qty: "",
   });
 
+  // Document management state
+  const [documents, setDocuments] = useState<VehicleDocument[]>([]);
+  const [showAddDoc, setShowAddDoc] = useState(false);
+  const [showEditDoc, setShowEditDoc] = useState(false);
+  const [showDeleteDoc, setShowDeleteDoc] = useState(false);
+  const [docToEdit, setDocToEdit] = useState<VehicleDocument | null>(null);
+  const [docToDelete, setDocToDelete] = useState<VehicleDocument | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [docForm, setDocForm] = useState<{
+    type: DocumentType; title: string; file: File | null;
+    issueDate: string; expiryDate: string; notes: string;
+  }>({ type: "diger", title: "", file: null, issueDate: "", expiryDate: "", notes: "" });
+  const [editDocForm, setEditDocForm] = useState<{
+    type: DocumentType; title: string; issueDate: string; expiryDate: string; notes: string;
+  }>({ type: "diger", title: "", issueDate: "", expiryDate: "", notes: "" });
+
   const reload = useCallback(async () => {
     try {
       const v = await getVehicle(id);
@@ -279,9 +343,21 @@ export default function VehicleDetailPage() {
     }
   }, [id, router]);
 
+  const reloadDocs = useCallback(async () => {
+    try {
+      const docs = await getVehicleDocuments(id);
+      setDocuments(docs);
+    } catch (err) {
+      console.error("Failed to load documents:", err);
+    }
+  }, [id]);
+
   useEffect(() => {
-    if (!authLoading && company) reload();
-  }, [authLoading, company, reload]);
+    if (!authLoading && company) {
+      reload();
+      reloadDocs();
+    }
+  }, [authLoading, company, reload, reloadDocs]);
 
   if (!vehicle) return null;
 
@@ -373,6 +449,84 @@ export default function VehicleDetailPage() {
     } catch (err) {
       console.error(err);
       toast.error("Hata", { description: "Kayıt eklenirken hata oluştu." });
+    }
+  };
+
+  // Document handlers
+  const handleAddDoc = async () => {
+    if (guardDemo()) { setShowAddDoc(false); return; }
+    if (!docForm.file || !docForm.title.trim()) return;
+    setIsUploading(true);
+    try {
+      const uploadResult = await uploadDocumentFile(vehicle.id, docForm.file);
+      await addVehicleDocument({
+        companyId: company?.id ?? "",
+        vehicleId: vehicle.id,
+        type: docForm.type,
+        title: docForm.title.trim(),
+        filePath: uploadResult.filePath,
+        fileName: uploadResult.fileName,
+        fileSize: uploadResult.fileSize,
+        mimeType: uploadResult.mimeType,
+        issueDate: docForm.issueDate || undefined,
+        expiryDate: docForm.expiryDate || undefined,
+        notes: docForm.notes,
+      });
+      setShowAddDoc(false);
+      setDocForm({ type: "diger", title: "", file: null, issueDate: "", expiryDate: "", notes: "" });
+      reloadDocs();
+      toast.success("Belge Eklendi", { description: "Belge başarıyla yüklendi." });
+    } catch (err) {
+      console.error(err);
+      toast.error("Hata", { description: "Belge yüklenirken hata oluştu." });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleEditDoc = async () => {
+    if (!docToEdit) return;
+    if (guardDemo()) { setShowEditDoc(false); return; }
+    try {
+      await updateVehicleDocument(docToEdit.id, {
+        type: editDocForm.type,
+        title: editDocForm.title.trim(),
+        issueDate: editDocForm.issueDate || undefined,
+        expiryDate: editDocForm.expiryDate || undefined,
+        notes: editDocForm.notes,
+      });
+      setShowEditDoc(false);
+      setDocToEdit(null);
+      reloadDocs();
+      toast.success("Güncellendi", { description: "Belge bilgileri kaydedildi." });
+    } catch (err) {
+      console.error(err);
+      toast.error("Hata", { description: "Belge güncellenirken hata oluştu." });
+    }
+  };
+
+  const handleDeleteDoc = async () => {
+    if (!docToDelete) return;
+    if (guardDemo()) { setShowDeleteDoc(false); return; }
+    try {
+      await deleteVehicleDocument(docToDelete.id, docToDelete.filePath);
+      setShowDeleteDoc(false);
+      setDocToDelete(null);
+      reloadDocs();
+      toast.success("Silindi", { description: "Belge başarıyla silindi." });
+    } catch (err) {
+      console.error(err);
+      toast.error("Hata", { description: "Belge silinirken hata oluştu." });
+    }
+  };
+
+  const handleDownloadDoc = async (doc: VehicleDocument) => {
+    try {
+      const url = await getDocumentSignedUrl(doc.filePath);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error(err);
+      toast.error("Hata", { description: "Belge açılırken hata oluştu." });
     }
   };
 
@@ -795,6 +949,106 @@ export default function VehicleDetailPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Uploaded documents */}
+                  <div className="flex justify-between items-center pt-1">
+                    <p className="text-sm font-semibold flex items-center gap-2">
+                      <Upload className="h-4 w-4 text-muted-foreground" /> Araç Belgeleri
+                    </p>
+                    {!isDriver && (
+                      <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={() => setShowAddDoc(true)}>
+                        <Plus className="h-3.5 w-3.5" /> Belge Ekle
+                      </Button>
+                    )}
+                  </div>
+
+                  {documents.length === 0 ? (
+                    <div className="text-center py-8 bg-muted/30 rounded-2xl border border-border/20">
+                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm text-muted-foreground">Henüz belge yüklenmemiş.</p>
+                      {!isDriver && (
+                        <button className="text-xs text-primary mt-2 hover:underline" onClick={() => setShowAddDoc(true)}>
+                          İlk belgeyi ekle
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {documents.map((doc) => {
+                        const meta = DOC_TYPE_META[doc.type] ?? DOC_TYPE_META.diger;
+                        const { Icon: DocIcon } = meta;
+                        const status = getDocStatus(doc.expiryDate);
+                        return (
+                          <div key={doc.id} className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <div className={`p-2 ${meta.bg} rounded-xl shrink-0 mt-0.5`}>
+                                <DocIcon className={`h-4 w-4 ${meta.color}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4 className="text-sm font-semibold leading-snug">{doc.title}</h4>
+                                  <Badge variant="secondary" className={`${status.cls} border-none text-[10px] font-bold shrink-0`}>
+                                    {status.label}
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${meta.bg} ${meta.color}`}>
+                                    {meta.label}
+                                  </span>
+                                  {(doc.issueDate || doc.expiryDate) && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {doc.issueDate ? doc.issueDate.split("-").reverse().join(".") : "—"}
+                                      {doc.expiryDate && ` → ${doc.expiryDate.split("-").reverse().join(".")}`}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                                  {doc.fileName}{doc.fileSize ? ` • ${formatBytes(doc.fileSize)}` : ""}
+                                </p>
+                                {doc.notes && (
+                                  <p className="text-[11px] text-muted-foreground mt-1.5 bg-muted/40 rounded-lg px-2 py-1 leading-relaxed">{doc.notes}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-border/20">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 gap-1.5 text-[11px]"
+                                onClick={() => handleDownloadDoc(doc)}
+                              >
+                                <Download className="h-3.5 w-3.5" /> Görüntüle
+                              </Button>
+                              {!isDriver && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                    onClick={() => {
+                                      setDocToEdit(doc);
+                                      setEditDocForm({ type: doc.type, title: doc.title, issueDate: doc.issueDate || "", expiryDate: doc.expiryDate || "", notes: doc.notes });
+                                      setShowEditDoc(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => { setDocToDelete(doc); setShowDeleteDoc(true); }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </TabsContent>
 
                 {/* ── GEÇMİŞ ── */}
@@ -1191,6 +1445,134 @@ export default function VehicleDetailPage() {
           <DialogFooter>
             <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
             <Button onClick={handleSaveMaintEdit} className="rounded-xl flex-1">Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── BELGE EKLE ── */}
+      <Dialog open={showAddDoc} onOpenChange={(o) => { if (!isUploading) setShowAddDoc(o); }}>
+        <DialogContent className="max-w-[92vw] md:max-w-md rounded-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <Upload className="h-4 w-4 text-primary" /> Belge Ekle
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label className={iLabel}>Belge Türü</Label>
+              <Select value={docForm.type} onValueChange={(v) => {
+                const opt = DOC_TYPE_OPTIONS.find((o) => o.value === v);
+                setDocForm((f) => ({ ...f, type: v as DocumentType, title: opt?.defaultTitle && !f.title ? opt.defaultTitle : f.title }));
+              }}>
+                <SelectTrigger className={iCls}><SelectValue /></SelectTrigger>
+                <SelectContent>{DOC_TYPE_OPTIONS.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className={iLabel}>Belge Başlığı</Label>
+              <Input className={iCls} placeholder="Belge adı..." value={docForm.title} onChange={(e) => setDocForm((f) => ({ ...f, title: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className={iLabel}>Dosya <span className="font-normal text-muted-foreground">(PDF, JPG, PNG, WebP • maks. 20 MB)</span></Label>
+              <div className={`relative rounded-xl border-2 border-dashed ${docForm.file ? "border-primary/30 bg-primary/5" : "border-border/50 bg-muted/20"} overflow-hidden transition-colors`}>
+                {docForm.file ? (
+                  <div className="px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${docForm.file.type === "application/pdf" ? "bg-red-500/10" : "bg-blue-500/10"}`}>
+                        <FileText className={`h-4 w-4 ${docForm.file.type === "application/pdf" ? "text-red-500" : "text-blue-500"}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{docForm.file.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{formatBytes(docForm.file.size)}</p>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setDocForm((f) => ({ ...f, file: null }))} className="text-muted-foreground hover:text-destructive shrink-0">
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="block cursor-pointer">
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const err = validateDocFile(file);
+                      if (err) { toast.error("Geçersiz Dosya", { description: err }); e.target.value = ""; return; }
+                      setDocForm((f) => ({ ...f, file }));
+                      e.target.value = "";
+                    }} />
+                    <div className="py-7 flex flex-col items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                      <Upload className="h-8 w-8 opacity-40" />
+                      <p className="text-xs font-medium">Dosya seçin veya sürükleyin</p>
+                    </div>
+                  </label>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className={iLabel}>Düzenleme Tarihi</Label><DatePicker value={docForm.issueDate} onChange={(v) => setDocForm((f) => ({ ...f, issueDate: v }))} /></div>
+              <div className="space-y-1"><Label className={iLabel}>Geçerlilik Tarihi</Label><DatePicker value={docForm.expiryDate} onChange={(v) => setDocForm((f) => ({ ...f, expiryDate: v }))} /></div>
+            </div>
+            <div className="space-y-1">
+              <Label className={iLabel}>Notlar <span className="font-normal">(isteğe bağlı)</span></Label>
+              <textarea className="w-full rounded-xl bg-muted/30 border border-border/40 text-sm p-3 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" placeholder="Poliçe numarası, acente..." value={docForm.notes} onChange={(e) => setDocForm((f) => ({ ...f, notes: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" className="rounded-xl" disabled={isUploading} />}>İptal</DialogClose>
+            <Button onClick={handleAddDoc} disabled={!docForm.file || !docForm.title.trim() || isUploading} className="rounded-xl gap-2">
+              {isUploading ? "Yükleniyor…" : "Kaydet"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── BELGE DÜZENLE ── */}
+      <Dialog open={showEditDoc} onOpenChange={setShowEditDoc}>
+        <DialogContent className="max-w-[92vw] md:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-primary" /> Belgeyi Düzenle
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label className={iLabel}>Belge Türü</Label>
+              <Select value={editDocForm.type} onValueChange={(v) => setEditDocForm((f) => ({ ...f, type: v as DocumentType }))}>
+                <SelectTrigger className={iCls}><SelectValue /></SelectTrigger>
+                <SelectContent>{DOC_TYPE_OPTIONS.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1"><Label className={iLabel}>Başlık</Label><Input className={iCls} value={editDocForm.title} onChange={(e) => setEditDocForm((f) => ({ ...f, title: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className={iLabel}>Düzenleme Tarihi</Label><DatePicker value={editDocForm.issueDate} onChange={(v) => setEditDocForm((f) => ({ ...f, issueDate: v }))} /></div>
+              <div className="space-y-1"><Label className={iLabel}>Geçerlilik Tarihi</Label><DatePicker value={editDocForm.expiryDate} onChange={(v) => setEditDocForm((f) => ({ ...f, expiryDate: v }))} /></div>
+            </div>
+            <div className="space-y-1">
+              <Label className={iLabel}>Notlar</Label>
+              <textarea className="w-full rounded-xl bg-muted/30 border border-border/40 text-sm p-3 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" value={editDocForm.notes} onChange={(e) => setEditDocForm((f) => ({ ...f, notes: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" className="rounded-xl" />}>İptal</DialogClose>
+            <Button onClick={handleEditDoc} disabled={!editDocForm.title.trim()} className="rounded-xl">Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── BELGE SİL ── */}
+      <Dialog open={showDeleteDoc} onOpenChange={setShowDeleteDoc}>
+        <DialogContent className="rounded-3xl max-w-[340px]">
+          <DialogHeader>
+            <DialogTitle className="font-outfit text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Belgeyi Sil
+            </DialogTitle>
+          </DialogHeader>
+          <p className="py-4 text-sm text-muted-foreground">
+            <b>{docToDelete?.title}</b> belgesini kalıcı olarak silmek istediğinize emin misiniz?
+          </p>
+          <DialogFooter className="gap-2">
+            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
+            <Button variant="destructive" onClick={handleDeleteDoc} className="rounded-xl flex-1">Evet, Sil</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

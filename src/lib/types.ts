@@ -126,3 +126,22 @@ export interface FleetAlert {
   severity: AlertSeverity;
   category: "insurance" | "green-card" | "inspection" | "maintenance" | "tire";
 }
+
+export type DocumentType = "ruhsat" | "trafik_sigortasi" | "kasko" | "muayene" | "egzoz" | "diger";
+
+export interface VehicleDocument {
+  id: string;
+  companyId: string;
+  vehicleId: string;
+  type: DocumentType;
+  title: string;
+  filePath: string;
+  fileName: string;
+  fileSize?: number;
+  mimeType?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}

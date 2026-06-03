@@ -1,5 +1,5 @@
 import { createClient } from "./supabase/client";
-import type { Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask } from "./types";
+import type { Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask, VehicleDocument } from "./types";
 
 // ─── TTL data cache ───────────────────────────────────────────
 // Keeps data in memory for 60 seconds so navigating between pages is instant.
@@ -717,4 +717,130 @@ export async function deleteTask(taskId: string): Promise<void> {
     .delete()
     .eq("id", taskId);
   if (error) throw error;
+}
+
+// ─── Vehicle Documents ────────────────────────────────────────
+
+function toDocument(row: Record<string, unknown>): VehicleDocument {
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    vehicleId: row.vehicle_id as string,
+    type: (row.type as VehicleDocument["type"]) || "diger",
+    title: row.title as string,
+    filePath: row.file_path as string,
+    fileName: row.file_name as string,
+    fileSize: row.file_size != null ? (row.file_size as number) : undefined,
+    mimeType: (row.mime_type as string) || undefined,
+    issueDate: (row.issue_date as string) || undefined,
+    expiryDate: (row.expiry_date as string) || undefined,
+    notes: (row.notes as string) || "",
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+export async function getVehicleDocuments(vehicleId: string): Promise<VehicleDocument[]> {
+  const companyId = await requireCompanyId();
+  const cacheKey = `vdocs:${companyId}:${vehicleId}`;
+  const cached = getCached<VehicleDocument[]>(cacheKey);
+  if (cached) return cached;
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("vehicle_documents")
+    .select("*")
+    .eq("vehicle_id", vehicleId)
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return setCached(cacheKey, (data ?? []).map(toDocument));
+}
+
+export async function addVehicleDocument(
+  data: Omit<VehicleDocument, "id" | "createdAt" | "updatedAt">,
+): Promise<VehicleDocument> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data: inserted, error } = await supabase
+    .from("vehicle_documents")
+    .insert({
+      company_id: companyId,
+      vehicle_id: data.vehicleId,
+      type: data.type,
+      title: data.title,
+      file_path: data.filePath,
+      file_name: data.fileName,
+      file_size: data.fileSize ?? null,
+      mime_type: data.mimeType ?? null,
+      issue_date: data.issueDate || null,
+      expiry_date: data.expiryDate || null,
+      notes: data.notes,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  bustCache(`vdocs:${companyId}`);
+  return toDocument(inserted);
+}
+
+export async function updateVehicleDocument(
+  id: string,
+  updates: Partial<Pick<VehicleDocument, "type" | "title" | "issueDate" | "expiryDate" | "notes">>,
+): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.type !== undefined) patch.type = updates.type;
+  if (updates.title !== undefined) patch.title = updates.title;
+  if (updates.issueDate !== undefined) patch.issue_date = updates.issueDate || null;
+  if (updates.expiryDate !== undefined) patch.expiry_date = updates.expiryDate || null;
+  if (updates.notes !== undefined) patch.notes = updates.notes;
+  const { error } = await supabase
+    .from("vehicle_documents")
+    .update(patch)
+    .eq("id", id)
+    .eq("company_id", companyId);
+  if (error) throw error;
+  bustCache(`vdocs:${companyId}`);
+}
+
+export async function deleteVehicleDocument(id: string, filePath: string): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { error: storageErr } = await supabase.storage
+    .from("vehicle-documents")
+    .remove([filePath]);
+  if (storageErr) console.error("Storage delete (non-fatal):", storageErr);
+  const { error } = await supabase
+    .from("vehicle_documents")
+    .delete()
+    .eq("id", id)
+    .eq("company_id", companyId);
+  if (error) throw error;
+  bustCache(`vdocs:${companyId}`);
+}
+
+export async function getDocumentSignedUrl(filePath: string): Promise<string> {
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from("vehicle-documents")
+    .createSignedUrl(filePath, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function uploadDocumentFile(
+  vehicleId: string,
+  file: File,
+): Promise<{ filePath: string; fileName: string; fileSize: number; mimeType: string }> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+  const docId = crypto.randomUUID();
+  const filePath = `${companyId}/${vehicleId}/${docId}.${ext}`;
+  const { error } = await supabase.storage
+    .from("vehicle-documents")
+    .upload(filePath, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return { filePath, fileName: file.name, fileSize: file.size, mimeType: file.type };
 }
