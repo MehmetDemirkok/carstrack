@@ -10,10 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MAINTENANCE_TEMPLATES } from "@/lib/store";
-import { addVehicle } from "@/lib/db";
+import { addVehicle, addVehicleDocument, uploadDocumentFile } from "@/lib/db";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, BatteryCharging, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileSearch, FileText, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileText, XCircle, Upload } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getVehicles } from "@/lib/db";
 import { canAddVehicle } from "@/lib/plans";
@@ -86,6 +86,26 @@ interface ExtractedDocData {
   greenCardExpiry?: string;
   inspectionExpiry?: string;
 }
+
+type DocKey = "ruhsat" | "trafik_sigortasi" | "kasko";
+
+interface DocSlot {
+  file: File | null;
+  scanning: boolean;
+  extracted: ExtractedDocData | null;
+}
+
+const DOC_SLOTS: { key: DocKey; label: string; Icon: React.FC<{ className?: string }>; desc: string }[] = [
+  { key: "ruhsat",           label: "Araç Ruhsatı",     Icon: FileText,   desc: "Kimlik ve teknik bilgiler" },
+  { key: "trafik_sigortasi", label: "Trafik Sigortası", Icon: Shield,     desc: "Zorunlu sigorta tarihleri" },
+  { key: "kasko",            label: "Kasko Poliçesi",   Icon: ShieldCheck, desc: "Kasko bitiş tarihi" },
+];
+
+const DOC_TITLES: Record<DocKey, string> = {
+  ruhsat:           "Araç Ruhsatı",
+  trafik_sigortasi: "Trafik Sigortası Poliçesi",
+  kasko:            "Kasko Poliçesi",
+};
 
 const SCAN_FIELD_LABELS: Record<string, string> = {
   plate: "Plaka",
@@ -288,10 +308,15 @@ export default function NewVehiclePage() {
   const [done, setDone] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  // Document scan state
-  const [scanFile, setScanFile] = useState<File | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [extracted, setExtracted] = useState<ExtractedDocData | null>(null);
+  // Document scan state — multi-doc
+  const initDocSlots = (): Record<DocKey, DocSlot> => ({
+    ruhsat:           { file: null, scanning: false, extracted: null },
+    trafik_sigortasi: { file: null, scanning: false, extracted: null },
+    kasko:            { file: null, scanning: false, extracted: null },
+  });
+  const [scanDocs, setScanDocs] = useState<Record<DocKey, DocSlot>>(initDocSlots);
+  const [mergedExtracted, setMergedExtracted] = useState<ExtractedDocData | null>(null);
+  const [docsApplied, setDocsApplied] = useState(false);
 
   // Sayfa açılınca limit kontrolü yap (tek seferlik)
   useEffect(() => {
@@ -321,83 +346,115 @@ export default function NewVehiclePage() {
 
   const [error, setError] = useState<string>("");
 
-  const handleScanFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const SCAN_MAX = 5 * 1024 * 1024;
+  const SCAN_ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
+  const SCAN_ALLOWED_EXTS = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+
+  const handleDocFileSelect = (key: DocKey, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    const SCAN_MAX = 5 * 1024 * 1024; // 5 MB
-    const allowed = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
     const ext = "." + (file.name.split(".").pop()?.toLowerCase() ?? "");
-    const allowedExts = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
-    if (!allowed.includes(file.type) && !allowedExts.includes(ext)) {
+    if (!SCAN_ALLOWED_TYPES.includes(file.type) && !SCAN_ALLOWED_EXTS.includes(ext)) {
       toast.error("Desteklenmeyen dosya", { description: "PDF veya görsel (JPG, PNG, WebP) seçin." });
-      e.target.value = "";
       return;
     }
     if (file.size > SCAN_MAX) {
-      toast.error("Dosya çok büyük", { description: "Tarama için maksimum dosya boyutu 5 MB'dır." });
-      e.target.value = "";
+      toast.error("Dosya çok büyük", { description: "Maks. 5 MB." });
       return;
     }
-    setScanFile(file);
-    setExtracted(null);
-    e.target.value = "";
+    setScanDocs(prev => ({ ...prev, [key]: { file, scanning: false, extracted: null } }));
+    setMergedExtracted(null);
+    setDocsApplied(false);
   };
 
-  const handleScan = async () => {
-    if (!scanFile) return;
-    setScanning(true);
-    try {
-      const base64 = await fileToBase64(scanFile);
-      const mimeType = scanFile.type || "application/octet-stream";
-      const res = await fetch("/api/extract-document", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ fileData: base64, mimeType }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const { data } = await res.json() as { data: ExtractedDocData };
-      if (!data || Object.keys(data).length === 0) {
-        toast.warning("Bilgi bulunamadı", { description: "Belge okunamadı veya bilgi çıkarılamadı." });
-        return;
+  const handleScanAll = async () => {
+    const toScan = (Object.entries(scanDocs) as [DocKey, DocSlot][]).filter(([, d]) => d.file && !d.extracted);
+    if (toScan.length === 0) return;
+
+    setScanDocs(prev => {
+      const updated = { ...prev };
+      toScan.forEach(([key]) => { updated[key] = { ...updated[key], scanning: true }; });
+      return updated;
+    });
+
+    const results = await Promise.allSettled(
+      toScan.map(async ([, doc]) => {
+        const base64 = await fileToBase64(doc.file!);
+        const mimeType = doc.file!.type || "application/octet-stream";
+        const res = await fetch("/api/extract-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ fileData: base64, mimeType }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const { data } = await res.json() as { data: ExtractedDocData };
+        return data ?? {};
+      })
+    );
+
+    const extractedByKey: Partial<Record<DocKey, ExtractedDocData>> = {};
+    toScan.forEach(([key], i) => {
+      if (results[i].status === "fulfilled") {
+        extractedByKey[key] = (results[i] as PromiseFulfilledResult<ExtractedDocData>).value;
       }
-      setExtracted(data);
-      toast.success("Tarama tamamlandı", { description: "Bulunan bilgileri inceleyip uygulayabilirsiniz." });
-    } catch (err) {
-      console.error("Scan error:", err);
-      toast.error("Tarama başarısız", { description: "Belge okunamadı. Lütfen tekrar deneyin." });
-    } finally {
-      setScanning(false);
+    });
+
+    setScanDocs(prev => {
+      const updated = { ...prev };
+      toScan.forEach(([key]) => {
+        updated[key] = { ...updated[key], scanning: false, extracted: extractedByKey[key] ?? null };
+      });
+      return updated;
+    });
+
+    // Merge: kasko < trafik_sigortasi < ruhsat (ruhsat has highest priority)
+    const merged: ExtractedDocData = {};
+    (["kasko", "trafik_sigortasi", "ruhsat"] as DocKey[]).forEach(key => {
+      if (extractedByKey[key]) Object.assign(merged, extractedByKey[key]);
+    });
+
+    const failCount = results.filter(r => r.status === "rejected").length;
+    if (failCount > 0) toast.warning(`${failCount} belge okunamadı`, { description: "Diğer belgeler tarandı." });
+
+    if (Object.keys(merged).length === 0) {
+      toast.warning("Bilgi bulunamadı", { description: "Belgelerden bilgi çıkarılamadı." });
+      return;
     }
+
+    setMergedExtracted(merged);
+    const successCount = results.filter(r => r.status === "fulfilled").length;
+    toast.success(`${successCount} belge tarandı`, { description: "Bulunan bilgileri inceleyip uygulayabilirsiniz." });
   };
 
-  const handleApplyExtracted = () => {
-    if (!extracted) return;
+  const handleApplyMerged = () => {
+    if (!mergedExtracted) return;
     const updates: Partial<FormData> = {};
-    if (extracted.plate) updates.plate = extracted.plate;
-    if (extracted.brand) updates.brand = extracted.brand;
-    if (extracted.model) updates.model = extracted.model;
-    if (extracted.year) updates.year = extracted.year;
-    if (extracted.color) updates.color = extracted.color;
-    if (extracted.fuelType && ["Benzin","Dizel","LPG","Hibrit","Elektrik"].includes(extracted.fuelType))
-      updates.fuelType = extracted.fuelType as FormData["fuelType"];
-    if (extracted.engineVolume) updates.engineVolume = extracted.engineVolume;
-    if (extracted.mileage) updates.mileage = extracted.mileage;
-    if (extracted.insuranceCompany) updates.insuranceCompany = extracted.insuranceCompany;
-    if (extracted.insuranceExpiry) updates.insuranceExpiry = extracted.insuranceExpiry;
-    if (extracted.greenCardCompany) updates.greenCardCompany = extracted.greenCardCompany;
-    if (extracted.greenCardExpiry) updates.greenCardExpiry = extracted.greenCardExpiry;
-    if (extracted.inspectionExpiry) updates.inspectionExpiry = extracted.inspectionExpiry;
+    if (mergedExtracted.plate) updates.plate = mergedExtracted.plate;
+    if (mergedExtracted.brand) updates.brand = mergedExtracted.brand;
+    if (mergedExtracted.model) updates.model = mergedExtracted.model;
+    if (mergedExtracted.year) updates.year = mergedExtracted.year;
+    if (mergedExtracted.color) updates.color = mergedExtracted.color;
+    if (mergedExtracted.fuelType && FUEL_TYPES.includes(mergedExtracted.fuelType as FuelType))
+      updates.fuelType = mergedExtracted.fuelType as FuelType;
+    if (mergedExtracted.engineVolume) updates.engineVolume = mergedExtracted.engineVolume;
+    if (mergedExtracted.mileage) updates.mileage = mergedExtracted.mileage;
+    if (mergedExtracted.insuranceCompany) updates.insuranceCompany = mergedExtracted.insuranceCompany;
+    if (mergedExtracted.insuranceExpiry) updates.insuranceExpiry = mergedExtracted.insuranceExpiry;
+    if (mergedExtracted.greenCardCompany) updates.greenCardCompany = mergedExtracted.greenCardCompany;
+    if (mergedExtracted.greenCardExpiry) updates.greenCardExpiry = mergedExtracted.greenCardExpiry;
+    if (mergedExtracted.inspectionExpiry) updates.inspectionExpiry = mergedExtracted.inspectionExpiry;
 
-    setForm((prev) => ({ ...prev, ...updates }));
+    setForm(prev => ({ ...prev, ...updates }));
+    setMergedExtracted(null);
+    setDocsApplied(true);
 
     toast.warning("Bilgileri kontrol edin", {
-      description: "AI çıkarımı hatalı olabilir. Lütfen sonraki adımlarda doldurulan alanları tek tek doğrulayın.",
+      description: "AI çıkarımı hatalı olabilir. Lütfen sonraki adımlarda alanları doğrulayın.",
       duration: 8000,
     });
 
-    setExtracted(null);
-    setScanFile(null);
     setStep(2);
   };
 
@@ -445,7 +502,35 @@ export default function NewVehiclePage() {
     };
 
     try {
-      await addVehicle(data);
+      const vehicle = await addVehicle(data);
+
+      // Upload any scanned documents into the vehicle's document library
+      const docEntries = (Object.entries(scanDocs) as [DocKey, DocSlot][]).filter(([, d]) => d.file);
+      if (docEntries.length > 0) {
+        await Promise.allSettled(
+          docEntries.map(async ([key, doc]) => {
+            const uploaded = await uploadDocumentFile(vehicle.id, doc.file!);
+            const expiry =
+              key === "trafik_sigortasi" ? (form.insuranceExpiry || undefined) :
+              key === "kasko"            ? (form.greenCardExpiry  || undefined) :
+              undefined;
+            await addVehicleDocument({
+              companyId: company?.id ?? "",
+              vehicleId: vehicle.id,
+              type: key,
+              title: DOC_TITLES[key],
+              filePath: uploaded.filePath,
+              fileName: uploaded.fileName,
+              fileSize: uploaded.fileSize,
+              mimeType: uploaded.mimeType,
+              issueDate: undefined,
+              expiryDate: expiry,
+              notes: "",
+            });
+          })
+        );
+      }
+
       setSaving(false);
       setDone(true);
       toast.success("Araç Eklendi", { description: "Araç başarıyla eklendi, yönlendiriliyorsunuz." });
@@ -539,7 +624,7 @@ export default function NewVehiclePage() {
             {/* ── STEP 1: BELGELER ── */}
             {step === 1 && (
               <>
-              {/* AI belge tarayıcı */}
+              {/* AI belge tarayıcı — 3 slot */}
               <Card className="rounded-2xl border-primary/20 bg-primary/5">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center gap-2.5">
@@ -548,73 +633,106 @@ export default function NewVehiclePage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold">Belge ile Otomatik Doldur</p>
-                      <p className="text-[11px] text-muted-foreground">Ruhsat, sigorta veya muayene belgesi yükleyin — AI alanları doldursun</p>
+                      <p className="text-[11px] text-muted-foreground">Ruhsat, sigorta veya kasko yükleyin — AI alanları doldursun</p>
                     </div>
                   </div>
 
-                  {!scanFile && !extracted && (
-                    <label className="block cursor-pointer">
-                      <div className="border-2 border-dashed border-primary/20 rounded-xl p-5 flex flex-col items-center gap-2 hover:border-primary/40 hover:bg-primary/5 transition-colors">
-                        <FileSearch className="h-7 w-7 text-primary/40" />
-                        <p className="text-xs font-medium text-center text-muted-foreground">Belge seçmek için tıklayın</p>
-                        <p className="text-[10px] text-muted-foreground/70">PDF veya görsel (JPG, PNG, WebP) • Maks. 5 MB</p>
+                  {/* Applied summary */}
+                  {docsApplied && !mergedExtracted && (
+                    <div className="flex items-center gap-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Belgeler uygulandı</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {(Object.values(scanDocs) as DocSlot[]).filter(d => d.file).length} belge araç kaydedilince yüklenecek
+                        </p>
                       </div>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png,.webp"
-                        className="hidden"
-                        onChange={handleScanFileSelect}
-                      />
-                    </label>
-                  )}
-
-                  {scanFile && !extracted && (
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2.5 bg-background/60 rounded-xl px-3 py-2.5 border border-border/40">
-                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${scanFile.type === "application/pdf" ? "bg-red-500/10" : "bg-blue-500/10"}`}>
-                          <FileText className={`h-4 w-4 ${scanFile.type === "application/pdf" ? "text-red-500" : "text-blue-500"}`} />
-                        </div>
-                        <p className="text-xs font-medium truncate flex-1">{scanFile.name}</p>
-                        <button
-                          type="button"
-                          onClick={() => { setScanFile(null); setExtracted(null); }}
-                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <Button
-                        className="w-full rounded-xl gap-2"
-                        onClick={handleScan}
-                        disabled={scanning}
+                      <button
+                        type="button"
+                        onClick={() => { setDocsApplied(false); setScanDocs(initDocSlots()); setMergedExtracted(null); }}
+                        className="text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
                       >
-                        {scanning ? (
-                          <>
-                            <motion.div
-                              animate={{ rotate: 360 }}
-                              transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
-                              className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
-                            />
-                            Belge okunuyor…
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-4 w-4" />
-                            Belgeyi Tara ve Doldur
-                          </>
-                        )}
-                      </Button>
+                        Sıfırla
+                      </button>
                     </div>
                   )}
 
-                  {extracted && (
+                  {/* Document slots */}
+                  {!docsApplied && !mergedExtracted && (
+                    <div className="space-y-2">
+                      {DOC_SLOTS.map(({ key, label, Icon, desc }) => {
+                        const slot = scanDocs[key];
+                        return (
+                          <div key={key} className="bg-background/60 rounded-xl border border-border/40 p-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${slot.extracted ? "bg-emerald-500/10" : "bg-primary/10"}`}>
+                                {slot.extracted
+                                  ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                  : <Icon className="h-4 w-4 text-primary" />
+                                }
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold">{label}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {slot.file ? slot.file.name : desc}
+                                </p>
+                              </div>
+                              {slot.scanning ? (
+                                <motion.div
+                                  animate={{ rotate: 360 }}
+                                  transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                                  className="h-4 w-4 border-2 border-primary/30 border-t-primary rounded-full shrink-0"
+                                />
+                              ) : slot.file ? (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <label className="cursor-pointer">
+                                    <span className="text-[10px] text-muted-foreground border border-border/40 rounded-lg px-2 py-1 hover:bg-muted/40 transition-colors">
+                                      Değiştir
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                      className="hidden"
+                                      onChange={(e) => handleDocFileSelect(key, e)}
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => setScanDocs(prev => ({ ...prev, [key]: { file: null, scanning: false, extracted: null } }))}
+                                    className="text-muted-foreground hover:text-destructive transition-colors"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <label className="cursor-pointer shrink-0">
+                                  <span className="text-[10px] text-primary font-semibold border border-primary/30 rounded-lg px-2.5 py-1 hover:bg-primary/10 transition-colors">
+                                    Seç
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                    className="hidden"
+                                    onChange={(e) => handleDocFileSelect(key, e)}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Merged extracted results */}
+                  {mergedExtracted && (
                     <div className="space-y-2.5">
                       <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         Şu bilgiler bulundu:
                       </p>
                       <div className="grid grid-cols-2 gap-1.5">
-                        {(Object.entries(extracted) as [string, string][])
+                        {(Object.entries(mergedExtracted) as [string, string][])
                           .filter(([, v]) => v)
                           .map(([k, v]) => (
                             <div key={k} className="bg-emerald-500/8 border border-emerald-500/20 rounded-lg px-2.5 py-1.5 min-w-0">
@@ -628,20 +746,45 @@ export default function NewVehiclePage() {
                           variant="outline"
                           size="sm"
                           className="rounded-xl flex-1 text-xs"
-                          onClick={() => { setExtracted(null); setScanFile(null); }}
+                          onClick={() => setMergedExtracted(null)}
                         >
                           İptal
                         </Button>
                         <Button
                           size="sm"
                           className="rounded-xl flex-1 gap-1.5 text-xs"
-                          onClick={handleApplyExtracted}
+                          onClick={handleApplyMerged}
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           Verileri Uygula
                         </Button>
                       </div>
                     </div>
+                  )}
+
+                  {/* Scan button — only when files selected and no merged result yet */}
+                  {!docsApplied && !mergedExtracted && (Object.values(scanDocs) as DocSlot[]).some(d => d.file && !d.extracted) && (
+                    <Button
+                      className="w-full rounded-xl gap-2"
+                      onClick={handleScanAll}
+                      disabled={(Object.values(scanDocs) as DocSlot[]).some(d => d.scanning)}
+                    >
+                      {(Object.values(scanDocs) as DocSlot[]).some(d => d.scanning) ? (
+                        <>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                            className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
+                          />
+                          Belgeler okunuyor…
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" />
+                          Belgeleri Tara ve Doldur
+                        </>
+                      )}
+                    </Button>
                   )}
                 </CardContent>
               </Card>
