@@ -218,10 +218,10 @@ function AutocompleteInput({
 }
 
 const steps = [
-  { id: 1, title: "Kimlik", icon: Car },
-  { id: 2, title: "Teknik", icon: Fuel },
-  { id: 3, title: "Lastik & Akü", icon: Disc3 },
-  { id: 4, title: "Belgeler", icon: Shield },
+  { id: 1, title: "Belgeler", icon: Shield },
+  { id: 2, title: "Kimlik", icon: Car },
+  { id: 3, title: "Teknik", icon: Fuel },
+  { id: 4, title: "Lastik & Akü", icon: Disc3 },
 ];
 
 interface FormData {
@@ -391,18 +391,14 @@ export default function NewVehiclePage() {
 
     setForm((prev) => ({ ...prev, ...updates }));
 
-    const prevStepKeys = ["plate","brand","model","year","color","fuelType","engineVolume","mileage"];
-    const hasPrevStep = prevStepKeys.some((k) => updates[k as keyof FormData] !== undefined);
-
     toast.warning("Bilgileri kontrol edin", {
-      description: hasPrevStep
-        ? "AI çıkarımı hatalı olabilir. Lütfen tüm adımlara geri dönerek doldurulan alanları tek tek doğrulayın."
-        : "AI çıkarımı hatalı olabilir. Lütfen aşağıdaki alanları tek tek kontrol edip onaylayın.",
+      description: "AI çıkarımı hatalı olabilir. Lütfen sonraki adımlarda doldurulan alanları tek tek doğrulayın.",
       duration: 8000,
     });
 
     setExtracted(null);
     setScanFile(null);
+    setStep(2);
   };
 
   const handleSubmit = async () => {
@@ -540,198 +536,8 @@ export default function NewVehiclePage() {
             transition={{ duration: 0.25 }}
             className="space-y-5"
           >
-            {/* ── STEP 1: KİMLİK ── */}
+            {/* ── STEP 1: BELGELER ── */}
             {step === 1 && (
-              <>
-                {/* Image upload */}
-                <div className="space-y-2">
-                  <label className="block cursor-pointer">
-                    <div className={`relative h-44 rounded-2xl border-2 border-dashed border-border/50 overflow-hidden bg-muted/30 flex items-center justify-center hover:border-primary/50 transition-colors ${form.image ? "border-transparent" : ""}`}>
-                      {form.image ? (
-                        <>
-                          <div
-                            className="absolute inset-0 scale-110"
-                            style={{
-                              backgroundImage: `url(${form.image})`,
-                              backgroundSize: "cover",
-                              backgroundPosition: `center ${form.imagePosition}%`,
-                              filter: "blur(14px) brightness(0.55) saturate(1.4)",
-                            }}
-                          />
-                          <div
-                            className="absolute inset-0"
-                            style={{
-                              backgroundImage: `url(${form.image})`,
-                              backgroundSize: "contain",
-                              backgroundPosition: `center ${form.imagePosition}%`,
-                              backgroundRepeat: "no-repeat",
-                            }}
-                          />
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <Camera className="h-8 w-8" />
-                          <span className="text-sm font-medium">Araç fotoğrafı ekle</span>
-                          <span className="text-xs">Opsiyonel</span>
-                        </div>
-                      )}
-                    </div>
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] ?? null)} />
-                  </label>
-                  {form.image && (
-                    <div className="space-y-1.5 px-1">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">Üst</span>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={form.imagePosition}
-                          onChange={(e) => setForm((prev) => ({ ...prev, imagePosition: Number(e.target.value) }))}
-                          className="flex-1 accent-primary cursor-pointer"
-                        />
-                        <span className="text-[10px] text-muted-foreground w-12 shrink-0">Alt</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <Card className="rounded-2xl border-border/40">
-                  <CardContent className="p-4 space-y-4">
-                    <Field label="Plaka" required>
-                      <Input className={cls} placeholder="34 ABC 123" value={form.plate} onChange={(e) => set("plate", e.target.value.toUpperCase())} />
-                    </Field>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Marka" required>
-                        <AutocompleteInput
-                          options={BRANDS}
-                          value={form.brand}
-                          onChange={(v) => set("brand", v)}
-                          placeholder="BMW, Toyota..."
-                          className={cls}
-                        />
-                      </Field>
-                      <Field label="Model" required>
-                        <AutocompleteInput
-                          options={MODELS[form.brand] ?? []}
-                          value={form.model}
-                          onChange={(v) => set("model", v)}
-                          placeholder="320i, Corolla..."
-                          className={cls}
-                          allowFreeText
-                        />
-                      </Field>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Yıl" required>
-                        <Input className={cls} type="number" placeholder="2024" value={form.year} onChange={(e) => set("year", e.target.value)} />
-                      </Field>
-                      <Field label="Renk">
-                        <AutocompleteInput
-                          options={COLORS}
-                          value={form.color}
-                          onChange={(v) => set("color", v)}
-                          placeholder="Beyaz, Siyah..."
-                          className={cls}
-                          allowFreeText
-                        />
-                      </Field>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-
-            {/* ── STEP 2: TEKNİK ── */}
-            {step === 2 && (
-              <Card className="rounded-2xl border-border/40">
-                <CardContent className="p-4 space-y-4">
-                  <Field label="Kilometre">
-                    <Input className={cls} type="text" inputMode="numeric" placeholder="45000" value={form.mileage} onChange={(e) => set("mileage", e.target.value)} />
-                  </Field>
-                  <Field label="Motor Hacmi (L)">
-                    <Input className={cls} placeholder="2.0" value={form.engineVolume} onChange={(e) => set("engineVolume", e.target.value)} />
-                  </Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Yakıt Tipi">
-                      <Select value={form.fuelType} onValueChange={(v) => v && set("fuelType", v as FuelType)}>
-                        <SelectTrigger className={cls}><SelectValue /></SelectTrigger>
-                        <SelectContent>{FUEL_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Vites">
-                      <Select value={form.transmission} onValueChange={(v) => v && set("transmission", v as TransmissionType)}>
-                        <SelectTrigger className={cls}><SelectValue /></SelectTrigger>
-                        <SelectContent>{TRANSMISSIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* ── STEP 3: LASTİK & AKÜ ── */}
-            {step === 3 && (
-              <div className="space-y-4">
-                <Card className="rounded-2xl border-border/40">
-                  <CardContent className="p-4 space-y-4">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lastik Bilgileri</h3>
-                    <Field label="Lastik Mevsimi">
-                      <Select value={form.tireStatus} onValueChange={(v) => v && set("tireStatus", v as TireSeasonType)}>
-                        <SelectTrigger className={cls}><SelectValue /></SelectTrigger>
-                        <SelectContent>{TIRE_SEASONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </Field>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Lastik Markası">
-                        <Input className={cls} placeholder="Michelin" value={form.tireBrand} onChange={(e) => set("tireBrand", e.target.value)} />
-                      </Field>
-                      <Field label="Lastik Ebatı">
-                        <Input className={cls} placeholder="225/45 R17" value={form.tireSize} onChange={(e) => set("tireSize", e.target.value)} />
-                      </Field>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Takılma Tarihi">
-                        <DatePicker value={form.tireInstallDate} onChange={(v) => set("tireInstallDate", v)} />
-                      </Field>
-                      <Field label="Takıldığındaki km">
-                        <Input className={cls} type="number" placeholder="0" value={form.tireMileage} onChange={(e) => set("tireMileage", e.target.value)} />
-                      </Field>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl border-border/40">
-                  <CardContent className="p-4 space-y-4">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Akü Bilgileri</h3>
-                    {/* Battery replacement info note */}
-                    <div className="flex gap-2.5 bg-amber-500/8 border border-amber-500/20 rounded-xl p-3">
-                      <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Ortalama Akü Ömrü</p>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          Standart kurşun-asit akülerin ömrü genellikle <span className="font-semibold text-foreground">3–5 yıl</span> ya da <span className="font-semibold text-foreground">60.000–100.000 km</span>{'\''}dir. Sıcak iklimler ve kısa mesafe kullanımı ömrü kısaltabilir.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Akü Markası">
-                        <Input className={cls} placeholder="Bosch" value={form.batteryBrand} onChange={(e) => set("batteryBrand", e.target.value)} />
-                      </Field>
-                      <Field label="Kapasite">
-                        <Input className={cls} placeholder="72Ah" value={form.batteryCapacity} onChange={(e) => set("batteryCapacity", e.target.value)} />
-                      </Field>
-                    </div>
-                    <Field label="Değişim Tarihi">
-                      <DatePicker value={form.batteryInstallDate} onChange={(v) => set("batteryInstallDate", v)} />
-                    </Field>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {/* ── STEP 4: BELGELER ── */}
-            {step === 4 && (
               <>
               {/* AI belge tarayıcı */}
               <Card className="rounded-2xl border-primary/20 bg-primary/5">
@@ -881,6 +687,196 @@ export default function NewVehiclePage() {
               </>
             )}
 
+            {/* ── STEP 2: KİMLİK ── */}
+            {step === 2 && (
+              <>
+                {/* Image upload */}
+                <div className="space-y-2">
+                  <label className="block cursor-pointer">
+                    <div className={`relative h-44 rounded-2xl border-2 border-dashed border-border/50 overflow-hidden bg-muted/30 flex items-center justify-center hover:border-primary/50 transition-colors ${form.image ? "border-transparent" : ""}`}>
+                      {form.image ? (
+                        <>
+                          <div
+                            className="absolute inset-0 scale-110"
+                            style={{
+                              backgroundImage: `url(${form.image})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: `center ${form.imagePosition}%`,
+                              filter: "blur(14px) brightness(0.55) saturate(1.4)",
+                            }}
+                          />
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              backgroundImage: `url(${form.image})`,
+                              backgroundSize: "contain",
+                              backgroundPosition: `center ${form.imagePosition}%`,
+                              backgroundRepeat: "no-repeat",
+                            }}
+                          />
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <Camera className="h-8 w-8" />
+                          <span className="text-sm font-medium">Araç fotoğrafı ekle</span>
+                          <span className="text-xs">Opsiyonel</span>
+                        </div>
+                      )}
+                    </div>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] ?? null)} />
+                  </label>
+                  {form.image && (
+                    <div className="space-y-1.5 px-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">Üst</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={form.imagePosition}
+                          onChange={(e) => setForm((prev) => ({ ...prev, imagePosition: Number(e.target.value) }))}
+                          className="flex-1 accent-primary cursor-pointer"
+                        />
+                        <span className="text-[10px] text-muted-foreground w-12 shrink-0">Alt</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Card className="rounded-2xl border-border/40">
+                  <CardContent className="p-4 space-y-4">
+                    <Field label="Plaka" required>
+                      <Input className={cls} placeholder="34 ABC 123" value={form.plate} onChange={(e) => set("plate", e.target.value.toUpperCase())} />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Marka" required>
+                        <AutocompleteInput
+                          options={BRANDS}
+                          value={form.brand}
+                          onChange={(v) => set("brand", v)}
+                          placeholder="BMW, Toyota..."
+                          className={cls}
+                        />
+                      </Field>
+                      <Field label="Model" required>
+                        <AutocompleteInput
+                          options={MODELS[form.brand] ?? []}
+                          value={form.model}
+                          onChange={(v) => set("model", v)}
+                          placeholder="320i, Corolla..."
+                          className={cls}
+                          allowFreeText
+                        />
+                      </Field>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Yıl" required>
+                        <Input className={cls} type="number" placeholder="2024" value={form.year} onChange={(e) => set("year", e.target.value)} />
+                      </Field>
+                      <Field label="Renk">
+                        <AutocompleteInput
+                          options={COLORS}
+                          value={form.color}
+                          onChange={(v) => set("color", v)}
+                          placeholder="Beyaz, Siyah..."
+                          className={cls}
+                          allowFreeText
+                        />
+                      </Field>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* ── STEP 3: TEKNİK ── */}
+            {step === 3 && (
+              <Card className="rounded-2xl border-border/40">
+                <CardContent className="p-4 space-y-4">
+                  <Field label="Kilometre">
+                    <Input className={cls} type="text" inputMode="numeric" placeholder="45000" value={form.mileage} onChange={(e) => set("mileage", e.target.value)} />
+                  </Field>
+                  <Field label="Motor Hacmi (L)">
+                    <Input className={cls} placeholder="2.0" value={form.engineVolume} onChange={(e) => set("engineVolume", e.target.value)} />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Yakıt Tipi">
+                      <Select value={form.fuelType} onValueChange={(v) => v && set("fuelType", v as FuelType)}>
+                        <SelectTrigger className={cls}><SelectValue /></SelectTrigger>
+                        <SelectContent>{FUEL_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Vites">
+                      <Select value={form.transmission} onValueChange={(v) => v && set("transmission", v as TransmissionType)}>
+                        <SelectTrigger className={cls}><SelectValue /></SelectTrigger>
+                        <SelectContent>{TRANSMISSIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ── STEP 4: LASTİK & AKÜ ── */}
+            {step === 4 && (
+              <div className="space-y-4">
+                <Card className="rounded-2xl border-border/40">
+                  <CardContent className="p-4 space-y-4">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lastik Bilgileri</h3>
+                    <Field label="Lastik Mevsimi">
+                      <Select value={form.tireStatus} onValueChange={(v) => v && set("tireStatus", v as TireSeasonType)}>
+                        <SelectTrigger className={cls}><SelectValue /></SelectTrigger>
+                        <SelectContent>{TIRE_SEASONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Lastik Markası">
+                        <Input className={cls} placeholder="Michelin" value={form.tireBrand} onChange={(e) => set("tireBrand", e.target.value)} />
+                      </Field>
+                      <Field label="Lastik Ebatı">
+                        <Input className={cls} placeholder="225/45 R17" value={form.tireSize} onChange={(e) => set("tireSize", e.target.value)} />
+                      </Field>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Takılma Tarihi">
+                        <DatePicker value={form.tireInstallDate} onChange={(v) => set("tireInstallDate", v)} />
+                      </Field>
+                      <Field label="Takıldığındaki km">
+                        <Input className={cls} type="number" placeholder="0" value={form.tireMileage} onChange={(e) => set("tireMileage", e.target.value)} />
+                      </Field>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-2xl border-border/40">
+                  <CardContent className="p-4 space-y-4">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Akü Bilgileri</h3>
+                    {/* Battery replacement info note */}
+                    <div className="flex gap-2.5 bg-amber-500/8 border border-amber-500/20 rounded-xl p-3">
+                      <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Ortalama Akü Ömrü</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Standart kurşun-asit akülerin ömrü genellikle <span className="font-semibold text-foreground">3–5 yıl</span> ya da <span className="font-semibold text-foreground">60.000–100.000 km</span>{'\''}dir. Sıcak iklimler ve kısa mesafe kullanımı ömrü kısaltabilir.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Akü Markası">
+                        <Input className={cls} placeholder="Bosch" value={form.batteryBrand} onChange={(e) => set("batteryBrand", e.target.value)} />
+                      </Field>
+                      <Field label="Kapasite">
+                        <Input className={cls} placeholder="72Ah" value={form.batteryCapacity} onChange={(e) => set("batteryCapacity", e.target.value)} />
+                      </Field>
+                    </div>
+                    <Field label="Değişim Tarihi">
+                      <DatePicker value={form.batteryInstallDate} onChange={(v) => set("batteryInstallDate", v)} />
+                    </Field>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
           </motion.div>
         </AnimatePresence>
       </div>
@@ -897,7 +893,7 @@ export default function NewVehiclePage() {
             <Button
               className="w-full h-12 rounded-2xl font-semibold shadow-lg shadow-primary/20 gap-2"
               onClick={() => setStep((s) => s + 1)}
-              disabled={step === 1 && (!form.plate || !form.brand || !form.model)}
+              disabled={step === 2 && (!form.plate || !form.brand || !form.model)}
             >
               Devam <ChevronRight className="h-4 w-4" />
             </Button>

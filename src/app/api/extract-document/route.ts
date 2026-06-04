@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
 
-const anthropic = new Anthropic();
+const genai = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
 
 const PROMPT = `Aşağıdaki Türkçe araç belgesini analiz et. Araç ruhsatı, trafik sigortası poliçesi, kasko poliçesi veya araç muayene belgesi olabilir.
 
@@ -54,30 +54,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
     }
 
-    type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-    type ContentPart =
-      | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
-      | { type: "image"; source: { type: "base64"; media_type: ImageMediaType; data: string } }
-      | { type: "text"; text: string };
-
-    const parts: ContentPart[] =
-      normalizedMime === "application/pdf"
-        ? [
-            { type: "document", source: { type: "base64", media_type: "application/pdf", data: fileData } },
-            { type: "text", text: PROMPT },
-          ]
-        : [
-            { type: "image", source: { type: "base64", media_type: normalizedMime as ImageMediaType, data: fileData } },
-            { type: "text", text: PROMPT },
-          ];
-
-    const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: parts }],
+    const model = genai.getGenerativeModel({
+      model: "gemini-flash-latest",
+      generationConfig: { responseMimeType: "application/json" },
     });
 
-    const raw = response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
+    const result = await model.generateContent([
+      PROMPT,
+      { inlineData: { mimeType: normalizedMime, data: fileData } },
+    ]);
+
+    const raw = result.response.text().trim();
     const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
     let parsed: Record<string, string | null>;
@@ -87,14 +74,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Parse failed", raw }, { status: 422 });
     }
 
-    // Return only non-null, non-empty fields
-    const result = Object.fromEntries(
+    const resultData = Object.fromEntries(
       Object.entries(parsed).filter(([, v]) => v !== null && v !== "" && v !== undefined),
     );
 
-    return NextResponse.json({ data: result });
+    return NextResponse.json({ data: resultData });
   } catch (err) {
     console.error("[extract-document]", err);
+    const msg = (err as Error)?.message ?? "";
+    if (msg.includes("API_KEY") || msg.includes("401") || msg.includes("403")) {
+      return NextResponse.json({ error: "Google AI API anahtarı geçersiz veya eksik." }, { status: 500 });
+    }
+    if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
+      return NextResponse.json({ error: "API istek limiti aşıldı, lütfen bekleyin." }, { status: 429 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
