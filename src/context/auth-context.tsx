@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, companies(id, name, created_at, invite_code)")
+          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, telegram_chat_id, created_at, companies(id, name, created_at, invite_code)")
           .eq("id", userId)
           .single();
 
@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           department: (data.department as string) || "",
           avatarUrl: (data.avatar_url as string) || undefined,
           notifyByEmail: data.notify_by_email !== false,
+          telegramChatId: (data.telegram_chat_id as string) || undefined,
           createdAt: data.created_at,
         });
 

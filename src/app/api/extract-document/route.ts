@@ -18,6 +18,7 @@ Belgeden bulabildiğin bilgileri çıkar ve YALNIZCA geçerli bir JSON nesnesi d
   "fuelType": "sadece şunlardan biri: Benzin, Dizel, LPG, Hibrit, Elektrik",
   "engineVolume": "motor hacmi litre cinsinden (örn: 1.6)",
   "mileage": "kilometre sadece sayı string (örn: 45000)",
+  "ruhsatSahibi": "ruhsat sahibinin adı soyadı (araç sahibi kişi veya kurum adı)",
   "insuranceCompany": "zorunlu trafik sigortası şirketi adı",
   "insuranceExpiry": "trafik sigortası bitiş tarihi YYYY-MM-DD formatında",
   "greenCardCompany": "yeşil kart sigorta şirketi adı",

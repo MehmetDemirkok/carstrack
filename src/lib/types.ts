@@ -19,6 +19,7 @@ export interface Profile {
   department: string;
   avatarUrl?: string;
   notifyByEmail: boolean;
+  telegramChatId?: string;
   createdAt: string;
 }
 
@@ -29,6 +30,7 @@ export interface VehicleAssignment {
   assignedAt: string;
 }
 
+export type OwnershipType = "ozmal" | "kiralik";
 export type FuelType = "Benzin" | "Dizel" | "LPG" | "Hibrit" | "Elektrik";
 export type TransmissionType = "Manuel" | "Otomatik" | "CVT" | "DSG" | "Yarı Otomatik";
 export type TireSeasonType = "Yazlık" | "Kışlık" | "Dört Mevsim";
@@ -46,6 +48,9 @@ export interface MaintenanceItem {
 
 export interface Vehicle {
   id: string;
+  ownershipType: OwnershipType;
+  rentCompany: string;
+  ruhsatSahibi: string;
   plate: string;
   brand: string;
   model: string;

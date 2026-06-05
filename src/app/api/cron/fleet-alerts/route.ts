@@ -5,6 +5,7 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendFleetAlertDigest } from "@/lib/emails";
+import { sendTelegramMessage } from "@/lib/telegram";
 import { getFleetAlerts } from "@/lib/store";
 import { toVehicleFromRow } from "@/lib/vehicle-mapper";
 import type { FleetAlert } from "@/lib/types";
@@ -65,8 +66,7 @@ export async function GET(req: Request) {
   // ── 4. Tüm profiller (rol + company_id + ad soyad + bildirim tercihi) ──
   const { data: profiles, error: profilesErr } = await admin
     .from("profiles")
-    .select("id, company_id, role, full_name, notify_by_email")
-    .neq("notify_by_email", false); // e-posta bildirimi kapalı olanları atla
+    .select("id, company_id, role, full_name, notify_by_email, telegram_chat_id");
   if (profilesErr) {
     console.error("[cron/fleet-alerts] profiles error:", profilesErr);
     return NextResponse.json({ error: "Failed to load profiles" }, { status: 500 });
@@ -119,14 +119,19 @@ export async function GET(req: Request) {
     const userId = profile.id as string;
     const companyId = profile.company_id as string;
 
-    // Sadece ücretli plan şirketlere gönder
-    if (!paidCompanyIds.has(companyId)) {
+    const email = userEmailMap.get(userId);
+    const telegramChatId = profile.telegram_chat_id as string | null;
+    const notifyByEmail = profile.notify_by_email !== false;
+    const isPaid = paidCompanyIds.has(companyId);
+
+    // E-posta sadece ücretli plana; Telegram herkese
+    const sendEmail = isPaid && notifyByEmail && !!email;
+    const sendTelegram = !!telegramChatId;
+
+    if (!sendEmail && !sendTelegram) {
       results.push({ userId, status: "skipped_free_plan" });
       continue;
     }
-
-    const email = userEmailMap.get(userId);
-    if (!email) continue;
 
     // Rol bazlı uyarı belirleme
     let userAlerts: FleetAlert[];
@@ -173,17 +178,32 @@ export async function GET(req: Request) {
       continue;
     }
 
-    // ── 9. E-posta gönder ────────────────────────────────────────
+    // ── 9. E-posta + Telegram gönder ─────────────────────────────
     try {
-      await sendFleetAlertDigest({
-        to: email,
-        recipientName: (profile.full_name as string) || email,
-        alerts: alertsToSend,
-        appUrl,
-        date: turkishDate,
-      });
+      const sendPromises: Promise<unknown>[] = [];
 
-      // ── 10. Log kaydet (başarıdan SONRA) ──────────────────────
+      if (sendEmail) {
+        sendPromises.push(sendFleetAlertDigest({
+          to: email!,
+          recipientName: (profile.full_name as string) || email!,
+          alerts: alertsToSend,
+          appUrl,
+          date: turkishDate,
+        }));
+      }
+
+      if (sendTelegram) {
+        const severityEmoji: Record<string, string> = { critical: "🔴", warning: "🟡", info: "🔵" };
+        const lines = alertsToSend.map((a) =>
+          `${severityEmoji[a.severity] ?? "⚪"} <b>${a.vehiclePlate}</b> — ${a.title}`
+        );
+        const msg = `🚗 <b>CarsTrack Filo Uyarısı</b>\n${turkishDate}\n\n${lines.join("\n")}\n\n<a href="${appUrl}/vehicles">Araçları görüntüle →</a>`;
+        sendPromises.push(sendTelegramMessage(telegramChatId, msg));
+      }
+
+      await Promise.allSettled(sendPromises);
+
+      // ── 10. Log kaydet ────────────────────────────────────────
       const logRows = alertsToSend.map((alert) => ({
         user_id: userId,
         alert_id: alert.id,
@@ -194,7 +214,6 @@ export async function GET(req: Request) {
 
       results.push({ userId, status: "sent", alertCount: alertsToSend.length });
     } catch (err) {
-      // Tek kullanıcı hatası tüm çalışmayı durdurmasın
       console.error(`[cron/fleet-alerts] user ${userId} failed:`, err);
       results.push({ userId, status: "error" });
     }

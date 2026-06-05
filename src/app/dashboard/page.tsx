@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
 import { calculateHealthScore, getFleetAlerts } from "@/lib/store";
-import { getMyVehicles, getRecords } from "@/lib/db";
-import type { Vehicle, ServiceRecord, FleetAlert } from "@/lib/types";
+import type { FleetAlert } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
+import { useData } from "@/context/data-context";
 import { HealthScoreBreakdown } from "@/components/health-score-breakdown";
 import { FleetRiskOverview } from "@/components/fleet-risk-overview";
 import {
@@ -28,6 +28,8 @@ import {
   Clock,
   BatteryCharging,
   CheckCircle2,
+  Send,
+  X,
 } from "lucide-react";
 
 const stagger = {
@@ -60,33 +62,16 @@ const categoryIcon = {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [records, setRecords] = useState<ServiceRecord[]>([]);
-  const [alerts, setAlerts] = useState<FleetAlert[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  const { user, profile } = useAuth();
+  const { vehicles, records, loading: dataLoading } = useData();
+  const [telegramBannerDismissed, setTelegramBannerDismissed] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    setDataLoading(true);
-    (async () => {
-      try {
-        const [v, r] = await Promise.all([getMyVehicles(), getRecords()]);
-        if (cancelled) return;
-        const vehicleIds = new Set(v.map((x) => x.id));
-        setVehicles(v);
-        setRecords(r.filter((rec) => vehicleIds.has(rec.vehicleId)));
-        setAlerts(getFleetAlerts(v));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : JSON.stringify(err);
-        console.error("Dashboard load failed:", msg);
-      } finally {
-        if (!cancelled) setDataLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [user?.id]);
+  const showTelegramBanner = !telegramBannerDismissed && !profile?.telegramChatId;
+  const telegramConnectUrl = `https://t.me/Carstrack_APP_Bot?start=${user?.id ?? ""}`;
+
+  const vehicleIds = new Set(vehicles.map((x) => x.id));
+  const alerts: FleetAlert[] = getFleetAlerts(vehicles);
+  const filteredRecords = records.filter((rec) => vehicleIds.has(rec.vehicleId));
 
   const scores = vehicles.map((v) => calculateHealthScore(v));
   const fleetScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
@@ -109,7 +94,7 @@ export default function Dashboard() {
       }))
   ).slice(0, 4);
 
-  const recentRecords = [...records]
+  const recentRecords = [...filteredRecords]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 3);
 
@@ -208,6 +193,35 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </motion.div>
+
+          {/* Telegram bağlantı banner */}
+          {showTelegramBanner && (
+            <motion.div variants={fadeUp}>
+              <div className="flex items-center gap-3 bg-sky-500/10 border border-sky-500/20 rounded-2xl px-4 py-3">
+                <div className="p-2 bg-sky-500/15 rounded-xl shrink-0">
+                  <Send className="h-4 w-4 text-sky-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Telegram Bildirimlerini Aç</p>
+                  <p className="text-[11px] text-muted-foreground">Filo uyarılarını anında Telegram'dan al</p>
+                </div>
+                <a
+                  href={telegramConnectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 text-xs font-semibold text-sky-500 border border-sky-500/30 rounded-xl px-3 py-1.5 hover:bg-sky-500/10 transition-colors"
+                >
+                  Bağla
+                </a>
+                <button
+                  onClick={() => setTelegramBannerDismissed(true)}
+                  className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </motion.div>
+          )}
 
           {/* Vehicle Cards */}
           <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-4">

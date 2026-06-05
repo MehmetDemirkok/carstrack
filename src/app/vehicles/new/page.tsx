@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle, addVehicleDocument, uploadDocumentFile } from "@/lib/db";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
-import type { FuelType, TransmissionType, TireSeasonType, Vehicle } from "@/lib/types";
+import type { FuelType, TransmissionType, TireSeasonType, OwnershipType, Vehicle } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileText, XCircle, Upload } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getVehicles } from "@/lib/db";
@@ -80,6 +80,7 @@ interface ExtractedDocData {
   fuelType?: string;
   engineVolume?: string;
   mileage?: string;
+  ruhsatSahibi?: string;
   insuranceCompany?: string;
   insuranceExpiry?: string;
   greenCardCompany?: string;
@@ -117,6 +118,7 @@ const SCAN_FIELD_LABELS: Record<string, string> = {
   fuelType: "Yakıt",
   engineVolume: "Motor Hacmi",
   mileage: "Kilometre",
+  ruhsatSahibi: "Ruhsat Sahibi",
   insuranceCompany: "Sigorta Şirketi",
   insuranceExpiry: "Sigorta Bitiş",
   greenCardCompany: "Yeşil Kart Şirketi",
@@ -245,6 +247,9 @@ const steps = [
 ];
 
 interface FormData {
+  ownershipType: OwnershipType;
+  rentCompany: string;
+  ruhsatSahibi: string;
   image: string;
   imagePosition: number;
   imageZoom: number;
@@ -276,6 +281,7 @@ interface FormData {
 }
 
 const defaultForm: FormData = {
+  ownershipType: "ozmal", rentCompany: "", ruhsatSahibi: "",
   image: "", imagePosition: 50, imageZoom: 100, plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
   color: "Beyaz", mileage: "", engineVolume: "",
   fuelType: "Benzin", transmission: "Otomatik",
@@ -440,6 +446,7 @@ export default function NewVehiclePage() {
       updates.fuelType = mergedExtracted.fuelType as FuelType;
     if (mergedExtracted.engineVolume) updates.engineVolume = mergedExtracted.engineVolume;
     if (mergedExtracted.mileage) updates.mileage = mergedExtracted.mileage;
+    if (mergedExtracted.ruhsatSahibi) updates.ruhsatSahibi = mergedExtracted.ruhsatSahibi;
     if (mergedExtracted.insuranceCompany) updates.insuranceCompany = mergedExtracted.insuranceCompany;
     if (mergedExtracted.insuranceExpiry) updates.insuranceExpiry = mergedExtracted.insuranceExpiry;
     if (mergedExtracted.greenCardCompany) updates.greenCardCompany = mergedExtracted.greenCardCompany;
@@ -466,6 +473,9 @@ export default function NewVehiclePage() {
     const maintenanceItems = MAINTENANCE_TEMPLATES.map((t) => ({ ...t }));
 
     const data: Omit<Vehicle, "id" | "createdAt" | "updatedAt"> = {
+      ownershipType: form.ownershipType,
+      rentCompany: form.rentCompany,
+      ruhsatSahibi: form.ruhsatSahibi,
       image: form.image,
       imagePosition: form.imagePosition,
       imageZoom: form.imageZoom,
@@ -624,7 +634,7 @@ export default function NewVehiclePage() {
             {/* ── STEP 1: BELGELER ── */}
             {step === 1 && (
               <>
-              {/* AI belge tarayıcı — 3 slot */}
+              {/* AI belge tarayıcı */}
               <Card className="rounded-2xl border-primary/20 bg-primary/5">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center gap-2.5">
@@ -885,6 +895,44 @@ export default function NewVehiclePage() {
                     </div>
                   )}
                 </div>
+
+                <Card className="rounded-2xl border-border/40">
+                  <CardContent className="p-4 space-y-4">
+                    <Field label="Ruhsat Sahibi">
+                      <Input
+                        className={cls}
+                        placeholder="Ad Soyad veya Firma Adı"
+                        value={form.ruhsatSahibi}
+                        onChange={(e) => set("ruhsatSahibi", e.target.value)}
+                      />
+                    </Field>
+                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={form.ownershipType === "kiralik"}
+                        onChange={(e) => set("ownershipType", e.target.checked ? "kiralik" : "ozmal")}
+                        className="h-4 w-4 rounded accent-primary cursor-pointer"
+                      />
+                      <span className="text-sm text-foreground">Kiralık araç</span>
+                    </label>
+                    {form.ownershipType === "kiralik" && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Field label="Rent A Car Firması">
+                          <Input
+                            className={cls}
+                            placeholder="Europcar, Avis, Sixt..."
+                            value={form.rentCompany}
+                            onChange={(e) => set("rentCompany", e.target.value)}
+                          />
+                        </Field>
+                      </motion.div>
+                    )}
+                  </CardContent>
+                </Card>
 
                 <Card className="rounded-2xl border-border/40">
                   <CardContent className="p-4 space-y-4">

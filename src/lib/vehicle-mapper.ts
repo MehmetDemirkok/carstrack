@@ -6,6 +6,9 @@ import type { Vehicle } from "./types";
 export function toVehicleFromRow(row: Record<string, unknown>): Vehicle {
   return {
     id: row.id as string,
+    ownershipType: ((row.ownership_type as string) || "ozmal") as Vehicle["ownershipType"],
+    rentCompany: (row.rent_company as string) || "",
+    ruhsatSahibi: (row.ruhsat_sahibi as string) || "",
     plate: row.plate as string,
     brand: row.brand as string,
     model: row.model as string,

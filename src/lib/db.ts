@@ -4,7 +4,7 @@ import type { Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask, V
 // ─── TTL data cache ───────────────────────────────────────────
 // Keeps data in memory for 60 seconds so navigating between pages is instant.
 const dataCache = new Map<string, { value: unknown; expiresAt: number }>();
-const CACHE_TTL = 60_000; // 1 minute
+const CACHE_TTL = 5 * 60_000; // 5 minutes
 
 function getCached<T>(key: string): T | undefined {
   const entry = dataCache.get(key);
@@ -116,6 +116,9 @@ export async function requireCompanyId(): Promise<string> {
 function toVehicle(row: Record<string, unknown>): Vehicle {
   return {
     id: row.id as string,
+    ownershipType: ((row.ownership_type as string) || "ozmal") as Vehicle["ownershipType"],
+    rentCompany: (row.rent_company as string) || "",
+    ruhsatSahibi: (row.ruhsat_sahibi as string) || "",
     plate: row.plate as string,
     brand: row.brand as string,
     model: row.model as string,
@@ -157,6 +160,9 @@ function toVehicle(row: Record<string, unknown>): Vehicle {
 function toDbVehicle(v: Partial<Vehicle>, companyId?: string) {
   const obj: Record<string, unknown> = {};
   if (companyId !== undefined) obj.company_id = companyId;
+  if (v.ownershipType !== undefined) obj.ownership_type = v.ownershipType;
+  if (v.rentCompany !== undefined) obj.rent_company = v.rentCompany;
+  if (v.ruhsatSahibi !== undefined) obj.ruhsat_sahibi = v.ruhsatSahibi;
   if (v.plate !== undefined) obj.plate = v.plate;
   if (v.brand !== undefined) obj.brand = v.brand;
   if (v.model !== undefined) obj.model = v.model;

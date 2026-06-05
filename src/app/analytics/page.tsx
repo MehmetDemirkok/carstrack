@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   calculateHealthScore,
   getMaintenanceStatusForItem,
   getFleetAlerts,
 } from "@/lib/store";
-import { getVehicles } from "@/lib/db";
+import { useData } from "@/context/data-context";
 import type { Vehicle, FleetAlert } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -67,14 +66,8 @@ function scoreBar(score: number) {
 }
 
 export default function FleetStatusPage() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [alerts, setAlerts]     = useState<FleetAlert[]>([]);
-
-  useEffect(() => {
-    getVehicles()
-      .then((v) => { setVehicles(v); setAlerts(getFleetAlerts(v)); })
-      .catch(console.error);
-  }, []);
+  const { vehicles } = useData();
+  const alerts: FleetAlert[] = getFleetAlerts(vehicles);
 
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
   const warningCount  = alerts.filter((a) => a.severity === "warning").length;

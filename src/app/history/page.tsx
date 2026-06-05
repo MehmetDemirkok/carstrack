@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getRecords, getVehicles, addRecord, deleteRecord, updateVehicle } from "@/lib/db";
+import { addRecord, deleteRecord, updateVehicle } from "@/lib/db";
+import { useData } from "@/context/data-context";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { ServiceRecord, ServiceType, TireSeasonType, Vehicle } from "@/lib/types";
-import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -54,10 +54,7 @@ const fadeLeft = { hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, tra
 
 export default function HistoryPage() {
   const guardDemo = useDemoGuard();
-  const { user } = useAuth();
-  const [records, setRecords] = useState<ServiceRecord[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  const { vehicles, records, loading: dataLoading, refresh, setRecords } = useData();
   const [filter, setFilter] = useState<ServiceType | "all">("all");
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
@@ -80,24 +77,7 @@ export default function HistoryPage() {
     qty: "",
   });
 
-  // Records and vehicles are fetched independently so a vehicle-load failure
-  // does not block the records list from rendering (and vice-versa).
-  const reload = useCallback(async () => {
-    setDataLoading(true);
-    try {
-      const [r, v] = await Promise.all([getRecords(), getVehicles()]);
-      setRecords(r);
-      setVehicles(v);
-    } catch (err) {
-      console.error("History load failed:", err instanceof Error ? err.message : err);
-    } finally {
-      setDataLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) reload();
-  }, [user?.id, reload]);
+  const reload = refresh;
 
   const filtered = records.filter((r) => {
     if (filter !== "all" && r.type !== filter) return false;

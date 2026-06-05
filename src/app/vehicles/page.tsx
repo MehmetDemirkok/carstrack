@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { getMyVehicles, deleteVehicles } from "@/lib/db";
+import { deleteVehicles } from "@/lib/db";
+import { useData } from "@/context/data-context";
 import { calculateHealthScore } from "@/lib/store";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { Vehicle } from "@/lib/types";
@@ -36,34 +37,13 @@ const tireColor = {
 
 export default function VehiclesPage() {
   const guardDemo = useDemoGuard();
-  const { user, profile } = useAuth();
+  const { profile } = useAuth();
+  const { vehicles, loading, refresh, setVehicles } = useData();
   const isDriver = profile?.role === "driver";
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const loadData = async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const data = await getMyVehicles();
-      setVehicles(data);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? JSON.stringify(err);
-      console.error("Failed to load vehicles:", err);
-      setErrorMsg(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!user) return;
-    loadData();
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const errorMsg: string | null = null;
 
   const toggleSelection = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -78,15 +58,18 @@ export default function VehiclesPage() {
 
   const handleDelete = async () => {
     if (guardDemo()) { setIsDeleteDialogOpen(false); return; }
+    const ids = selectedIds;
+    setVehicles((prev) => prev.filter((v) => !ids.includes(v.id)));
+    setSelectedIds([]);
+    setIsSelectionMode(false);
+    setIsDeleteDialogOpen(false);
     try {
-      await deleteVehicles(selectedIds);
-      await loadData();
-      toast.success("Silindi", { description: `${selectedIds.length} araç başarıyla silindi.` });
-      setSelectedIds([]);
-      setIsSelectionMode(false);
-      setIsDeleteDialogOpen(false);
+      await deleteVehicles(ids);
+      toast.success("Silindi", { description: `${ids.length} araç başarıyla silindi.` });
+      refresh();
     } catch (err) {
       toast.error("Hata", { description: "Araçlar silinirken hata oluştu." });
+      refresh();
     }
   };
 
@@ -109,7 +92,7 @@ export default function VehiclesPage() {
       </div>
       <p className="text-foreground font-bold">Veriler Yüklenirken Hata Oluştu</p>
       <p className="text-sm text-destructive max-w-md">{errorMsg}</p>
-      <Button onClick={loadData} variant="outline" className="mt-2">Tekrar Dene</Button>
+      <Button onClick={refresh} variant="outline" className="mt-2">Tekrar Dene</Button>
     </div>
   );
 

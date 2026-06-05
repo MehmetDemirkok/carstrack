@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Database, Trash2, Car,
-  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Zap, CreditCard, Lock,
+  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Zap, CreditCard, Lock, Send,
 } from "lucide-react";
 import { PLANS, isPaidPlan } from "@/lib/plans";
 import type { PlanType } from "@/lib/types";
@@ -295,6 +295,34 @@ export default function SettingsPage() {
       toast.error("Kaydedilemedi");
     } finally {
       setEmailNotifSaving(false);
+    }
+  };
+
+  // Telegram
+  const [telegramChatId, setTelegramChatId] = useState<string | undefined>(undefined);
+  const [telegramDisconnecting, setTelegramDisconnecting] = useState(false);
+
+  useEffect(() => {
+    setTelegramChatId(profile?.telegramChatId);
+  }, [profile?.telegramChatId]);
+
+  const telegramConnectUrl = `https://t.me/Carstrack_APP_Bot?start=${user?.id ?? ""}`;
+
+  const handleTelegramDisconnect = async () => {
+    setTelegramDisconnecting(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("profiles")
+        .update({ telegram_chat_id: null })
+        .eq("id", user!.id);
+      if (error) throw error;
+      setTelegramChatId(undefined);
+      toast.success("Telegram bağlantısı kesildi");
+    } catch {
+      toast.error("Kaydedilemedi");
+    } finally {
+      setTelegramDisconnecting(false);
     }
   };
 
@@ -584,6 +612,35 @@ export default function SettingsPage() {
                 trailing={<Toggle on={emailNotif} onToggle={handleEmailNotifToggle} />}
                 onClick={handleEmailNotifToggle}
               />
+              {telegramChatId ? (
+                <SettingItem
+                  icon={Send}
+                  iconBg="bg-sky-500/10"
+                  iconColor="text-sky-500"
+                  label="Telegram Bildirimleri"
+                  description="Bağlı — uyarılar Telegram'a gönderiliyor"
+                  trailing={
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleTelegramDisconnect(); }}
+                      disabled={telegramDisconnecting}
+                      className="text-[11px] text-destructive/70 hover:text-destructive border border-destructive/20 rounded-lg px-2.5 py-1 transition-colors disabled:opacity-40 shrink-0"
+                    >
+                      {telegramDisconnecting ? "..." : "Bağlantıyı Kes"}
+                    </button>
+                  }
+                />
+              ) : (
+                <a href={telegramConnectUrl} target="_blank" rel="noopener noreferrer" className="block">
+                  <SettingItem
+                    icon={Send}
+                    iconBg="bg-sky-500/10"
+                    iconColor="text-sky-500"
+                    label="Telegram'ı Bağla"
+                    description="Filo uyarılarını Telegram'dan al"
+                    trailing={<ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  />
+                </a>
+              )}
               <SettingItem
                 icon={Languages}
                 iconBg="bg-violet-500/10"
