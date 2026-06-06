@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { exportVehicleReportPDF } from "@/lib/pdf-export";
 import { DatePicker } from "@/components/ui/date-picker";
+import { DragSlider } from "@/components/ui/drag-slider";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
 const fadeUp = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
@@ -253,6 +254,19 @@ async function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<
     };
     img.src = url;
   });
+}
+
+function warnIfPortrait(dataUrl: string, toastFn: typeof import("sonner").toast) {
+  const img = new Image();
+  img.onload = () => {
+    if (img.height > img.width) {
+      toastFn.warning("Telefonunuzu yan tutun", {
+        description: "Araç fotoğraflarını yatay (landscape) modda çekmenizi öneririz — kart görünümünde çok daha iyi görünür.",
+        duration: 6000,
+      });
+    }
+  };
+  img.src = dataUrl;
 }
 
 function daysUntil(dateStr: string): number {
@@ -1173,6 +1187,7 @@ export default function VehicleDetailPage() {
                           if (!file) return;
                           const compressed = await compressImage(file);
                           setEditData((d) => ({ ...d, image: compressed }));
+                          warnIfPortrait(compressed, toast);
                           e.target.value = "";
                         }} />
                       </label>
@@ -1195,26 +1210,20 @@ export default function VehicleDetailPage() {
                       if (!file) return;
                       const compressed = await compressImage(file);
                       setEditData((d) => ({ ...d, image: compressed }));
+                      warnIfPortrait(compressed, toast);
                       e.target.value = "";
                     }} />
                   </label>
                 )}
               </div>
               {editData.image && (
-                <div className="space-y-1.5 px-1">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">Üst</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={editData.imagePosition ?? 50}
-                      onChange={(e) => setEditData((d) => ({ ...d, imagePosition: Number(e.target.value) }))}
-                      className="flex-1 accent-primary cursor-pointer"
-                    />
-                    <span className="text-[10px] text-muted-foreground w-12 shrink-0">Alt</span>
-                  </div>
-                </div>
+                <DragSlider
+                  value={editData.imagePosition ?? 50}
+                  onChange={(v) => setEditData((d) => ({ ...d, imagePosition: v }))}
+                  label="Üst"
+                  labelEnd="Alt"
+                  trackClassName="bg-muted"
+                />
               )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

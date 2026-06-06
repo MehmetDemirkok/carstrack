@@ -15,6 +15,8 @@ export function toVehicleFromRow(row: Record<string, unknown>): Vehicle {
     year: row.year as number,
     color: (row.color as string) || "",
     image: (row.image as string) || "",
+    imagePosition: (row.image_position as number) ?? 50,
+    imagePositionX: (row.image_position_x as number) ?? 50,
     mileage: (row.mileage as number) || 0,
     engineType: (row.engine_type as string) || "",
     engineVolume: (row.engine_volume as string) || "",

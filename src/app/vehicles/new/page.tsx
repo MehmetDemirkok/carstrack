@@ -348,6 +348,17 @@ export default function NewVehiclePage() {
     if (!file) return;
     const compressed = await compressImage(file);
     set("image", compressed);
+    // Dik çekilen fotoğraf uyarısı
+    const img = new Image();
+    img.onload = () => {
+      if (img.height > img.width) {
+        toast.warning("Telefonunuzu yan tutun", {
+          description: "Araç fotoğraflarını yatay (landscape) modda çekmenizi öneririz — kart görünümünde çok daha iyi görünür.",
+          duration: 6000,
+        });
+      }
+    };
+    img.src = compressed;
   };
 
   const [error, setError] = useState<string>("");
