@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { getFleetAlerts } from "@/lib/store";
+import { toVehicleFromRow } from "@/lib/vehicle-mapper";
 
 interface TelegramUpdate {
   message?: {
@@ -32,6 +34,18 @@ export async function POST(req: NextRequest) {
     const userId = match[1];
     const admin = createAdminClient();
 
+    // Profil + şirket bilgisini çek
+    const { data: profile, error: profileErr } = await admin
+      .from("profiles")
+      .select("company_id, role, full_name")
+      .eq("id", userId)
+      .single();
+
+    if (profileErr || !profile) {
+      await sendTelegramMessage(chatId, "Hesap bulunamadı. Lütfen tekrar deneyin.");
+      return NextResponse.json({ ok: true });
+    }
+
     const { error } = await admin
       .from("profiles")
       .update({ telegram_chat_id: chatId })
@@ -43,9 +57,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    await sendTelegramMessage(chatId,
-      `✅ <b>Telegram bağlantısı kuruldu!</b>\n\nArtık CarsTrack filo uyarılarını bu sohbet üzerinden alacaksınız.`
-    );
+    // Mevcut araçları çek ve anlık uyarıları gönder
+    const companyId = profile.company_id as string;
+    const role = profile.role as string;
+
+    let vehicleQuery = admin.from("vehicles").select("*").eq("company_id", companyId);
+    if (role === "driver") {
+      const { data: assignments } = await admin
+        .from("vehicle_assignments")
+        .select("vehicle_id")
+        .eq("driver_id", userId);
+      const vehicleIds = (assignments ?? []).map((a: { vehicle_id: string }) => a.vehicle_id);
+      if (vehicleIds.length > 0) {
+        vehicleQuery = vehicleQuery.in("id", vehicleIds);
+      } else {
+        vehicleQuery = vehicleQuery.eq("id", "");
+      }
+    }
+
+    const { data: rawVehicles } = await vehicleQuery;
+    const vehicles = (rawVehicles ?? []).map((r) => toVehicleFromRow(r as Record<string, unknown>));
+    const alerts = getFleetAlerts(vehicles);
+
+    const name = (profile.full_name as string) || firstName;
+
+    if (alerts.length === 0) {
+      await sendTelegramMessage(chatId,
+        `✅ <b>Bağlantı kuruldu, ${name}!</b>\n\n` +
+        `Filo uyarıları her gün sabah 06:00'da size iletilecek.\n\n` +
+        `🟢 Şu an aktif uyarı yok — her şey yolunda!`
+      );
+    } else {
+      const severityEmoji: Record<string, string> = { critical: "🔴", warning: "🟡", info: "🔵" };
+      const lines = alerts.slice(0, 10).map((a) =>
+        `${severityEmoji[a.severity] ?? "⚪"} <b>${a.vehiclePlate}</b> — ${a.title}`
+      );
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
+      await sendTelegramMessage(chatId,
+        `✅ <b>Bağlantı kuruldu, ${name}!</b>\n\n` +
+        `Filo uyarıları her gün sabah 06:00'da size iletilecek.\n\n` +
+        `<b>Şu anki uyarılar (${alerts.length}):</b>\n${lines.join("\n")}\n\n` +
+        `<a href="${appUrl}/vehicles">Araçları görüntüle →</a>`
+      );
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
