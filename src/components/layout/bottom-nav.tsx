@@ -13,7 +13,7 @@ export function BottomNav() {
   const { t } = useLanguage();
   const { profile, loading } = useAuth();
   const needsProfileCompletion = !!profile && !profile.department;
-  const isDriver = profile?.role === "driver";
+  const isDriver = profile?.role === "user";
 
   const navItems = isDriver
     ? [

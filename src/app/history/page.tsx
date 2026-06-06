@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { addRecord, deleteRecord, updateVehicle } from "@/lib/db";
+import { addRecord, deleteRecord, updateRecord, updateVehicle } from "@/lib/db";
 import { useData } from "@/context/data-context";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { ServiceRecord, ServiceType, TireSeasonType, Vehicle } from "@/lib/types";
@@ -16,7 +16,7 @@ import Link from "next/link";
 import {
   Wrench, CheckCircle2, AlertTriangle, Disc3, Car, Plus,
   Filter, Trash2, BatteryCharging, ClipboardList, Download, FileDown,
-  Sun, Snowflake, Layers,
+  Sun, Snowflake, Layers, Pencil,
 } from "lucide-react";
 import { exportServiceHistoryExcel } from "@/lib/export";
 import { exportServiceHistoryPDF } from "@/lib/pdf-export";
@@ -61,6 +61,16 @@ export default function HistoryPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editRecord, setEditRecord] = useState<ServiceRecord | null>(null);
+  const [editForm, setEditForm] = useState({
+    date: "",
+    type: "routine" as ServiceType,
+    title: "",
+    mileage: "",
+    serviceCenter: "",
+    notes: "",
+  });
   const [form, setForm] = useState({
     vehicleId: "",
     date: new Date().toISOString().split("T")[0],
@@ -134,6 +144,39 @@ export default function HistoryPage() {
   const openDeleteDialog = (id: string) => {
     setRecordToDelete(id);
     setShowDelete(true);
+  };
+
+  const openEditDialog = (record: ServiceRecord) => {
+    setEditRecord(record);
+    setEditForm({
+      date: record.date,
+      type: record.type,
+      title: record.title,
+      mileage: record.mileage > 0 ? String(record.mileage) : "",
+      serviceCenter: record.serviceCenter,
+      notes: record.notes,
+    });
+    setShowEdit(true);
+  };
+
+  const handleEdit = async () => {
+    if (guardDemo()) { setShowEdit(false); return; }
+    if (!editRecord || !editForm.title) return;
+    try {
+      await updateRecord(editRecord.id, {
+        date: editForm.date,
+        type: editForm.type,
+        title: editForm.title,
+        mileage: parseInt(editForm.mileage) || 0,
+        serviceCenter: editForm.serviceCenter,
+        notes: editForm.notes,
+      });
+      setShowEdit(false);
+      setEditRecord(null);
+      await reload();
+    } catch (err) {
+      console.error("Update record failed:", err instanceof Error ? err.message : err);
+    }
   };
 
   const iCls = "rounded-xl h-10 bg-muted/30 border-border/40 text-sm";
@@ -280,9 +323,14 @@ export default function HistoryPage() {
                         </div>
                         <p className="text-[11px] text-muted-foreground">{record.date ? record.date.split("-").reverse().join(".") : "—"}</p>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive shrink-0 -mt-1" onClick={() => openDeleteDialog(record.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-0.5 shrink-0 -mt-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary" onClick={() => openEditDialog(record)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={() => openDeleteDialog(record.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground font-medium mb-2">
@@ -404,6 +452,61 @@ export default function HistoryPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Edit record dialog */}
+      <Dialog open={showEdit} onOpenChange={(o) => { setShowEdit(o); if (!o) setEditRecord(null); }}>
+        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-outfit">Kaydı Düzenle</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className={iLabel}>Tarih</Label>
+                <Input className={iCls} type="date" value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className={iLabel}>Tür</Label>
+                <Select value={editForm.type} onValueChange={(v) => v && setEditForm((f) => ({ ...f, type: v as ServiceType }))}>
+                  <SelectTrigger className={iCls}>
+                    <SelectValue>
+                      {(value: unknown) => SERVICE_TYPES.find((t) => t.value === value)?.label ?? "Seçiniz"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>{SERVICE_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className={iLabel}>Başlık</Label>
+              <Input className={iCls} placeholder="Periyodik bakım..." value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className={iLabel}>Kilometre</Label>
+                <Input className={iCls} type="number" value={editForm.mileage} onChange={(e) => setEditForm((f) => ({ ...f, mileage: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className={iLabel}>Servis Noktası</Label>
+                <Input className={iCls} placeholder="Yetkili servis..." value={editForm.serviceCenter} onChange={(e) => setEditForm((f) => ({ ...f, serviceCenter: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className={iLabel}>Notlar</Label>
+              <textarea
+                className="w-full rounded-xl bg-muted/30 border border-border/40 text-sm p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                placeholder="Yapılan işlemler..."
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" className="rounded-xl" />}>İptal</DialogClose>
+            <Button onClick={handleEdit} disabled={!editForm.title} className="rounded-xl">Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showDelete} onOpenChange={setShowDelete}>
         <DialogContent className="rounded-3xl max-w-[340px]">
           <DialogHeader>

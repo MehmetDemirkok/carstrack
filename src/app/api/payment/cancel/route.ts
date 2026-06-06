@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "manager") {
+    if (!profile || !["manager", "operator"].includes(profile.role ?? "")) {
       return NextResponse.json({ error: "Sadece şirket yetkilileri aboneliği iptal edebilir" }, { status: 403 });
     }
 

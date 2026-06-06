@@ -151,7 +151,7 @@ export async function POST() {
       const { error: profileErr } = await admin.from("profiles").insert({
         id: driverId,
         company_id: companyId,
-        role: "driver",
+        role: "user",
         full_name: DRIVER_FULL_NAME,
       });
       if (profileErr) throw profileErr;

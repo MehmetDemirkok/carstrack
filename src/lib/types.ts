@@ -1,4 +1,4 @@
-export type UserRole = "manager" | "driver";
+export type UserRole = "manager" | "operator" | "user";
 export type PlanType = "free" | "pro" | "fleet";
 
 export interface Company {

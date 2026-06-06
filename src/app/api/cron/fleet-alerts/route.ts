@@ -52,18 +52,7 @@ export async function GET(req: Request) {
   }
   const userEmailMap = new Map(usersData.users.map((u) => [u.id, u.email ?? ""]));
 
-  // ── 3. Ücretli plan şirket ID'lerini çek ────────────────────────
-  const { data: paidCompanies, error: companiesErr } = await admin
-    .from("companies")
-    .select("id")
-    .in("plan", ["pro", "fleet"]);
-  if (companiesErr) {
-    console.error("[cron/fleet-alerts] companies error:", companiesErr);
-    return NextResponse.json({ error: "Failed to load companies" }, { status: 500 });
-  }
-  const paidCompanyIds = new Set((paidCompanies ?? []).map((c: { id: string }) => c.id));
-
-  // ── 4. Tüm profiller (rol + company_id + ad soyad + bildirim tercihi) ──
+  // ── 3. Tüm profiller (rol + company_id + ad soyad + bildirim tercihi) ──
   const { data: profiles, error: profilesErr } = await admin
     .from("profiles")
     .select("id, company_id, role, full_name, notify_by_email, telegram_chat_id");
@@ -122,23 +111,21 @@ export async function GET(req: Request) {
     const email = userEmailMap.get(userId);
     const telegramChatId = profile.telegram_chat_id as string | null;
     const notifyByEmail = profile.notify_by_email !== false;
-    const isPaid = paidCompanyIds.has(companyId);
 
-    // E-posta sadece ücretli plana; Telegram herkese
-    const sendEmail = isPaid && notifyByEmail && !!email;
+    const sendEmail = notifyByEmail && !!email;
     const sendTelegram = !!telegramChatId;
 
     if (!sendEmail && !sendTelegram) {
-      results.push({ userId, status: "skipped_free_plan" });
+      results.push({ userId, status: "skipped_no_channel" });
       continue;
     }
 
     // Rol bazlı uyarı belirleme
     let userAlerts: FleetAlert[];
-    if (profile.role === "manager") {
+    if (profile.role === "manager" || profile.role === "operator") {
       userAlerts = alertsByCompany.get(profile.company_id as string) ?? [];
     } else {
-      // Sürücü: atanmış tüm araçların uyarıları
+      // Kullanıcı: atanmış tüm araçların uyarıları
       const vehicleIds = driverVehicleMap.get(userId) ?? [];
       userAlerts = vehicleIds.flatMap((vId) => alertsByVehicle.get(vId) ?? []);
     }
@@ -244,7 +231,7 @@ export async function GET(req: Request) {
   const sent    = results.filter((r) => r.status === "sent").length;
   const partial = results.filter((r) => r.status === "partial").length;
   const errors  = results.filter((r) => r.status === "error").length;
-  const freePlanSkipped = results.filter((r) => r.status === "skipped_free_plan").length;
+  const freePlanSkipped = results.filter((r) => r.status === "skipped_no_channel").length;
   const skipped = results.filter((r) => r.status.startsWith("skipped")).length;
 
   console.log(`[cron/fleet-alerts] done — sent:${sent} partial:${partial} errors:${errors} skipped:${skipped} (free_plan:${freePlanSkipped})`);

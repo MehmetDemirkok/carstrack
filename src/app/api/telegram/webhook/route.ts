@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     const role = profile.role as string;
 
     let vehicleQuery = admin.from("vehicles").select("*").eq("company_id", companyId);
-    if (role === "driver") {
+    if (role === "user") {
       const { data: assignments } = await admin
         .from("vehicle_assignments")
         .select("vehicle_id")

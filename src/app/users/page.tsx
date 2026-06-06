@@ -15,7 +15,7 @@ import {
   updateMemberProfile,
   updateMemberRole,
 } from "@/lib/db";
-import type { Vehicle, VehicleTask, Profile } from "@/lib/types";
+import type { Vehicle, VehicleTask, Profile, UserRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -43,6 +43,12 @@ function avatarColor(name: string): string {
   return AVATAR_COLORS[code % AVATAR_COLORS.length];
 }
 
+function roleBadge(role: UserRole) {
+  if (role === "manager") return { label: "Şirket Yetkilisi", cls: "bg-primary/10 text-primary" };
+  if (role === "operator") return { label: "Operatör", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
+  return { label: "Kullanıcı", cls: "bg-muted text-muted-foreground" };
+}
+
 type DriverWithAssignment = Profile & { assignedVehicleIds: string[] };
 
 // ─── Page ────────────────────────────────────────────────────
@@ -61,7 +67,7 @@ export default function UsersPage() {
   const [editMember, setEditMember] = useState<Profile | null>(null);
   const [editName, setEditName] = useState("");
   const [editDept, setEditDept] = useState("");
-  const [editRole, setEditRole] = useState<"manager" | "driver">("driver");
+  const [editRole, setEditRole] = useState<UserRole>("user");
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Assign dialog
@@ -100,17 +106,20 @@ export default function UsersPage() {
     if (user) loadAll();
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sadece "user" rolündekiler /tasks'a yönlendirilir; manager ve operator erişebilir
   useEffect(() => {
-    if (profile && profile.role !== "manager") router.replace("/tasks");
+    if (profile && profile.role === "user") router.replace("/tasks");
   }, [profile, router]);
 
-  if (profile && profile.role !== "manager") return null;
+  if (profile && profile.role === "user") return null;
+
+  const isManager = profile?.role === "manager";
 
   // Lookup maps
   const assignmentMap = new Map(drivers.map((d) => [d.id, d.assignedVehicleIds]));
   const activeTaskMap = new Map(activeTasks.map((t) => [t.driverId, t]));
 
-  const driverCount = members.filter((m) => m.role === "driver").length;
+  const userCount = members.filter((m) => m.role === "user").length;
   const activeCount = activeTasks.length;
 
   // ── Edit handlers ──────────────────────────────────────────
@@ -128,7 +137,7 @@ export default function UsersPage() {
     setEditSubmitting(true);
     try {
       await updateMemberProfile(editMember.id, { fullName: editName.trim(), department: editDept.trim() });
-      if (editRole !== editMember.role) {
+      if (isManager && editRole !== editMember.role) {
         await updateMemberRole(editMember.id, editRole);
       }
       setEditMember(null);
@@ -180,6 +189,12 @@ export default function UsersPage() {
   const inputCls =
     "w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
 
+  const ROLE_OPTIONS: { value: UserRole; label: string; activeClass: string }[] = [
+    { value: "user",     label: "Kullanıcı",       activeClass: "bg-muted border-primary text-primary" },
+    { value: "operator", label: "Operatör",         activeClass: "bg-amber-500/10 border-amber-500 text-amber-600 dark:text-amber-400" },
+    { value: "manager",  label: "Şirket Yetkilisi", activeClass: "bg-primary/10 border-primary text-primary" },
+  ];
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 pb-32 space-y-6">
 
@@ -209,7 +224,7 @@ export default function UsersPage() {
         {[
           { label: "Toplam Üye", value: members.length, Icon: Users, accent: false },
           { label: "Aktif Seyahat", value: activeCount, Icon: Route, accent: activeCount > 0 },
-          { label: "Sürücü", value: driverCount, Icon: Car, accent: false },
+          { label: "Kullanıcı", value: userCount, Icon: Car, accent: false },
         ].map(({ label, value, Icon, accent }) => (
           <div
             key={label}
@@ -243,13 +258,14 @@ export default function UsersPage() {
           className="space-y-3"
         >
           {members.map((member) => {
-            const isDriver = member.role === "driver";
+            const isUser = member.role === "user";
             const assignedIds = assignmentMap.get(member.id) ?? [];
             const assignedVehicles = assignedIds
               .map((id) => vehicles.find((v) => v.id === id))
               .filter((v): v is Vehicle => !!v);
             const activeTask = activeTaskMap.get(member.id) ?? null;
             const taskVehicle = activeTask ? vehicles.find((v) => v.id === activeTask.vehicleId) : null;
+            const badge = roleBadge(member.role);
 
             return (
               <motion.div
@@ -267,10 +283,8 @@ export default function UsersPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-base leading-none">{member.fullName}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                        member.role === "manager" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                      }`}>
-                        {member.role === "manager" ? "Şirket Yetkilisi" : "Sürücü"}
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${badge.cls}`}>
+                        {badge.label}
                       </span>
                     </div>
 
@@ -278,7 +292,7 @@ export default function UsersPage() {
                       <p className="text-xs text-muted-foreground mt-0.5">{member.department}</p>
                     )}
 
-                    {isDriver && (
+                    {isUser && (
                       <div className="mt-2 space-y-1">
                         {/* Aktif seyahat rozeti */}
                         {activeTask && (
@@ -317,7 +331,7 @@ export default function UsersPage() {
 
                   {/* Aksiyon butonları */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {isDriver && (
+                    {isUser && (
                       <button
                         onClick={() => openAssign(member.id)}
                         title="Araç Yönet"
@@ -369,43 +383,49 @@ export default function UsersPage() {
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Departman / Ünvan</label>
                 <input type="text" value={editDept} onChange={(e) => setEditDept(e.target.value)} placeholder="Örn: Lojistik, Dağıtım, Kurye" className={inputCls} />
               </div>
+
+              {/* Rol seçimi — sadece şirket yetkilisi değiştirebilir */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rol</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditRole("driver")}
-                    disabled={editMember.id === user?.id}
-                    className={`flex-1 h-10 rounded-xl text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                      editRole === "driver"
-                        ? "bg-muted border-primary text-primary"
-                        : "bg-background border-border text-muted-foreground hover:border-primary/40"
-                    }`}
-                  >
-                    Sürücü
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditRole("manager")}
-                    disabled={editMember.id === user?.id}
-                    className={`flex-1 h-10 rounded-xl text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                      editRole === "manager"
-                        ? "bg-primary/10 border-primary text-primary"
-                        : "bg-background border-border text-muted-foreground hover:border-primary/40"
-                    }`}
-                  >
-                    Şirket Yetkilisi
-                  </button>
-                </div>
-                {editRole !== editMember.role && (
-                  <p className="text-[11px] text-amber-500 dark:text-amber-400">
-                    {editRole === "manager"
-                      ? "Bu kullanıcı şirkette 2. yetkili olarak tüm yetkilere sahip olacak."
-                      : "Bu kullanıcının yönetici yetkileri kaldırılacak."}
-                  </p>
-                )}
-                {editMember.id === user?.id && (
-                  <p className="text-[11px] text-muted-foreground">Kendi rolünüzü değiştiremezsiniz.</p>
+                {isManager ? (
+                  <>
+                    <div className="flex gap-2">
+                      {ROLE_OPTIONS.map(({ value, label, activeClass }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setEditRole(value)}
+                          disabled={editMember.id === user?.id}
+                          className={`flex-1 h-10 rounded-xl text-[11px] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                            editRole === value
+                              ? activeClass
+                              : "bg-background border-border text-muted-foreground hover:border-primary/40"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {editRole !== editMember.role && (
+                      <p className="text-[11px] text-amber-500 dark:text-amber-400">
+                        {editRole === "manager"
+                          ? "Bu kullanıcı şirkette yetkili olarak tüm yetkilere sahip olacak."
+                          : editRole === "operator"
+                          ? "Bu kullanıcı operatör yetkisiyle filoya erişim sağlayacak."
+                          : "Bu kullanıcının yönetici yetkileri kaldırılacak."}
+                      </p>
+                    )}
+                    {editMember.id === user?.id && (
+                      <p className="text-[11px] text-muted-foreground">Kendi rolünüzü değiştiremezsiniz.</p>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40 text-sm text-muted-foreground">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${roleBadge(editMember.role).cls}`}>
+                      {roleBadge(editMember.role).label}
+                    </span>
+                    <span className="text-xs">Rol değiştirme yetkisi sadece şirket yetkilisine aittir.</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -506,7 +526,7 @@ export default function UsersPage() {
 
               {availableVehicles.length === 0 && currentVehicles.length > 0 && (
                 <p className="text-xs text-muted-foreground text-center bg-muted/30 rounded-2xl px-4 py-3">
-                  Tüm araçlar bu sürücüye atanmış
+                  Tüm araçlar bu kullanıcıya atanmış
                 </p>
               )}
 

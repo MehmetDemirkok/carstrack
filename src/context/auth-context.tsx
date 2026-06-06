@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile({
           id: data.id,
           companyId: data.company_id,
-          role: data.role as "manager" | "driver",
+          role: data.role as "manager" | "operator" | "user",
           fullName: data.full_name,
           department: (data.department as string) || "",
           avatarUrl: (data.avatar_url as string) || undefined,

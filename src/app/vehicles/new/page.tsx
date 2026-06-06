@@ -15,9 +15,6 @@ import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { FuelType, TransmissionType, TireSeasonType, OwnershipType, Vehicle } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileText, XCircle, Upload } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { getVehicles } from "@/lib/db";
-import { canAddVehicle } from "@/lib/plans";
-import { UpgradeModal } from "@/components/upgrade-modal";
 import { DatePicker } from "@/components/ui/date-picker";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
@@ -307,12 +304,10 @@ export default function NewVehiclePage() {
   const guardDemo = useDemoGuard();
   const { company, profile } = useAuth();
 
-  const limitChecked = useRef(false);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
-  const [showUpgrade, setShowUpgrade] = useState(false);
 
   // Document scan state — multi-doc
   const initDocSlots = (): Record<DocKey, DocSlot> => ({
@@ -323,20 +318,6 @@ export default function NewVehiclePage() {
   const [scanDocs, setScanDocs] = useState<Record<DocKey, DocSlot>>(initDocSlots);
   const [mergedExtracted, setMergedExtracted] = useState<ExtractedDocData | null>(null);
   const [docsApplied, setDocsApplied] = useState(false);
-
-  // Sayfa açılınca limit kontrolü yap (tek seferlik)
-  useEffect(() => {
-    if (!company || limitChecked.current) return;
-    limitChecked.current = true;
-    let active = true;
-    getVehicles().then((vehicles) => {
-      if (!active) return;
-      if (!canAddVehicle(company.plan ?? "free", vehicles.length)) {
-        setShowUpgrade(true);
-      }
-    }).catch(() => {});
-    return () => { active = false; };
-  }, [company]);
 
   const set = (key: keyof FormData, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -567,7 +548,7 @@ export default function NewVehiclePage() {
 
   const cls = "rounded-xl h-11 bg-muted/30 border-border/40 text-sm focus-visible:ring-primary/30";
 
-  if (profile?.role === "driver") {
+  if (profile?.role === "user") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }} className="mb-6">
@@ -606,7 +587,6 @@ export default function NewVehiclePage() {
 
   return (
     <>
-    <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} reason="vehicle" />
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="sticky top-0 z-50 glass border-b border-border/30">

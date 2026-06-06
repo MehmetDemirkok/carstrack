@@ -1,4 +1,4 @@
-import type { PlanType } from "@/lib/types";
+import type { PlanType } from "./types";
 
 export interface PlanDefinition {
   id: PlanType;
@@ -20,64 +20,34 @@ export const PLANS: Record<PlanType, PlanDefinition> = {
     badge: "Başlangıç",
     price: 0,
     yearlyPrice: 0,
-    vehicleLimit: 2,
-    userLimit: 3,
-    color: "#6b7280",
-    features: [
-      "2 araç",
-      "3 kullanıcı (1 şirket yetkilisi + 2 sürücü)",
-      "Bakım takibi",
-      "Sigorta & muayene takibi",
-      "Servis geçmişi",
-      "Temel filo özeti",
-    ],
-    notFeatures: [
-      "PDF & Excel export",
-      "E-posta bildirimleri",
-      "Gelişmiş analitik",
-      "Öncelikli destek",
-    ],
+    vehicleLimit: Infinity,
+    userLimit: Infinity,
+    color: "#6366f1",
+    features: [],
+    notFeatures: [],
   },
   pro: {
     id: "pro",
     name: "Profesyonel",
-    badge: "En Popüler",
-    price: 299,
-    yearlyPrice: 2_490,
-    vehicleLimit: 10,
-    userLimit: 10,
+    badge: "Pro",
+    price: 0,
+    yearlyPrice: 0,
+    vehicleLimit: Infinity,
+    userLimit: Infinity,
     color: "#6366f1",
-    features: [
-      "10 araç",
-      "10 kullanıcı",
-      "Bakım takibi",
-      "Sigorta & muayene takibi",
-      "Servis geçmişi",
-      "PDF & Excel export",
-      "E-posta bildirimleri",
-      "Gelişmiş filo analizi",
-      "Öncelikli destek",
-    ],
+    features: [],
     notFeatures: [],
   },
   fleet: {
     id: "fleet",
     name: "Filo",
-    badge: "Şirketler İçin",
-    price: 799,
-    yearlyPrice: 6_990,
+    badge: "Filo",
+    price: 0,
+    yearlyPrice: 0,
     vehicleLimit: Infinity,
     userLimit: Infinity,
-    color: "#0ea5e9",
-    features: [
-      "Sınırsız araç",
-      "Sınırsız kullanıcı",
-      "Tüm Profesyonel özellikler",
-      "API erişimi",
-      "Özel onboarding",
-      "SLA garantisi",
-      "Fatura & KDV desteği",
-    ],
+    color: "#6366f1",
+    features: [],
     notFeatures: [],
   },
 };
@@ -86,20 +56,18 @@ export function getPlan(plan: PlanType): PlanDefinition {
   return PLANS[plan] ?? PLANS.free;
 }
 
-export function canAddVehicle(plan: PlanType, currentCount: number): boolean {
-  return currentCount < getPlan(plan).vehicleLimit;
-}
-
-export function canAddUser(plan: PlanType, currentCount: number): boolean {
-  return currentCount < getPlan(plan).userLimit;
-}
-
-export function isFeatureAllowed(plan: PlanType, feature: "export" | "email" | "analytics" | "api"): boolean {
-  if (plan === "free") return false;
-  if (feature === "api") return plan === "fleet";
+export function canAddVehicle(_plan: PlanType, _currentCount: number): boolean {
   return true;
 }
 
-export function isPaidPlan(plan: PlanType): boolean {
-  return plan === "pro" || plan === "fleet";
+export function canAddUser(_plan: PlanType, _currentCount: number): boolean {
+  return true;
+}
+
+export function isFeatureAllowed(_plan: PlanType, _feature: "export" | "email" | "analytics" | "api"): boolean {
+  return true;
+}
+
+export function isPaidPlan(_plan: PlanType): boolean {
+  return true;
 }

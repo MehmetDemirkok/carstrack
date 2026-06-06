@@ -74,7 +74,8 @@ export const translations = {
     settings_account: "Hesap",
     settings_logout: "Çıkış Yap",
     role_manager: "Şirket Yetkilisi",
-    role_driver: "Sürücü",
+    role_operator: "Operatör",
+    role_user: "Kullanıcı",
 
     // Privacy page
     privacy_title: "Gizlilik & Güvenlik",
@@ -207,7 +208,8 @@ export const translations = {
     settings_account: "Account",
     settings_logout: "Sign Out",
     role_manager: "Manager",
-    role_driver: "Driver",
+    role_operator: "Operator",
+    role_user: "User",
 
     // Privacy page
     privacy_title: "Privacy & Security",

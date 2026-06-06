@@ -85,17 +85,17 @@ export default function TasksPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">
-            {profile?.role === "driver" ? "Sürücü Paneli" : "Görev Takibi"}
+            {profile?.role === "user" ? "Sürücü Paneli" : "Görev Takibi"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {profile?.role === "manager"
+            {profile?.role === "manager" || profile?.role === "operator"
               ? "Tüm görevleri görüntüle ve yönet"
               : "Seyahatlerinizi başlatın ve takip edin"}
           </p>
         </div>
       </motion.div>
 
-      {profile?.role === "manager" ? <ManagerView /> : <StaffView />}
+      {profile?.role === "manager" || profile?.role === "operator" ? <ManagerView /> : <StaffView />}
     </div>
   );
 }

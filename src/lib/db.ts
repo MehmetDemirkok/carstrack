@@ -365,6 +365,29 @@ export async function addRecord(
   return toRecord(inserted);
 }
 
+export async function updateRecord(
+  id: string,
+  data: Partial<Omit<ServiceRecord, "id" | "vehicleId" | "createdAt">>
+): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const patch: Record<string, unknown> = {};
+  if (data.date !== undefined) patch.date = data.date;
+  if (data.type !== undefined) patch.type = data.type;
+  if (data.title !== undefined) patch.title = data.title;
+  if (data.mileage !== undefined) patch.mileage = data.mileage;
+  if (data.serviceCenter !== undefined) patch.service_center = data.serviceCenter;
+  if (data.notes !== undefined) patch.notes = data.notes;
+  const { error } = await supabase
+    .from("service_records")
+    .update(patch)
+    .eq("id", id)
+    .eq("company_id", companyId);
+  if (error) throw error;
+  bustCache(`records:${companyId}`);
+  bustCache(`vrecords:${companyId}`);
+}
+
 export async function deleteRecord(id: string): Promise<void> {
   const supabase = createClient();
   const companyId = await requireCompanyId();
@@ -390,7 +413,7 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: str
     .from("profiles")
     .select("*, vehicle_assignments(vehicle_id)")
     .eq("company_id", companyId)
-    .eq("role", "driver")
+    .eq("role", "user")
     .order("full_name");
   if (error) throw error;
 
@@ -457,7 +480,7 @@ export async function getMyVehicles(): Promise<Vehicle[]> {
     .eq("id", userId)
     .single();
 
-  if (profile?.role !== "driver") return getVehicles();
+  if (profile?.role !== "user") return getVehicles();
 
   try {
     const res = await fetch("/api/my-vehicles");
@@ -529,7 +552,7 @@ export async function updateMemberProfile(
 
 export async function updateMemberRole(
   memberId: string,
-  role: "manager" | "driver"
+  role: "manager" | "operator" | "user"
 ): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from("profiles").update({ role }).eq("id", memberId);

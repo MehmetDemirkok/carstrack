@@ -16,7 +16,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { profile, loading } = useAuth();
-  const isDriver = profile?.role === "driver";
+  const isDriver = profile?.role === "user";
 
   const navItems = isDriver
     ? [
@@ -138,7 +138,7 @@ export function Sidebar() {
               <span className="text-sm font-semibold text-foreground truncate">{profile.fullName || "Kullanıcı"}</span>
               <span className="text-muted-foreground mt-0.5"
                 style={{ fontSize: "0.58rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
-                {profile.role === "manager" ? "ŞİRKET YETKİLİSİ" : "SÜRÜCÜ"}
+                {profile.role === "manager" ? "ŞİRKET YETKİLİSİ" : profile.role === "operator" ? "OPERATÖR" : "KULLANICI"}
               </span>
             </div>
           </Link>

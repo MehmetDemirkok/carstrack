@@ -40,7 +40,7 @@ export default function VehiclesPage() {
   const guardDemo = useDemoGuard();
   const { profile } = useAuth();
   const { vehicles, loading, refresh, setVehicles } = useData();
-  const isDriver = profile?.role === "driver";
+  const isDriver = profile?.role === "user";
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
