@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Car, LayoutDashboard, History, Activity, Settings, Plus, ClipboardList, Users } from "lucide-react";
+import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
@@ -141,24 +141,6 @@ export function Sidebar() {
                 {profile.role === "manager" ? "ŞİRKET YETKİLİSİ" : "SÜRÜCÜ"}
               </span>
             </div>
-          </Link>
-        )}
-
-        {!isDriver && (
-          <Link href="/vehicles/new" className="block w-full">
-            <button className="w-full h-11 rounded-xl flex items-center justify-center gap-2 transition-all font-bold"
-              style={{
-                background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)",
-                color: "#fff",
-                border: "none",
-                fontSize: "0.82rem",
-                letterSpacing: "0.06em",
-                fontFamily: "var(--font-barlow), sans-serif",
-                clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
-              }}>
-              <Plus className="h-4 w-4" />
-              {t("nav_add_vehicle")}
-            </button>
           </Link>
         )}
       </div>
