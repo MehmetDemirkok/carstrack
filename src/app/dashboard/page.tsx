@@ -205,14 +205,20 @@ export default function Dashboard() {
                   <p className="text-sm font-semibold text-foreground">Telegram Bildirimlerini Aç</p>
                   <p className="text-[11px] text-muted-foreground">Filo uyarılarını anında Telegram'dan al</p>
                 </div>
-                <a
-                  href={telegramConnectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 text-xs font-semibold text-sky-500 border border-sky-500/30 rounded-xl px-3 py-1.5 hover:bg-sky-500/10 transition-colors"
-                >
-                  Bağla
-                </a>
+                {user?.id ? (
+                  <a
+                    href={telegramConnectUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 text-xs font-semibold text-sky-500 border border-sky-500/30 rounded-xl px-3 py-1.5 hover:bg-sky-500/10 transition-colors"
+                  >
+                    Bağla
+                  </a>
+                ) : (
+                  <span className="shrink-0 text-xs font-semibold text-sky-500/40 border border-sky-500/15 rounded-xl px-3 py-1.5 cursor-not-allowed">
+                    Bağla
+                  </span>
+                )}
                 <button
                   onClick={() => setTelegramBannerDismissed(true)}
                   className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"

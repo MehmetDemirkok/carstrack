@@ -629,7 +629,7 @@ export default function SettingsPage() {
                     </button>
                   }
                 />
-              ) : (
+              ) : user?.id ? (
                 <a href={telegramConnectUrl} target="_blank" rel="noopener noreferrer" className="block">
                   <SettingItem
                     icon={Send}
@@ -640,6 +640,15 @@ export default function SettingsPage() {
                     trailing={<ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                   />
                 </a>
+              ) : (
+                <SettingItem
+                  icon={Send}
+                  iconBg="bg-sky-500/10"
+                  iconColor="text-sky-500"
+                  label="Telegram'ı Bağla"
+                  description="Filo uyarılarını Telegram'dan al"
+                  trailing={<ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />}
+                />
               )}
               <SettingItem
                 icon={Languages}

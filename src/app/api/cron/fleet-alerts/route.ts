@@ -180,16 +180,17 @@ export async function GET(req: Request) {
 
     // ── 9. E-posta + Telegram gönder ─────────────────────────────
     try {
-      const sendPromises: Promise<unknown>[] = [];
+      type LabeledSend = { channel: "email" | "telegram"; promise: Promise<unknown> };
+      const labeled: LabeledSend[] = [];
 
       if (sendEmail) {
-        sendPromises.push(sendFleetAlertDigest({
+        labeled.push({ channel: "email", promise: sendFleetAlertDigest({
           to: email!,
           recipientName: (profile.full_name as string) || email!,
           alerts: alertsToSend,
           appUrl,
           date: turkishDate,
-        }));
+        }) });
       }
 
       if (sendTelegram) {
@@ -198,21 +199,41 @@ export async function GET(req: Request) {
           `${severityEmoji[a.severity] ?? "⚪"} <b>${a.vehiclePlate}</b> — ${a.title}`
         );
         const msg = `🚗 <b>CarsTrack Filo Uyarısı</b>\n${turkishDate}\n\n${lines.join("\n")}\n\n<a href="${appUrl}/vehicles">Araçları görüntüle →</a>`;
-        sendPromises.push(sendTelegramMessage(telegramChatId, msg));
+        labeled.push({ channel: "telegram", promise: sendTelegramMessage(telegramChatId, msg) });
       }
 
-      await Promise.allSettled(sendPromises);
+      const settled = await Promise.allSettled(labeled.map((l) => l.promise));
 
-      // ── 10. Log kaydet ────────────────────────────────────────
-      const logRows = alertsToSend.map((alert) => ({
-        user_id: userId,
-        alert_id: alert.id,
-        severity: alert.severity,
-        sent_at: now.toISOString(),
-      }));
-      await admin.from("email_notification_log").insert(logRows);
+      // Başarısız kanalları logla — Vercel function loglarında görünür
+      for (let i = 0; i < settled.length; i++) {
+        if (settled[i].status === "rejected") {
+          console.error(
+            `[cron/fleet-alerts] ${labeled[i].channel} send failed for user ${userId}:`,
+            (settled[i] as PromiseRejectedResult).reason
+          );
+        }
+      }
 
-      results.push({ userId, status: "sent", alertCount: alertsToSend.length });
+      const anySuccess = settled.some((r) => r.status === "fulfilled");
+      const allFailed  = settled.every((r) => r.status === "rejected");
+
+      if (anySuccess) {
+        // ── 10. Log kaydet — sadece en az bir gönderim başarılıysa ──
+        // Başarısız gönderimler "gönderildi" sayılmaz, bir sonraki cron'da tekrar denenir.
+        // TODO: İleride hem e-posta hem Telegram aktif kullanıcılar için
+        // email_notification_log'a "channel" kolonu eklenip kanal bazlı
+        // baskılama yapılabilir. Şu an "en az biri başarılı" yeterli.
+        const logRows = alertsToSend.map((alert) => ({
+          user_id: userId,
+          alert_id: alert.id,
+          severity: alert.severity,
+          sent_at: now.toISOString(),
+        }));
+        await admin.from("email_notification_log").insert(logRows);
+      }
+
+      const status = allFailed ? "error" : anySuccess && settled.some((r) => r.status === "rejected") ? "partial" : "sent";
+      results.push({ userId, status, alertCount: alertsToSend.length });
     } catch (err) {
       console.error(`[cron/fleet-alerts] user ${userId} failed:`, err);
       results.push({ userId, status: "error" });
@@ -220,11 +241,12 @@ export async function GET(req: Request) {
   }
 
   // ── 9. Özet döndür ──────────────────────────────────────────────
-  const sent = results.filter((r) => r.status === "sent").length;
-  const errors = results.filter((r) => r.status === "error").length;
+  const sent    = results.filter((r) => r.status === "sent").length;
+  const partial = results.filter((r) => r.status === "partial").length;
+  const errors  = results.filter((r) => r.status === "error").length;
   const freePlanSkipped = results.filter((r) => r.status === "skipped_free_plan").length;
   const skipped = results.filter((r) => r.status.startsWith("skipped")).length;
 
-  console.log(`[cron/fleet-alerts] done — sent:${sent} errors:${errors} skipped:${skipped} (free_plan:${freePlanSkipped})`);
-  return NextResponse.json({ ok: true, sent, errors, skipped, freePlanSkipped, total: results.length });
+  console.log(`[cron/fleet-alerts] done — sent:${sent} partial:${partial} errors:${errors} skipped:${skipped} (free_plan:${freePlanSkipped})`);
+  return NextResponse.json({ ok: true, sent, partial, errors, skipped, freePlanSkipped, total: results.length });
 }
