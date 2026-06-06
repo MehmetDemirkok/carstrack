@@ -301,7 +301,6 @@ export default function SettingsPage() {
   // Telegram
   const [telegramChatId, setTelegramChatId] = useState<string | undefined>(undefined);
   const [telegramDisconnecting, setTelegramDisconnecting] = useState(false);
-  const [telegramTesting, setTelegramTesting] = useState(false);
 
   useEffect(() => {
     setTelegramChatId(profile?.telegramChatId);
@@ -324,19 +323,6 @@ export default function SettingsPage() {
       toast.error("Kaydedilemedi");
     } finally {
       setTelegramDisconnecting(false);
-    }
-  };
-
-  const handleTelegramTest = async () => {
-    setTelegramTesting(true);
-    try {
-      const res = await fetch("/api/telegram/test", { method: "POST" });
-      if (!res.ok) throw new Error();
-      toast.success("Test mesajı gönderildi! Telegram'ı kontrol edin.");
-    } catch {
-      toast.error("Gönderilemedi. Bağlantıyı kontrol edin.");
-    } finally {
-      setTelegramTesting(false);
     }
   };
 
@@ -635,13 +621,6 @@ export default function SettingsPage() {
                   description="Bağlı — uyarılar Telegram'a gönderiliyor"
                   trailing={
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleTelegramTest(); }}
-                        disabled={telegramTesting}
-                        className="text-[11px] text-sky-600 hover:text-sky-700 border border-sky-500/30 rounded-lg px-2.5 py-1 transition-colors disabled:opacity-40"
-                      >
-                        {telegramTesting ? "..." : "Test Gönder"}
-                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleTelegramDisconnect(); }}
                         disabled={telegramDisconnecting}
