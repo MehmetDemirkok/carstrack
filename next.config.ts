@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
       // Never cache HTML pages — ensures users always get the latest deploy
       // Static assets below override this with long-lived immutable headers
       {
-        source: "/((?!_next\\/static|_next\\/image|fonts\\/).*)",
+        source: "/((?!_next\\/static|_next\\/image|fonts\\/|favicon\\.ico|apple-touch-icon\\.png|icon\\.png|icon-192\\.png|icon-512\\.png|logo\\.svg|og-image\\.png|manifest\\.json|robots\\.txt|sitemap\\.xml).*)",
         headers: [
           { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
           { key: "Pragma", value: "no-cache" },

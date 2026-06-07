@@ -17,10 +17,10 @@ export default function robots(): MetadataRoute.Robots {
           "/users",
           "/tasks",
           "/api/",
+          "/reset-password",
         ],
       },
     ],
     sitemap: `${APP_URL}/sitemap.xml`,
-    host: APP_URL,
   };
 }
