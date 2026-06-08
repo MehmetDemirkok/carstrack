@@ -77,7 +77,8 @@ export function TopBar() {
           </Avatar>
           <div className="flex flex-col leading-none">
             <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mb-0.5"
-              style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
+              style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
+              suppressHydrationWarning>
               {getGreeting()}
             </span>
             <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors"
@@ -91,7 +92,8 @@ export function TopBar() {
           {/* Search */}
           <Button variant="ghost" size="icon"
             className="rounded-xl h-9 !w-auto px-3 hidden md:flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-            onClick={() => openPalette(true)}>
+            onClick={() => openPalette(true)}
+            suppressHydrationWarning>
             <Search className="h-4 w-4" />
             <kbd className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-muted border border-border text-muted-foreground"
               style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
@@ -100,7 +102,8 @@ export function TopBar() {
           </Button>
           <Button variant="ghost" size="icon"
             className="rounded-xl h-9 w-9 flex md:hidden text-muted-foreground hover:text-foreground hover:bg-muted/60"
-            onClick={() => openPalette(true)}>
+            onClick={() => openPalette(true)}
+            suppressHydrationWarning>
             <Search className="h-4 w-4" />
           </Button>
 
@@ -121,7 +124,7 @@ export function TopBar() {
           {profile && (
             <Button variant="ghost" size="icon"
               className="rounded-xl h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-              title="Çıkış Yap" onClick={signOut}>
+              title="Çıkış Yap" onClick={signOut} suppressHydrationWarning>
               <LogOut className="h-4 w-4" />
             </Button>
           )}
@@ -132,6 +135,7 @@ export function TopBar() {
               variant="ghost"
               size="icon"
               className={`relative rounded-xl h-9 w-9 transition-colors ${showNotifications ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+              suppressHydrationWarning
               onClick={() => {
                 const opening = !showNotifications;
                 setShowNotifications(opening);

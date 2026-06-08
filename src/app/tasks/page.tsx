@@ -599,7 +599,7 @@ function StaffView() {
               return (
                 <div
                   key={task.id}
-                  className="glass rounded-2xl px-4 py-3.5 border border-border/30 flex items-center gap-3"
+                  className="glass rounded-2xl px-4 py-3.5 border border-border/30 flex items-center gap-3 hover-lift transition-all"
                 >
                   <div className="h-8 w-8 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />

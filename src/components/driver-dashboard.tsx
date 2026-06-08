@@ -5,11 +5,12 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import {
   Car, ClipboardList, Play, Route, CheckCircle2, Gauge,
-  ChevronRight, MapPin, Clock, StopCircle,
+  ChevronRight, MapPin, Clock, StopCircle, Wrench, Send,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { getMyVehicles, getMyActiveTask, getTasks, getVehicleStatuses } from "@/lib/db";
-import type { Vehicle, VehicleTask } from "@/lib/types";
+import { getMyVehicles, getMyActiveTask, getTasks, getVehicleStatuses, getMyReports } from "@/lib/db";
+import type { Vehicle, VehicleTask, VehicleReport } from "@/lib/types";
+import { StatusBadge, CategoryIcon, STATUS_META } from "@/components/reports/report-badges";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } };
 const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } } };
@@ -39,6 +40,7 @@ export function DriverDashboard() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTask, setActiveTask] = useState<VehicleTask | null>(null);
   const [recent, setRecent] = useState<VehicleTask[]>([]);
+  const [reports, setReports] = useState<VehicleReport[]>([]);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [busyInfo, setBusyInfo] = useState<Map<string, { driverName?: string }>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -55,16 +57,18 @@ export function DriverDashboard() {
     let cancelled = false;
     (async () => {
       try {
-        const [v, active, completed, statuses] = await Promise.all([
+        const [v, active, completed, statuses, myReports] = await Promise.all([
           getMyVehicles(),
           getMyActiveTask(),
           getTasks({ status: "completed" }),
           getVehicleStatuses(),
+          getMyReports(),
         ]);
         if (cancelled) return;
         setVehicles(v);
         setActiveTask(active);
         setRecent(completed.slice(0, 5));
+        setReports(myReports);
         setBusyIds(statuses.activeVehicleIds);
         const m = new Map<string, { driverName?: string }>();
         for (const a of statuses.active) m.set(a.vehicleId, { driverName: a.driverName });
@@ -81,6 +85,7 @@ export function DriverDashboard() {
   const todayStr = new Date().toDateString();
   const todayTrips = recent.filter((t) => new Date(t.startTime).toDateString() === todayStr);
   const totalKm = recent.reduce((s, t) => s + (t.distance ?? 0), 0);
+  const openReports = reports.filter((r) => r.status !== "resolved");
 
   const initials = profile?.fullName
     ?.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") ?? "?";
@@ -204,6 +209,52 @@ export function DriverDashboard() {
             </div>
           ))}
         </motion.div>
+
+        {/* ── Arıza Bildir hızlı aksiyon ── */}
+        <motion.div variants={fadeUp}>
+          <Link href="/reports" className="block">
+            <div className="glass rounded-3xl p-4 border border-border/40 flex items-center gap-4 hover:border-amber-500/40 transition-colors group">
+              <div className="h-11 w-11 rounded-2xl bg-amber-500/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Wrench className="h-5 w-5 text-amber-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm">Araçta bir sorun mu var?</p>
+                <p className="text-xs text-muted-foreground">Arıza/durum bildir, yöneticin anında görsün</p>
+              </div>
+              <div className="flex items-center gap-1 text-amber-500 text-xs font-semibold shrink-0">
+                Bildir <Send className="h-3.5 w-3.5" />
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+
+        {/* ── Açık Arıza Bildirimlerim ── */}
+        {openReports.length > 0 && (
+          <motion.div variants={fadeUp} className="space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Açık Arıza Bildirimlerim</h2>
+              <Link href="/reports">
+                <span className="text-[11px] text-primary font-medium flex items-center gap-0.5">Tümü <ChevronRight className="h-3 w-3" /></span>
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {openReports.slice(0, 3).map((r) => (
+                <Link key={r.id} href="/reports" className="block">
+                  <div className="glass rounded-2xl px-4 py-3 border border-border/30 flex items-center gap-3 hover:border-primary/30 transition-colors">
+                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${STATUS_META[r.status].bg}`}>
+                      <CategoryIcon category={r.category} className={`h-4 w-4 ${STATUS_META[r.status].text}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold truncate">{r.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{r.vehiclePlate ?? "Araç"}</p>
+                    </div>
+                    <StatusBadge status={r.status} />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Araçlarım (durum) ── */}
         <motion.div variants={fadeUp} className="space-y-2.5">

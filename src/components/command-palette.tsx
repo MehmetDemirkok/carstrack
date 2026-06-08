@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Car, History, Activity, Settings, Plus,
-  Search, ChevronRight, Loader2,
+  Search, ChevronRight, Loader2, ClipboardList, Wrench, Users,
 } from "lucide-react";
 import { useCommandPalette } from "@/context/command-palette-context";
-import { getVehicles } from "@/lib/db";
+import { getVehicles, getMyVehicles } from "@/lib/db";
+import { useAuth } from "@/context/auth-context";
 import { calculateHealthScore } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
 
@@ -19,18 +20,34 @@ interface NavItem {
   keywords: string[];
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: "Ana Sayfa", href: "/", Icon: LayoutDashboard, keywords: ["dashboard", "ana sayfa", "anasayfa"] },
-  { label: "Araçlarım", href: "/vehicles", Icon: Car, keywords: ["araçlar", "vehicles", "filo"] },
+// Yönetici / operatör: tüm sayfalar
+const MANAGER_NAV_ITEMS: NavItem[] = [
+  { label: "Ana Sayfa", href: "/dashboard", Icon: LayoutDashboard, keywords: ["dashboard", "ana sayfa", "anasayfa", "panel"] },
+  { label: "Araçlar", href: "/vehicles", Icon: Car, keywords: ["araçlar", "vehicles", "filo"] },
+  { label: "Görev Takibi", href: "/tasks", Icon: ClipboardList, keywords: ["görev", "seyahat", "tasks"] },
+  { label: "Arıza Bildirimleri", href: "/reports", Icon: Wrench, keywords: ["arıza", "bildirim", "reports", "durum"] },
+  { label: "Ekip", href: "/users", Icon: Users, keywords: ["ekip", "personel", "sürücü", "users"] },
   { label: "Servis Geçmişi", href: "/history", Icon: History, keywords: ["servis", "geçmiş", "history", "bakım"] },
   { label: "Filo Durumu", href: "/analytics", Icon: Activity, keywords: ["analiz", "filo", "analytics", "durum"] },
   { label: "Ayarlar", href: "/settings", Icon: Settings, keywords: ["ayarlar", "settings", "profil"] },
   { label: "Yeni Araç Ekle", href: "/vehicles/new", Icon: Plus, keywords: ["yeni", "ekle", "add", "araç ekle"] },
 ];
 
+// Sürücü: yalnızca kendi erişebildiği sayfalar (sidebar ile birebir)
+const DRIVER_NAV_ITEMS: NavItem[] = [
+  { label: "Panelim", href: "/dashboard", Icon: LayoutDashboard, keywords: ["panel", "panelim", "dashboard", "ana sayfa"] },
+  { label: "Seyahatlerim", href: "/tasks", Icon: ClipboardList, keywords: ["seyahat", "görev", "tasks"] },
+  { label: "Arıza Bildir", href: "/reports", Icon: Wrench, keywords: ["arıza", "bildirim", "reports", "durum"] },
+  { label: "Araçlarım", href: "/vehicles", Icon: Car, keywords: ["araçlar", "vehicles", "araç"] },
+  { label: "Ayarlar", href: "/settings", Icon: Settings, keywords: ["ayarlar", "settings", "profil"] },
+];
+
 export function CommandPalette() {
   const { open, setOpen } = useCommandPalette();
   const router = useRouter();
+  const { profile } = useAuth();
+  const isDriver = profile?.role === "user";
+  const navItems = isDriver ? DRIVER_NAV_ITEMS : MANAGER_NAV_ITEMS;
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -40,11 +57,12 @@ export function CommandPalette() {
   const loadVehicles = useCallback(async () => {
     if (loadedVehicles) return;
     try {
-      const v = await getVehicles();
+      // Sürücü yalnızca kendine atanmış araçları görür
+      const v = isDriver ? await getMyVehicles() : await getVehicles();
       setVehicles(v);
       setLoadedVehicles(true);
     } catch {}
-  }, [loadedVehicles]);
+  }, [loadedVehicles, isDriver]);
 
   useEffect(() => {
     if (open) {
@@ -58,8 +76,8 @@ export function CommandPalette() {
   const q = query.toLowerCase();
 
   const filteredNav = q.length === 0
-    ? NAV_ITEMS
-    : NAV_ITEMS.filter((item) =>
+    ? navItems
+    : navItems.filter((item) =>
         item.label.toLowerCase().includes(q) ||
         item.keywords.some((k) => k.includes(q))
       );

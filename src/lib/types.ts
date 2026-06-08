@@ -122,6 +122,51 @@ export interface VehicleTask {
   driverDepartment?: string;
 }
 
+export type ReportStatus = "open" | "acknowledged" | "in_progress" | "resolved";
+export type ReportSeverity = "low" | "medium" | "high" | "critical";
+export type ReportCategory =
+  | "engine"
+  | "brake"
+  | "tire"
+  | "electrical"
+  | "fluid"
+  | "warning_light"
+  | "body"
+  | "other";
+
+export interface VehicleReport {
+  id: string;
+  companyId: string;
+  vehicleId: string;
+  reporterId: string;
+  title: string;
+  description: string;
+  category: ReportCategory;
+  severity: ReportSeverity;
+  status: ReportStatus;
+  resolutionNote?: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  // join'lerden gelen (opsiyonel)
+  vehiclePlate?: string;
+  vehicleName?: string;
+  reporterName?: string;
+  reporterDepartment?: string;
+}
+
+export interface VehicleReportLog {
+  id: string;
+  reportId: string;
+  companyId: string;
+  actorId: string;
+  fromStatus?: ReportStatus;
+  toStatus?: ReportStatus;
+  note: string;
+  createdAt: string;
+  actorName?: string;
+}
+
 export interface FleetAlert {
   id: string;
   vehicleId: string;

@@ -15,11 +15,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import Link from "next/link";
 import {
   Car, ChevronRight, Plus, Gauge, Trash2,
-  CheckCircle2, Circle, Fuel, Shield, Wrench, Calendar, Download, Move,
+  CheckCircle2, Circle, Fuel, Shield, Wrench, Calendar, Download, Move, Send,
 } from "lucide-react";
 import { exportVehiclesExcel } from "@/lib/export";
 import { DragSlider } from "@/components/ui/drag-slider";
 import { useAuth } from "@/context/auth-context";
+import { useRouter } from "next/navigation";
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -38,6 +39,7 @@ const tireColor = {
 
 export default function VehiclesPage() {
   const guardDemo = useDemoGuard();
+  const router = useRouter();
   const { profile } = useAuth();
   const { vehicles, loading, refresh, setVehicles } = useData();
   const isDriver = profile?.role === "user";
@@ -177,6 +179,24 @@ export default function VehiclesPage() {
           )}
         </div>
       </div>
+
+      {isDriver && vehicles.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <Link href="/reports" className="block">
+            <div className="rounded-3xl bg-mesh glow shimmer overflow-hidden relative p-4 shadow-lg shadow-primary/25 flex items-center gap-4">
+              <div className="absolute -top-10 -right-8 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="h-11 w-11 rounded-2xl bg-white/15 flex items-center justify-center shrink-0 relative">
+                <Wrench className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0 relative">
+                <p className="font-bold text-white text-sm">Araçta bir arıza mı fark ettin?</p>
+                <p className="text-xs text-white/70">Hızlıca bildir, yöneticin çözüm sürecini başlatsın</p>
+              </div>
+              <Send className="h-5 w-5 text-white/80 shrink-0 relative" />
+            </div>
+          </Link>
+        </motion.div>
+      )}
 
       <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {vehicles.map((vehicle) => {
@@ -351,6 +371,20 @@ export default function VehiclesPage() {
                         {vehicle.tireStatus}
                       </Badge>
                     </div>
+
+                    {/* Sürücü: hızlı arıza bildir */}
+                    {isDriver && !isSelectionMode && repositioningId !== vehicle.id && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          router.push(`/reports?vehicle=${vehicle.id}`);
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-amber-600 dark:text-amber-400 border-t border-border/40 hover:bg-amber-500/5 transition-colors"
+                      >
+                        <Wrench className="h-3.5 w-3.5" /> Arıza Bildir
+                      </button>
+                    )}
                   </Card>
                 </motion.div>
               </Link>

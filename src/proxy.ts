@@ -130,6 +130,42 @@ export async function proxy(request: NextRequest) {
     return redirectResponse;
   }
 
+  // ── Rol bazlı erişim ──────────────────────────────────────────
+  // Sürücüler (role = 'user') yalnızca kendi sayfalarına erişebilir.
+  // Aşağıdaki sayfalar yalnızca yönetici/operatöre açıktır. Rol JWT'de
+  // tutulmadığından, DB sorgusunu YALNIZCA bu sayfalara girişte yaparız
+  // (sürücü/yönetici normal akışına gecikme bindirmez).
+  const isManagerOnlyPath =
+    pathname.startsWith("/analytics") ||
+    pathname.startsWith("/history") ||
+    pathname.startsWith("/users") ||
+    pathname.startsWith("/vehicles/new");
+
+  if (user && isManagerOnlyPath) {
+    let role: string | null = null;
+    try {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      role = (prof?.role as string) ?? null;
+    } catch {
+      // Sorgu başarısızsa engellemeyiz (mevcut akışı bozmamak için).
+    }
+    if (role === "user") {
+      const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
+      supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
+        redirectResponse.cookies.set(
+          name,
+          value,
+          rest as Parameters<typeof redirectResponse.cookies.set>[2]
+        )
+      );
+      return redirectResponse;
+    }
+  }
+
   return supabaseResponse;
 }
 
