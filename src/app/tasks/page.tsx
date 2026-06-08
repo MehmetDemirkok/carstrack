@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Users,
   Flag,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import {
@@ -30,6 +31,7 @@ import {
   getMembers,
   createTaskAsManager,
   deleteTask,
+  getVehicleStatuses,
 } from "@/lib/db";
 import { exportTasksExcel } from "@/lib/export";
 import type { Vehicle, VehicleTask, Profile } from "@/lib/types";
@@ -85,7 +87,7 @@ export default function TasksPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">
-            {profile?.role === "user" ? "Sürücü Paneli" : "Görev Takibi"}
+            {profile?.role === "user" ? "Seyahatlerim" : "Görev Takibi"}
           </h1>
           <p className="text-sm text-muted-foreground">
             {profile?.role === "manager" || profile?.role === "operator"
@@ -107,6 +109,8 @@ function StaffView() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTask, setActiveTask] = useState<VehicleTask | null | undefined>(undefined);
   const [recentTasks, setRecentTasks] = useState<VehicleTask[]>([]);
+  const [busyVehicleIds, setBusyVehicleIds] = useState<Set<string>>(new Set());
+  const [busyInfo, setBusyInfo] = useState<Map<string, { driverName?: string; since: string }>>(new Map());
   const [loading, setLoading] = useState(true);
 
   // Start form
@@ -117,6 +121,7 @@ function StaffView() {
   // End form
   const [endKm, setEndKm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Live timer — re-renders every second while a task is active
   const [, setTick] = useState(0);
@@ -126,16 +131,34 @@ function StaffView() {
     return () => clearInterval(id);
   }, [activeTask]);
 
-  async function loadAll() {
+  async function loadAll(opts?: { notify?: boolean }) {
     try {
-      const [v, active, recent] = await Promise.all([
+      const [v, active, recent, statuses] = await Promise.all([
         getMyVehicles(),
         getMyActiveTask(),
         getTasks({ status: "completed" }),
+        getVehicleStatuses(),
       ]);
       setVehicles(v);
       setActiveTask(active);
       setRecentTasks(recent.slice(0, 10));
+      setBusyVehicleIds(statuses.activeVehicleIds);
+      const infoMap = new Map<string, { driverName?: string; since: string }>();
+      for (const a of statuses.active) infoMap.set(a.vehicleId, { driverName: a.driverName, since: a.since });
+      setBusyInfo(infoMap);
+
+      // Atanmış aracı (kendi aktif görevi hariç) başkasında görevdeyse uyar —
+      // önceki sürücü görevi kapatmayı unutmuş olabilir.
+      if (opts?.notify) {
+        const stuck = v.find((veh) => veh.id !== active?.vehicleId && statuses.activeVehicleIds.has(veh.id));
+        if (stuck) {
+          const info = infoMap.get(stuck.id);
+          toast.warning("Aracınız görevde görünüyor", {
+            description: `${stuck.plate}: ${info?.driverName ? info.driverName + " " : "önceki sürücü "}görevi kapatmayı unutmuş olabilir. Yöneticinizle iletişime geçin.`,
+            duration: 8000,
+          });
+        }
+      }
     } catch {
       toast.error("Veriler yüklenirken hata oluştu");
     } finally {
@@ -143,10 +166,23 @@ function StaffView() {
     }
   }
 
-  useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadAll({ notify: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await loadAll();
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function handleStart() {
     if (!vehicleId) { toast.error("Lütfen bir araç seçin"); return; }
+    if (busyVehicleIds.has(vehicleId)) {
+      toast.error("Bu araç şu an başka bir görevde. Lütfen müsait bir araç seçin.");
+      return;
+    }
     const km = parseInt(startKm, 10);
     if (!startKm || isNaN(km) || km < 0) { toast.error("Geçerli bir başlangıç KM girin"); return; }
 
@@ -244,8 +280,18 @@ function StaffView() {
                 </span>
               </div>
             </div>
-            <div className="h-12 w-12 rounded-2xl bg-mesh flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-              <span className="text-white font-bold text-base">{initials}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                title="Yenile"
+                className="h-9 w-9 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted/70 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              </button>
+              <div className="h-12 w-12 rounded-2xl bg-mesh flex items-center justify-center shadow-lg shadow-primary/20">
+                <span className="text-white font-bold text-base">{initials}</span>
+              </div>
             </div>
           </div>
 
@@ -412,6 +458,40 @@ function StaffView() {
                   <div className="space-y-2">
                     {vehicles.map((v) => {
                       const selected = vehicleId === v.id;
+                      const busy = busyVehicleIds.has(v.id);
+                      if (busy) {
+                        // Görevde olan araç — seçilemez, kırmızı "Araç görevde" gösterilir
+                        const info = busyInfo.get(v.id);
+                        return (
+                          <div
+                            key={v.id}
+                            className="w-full text-left rounded-2xl border border-red-500/30 bg-red-500/5 px-4 py-3 cursor-not-allowed"
+                            title="Bu araç şu an başka bir görevde"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="h-9 w-9 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
+                                <Car className="h-4 w-4 text-red-500" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold">{v.plate}</p>
+                                <p className="text-xs text-muted-foreground">{v.brand} {v.model}</p>
+                              </div>
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-white bg-red-500 rounded-lg px-2 py-1 shrink-0">
+                                <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                                Araç görevde
+                              </span>
+                            </div>
+                            <div className="mt-2 flex items-start gap-1.5 text-[11px] text-red-600 dark:text-red-400 bg-red-500/5 rounded-lg px-2.5 py-1.5 leading-snug">
+                              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                              <span>
+                                {info?.driverName ? `${info.driverName} ` : "Önceki sürücü "}
+                                {info ? `${formatDuration(info.since)} önce başladı — ` : ""}
+                                görevi kapatmayı unutmuş olabilir. Yöneticinizle iletişime geçin.
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
                       return (
                         <button
                           key={v.id}
@@ -436,14 +516,23 @@ function StaffView() {
                             <p className={`text-sm font-bold ${selected ? "text-primary" : ""}`}>{v.plate}</p>
                             <p className="text-xs text-muted-foreground">{v.brand} {v.model} • {v.mileage.toLocaleString("tr-TR")} km</p>
                           </div>
-                          {selected && (
+                          {selected ? (
                             <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center shrink-0">
                               <Check className="h-3 w-3 text-white" />
                             </div>
+                          ) : (
+                            <span className="text-[10px] font-bold text-green-600 dark:text-green-400 bg-green-500/10 rounded-lg px-2 py-1 shrink-0">
+                              Müsait
+                            </span>
                           )}
                         </button>
                       );
                     })}
+                    {vehicles.every((v) => busyVehicleIds.has(v.id)) && (
+                      <p className="text-xs text-center text-muted-foreground bg-muted/20 rounded-2xl py-3">
+                        Tüm araçlarınız şu an görevde. Müsait araç olduğunda seçebilirsiniz.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -833,15 +922,6 @@ function ManagerView() {
                         {isActive && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
                         {isActive ? "Aktif" : "Tamamlandı"}
                       </span>
-                      {isActive && (
-                        <button
-                          onClick={() => openEndTask(task)}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
-                          title="Görevi Bitir"
-                        >
-                          <Flag className="h-3.5 w-3.5" />
-                        </button>
-                      )}
                       <button
                         onClick={() => requestDelete(task)}
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
@@ -850,6 +930,14 @@ function ManagerView() {
                       </button>
                     </div>
                   </div>
+                  {isActive && (
+                    <button
+                      onClick={() => openEndTask(task)}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-xs py-2.5 transition-colors shadow-sm"
+                    >
+                      <Flag className="h-4 w-4" /> Görevi Bitir
+                    </button>
+                  )}
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-medium">{task.driverName ?? "—"}</span>
                     {task.driverDepartment && <span className="text-muted-foreground">{task.driverDepartment}</span>}
@@ -912,19 +1000,20 @@ function ManagerView() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{formatDateTime(task.startTime)}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           {isActive && (
                             <button
                               onClick={() => openEndTask(task)}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
+                              className="flex items-center gap-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-xs px-3 py-1.5 transition-colors shadow-sm whitespace-nowrap"
                               title="Görevi Bitir"
                             >
-                              <Flag className="h-3.5 w-3.5" />
+                              <Flag className="h-3.5 w-3.5" /> Görevi Bitir
                             </button>
                           )}
                           <button
                             onClick={() => requestDelete(task)}
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            title="Görevi Sil"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>

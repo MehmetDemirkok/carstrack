@@ -24,6 +24,48 @@ function getAppUrl(req: Request): string {
   return origin;
 }
 
+// Yönetici/operatöre gönderilen günlük Telegram filo raporu metnini üretir.
+// Uyarı olsa da olmasa da (durum ne olursa olsun) gönderilir.
+function buildTelegramDigest(opts: {
+  name: string;
+  date: string;
+  vehicleCount: number;
+  alerts: FleetAlert[];
+  appUrl: string;
+}): string {
+  const { name, date, vehicleCount, alerts, appUrl } = opts;
+  const header =
+    `🚗 <b>CarsTrack Günlük Filo Raporu</b>\n${date}\n\n` +
+    `Merhaba ${name},\n📊 Filonuzda <b>${vehicleCount}</b> araç kayıtlı.`;
+
+  if (alerts.length === 0) {
+    return (
+      `${header}\n\n✅ <b>Her şey yolunda!</b>\n` +
+      `Tüm araçların sigorta, muayene ve bakım durumu güncel — aktif uyarı yok.\n\n` +
+      `<a href="${appUrl}/vehicles">Filoyu görüntüle →</a>`
+    );
+  }
+
+  const sevEmoji: Record<string, string> = { critical: "🔴", warning: "🟡", info: "🔵" };
+  const counts = { critical: 0, warning: 0, info: 0 } as Record<string, number>;
+  for (const a of alerts) counts[a.severity] = (counts[a.severity] ?? 0) + 1;
+
+  const summary = `🔴 Kritik: <b>${counts.critical}</b>   🟡 Uyarı: <b>${counts.warning}</b>   🔵 Bilgi: <b>${counts.info}</b>`;
+
+  const lines = alerts.slice(0, 40).map((a) => {
+    let s = `${sevEmoji[a.severity] ?? "⚪"} <b>${a.vehiclePlate}</b> — ${a.title}`;
+    if (a.description) s += `\n    <i>${a.description}</i>`;
+    return s;
+  });
+  const more = alerts.length > 40 ? `\n\n… ve ${alerts.length - 40} uyarı daha.` : "";
+
+  return (
+    `${header}\n${summary}\n\n` +
+    `<b>Aktif Uyarılar (${alerts.length}):</b>\n${lines.join("\n")}${more}\n\n` +
+    `<a href="${appUrl}/vehicles">Tüm araçları görüntüle →</a>`
+  );
+}
+
 export async function GET(req: Request) {
   // ── 1. Authorization ────────────────────────────────────────────
   const authHeader = req.headers.get("authorization");
@@ -103,31 +145,54 @@ export async function GET(req: Request) {
 
   // ── 8. Her kullanıcıyı işle ──────────────────────────────────────
   const results: { userId: string; status: string; alertCount?: number }[] = [];
+  let telegramSent = 0;
+  let telegramError = 0;
 
   for (const profile of profiles ?? []) {
     const userId = profile.id as string;
     const companyId = profile.company_id as string;
+    const role = profile.role as string;
 
     const email = userEmailMap.get(userId);
     const telegramChatId = profile.telegram_chat_id as string | null;
     const notifyByEmail = profile.notify_by_email !== false;
 
-    const sendEmail = notifyByEmail && !!email;
-    const sendTelegram = !!telegramChatId;
-
-    if (!sendEmail && !sendTelegram) {
-      results.push({ userId, status: "skipped_no_channel" });
-      continue;
-    }
-
     // Rol bazlı uyarı belirleme
     let userAlerts: FleetAlert[];
-    if (profile.role === "manager" || profile.role === "operator") {
-      userAlerts = alertsByCompany.get(profile.company_id as string) ?? [];
+    if (role === "manager" || role === "operator") {
+      userAlerts = alertsByCompany.get(companyId) ?? [];
     } else {
-      // Kullanıcı: atanmış tüm araçların uyarıları
+      // Sürücü: atanmış tüm araçların uyarıları (yalnızca e-posta için)
       const vehicleIds = driverVehicleMap.get(userId) ?? [];
       userAlerts = vehicleIds.flatMap((vId) => alertsByVehicle.get(vId) ?? []);
+    }
+
+    // ── TELEGRAM: yalnızca yönetici + operatör, HER GÜN, baskılamasız ──
+    // Durum ne olursa olsun (uyarı var/yok) günlük rapor gönderilir.
+    // Sürücü rolü Telegram bildirimi ALMAZ.
+    if (telegramChatId && (role === "manager" || role === "operator")) {
+      const vehicleCount = (vehiclesByCompany.get(companyId) ?? []).length;
+      const msg = buildTelegramDigest({
+        name: (profile.full_name as string) || "Yönetici",
+        date: turkishDate,
+        vehicleCount,
+        alerts: userAlerts,
+        appUrl,
+      });
+      try {
+        await sendTelegramMessage(telegramChatId, msg);
+        telegramSent++;
+      } catch (err) {
+        telegramError++;
+        console.error(`[cron/fleet-alerts] telegram send failed for user ${userId}:`, err);
+      }
+    }
+
+    // ── E-POSTA: mevcut davranış (tüm roller, uyarı varsa + baskılama) ──
+    const sendEmail = notifyByEmail && !!email;
+    if (!sendEmail) {
+      results.push({ userId, status: telegramChatId ? "telegram_only" : "skipped_no_channel" });
+      continue;
     }
 
     if (userAlerts.length === 0) {
@@ -135,7 +200,7 @@ export async function GET(req: Request) {
       continue;
     }
 
-    // ── 8. Dedup: son gönderim zamanlarını çek ──────────────────
+    // ── Dedup: son gönderim zamanlarını çek (e-posta baskılaması) ──
     const alertIds = userAlerts.map((a) => a.id);
     const { data: recentLogs } = await admin
       .from("email_notification_log")
@@ -144,7 +209,6 @@ export async function GET(req: Request) {
       .in("alert_id", alertIds)
       .order("sent_at", { ascending: false });
 
-    // alert_id → en son gönderim tarihi
     const lastSentMap = new Map<string, Date>();
     for (const log of recentLogs ?? []) {
       if (!lastSentMap.has(log.alert_id)) {
@@ -152,7 +216,6 @@ export async function GET(req: Request) {
       }
     }
 
-    // Baskılama penceresi geçmemiş uyarıları filtrele
     const alertsToSend = userAlerts.filter((alert) => {
       const lastSent = lastSentMap.get(alert.id);
       if (!lastSent) return true;
@@ -165,75 +228,36 @@ export async function GET(req: Request) {
       continue;
     }
 
-    // ── 9. E-posta + Telegram gönder ─────────────────────────────
+    // ── E-posta gönder ──────────────────────────────────────────
     try {
-      type LabeledSend = { channel: "email" | "telegram"; promise: Promise<unknown> };
-      const labeled: LabeledSend[] = [];
+      await sendFleetAlertDigest({
+        to: email!,
+        recipientName: (profile.full_name as string) || email!,
+        alerts: alertsToSend,
+        appUrl,
+        date: turkishDate,
+      });
 
-      if (sendEmail) {
-        labeled.push({ channel: "email", promise: sendFleetAlertDigest({
-          to: email!,
-          recipientName: (profile.full_name as string) || email!,
-          alerts: alertsToSend,
-          appUrl,
-          date: turkishDate,
-        }) });
-      }
+      const logRows = alertsToSend.map((alert) => ({
+        user_id: userId,
+        alert_id: alert.id,
+        severity: alert.severity,
+        sent_at: now.toISOString(),
+      }));
+      await admin.from("email_notification_log").insert(logRows);
 
-      if (sendTelegram) {
-        const severityEmoji: Record<string, string> = { critical: "🔴", warning: "🟡", info: "🔵" };
-        const lines = alertsToSend.map((a) =>
-          `${severityEmoji[a.severity] ?? "⚪"} <b>${a.vehiclePlate}</b> — ${a.title}`
-        );
-        const msg = `🚗 <b>CarsTrack Filo Uyarısı</b>\n${turkishDate}\n\n${lines.join("\n")}\n\n<a href="${appUrl}/vehicles">Araçları görüntüle →</a>`;
-        labeled.push({ channel: "telegram", promise: sendTelegramMessage(telegramChatId, msg) });
-      }
-
-      const settled = await Promise.allSettled(labeled.map((l) => l.promise));
-
-      // Başarısız kanalları logla — Vercel function loglarında görünür
-      for (let i = 0; i < settled.length; i++) {
-        if (settled[i].status === "rejected") {
-          console.error(
-            `[cron/fleet-alerts] ${labeled[i].channel} send failed for user ${userId}:`,
-            (settled[i] as PromiseRejectedResult).reason
-          );
-        }
-      }
-
-      const anySuccess = settled.some((r) => r.status === "fulfilled");
-      const allFailed  = settled.every((r) => r.status === "rejected");
-
-      if (anySuccess) {
-        // ── 10. Log kaydet — sadece en az bir gönderim başarılıysa ──
-        // Başarısız gönderimler "gönderildi" sayılmaz, bir sonraki cron'da tekrar denenir.
-        // TODO: İleride hem e-posta hem Telegram aktif kullanıcılar için
-        // email_notification_log'a "channel" kolonu eklenip kanal bazlı
-        // baskılama yapılabilir. Şu an "en az biri başarılı" yeterli.
-        const logRows = alertsToSend.map((alert) => ({
-          user_id: userId,
-          alert_id: alert.id,
-          severity: alert.severity,
-          sent_at: now.toISOString(),
-        }));
-        await admin.from("email_notification_log").insert(logRows);
-      }
-
-      const status = allFailed ? "error" : anySuccess && settled.some((r) => r.status === "rejected") ? "partial" : "sent";
-      results.push({ userId, status, alertCount: alertsToSend.length });
+      results.push({ userId, status: "sent", alertCount: alertsToSend.length });
     } catch (err) {
-      console.error(`[cron/fleet-alerts] user ${userId} failed:`, err);
+      console.error(`[cron/fleet-alerts] email send failed for user ${userId}:`, err);
       results.push({ userId, status: "error" });
     }
   }
 
   // ── 9. Özet döndür ──────────────────────────────────────────────
   const sent    = results.filter((r) => r.status === "sent").length;
-  const partial = results.filter((r) => r.status === "partial").length;
   const errors  = results.filter((r) => r.status === "error").length;
-  const freePlanSkipped = results.filter((r) => r.status === "skipped_no_channel").length;
   const skipped = results.filter((r) => r.status.startsWith("skipped")).length;
 
-  console.log(`[cron/fleet-alerts] done — sent:${sent} partial:${partial} errors:${errors} skipped:${skipped} (free_plan:${freePlanSkipped})`);
-  return NextResponse.json({ ok: true, sent, partial, errors, skipped, freePlanSkipped, total: results.length });
+  console.log(`[cron/fleet-alerts] done — email_sent:${sent} email_errors:${errors} skipped:${skipped} | telegram_sent:${telegramSent} telegram_errors:${telegramError}`);
+  return NextResponse.json({ ok: true, emailSent: sent, emailErrors: errors, skipped, telegramSent, telegramError, total: results.length });
 }

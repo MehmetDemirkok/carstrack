@@ -11,6 +11,7 @@ import {
   getVehicleRecords, addRecord, deleteRecord,
   getVehicleDocuments, addVehicleDocument, updateVehicleDocument,
   deleteVehicleDocument, getDocumentSignedUrl, uploadDocumentFile,
+  getVehicleStatuses,
 } from "@/lib/db";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
 import {
@@ -351,6 +352,12 @@ export default function VehicleDetailPage() {
     type: DocumentType; title: string; issueDate: string; expiryDate: string; notes: string;
   }>({ type: "diger", title: "", issueDate: "", expiryDate: "", notes: "" });
 
+  // Belge görüntüleyici (uygulama içi önizleme)
+  const [docToView, setDocToView] = useState<VehicleDocument | null>(null);
+  const [docViewUrl, setDocViewUrl] = useState<string | null>(null);
+  const [docViewLoading, setDocViewLoading] = useState(false);
+  const [docViewError, setDocViewError] = useState(false);
+
   const reload = useCallback(async () => {
     try {
       const v = await getVehicle(id);
@@ -372,12 +379,25 @@ export default function VehicleDetailPage() {
     }
   }, [id]);
 
+  // Araç durumu: bu araç şu an aktif bir görevde mi?
+  const [vehicleBusy, setVehicleBusy] = useState<{ busy: boolean; driverName?: string }>({ busy: false });
+  const reloadStatus = useCallback(async () => {
+    try {
+      const { active } = await getVehicleStatuses();
+      const match = active.find((a) => a.vehicleId === id);
+      setVehicleBusy(match ? { busy: true, driverName: match.driverName } : { busy: false });
+    } catch {
+      /* durum bilgisi kritik değil */
+    }
+  }, [id]);
+
   useEffect(() => {
     if (!authLoading && company) {
       reload();
       reloadDocs();
+      reloadStatus();
     }
-  }, [authLoading, company, reload, reloadDocs]);
+  }, [authLoading, company, reload, reloadDocs, reloadStatus]);
 
   if (!vehicle) return null;
 
@@ -583,6 +603,39 @@ export default function VehicleDetailPage() {
     }
   };
 
+  // Belgeyi uygulama içinde önizle (PDF / resim). İmzalı URL alınır ve modalda gösterilir.
+  const handleViewDoc = async (doc: VehicleDocument) => {
+    setDocToView(doc);
+    setDocViewUrl(null);
+    setDocViewError(false);
+    setDocViewLoading(true);
+    try {
+      const url = await getDocumentSignedUrl(doc.filePath);
+      setDocViewUrl(url);
+    } catch (err) {
+      console.error(err);
+      setDocViewError(true);
+      toast.error("Hata", { description: "Belge yüklenirken hata oluştu." });
+    } finally {
+      setDocViewLoading(false);
+    }
+  };
+
+  const closeDocViewer = () => {
+    setDocToView(null);
+    setDocViewUrl(null);
+    setDocViewError(false);
+  };
+
+  // Önizleme yapılabilen dosya türü mü? (uzantı veya MIME'a göre)
+  function getDocPreviewKind(doc: VehicleDocument): "pdf" | "image" | "none" {
+    const mime = (doc.mimeType || "").toLowerCase();
+    const ext = (doc.fileName || doc.filePath || "").toLowerCase().split(".").pop() || "";
+    if (mime === "application/pdf" || ext === "pdf") return "pdf";
+    if (mime.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic"].includes(ext)) return "image";
+    return "none";
+  }
+
   const iLabel = "text-xs font-medium text-muted-foreground";
   const iCls = "rounded-xl h-10 bg-muted/30 border-border/40 text-sm";
 
@@ -677,24 +730,42 @@ export default function VehicleDetailPage() {
                 {vehicle.brand} <span className="font-light">{vehicle.model}</span>
               </motion.h1>
               <p className="text-muted-foreground font-medium text-sm">{vehicle.year} • {vehicle.color} • {vehicle.mileage.toLocaleString("tr-TR")} km</p>
-            </div>
-            <div className="bg-card/80 backdrop-blur-md rounded-2xl p-2.5 border border-border/50 shadow-lg">
-              <div className="relative">
-                <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                  <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
-                  <circle cx="28" cy="28" r="22" fill="none"
-                    stroke={score >= 85 ? "#22c55e" : score >= 65 ? "#f59e0b" : "#ef4444"}
-                    strokeWidth="4"
-                    strokeDasharray={`${score * 1.382} ${138.2 - score * 1.382}`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-lg font-black font-outfit leading-none">{score}</span>
-                  <span className="text-[8px] text-muted-foreground font-medium">Sağlık</span>
-                </div>
+              <div className="mt-2">
+                {vehicleBusy.busy ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 bg-amber-500/90 text-white rounded-lg px-2.5 py-1 text-[11px] font-bold shadow"
+                    title={vehicleBusy.driverName ? `${vehicleBusy.driverName} kullanımında` : "Görevde"}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                    Görevde{!isDriver && vehicleBusy.driverName ? ` • ${vehicleBusy.driverName}` : ""}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 bg-green-500/85 text-white rounded-lg px-2.5 py-1 text-[11px] font-bold shadow">
+                    Müsait
+                  </span>
+                )}
               </div>
             </div>
+            {/* Sağlık skoru bakım durumundan hesaplanır — sürücü rolünde gizlenir */}
+            {!isDriver && (
+              <div className="bg-card/80 backdrop-blur-md rounded-2xl p-2.5 border border-border/50 shadow-lg">
+                <div className="relative">
+                  <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                    <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
+                    <circle cx="28" cy="28" r="22" fill="none"
+                      stroke={score >= 85 ? "#22c55e" : score >= 65 ? "#f59e0b" : "#ef4444"}
+                      strokeWidth="4"
+                      strokeDasharray={`${score * 1.382} ${138.2 - score * 1.382}`}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-lg font-black font-outfit leading-none">{score}</span>
+                    <span className="text-[8px] text-muted-foreground font-medium">Sağlık</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -716,23 +787,39 @@ export default function VehicleDetailPage() {
           </motion.div>
 
           <motion.div variants={fadeUp}>
-            <Tabs defaultValue="maintenance" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 rounded-2xl h-11 bg-muted/50 p-1">
-                {[
-                  { value: "maintenance", label: "Bakım" },
-                  { value: "technical", label: "Teknik" },
-                  { value: "tires", label: "Lastik" },
-                  { value: "docs", label: "Belgeler" },
-                  { value: "history", label: "Geçmiş" },
-                ].map((t) => (
-                  <TabsTrigger key={t.value} value={t.value} className="rounded-xl text-[11px] data-[state=active]:bg-background data-[state=active]:shadow-sm font-medium">
-                    {t.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+            <Tabs key={isDriver ? "driver-tabs" : "full-tabs"} defaultValue={isDriver ? "technical" : "maintenance"} className="w-full">
+              {(() => {
+                // Sürücü rolü yalnızca aracın teknik özellikleri ve lastik/akü durumunu görür.
+                // Bakım bilgileri, servis geçmişi ve hassas belgeler (sigorta/şasi/finansal) gizlenir.
+                const tabItems = isDriver
+                  ? [
+                      { value: "technical", label: "Teknik" },
+                      { value: "tires", label: "Lastik" },
+                    ]
+                  : [
+                      { value: "maintenance", label: "Bakım" },
+                      { value: "technical", label: "Teknik" },
+                      { value: "tires", label: "Lastik" },
+                      { value: "docs", label: "Belgeler" },
+                      { value: "history", label: "Geçmiş" },
+                    ];
+                return (
+                  <TabsList
+                    className="grid w-full rounded-2xl h-11 bg-muted/50 p-1"
+                    style={{ gridTemplateColumns: `repeat(${tabItems.length}, minmax(0, 1fr))` }}
+                  >
+                    {tabItems.map((t) => (
+                      <TabsTrigger key={t.value} value={t.value} className="rounded-xl text-[11px] data-[state=active]:bg-background data-[state=active]:shadow-sm font-medium">
+                        {t.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                );
+              })()}
 
               <div className="mt-4 space-y-4">
-                {/* ── BAKIM ── */}
+                {/* ── BAKIM ── (sürücü göremez) */}
+                {!isDriver && (
                 <TabsContent value="maintenance" className="space-y-3 outline-none">
                   {vehicle.maintenanceItems.length > 0 && (
                     <div className="flex justify-end">
@@ -884,6 +971,7 @@ export default function VehicleDetailPage() {
                     </div>
                   )}
                 </TabsContent>
+                )}
 
                 {/* ── TEKNİK ── */}
                 <TabsContent value="technical" className="outline-none">
@@ -898,7 +986,8 @@ export default function VehicleDetailPage() {
                       vehicle.power ? { icon: Zap, label: "Motor Gücü", value: `${vehicle.power} HP` } : null,
                       vehicle.engineType ? { icon: Hash, label: "Motor Kodu", value: vehicle.engineType } : null,
                       { icon: MapPin, label: "Kilometre", value: `${vehicle.mileage.toLocaleString("tr-TR")} km` },
-                      vehicle.chassisNo ? { icon: FileText, label: "Şasi No", value: vehicle.chassisNo } : null,
+                      // Şasi no hassas bilgidir — sürücü rolünde gizlenir
+                      (!isDriver && vehicle.chassisNo) ? { icon: FileText, label: "Şasi No", value: vehicle.chassisNo } : null,
                     ].filter((r): r is NonNullable<typeof r> => r !== null).map((row, i) => (
                       <div key={i} className="flex items-center gap-3 px-4 py-3">
                         <row.icon className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -907,7 +996,7 @@ export default function VehicleDetailPage() {
                       </div>
                     ))}
                   </div>
-                  {vehicle.notes && (
+                  {!isDriver && vehicle.notes && (
                     <div className="bg-muted/40 rounded-2xl p-4 border border-border/20 mt-3">
                       <p className="text-xs font-semibold text-muted-foreground mb-1">Notlar</p>
                       <p className="text-sm leading-relaxed">{vehicle.notes}</p>
@@ -990,7 +1079,8 @@ export default function VehicleDetailPage() {
                   </div>
                 </TabsContent>
 
-                {/* ── BELGELER ── */}
+                {/* ── BELGELER ── (sürücü göremez) */}
+                {!isDriver && (
                 <TabsContent value="docs" className="space-y-3 outline-none">
                   <div className="bg-card rounded-2xl p-5 border border-border/40 shadow-sm space-y-4">
                     {[
@@ -1100,9 +1190,17 @@ export default function VehicleDetailPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 px-2.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 gap-1.5 text-[11px]"
+                                onClick={() => handleViewDoc(doc)}
+                              >
+                                <FileText className="h-3.5 w-3.5" /> Görüntüle
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 gap-1.5 text-[11px]"
                                 onClick={() => handleDownloadDoc(doc)}
                               >
-                                <Download className="h-3.5 w-3.5" /> Görüntüle
+                                <Download className="h-3.5 w-3.5" /> İndir
                               </Button>
                               {!isDriver && (
                                 <>
@@ -1135,8 +1233,10 @@ export default function VehicleDetailPage() {
                     </div>
                   )}
                 </TabsContent>
+                )}
 
-                {/* ── GEÇMİŞ ── */}
+                {/* ── GEÇMİŞ ── (sürücü göremez) */}
+                {!isDriver && (
                 <TabsContent value="history" className="outline-none">
                   <div className="flex justify-between items-center mb-3">
                     <p className="text-xs text-muted-foreground">{records.length} servis kaydı</p>
@@ -1192,6 +1292,7 @@ export default function VehicleDetailPage() {
                     </div>
                   )}
                 </TabsContent>
+                )}
               </div>
             </Tabs>
           </motion.div>
@@ -1746,6 +1847,70 @@ export default function VehicleDetailPage() {
             <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
             <Button variant="destructive" onClick={handleDeleteDoc} className="rounded-xl flex-1">Evet, Sil</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── BELGE GÖRÜNTÜLEYİCİ ── */}
+      <Dialog open={!!docToView} onOpenChange={(open) => { if (!open) closeDocViewer(); }}>
+        <DialogContent className="rounded-3xl max-w-3xl w-[95vw] p-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5">
+            <DialogTitle className="font-outfit flex items-center gap-2 text-base pr-8">
+              <FileText className="h-5 w-5 text-primary shrink-0" />
+              <span className="truncate">{docToView?.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="px-5 pb-5">
+            <div className="rounded-2xl bg-muted/30 border border-border/40 overflow-hidden min-h-[55vh] flex items-center justify-center">
+              {docViewLoading ? (
+                <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
+                  <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  <p className="text-sm">Belge yükleniyor...</p>
+                </div>
+              ) : docViewError || !docViewUrl ? (
+                <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground text-center px-6">
+                  <AlertTriangle className="h-8 w-8 opacity-40" />
+                  <p className="text-sm">Belge görüntülenemedi.</p>
+                  {docToView && (
+                    <Button variant="outline" size="sm" className="rounded-xl gap-1.5" onClick={() => handleDownloadDoc(docToView)}>
+                      <Download className="h-3.5 w-3.5" /> Yeni sekmede aç
+                    </Button>
+                  )}
+                </div>
+              ) : docToView && getDocPreviewKind(docToView) === "image" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={docViewUrl} alt={docToView.title} className="max-h-[70vh] w-auto max-w-full object-contain" />
+              ) : docToView && getDocPreviewKind(docToView) === "pdf" ? (
+                <iframe src={docViewUrl} title={docToView.title} className="w-full h-[70vh] bg-white" />
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground text-center px-6">
+                  <FileText className="h-8 w-8 opacity-40" />
+                  <p className="text-sm">Bu dosya türü önizlenemiyor.</p>
+                  {docToView && (
+                    <Button variant="outline" size="sm" className="rounded-xl gap-1.5" onClick={() => handleDownloadDoc(docToView)}>
+                      <Download className="h-3.5 w-3.5" /> İndir / Yeni sekmede aç
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 mt-3">
+              <p className="text-[11px] text-muted-foreground truncate">
+                {docToView?.fileName}
+              </p>
+              {docToView && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full gap-1.5 text-xs shrink-0 text-muted-foreground hover:text-primary"
+                  onClick={() => handleDownloadDoc(docToView)}
+                >
+                  <Download className="h-3.5 w-3.5" /> İndir
+                </Button>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

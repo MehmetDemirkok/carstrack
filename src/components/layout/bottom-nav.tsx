@@ -17,6 +17,7 @@ export function BottomNav() {
 
   const navItems = isDriver
     ? [
+        { href: "/dashboard", icon: LayoutDashboard, label: "Panelim" },
         { href: "/tasks", icon: ClipboardList, label: "Seyahatler" },
         { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
         { href: "/settings", icon: Settings, label: t("nav_settings") },

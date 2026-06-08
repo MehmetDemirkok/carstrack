@@ -24,10 +24,18 @@ export async function POST() {
 
   const name = (profile.full_name as string) || "Kullanıcı";
 
-  await sendTelegramMessage(
-    profile.telegram_chat_id as string,
-    `✅ <b>Test başarılı, ${name}!</b>\n\nCarsTrack Telegram bildirimleri aktif. Sigorta, muayene ve bakım uyarıları her gün sabah 06:00'da size iletilecek.`
-  );
+  try {
+    await sendTelegramMessage(
+      profile.telegram_chat_id as string,
+      `✅ <b>Test başarılı, ${name}!</b>\n\nCarsTrack Telegram bildirimleri aktif. Sigorta, muayene ve bakım uyarıları her gün sabah 06:00'da size iletilecek.`
+    );
+  } catch (err) {
+    console.error("[telegram/test] gönderim başarısız:", err);
+    return NextResponse.json(
+      { error: "Test mesajı gönderilemedi", detail: String(err) },
+      { status: 502 }
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

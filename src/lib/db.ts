@@ -571,6 +571,21 @@ export async function unassignDriver(driverId: string): Promise<void> {
 
 // ─── Vehicle Tasks ────────────────────────────────────────────
 
+// Görev başladığında yöneticilere Telegram bilgi mesajı gönderir (fire-and-forget).
+// Başarısız olsa bile görev akışını etkilemez.
+function notifyTaskStart(taskId: string): void {
+  try {
+    void fetch("/api/tasks/notify-start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ taskId }),
+    }).catch(() => {});
+  } catch {
+    /* yoksay */
+  }
+}
+
 function toTask(row: Record<string, unknown>): VehicleTask {
   const vehicleData = row.vehicles as { plate?: string; brand?: string; model?: string } | null;
   const profileData = row.profiles as { full_name?: string; department?: string } | null;
@@ -682,7 +697,9 @@ export async function startTask(data: {
     .single();
 
   if (error) throw error;
-  return toTask(inserted as Record<string, unknown>);
+  const task = toTask(inserted as Record<string, unknown>);
+  notifyTaskStart(task.id);
+  return task;
 }
 
 export async function endTask(taskId: string, endKm: number): Promise<VehicleTask> {
@@ -690,7 +707,7 @@ export async function endTask(taskId: string, endKm: number): Promise<VehicleTas
 
   const { data: existing, error: fetchErr } = await supabase
     .from("vehicle_tasks")
-    .select("start_km")
+    .select("start_km, vehicle_id")
     .eq("id", taskId)
     .eq("status", "active")
     .single();
@@ -711,6 +728,36 @@ export async function endTask(taskId: string, endKm: number): Promise<VehicleTas
     .single();
 
   if (error) throw error;
+
+  // Görev tamamlanınca aracın kilometresini bitiş KM ile güncelle.
+  // Sadece bitiş KM mevcut kayıtlı KM'den büyükse güncellenir; bu sayede
+  // geriye giden / hatalı km kaydı ve çift güncelleme engellenir.
+  const vehicleId = existing.vehicle_id as string;
+  try {
+    const { data: vehicle } = await supabase
+      .from("vehicles")
+      .select("mileage, company_id")
+      .eq("id", vehicleId)
+      .single();
+
+    if (vehicle && endKm > ((vehicle.mileage as number) ?? 0)) {
+      const { error: kmErr } = await supabase
+        .from("vehicles")
+        .update({ mileage: endKm, updated_at: new Date().toISOString() })
+        .eq("id", vehicleId);
+      if (kmErr) {
+        console.error("endTask: araç KM güncellenemedi:", kmErr);
+      } else if (vehicle.company_id) {
+        // Güncel km'nin sonraki sorgularda görünmesi için cache temizle
+        bustCache(`vehicles:${vehicle.company_id as string}`);
+        bustCache("myvehicles:");
+      }
+    }
+  } catch (kmErr) {
+    // KM güncellemesi başarısız olsa bile görev tamamlanmış sayılır
+    console.error("endTask: araç KM güncelleme hatası:", kmErr);
+  }
+
   return toTask(updated as Record<string, unknown>);
 }
 
@@ -738,7 +785,9 @@ export async function createTaskAsManager(data: {
     .single();
 
   if (error) throw error;
-  return toTask(inserted as Record<string, unknown>);
+  const task = toTask(inserted as Record<string, unknown>);
+  notifyTaskStart(task.id);
+  return task;
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
@@ -748,6 +797,38 @@ export async function deleteTask(taskId: string): Promise<void> {
     .delete()
     .eq("id", taskId);
   if (error) throw error;
+}
+
+// ─── Vehicle Status (görevde / müsait) ────────────────────────
+
+export interface VehicleStatusInfo {
+  vehicleId: string;
+  driverId: string;
+  driverName?: string;
+  since: string;
+}
+
+/**
+ * Şirketteki araçların anlık durumunu döndürür. Aktif görevde olan
+ * araçların listesini ve hangi sürücüde olduğunu içerir.
+ * Sonuç kısa süreli cache'lenmez — durum gerçek zamanlı olmalı.
+ */
+export async function getVehicleStatuses(): Promise<{
+  activeVehicleIds: Set<string>;
+  active: VehicleStatusInfo[];
+}> {
+  try {
+    const res = await fetch("/api/vehicles/statuses", { credentials: "same-origin" });
+    if (!res.ok) return { activeVehicleIds: new Set(), active: [] };
+    const json = (await res.json()) as { activeVehicleIds?: string[]; active?: VehicleStatusInfo[] };
+    return {
+      activeVehicleIds: new Set(json.activeVehicleIds ?? []),
+      active: json.active ?? [],
+    };
+  } catch (err) {
+    console.error("getVehicleStatuses failed:", err);
+    return { activeVehicleIds: new Set(), active: [] };
+  }
 }
 
 // ─── Vehicle Documents ────────────────────────────────────────

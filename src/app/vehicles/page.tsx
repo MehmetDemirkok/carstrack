@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { deleteVehicles, updateVehicle } from "@/lib/db";
+import { deleteVehicles, updateVehicle, getVehicleStatuses } from "@/lib/db";
 import { useData } from "@/context/data-context";
 import { calculateHealthScore } from "@/lib/store";
 import { useDemoGuard } from "@/hooks/use-demo-guard";
@@ -49,6 +49,19 @@ export default function VehiclesPage() {
   const [pendingPosY, setPendingPosY] = useState(50);
   const [pendingPosX, setPendingPosX] = useState(50);
   const [positionSaving, setPositionSaving] = useState(false);
+
+  // Araç durumu: aktif görevdeki araçlar (vehicleId → sürücü adı)
+  const [activeVehicleMap, setActiveVehicleMap] = useState<Map<string, string | undefined>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    getVehicleStatuses().then(({ active }) => {
+      if (cancelled) return;
+      const m = new Map<string, string | undefined>();
+      for (const a of active) m.set(a.vehicleId, a.driverName);
+      setActiveVehicleMap(m);
+    });
+    return () => { cancelled = true; };
+  }, [vehicles.length]);
 
   const startReposition = (e: React.MouseEvent, vehicle: Vehicle) => {
     e.preventDefault();
@@ -252,10 +265,27 @@ export default function VehiclesPage() {
                         </div>
                       )}
 
-                      {/* Plate badge */}
-                      <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-1.5 bg-black/50 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1.5 shadow-lg">
-                        <Car className="h-3 w-3 text-white/70" />
-                        <span className="font-outfit font-black text-xs text-white tracking-wide">{vehicle.plate}</span>
+                      {/* Plate badge + durum */}
+                      <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1.5 shadow-lg">
+                          <Car className="h-3 w-3 text-white/70" />
+                          <span className="font-outfit font-black text-xs text-white tracking-wide">{vehicle.plate}</span>
+                        </div>
+                        {!isSelectionMode && repositioningId !== vehicle.id && (
+                          activeVehicleMap.has(vehicle.id) ? (
+                            <span
+                              className="flex items-center gap-1 bg-amber-500/90 text-white rounded-lg px-2 py-1 text-[10px] font-bold shadow-lg"
+                              title={activeVehicleMap.get(vehicle.id) ? `${activeVehicleMap.get(vehicle.id)} kullanımında` : "Görevde"}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                              Görevde
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 bg-green-500/85 text-white rounded-lg px-2 py-1 text-[10px] font-bold shadow-lg">
+                              Müsait
+                            </span>
+                          )
+                        )}
                       </div>
 
                       {/* Health score + reposition button */}

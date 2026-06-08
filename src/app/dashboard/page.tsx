@@ -14,6 +14,7 @@ import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
 import { HealthScoreBreakdown } from "@/components/health-score-breakdown";
 import { FleetRiskOverview } from "@/components/fleet-risk-overview";
+import { DriverDashboard } from "@/components/driver-dashboard";
 import {
   Car,
   ChevronRight,
@@ -100,6 +101,9 @@ export default function Dashboard() {
 
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
   const warningCount = alerts.filter((a) => a.severity === "warning").length;
+
+  // Sürücü rolü kısıtlı kendi panelini görür (bakım/servis/telegram/filo skoru yok)
+  if (profile?.role === "user") return <DriverDashboard />;
 
   if (dataLoading) return (
     <div className="p-4 md:p-8 space-y-6">

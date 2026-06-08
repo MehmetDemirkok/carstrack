@@ -276,6 +276,24 @@ export default function SettingsPage() {
 
   const telegramConnectUrl = `https://t.me/Carstrack_APP_Bot?start=${user?.id ?? ""}`;
 
+  const [telegramTesting, setTelegramTesting] = useState(false);
+  const handleTelegramTest = async () => {
+    setTelegramTesting(true);
+    try {
+      const res = await fetch("/api/telegram/test", { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("Test mesajı gönderildi", { description: "Telegram'ı kontrol edin." });
+      } else {
+        toast.error("Test başarısız", { description: json?.error || "Mesaj gönderilemedi." });
+      }
+    } catch {
+      toast.error("Test başarısız", { description: "Bağlantı hatası." });
+    } finally {
+      setTelegramTesting(false);
+    }
+  };
+
   const handleTelegramDisconnect = async () => {
     setTelegramDisconnecting(true);
     try {
@@ -575,7 +593,8 @@ export default function SettingsPage() {
                 trailing={<Toggle on={emailNotif} onToggle={handleEmailNotifToggle} />}
                 onClick={handleEmailNotifToggle}
               />
-              {telegramChatId ? (
+              {/* Telegram bildirimleri yalnızca yönetici/operatör içindir — sürücü rolünde gizlenir */}
+              {profile?.role === "user" ? null : telegramChatId ? (
                 <SettingItem
                   icon={Send}
                   iconBg="bg-sky-500/10"
@@ -584,6 +603,13 @@ export default function SettingsPage() {
                   description="Bağlı — uyarılar Telegram'a gönderiliyor"
                   trailing={
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleTelegramTest(); }}
+                        disabled={telegramTesting}
+                        className="text-[11px] text-sky-600/80 hover:text-sky-600 border border-sky-500/20 rounded-lg px-2.5 py-1 transition-colors disabled:opacity-40"
+                      >
+                        {telegramTesting ? "..." : "Test Et"}
+                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleTelegramDisconnect(); }}
                         disabled={telegramDisconnecting}

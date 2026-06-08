@@ -20,6 +20,7 @@ export function Sidebar() {
 
   const navItems = isDriver
     ? [
+        { icon: LayoutDashboard, label: "Panelim", href: "/dashboard" },
         { icon: ClipboardList, label: "Seyahatlerim", href: "/tasks" },
         { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
         { icon: Settings, label: t("nav_settings"), href: "/settings" },
