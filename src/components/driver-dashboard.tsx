@@ -11,6 +11,7 @@ import { useAuth } from "@/context/auth-context";
 import { getMyVehicles, getMyActiveTask, getTasks, getVehicleStatuses, getMyReports } from "@/lib/db";
 import type { Vehicle, VehicleTask, VehicleReport } from "@/lib/types";
 import { StatusBadge, CategoryIcon, STATUS_META } from "@/components/reports/report-badges";
+import { PWAInstallCard } from "@/components/pwa-install";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } };
 const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } } };
@@ -137,6 +138,11 @@ export function DriverDashboard() {
               </div>
             </div>
           </div>
+        </motion.div>
+
+        {/* ── PWA Yükleme kartı ── */}
+        <motion.div variants={fadeUp}>
+          <PWAInstallCard />
         </motion.div>
 
         {/* ── Aktif Seyahat / CTA ── */}

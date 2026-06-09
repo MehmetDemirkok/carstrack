@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Car, Wrench, Plus, Check, Send, ChevronDown, CheckCircle2, Clock, Inbox, RefreshCw,
+  ImagePlus, X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getMyVehicles, getMyReports, createReport } from "@/lib/db";
+import { getMyVehicles, getMyReports, createReport, uploadReportPhoto, MAX_REPORT_PHOTOS } from "@/lib/db";
 import type { Vehicle, VehicleReport, ReportCategory, ReportSeverity } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   StatusBadge, SeverityBadge, CategoryIcon, CATEGORY_META, CATEGORY_OPTIONS, SEVERITY_META, STATUS_META,
 } from "./report-badges";
 import { ReportTimeline, StatusStepper } from "./report-timeline";
+import { ReportPhotoGallery } from "./report-photos";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } } };
@@ -38,7 +40,9 @@ export function DriverReportsView({ initialVehicleId }: { initialVehicleId?: str
   const [category, setCategory] = useState<ReportCategory>("other");
   const [severity, setSeverity] = useState<ReportSeverity>("medium");
   const [description, setDescription] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Expanded timeline
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -67,6 +71,33 @@ export function DriverReportsView({ initialVehicleId }: { initialVehicleId?: str
 
   function resetForm() {
     setVehicleId(""); setTitle(""); setCategory("other"); setSeverity("medium"); setDescription("");
+    setPhotos([]);
+  }
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length === 0) return;
+    const images = selected.filter((f) => f.type.startsWith("image/"));
+    if (images.length < selected.length) {
+      toast.error("Yalnızca görsel dosyalar eklenebilir");
+    }
+    const tooBig = images.find((f) => f.size > 8 * 1024 * 1024);
+    if (tooBig) {
+      toast.error("Her fotoğraf en fazla 8 MB olabilir");
+    }
+    const valid = images.filter((f) => f.size <= 8 * 1024 * 1024);
+    setPhotos((prev) => {
+      const merged = [...prev, ...valid].slice(0, MAX_REPORT_PHOTOS);
+      if (prev.length + valid.length > MAX_REPORT_PHOTOS) {
+        toast.error(`En fazla ${MAX_REPORT_PHOTOS} fotoğraf ekleyebilirsiniz`);
+      }
+      return merged;
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removePhoto(idx: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== idx));
   }
 
   async function handleSubmit() {
@@ -74,12 +105,22 @@ export function DriverReportsView({ initialVehicleId }: { initialVehicleId?: str
     if (!title.trim()) { toast.error("Lütfen bir başlık girin"); return; }
     setSubmitting(true);
     try {
+      // Önce fotoğrafları yükle (varsa), sonra bildirimi oluştur.
+      let photoPaths: string[] = [];
+      if (photos.length > 0) {
+        try {
+          photoPaths = await Promise.all(photos.map((f) => uploadReportPhoto(vehicleId, f)));
+        } catch {
+          toast.error("Fotoğraflar yüklenemedi, bildirim fotoğrafsız oluşturuluyor");
+        }
+      }
       const report = await createReport({
         vehicleId,
         title: title.trim(),
         description: description.trim(),
         category,
         severity,
+        photoPaths,
       });
       setReports((prev) => [report, ...prev]);
       resetForm();
@@ -258,6 +299,48 @@ export function DriverReportsView({ initialVehicleId }: { initialVehicleId?: str
                   placeholder="Sorunu detaylı anlat..." className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
               </div>
 
+              {/* Fotoğraflar */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Fotoğraflar <span className="normal-case font-normal">(isteğe bağlı · en fazla {MAX_REPORT_PHOTOS})</span>
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                />
+                <div className="grid grid-cols-3 gap-2">
+                  {photos.map((file, i) => (
+                    <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-border/40 bg-muted/30">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={URL.createObjectURL(file)} alt={`Fotoğraf ${i + 1}`} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(i)}
+                        className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+                        aria-label="Fotoğrafı kaldır"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {photos.length < MAX_REPORT_PHOTOS && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="aspect-square rounded-2xl border-2 border-dashed border-border/50 bg-muted/20 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                    >
+                      <ImagePlus className="h-5 w-5" />
+                      <span className="text-[10px] font-semibold">Ekle</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 rounded-2xl h-12" onClick={() => { setShowForm(false); resetForm(); }} disabled={submitting}>
                   İptal
@@ -329,6 +412,7 @@ export function DriverReportsView({ initialVehicleId }: { initialVehicleId?: str
                           {r.description && (
                             <p className="text-sm text-muted-foreground bg-muted/40 rounded-xl px-3 py-2.5">{r.description}</p>
                           )}
+                          {r.photoPaths.length > 0 && <ReportPhotoGallery paths={r.photoPaths} />}
                           {r.status === "resolved" && r.resolutionNote && (
                             <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5">
                               <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide mb-1">Çözüm Notu</p>

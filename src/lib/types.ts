@@ -145,6 +145,8 @@ export interface VehicleReport {
   severity: ReportSeverity;
   status: ReportStatus;
   resolutionNote?: string;
+  /** Storage'daki fotoğraf dosya yolları (report-photos bucket). En fazla 3. */
+  photoPaths: string[];
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string;

@@ -5,7 +5,7 @@ import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { BottomNav } from "./bottom-nav";
 
-const AUTH_PATHS = ["/login", "/register", "/reset-password", "/", "/pricing", "/payment"];
+const AUTH_PATHS = ["/login", "/register", "/reset-password", "/", "/pricing", "/payment", "/privacy"];
 
 export function ShellWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

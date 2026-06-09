@@ -13,6 +13,7 @@ import {
   StatusBadge, SeverityBadge, CategoryIcon, CATEGORY_META, STATUS_META, STATUS_ORDER,
 } from "./report-badges";
 import { ReportTimeline, StatusStepper } from "./report-timeline";
+import { ReportPhotoGallery } from "./report-photos";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("tr-TR", {
@@ -261,6 +262,7 @@ export function ManagerReportsView() {
                         {r.description && (
                           <p className="text-sm text-muted-foreground bg-muted/40 rounded-xl px-3 py-2.5">{r.description}</p>
                         )}
+                        {r.photoPaths.length > 0 && <ReportPhotoGallery paths={r.photoPaths} />}
                         {isResolved && r.resolutionNote && (
                           <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5">
                             <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide mb-1">Çözüm Notu</p>

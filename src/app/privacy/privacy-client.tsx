@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Shield, Database, Lock, Eye, Server, Trash2, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/language-context";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } };
@@ -12,6 +12,18 @@ const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transi
 
 export default function PrivacyClient() {
   const { t } = useLanguage();
+  const router = useRouter();
+
+  // Sayfa hem herkese açık landing footer'ından hem de oturum içi ayarlardan
+  // açılabildiğinden, geldiği yere geri döner. Geçmiş yoksa (doğrudan ziyaret)
+  // ana sayfaya yönlendirir.
+  function goBack() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/");
+    }
+  }
 
   const sections = [
     {
@@ -55,11 +67,9 @@ export default function PrivacyClient() {
     <div className="p-4 space-y-5 pb-28 max-w-2xl mx-auto w-full">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/settings">
-          <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9" onClick={goBack} aria-label="Geri">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
         <h1 className="text-2xl font-outfit font-bold tracking-tight">{t("privacy_title")}</h1>
       </div>
 

@@ -589,6 +589,21 @@ function notifyTaskStart(taskId: string): void {
   }
 }
 
+// Görev tamamlandığında yöneticilere Telegram bilgi mesajı gönderir
+// (fire-and-forget). Başarısız olsa bile görev akışını etkilemez.
+function notifyTaskEnd(taskId: string): void {
+  try {
+    void fetch("/api/tasks/notify-end", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ taskId }),
+    }).catch(() => {});
+  } catch {
+    /* yoksay */
+  }
+}
+
 function toTask(row: Record<string, unknown>): VehicleTask {
   const vehicleData = row.vehicles as { plate?: string; brand?: string; model?: string } | null;
   const profileData = row.profiles as { full_name?: string; department?: string } | null;
@@ -761,6 +776,7 @@ export async function endTask(taskId: string, endKm: number): Promise<VehicleTas
     console.error("endTask: araç KM güncelleme hatası:", kmErr);
   }
 
+  notifyTaskEnd(taskId);
   return toTask(updated as Record<string, unknown>);
 }
 
@@ -991,6 +1007,7 @@ function toReport(row: Record<string, unknown>): VehicleReport {
     severity: (row.severity as ReportSeverity) || "medium",
     status: (row.status as ReportStatus) || "open",
     resolutionNote: (row.resolution_note as string) || "",
+    photoPaths: (row.photo_paths as string[] | null) ?? [],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
     resolvedAt: row.resolved_at != null ? (row.resolved_at as string) : undefined,
@@ -1077,6 +1094,37 @@ export async function getReportLogs(reportId: string): Promise<VehicleReportLog[
   return (data ?? []).map((r) => toReportLog(r as Record<string, unknown>));
 }
 
+// Arıza bildirimi fotoğrafları için en fazla yüklenebilecek adet.
+export const MAX_REPORT_PHOTOS = 3;
+
+/**
+ * Tek bir arıza fotoğrafını `report-photos` bucket'ına yükler ve dosya yolunu
+ * döndürür. Yol deseni storage RLS ile uyumludur: <company_id>/<vehicle_id>/<uuid>.<ext>
+ */
+export async function uploadReportPhoto(vehicleId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const photoId = crypto.randomUUID();
+  const filePath = `${companyId}/${vehicleId}/${photoId}.${ext}`;
+  const { error } = await supabase.storage
+    .from("report-photos")
+    .upload(filePath, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return filePath;
+}
+
+/** Verilen fotoğraf yolları için imzalı (geçici) görüntüleme URL'leri üretir. */
+export async function getReportPhotoSignedUrls(paths: string[]): Promise<string[]> {
+  if (!paths || paths.length === 0) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from("report-photos")
+    .createSignedUrls(paths, 3600);
+  if (error) throw error;
+  return (data ?? []).map((d) => d.signedUrl).filter((u): u is string => !!u);
+}
+
 /** Sürücü yeni bir arıza/durum bildirimi oluşturur + "oluşturuldu" logu yazar. */
 export async function createReport(data: {
   vehicleId: string;
@@ -1084,6 +1132,7 @@ export async function createReport(data: {
   description: string;
   category: ReportCategory;
   severity: ReportSeverity;
+  photoPaths?: string[];
 }): Promise<VehicleReport> {
   const supabase = createClient();
   const companyId = await requireCompanyId();
@@ -1102,6 +1151,7 @@ export async function createReport(data: {
       category: data.category,
       severity: data.severity,
       status: "open",
+      photo_paths: (data.photoPaths ?? []).slice(0, MAX_REPORT_PHOTOS),
     })
     .select(REPORT_SELECT)
     .single();
@@ -1213,6 +1263,21 @@ export async function updateReportStatus(
 export async function deleteReport(reportId: string): Promise<void> {
   const supabase = createClient();
   const companyId = await requireCompanyId();
+
+  // Bağlı fotoğrafları storage'dan temizle (DB satırı cascade ile silinir,
+  // ancak storage nesneleri otomatik silinmez).
+  const { data: existing } = await supabase
+    .from("vehicle_reports")
+    .select("photo_paths")
+    .eq("id", reportId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  const photoPaths = (existing?.photo_paths as string[] | null) ?? [];
+  if (photoPaths.length > 0) {
+    const { error: storageErr } = await supabase.storage.from("report-photos").remove(photoPaths);
+    if (storageErr) console.error("Report photo storage delete (non-fatal):", storageErr);
+  }
+
   const { error } = await supabase
     .from("vehicle_reports")
     .delete()

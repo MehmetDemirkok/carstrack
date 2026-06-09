@@ -15,6 +15,7 @@ import { useData } from "@/context/data-context";
 import { HealthScoreBreakdown } from "@/components/health-score-breakdown";
 import { FleetRiskOverview } from "@/components/fleet-risk-overview";
 import { DriverDashboard } from "@/components/driver-dashboard";
+import { PWAInstallCard } from "@/components/pwa-install";
 import {
   Car,
   ChevronRight,
@@ -135,6 +136,11 @@ export default function Dashboard() {
       <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8">
         {/* LEFT */}
         <div className="lg:col-span-7 space-y-5 lg:space-y-8">
+          {/* PWA Yükleme kartı */}
+          <motion.div variants={fadeUp}>
+            <PWAInstallCard />
+          </motion.div>
+
           {/* Fleet Health Hero */}
           <motion.div variants={fadeUp}>
             <Card className="rounded-3xl border-none shadow-2xl shadow-primary/30 overflow-hidden relative bg-mesh glow shimmer">

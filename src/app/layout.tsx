@@ -9,6 +9,7 @@ import { DataProvider } from "@/context/data-context";
 import { CommandPaletteProvider } from "@/context/command-palette-context";
 import { CommandPalette } from "@/components/command-palette";
 import { ProfileCompletionNotice } from "@/components/profile-completion-notice";
+import { ServiceWorkerRegister } from "@/components/sw-register";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -142,6 +143,7 @@ export default function RootLayout({
                 </div>
                 <CommandPalette />
                 <ProfileCompletionNotice />
+                <ServiceWorkerRegister />
               </CommandPaletteProvider>
               </DataProvider>
             </AuthProvider>

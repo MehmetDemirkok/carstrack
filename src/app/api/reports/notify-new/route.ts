@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     // Bildirimi çek (sürücü + araç bilgisiyle)
     const { data: report, error: reportErr } = await admin
       .from("vehicle_reports")
-      .select("id, company_id, title, description, category, severity, created_at, vehicles(plate, brand, model), profiles!vehicle_reports_reporter_id_fkey(full_name)")
+      .select("id, company_id, title, description, category, severity, created_at, photo_paths, vehicles(plate, brand, model), profiles!vehicle_reports_reporter_id_fkey(full_name)")
       .eq("id", body.reportId)
       .single();
 
@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
     const sevIcon = SEVERITY_ICONS[report.severity as string] || "🟡";
     const title = (report.title as string)?.trim() || "Arıza bildirimi";
     const desc = (report.description as string)?.trim();
+    const photoCount = Array.isArray(report.photo_paths) ? (report.photo_paths as unknown[]).length : 0;
 
     const msg =
       `🔧 <b>Yeni Arıza Bildirimi</b>\n\n` +
@@ -109,7 +110,8 @@ export async function POST(req: NextRequest) {
       `🏷️ Kategori: <b>${category}</b>\n` +
       `${sevIcon} Önem: <b>${severity}</b>\n` +
       `🕒 ${when}` +
-      (desc ? `\n📝 ${desc}` : "");
+      (desc ? `\n📝 ${desc}` : "") +
+      (photoCount > 0 ? `\n📷 ${photoCount} fotoğraf eklendi (uygulamada görüntüleyin)` : "");
 
     const settled = await Promise.allSettled(
       chatIds.map((chatId) => sendTelegramMessage(chatId, msg))
