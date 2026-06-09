@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
-  Smartphone, Languages, Info, Database, Trash2, Car,
+  Smartphone, Languages, Info, Car,
   Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Lock, Send,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -190,7 +190,6 @@ export default function SettingsPage() {
   }, [profile, company]);
 
   // Dialogs
-  const [showClearData, setShowClearData] = useState(false);
   const [showLang, setShowLang] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
@@ -371,32 +370,6 @@ export default function SettingsPage() {
         setShowInstall(false);
       }
     }
-  };
-
-  const handleClearData = async () => {
-    // Clear localStorage
-    localStorage.removeItem("carstrack:vehicles");
-    localStorage.removeItem("carstrack:records");
-
-    // Clear Supabase data scoped to the authenticated user's company
-    try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
-        if (profile?.company_id) {
-          await supabase.from("service_records").delete().eq("company_id", profile.company_id);
-          await supabase.from("vehicles").delete().eq("company_id", profile.company_id);
-        }
-      }
-    } catch {
-      // Silent — localStorage already cleared
-    }
-
-    setShowClearData(false);
-    toast.success("Başarılı", { description: "Veriler başarıyla temizlendi." });
-    router.push("/dashboard");
-    router.refresh();
   };
 
   // Notification trailing UI
@@ -692,15 +665,6 @@ export default function SettingsPage() {
                 onClick={() => setShowHelp(true)}
               />
               <SettingItem
-                icon={Database}
-                iconBg="bg-red-500/10"
-                iconColor="text-red-500"
-                label={t("settings_reset_data")}
-                description={t("settings_reset_data_desc")}
-                trailing={<Trash2 className="h-4 w-4 text-red-400 shrink-0" />}
-                onClick={() => setShowClearData(true)}
-              />
-              <SettingItem
                 icon={Info}
                 iconBg="bg-gray-500/10"
                 iconColor="text-gray-500"
@@ -740,22 +704,6 @@ export default function SettingsPage() {
           </Card>
         </motion.div>
       </motion.div>
-
-      {/* ── Reset Data Dialog ── */}
-      <Dialog open={showClearData} onOpenChange={setShowClearData}>
-        <DialogContent className="rounded-3xl max-w-[340px]">
-          <DialogHeader>
-            <DialogTitle className="font-outfit text-destructive flex items-center gap-2">
-              <Trash2 className="h-5 w-5" /> {t("reset_title")}
-            </DialogTitle>
-          </DialogHeader>
-          <p className="py-3 text-sm text-muted-foreground">{t("reset_body")}</p>
-          <DialogFooter className="gap-2">
-            <DialogClose render={<Button variant="outline" className="rounded-xl" />}>{t("reset_cancel")}</DialogClose>
-            <Button variant="destructive" onClick={handleClearData} className="rounded-xl">{t("reset_confirm")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* ── Language Dialog ── */}
       <Dialog open={showLang} onOpenChange={setShowLang}>
