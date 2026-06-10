@@ -213,7 +213,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">Telegram Bildirimlerini Aç</p>
-                  <p className="text-[11px] text-muted-foreground">Filo uyarılarını anında Telegram'dan al</p>
+                  <p className="text-[11px] text-muted-foreground">Filo uyarılarını anında Telegram&apos;dan al</p>
                 </div>
                 {user?.id ? (
                   <a

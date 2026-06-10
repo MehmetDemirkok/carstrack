@@ -12,7 +12,18 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Kök dizindeki tek seferlik bakım/teşhis scriptleri (CommonJS, uygulama dışı).
+    "check-users.js",
+    "get-policies.js",
   ]),
+  {
+    // `react-hooks/set-state-in-effect`: bir bağımlılık (örn. user/profile)
+    // değiştiğinde state'i sıfırlama, bu projede yaygın ve geçerli bir desen.
+    // Hata yerine uyarı olarak işaretlenir — kodu kırmaz, sadece bilgilendirir.
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

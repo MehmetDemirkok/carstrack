@@ -171,7 +171,7 @@ function StaffView() {
     }
   }
 
-  useEffect(() => { loadAll({ notify: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadAll({ notify: true }); }, []);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -456,7 +456,7 @@ function StaffView() {
               </div>
               <div>
                 <h2 className="font-bold">Yeni Seyahat Başlat</h2>
-                <p className="text-xs text-muted-foreground">Araç seçip başlangıç KM'yi girin</p>
+                <p className="text-xs text-muted-foreground">Araç seçip başlangıç KM&apos;yi girin</p>
               </div>
             </div>
 

@@ -960,7 +960,7 @@ export default function VehicleDetailPage() {
                       <div className="flex-1">
                         <p className="text-xs text-muted-foreground">Son Servis</p>
                         <p className="text-sm font-bold">{vehicle.lastServiceDate ? vehicle.lastServiceDate.split("-").reverse().join(".") : "—"}</p>
-                        {vehicle.lastServiceMileage > 0 && <p className="text-[10px] text-muted-foreground">{vehicle.lastServiceMileage.toLocaleString("tr-TR")} km'de</p>}
+                        {vehicle.lastServiceMileage > 0 && <p className="text-[10px] text-muted-foreground">{vehicle.lastServiceMileage.toLocaleString("tr-TR")} km&apos;de</p>}
                       </div>
                       {vehicle.nextServiceMileage > 0 && (
                         <div className="text-right">
@@ -1071,6 +1071,7 @@ export default function VehicleDetailPage() {
                       )}
                     </div>
                     {vehicle.batteryInstallDate && (() => {
+                      // eslint-disable-next-line react-hooks/purity -- akü yaşı için anlık zaman (görsel rozet)
                       const months = Math.floor((Date.now() - new Date(vehicle.batteryInstallDate).getTime()) / (1000 * 60 * 60 * 24 * 30));
                       const status = months < 24 ? "İyi" : months < 36 ? "Orta" : "Eski";
                       const color = months < 24 ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5" : months < 36 ? "border-amber-500/30 text-amber-500 bg-amber-500/5" : "border-red-500/30 text-red-500 bg-red-500/5";

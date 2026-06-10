@@ -57,6 +57,7 @@ export const mockVehicles = [
   },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock/seed yardımcısı, serbest form girdi
 export const addVehicle = (vehicle: any) => {
   mockVehicles.push({
     ...vehicle,
@@ -86,6 +87,7 @@ export const addVehicle = (vehicle: any) => {
   });
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock/seed yardımcısı, serbest form girdi
 export const updateVehicle = (id: string, updates: any) => {
   const index = mockVehicles.findIndex(v => v.id === id);
   if (index !== -1) {

@@ -85,7 +85,6 @@ export function ReportPhotoGallery({ paths }: { paths: string[] }) {
             >
               <X className="h-5 w-5" />
             </button>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <motion.img
               initial={{ scale: 0.94 }}
               animate={{ scale: 1 }}
