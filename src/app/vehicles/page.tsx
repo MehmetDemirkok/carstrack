@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { deleteVehicles, updateVehicle, getVehicleStatuses } from "@/lib/db";
 import { useData } from "@/context/data-context";
 import { calculateHealthScore } from "@/lib/store";
-import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { Vehicle } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +37,6 @@ const tireColor = {
 };
 
 export default function VehiclesPage() {
-  const guardDemo = useDemoGuard();
   const router = useRouter();
   const { profile } = useAuth();
   const { vehicles, loading, refresh, setVehicles } = useData();
@@ -100,7 +98,6 @@ export default function VehiclesPage() {
   };
 
   const handleDelete = async () => {
-    if (guardDemo()) { setIsDeleteDialogOpen(false); return; }
     const ids = selectedIds;
     setVehicles((prev) => prev.filter((v) => !ids.includes(v.id)));
     setSelectedIds([]);

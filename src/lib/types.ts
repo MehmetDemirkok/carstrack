@@ -7,8 +7,6 @@ export interface Company {
   createdAt: string;
   inviteCode?: string;
   plan: PlanType;
-  planExpiresAt?: string;
-  paytrOrderId?: string;
 }
 
 export interface Profile {

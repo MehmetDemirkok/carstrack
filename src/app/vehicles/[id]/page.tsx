@@ -13,7 +13,6 @@ import {
   deleteVehicleDocument, getDocumentSignedUrl, uploadDocumentFile,
   getVehicleStatuses,
 } from "@/lib/db";
-import { useDemoGuard } from "@/hooks/use-demo-guard";
 import {
   calculateHealthScore, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES,
@@ -297,7 +296,6 @@ export default function VehicleDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const guardDemo = useDemoGuard();
   const { loading: authLoading, company, profile } = useAuth();
   const isDriver = profile?.role === "user";
 
@@ -412,7 +410,6 @@ export default function VehicleDetailPage() {
   };
 
   const handleSaveEdit = async () => {
-    if (guardDemo()) { setShowEdit(false); return; }
     try {
       await updateVehicle(vehicle.id, editData);
       setShowEdit(false);
@@ -425,7 +422,6 @@ export default function VehicleDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (guardDemo()) return;
     try {
       await deleteVehicle(vehicle.id);
       toast.success("Silindi", { description: "Araç başarıyla silindi." });
@@ -438,7 +434,6 @@ export default function VehicleDetailPage() {
 
   const handleSaveMaintEdit = async () => {
     if (!maintEditItem) return;
-    if (guardDemo()) { setShowMaintEdit(false); return; }
     const updatedItems = vehicle.maintenanceItems.map((item) =>
       item.id === maintEditItem.id
         ? {
@@ -471,7 +466,6 @@ export default function VehicleDetailPage() {
 
   const handleSaveBulkEntry = async () => {
     if (!vehicle) return;
-    if (guardDemo()) { setShowBulkEntry(false); return; }
     const km = parseInt(bulkKm) || 0;
     const updatedItems = vehicle.maintenanceItems.map((item) => {
       if (!bulkChecked[item.id]) return item;
@@ -493,7 +487,6 @@ export default function VehicleDetailPage() {
   };
 
   const handleAddRecord = async () => {
-    if (guardDemo()) { setShowAddRecord(false); return; }
     try {
       const recordMileage = recordForm.mileage ? parseKm(recordForm.mileage) : vehicle.mileage;
       await addRecord({
@@ -527,7 +520,6 @@ export default function VehicleDetailPage() {
 
   // Document handlers
   const handleAddDoc = async () => {
-    if (guardDemo()) { setShowAddDoc(false); return; }
     if (!docForm.file || !docForm.title.trim()) return;
     setIsUploading(true);
     try {
@@ -559,7 +551,6 @@ export default function VehicleDetailPage() {
 
   const handleEditDoc = async () => {
     if (!docToEdit) return;
-    if (guardDemo()) { setShowEditDoc(false); return; }
     try {
       await updateVehicleDocument(docToEdit.id, {
         type: editDocForm.type,
@@ -580,7 +571,6 @@ export default function VehicleDetailPage() {
 
   const handleDeleteDoc = async () => {
     if (!docToDelete) return;
-    if (guardDemo()) { setShowDeleteDoc(false); return; }
     try {
       await deleteVehicleDocument(docToDelete.id, docToDelete.filePath);
       setShowDeleteDoc(false);
@@ -1593,7 +1583,6 @@ export default function VehicleDetailPage() {
               className="rounded-xl flex-1"
               onClick={async () => {
                 if (!recordToDelete) return;
-                if (guardDemo()) { setShowDeleteRecord(false); return; }
                 try {
                   await deleteRecord(recordToDelete);
                   setShowDeleteRecord(false);

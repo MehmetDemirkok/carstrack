@@ -3,7 +3,7 @@ import type { Vehicle, FleetAlert, MaintenanceItem } from "./types";
 // ─── Maintenance Templates ────────────────────────────────────
 
 export const MAINTENANCE_TEMPLATES: Omit<MaintenanceItem, "lastDoneDate" | "lastDoneMileage">[] = [
-  { id: "oil", name: "Yağ Değişimi", intervalKm: 10000, intervalMonths: 12 },
+  { id: "oil", name: "Yağ Değişimi", intervalKm: 15000, intervalMonths: 12 },
   { id: "airfilter", name: "Hava Filtresi", intervalKm: 20000, intervalMonths: 24 },
   { id: "cabinfilter", name: "Kabin Filtresi", intervalKm: 15000, intervalMonths: 12 },
   { id: "fuelfilter", name: "Yakıt Filtresi", intervalKm: 40000, intervalMonths: 48 },

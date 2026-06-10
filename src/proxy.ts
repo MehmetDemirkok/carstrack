@@ -84,9 +84,7 @@ export async function proxy(request: NextRequest) {
     pathname === "/" ||
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/auth/callback") ||
-    pathname.startsWith("/privacy") ||
-    pathname.startsWith("/pricing") ||
-    pathname.startsWith("/payment");
+    pathname.startsWith("/privacy");
 
   // Stale/expired session → wipe sb- cookies, redirect to login
   if (staleSession) {

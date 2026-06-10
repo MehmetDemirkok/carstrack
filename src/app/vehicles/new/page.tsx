@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle, addVehicleDocument, uploadDocumentFile } from "@/lib/db";
-import { useDemoGuard } from "@/hooks/use-demo-guard";
 import type { FuelType, TransmissionType, TireSeasonType, OwnershipType, Vehicle } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileText, XCircle, Upload } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
@@ -301,7 +300,6 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 export default function NewVehiclePage() {
   const router = useRouter();
-  const guardDemo = useDemoGuard();
   const { company, profile } = useAuth();
 
   const [step, setStep] = useState(1);
@@ -458,7 +456,6 @@ export default function NewVehiclePage() {
   };
 
   const handleSubmit = async () => {
-    if (guardDemo()) return;
     setSaving(true);
     setError("");
     const mileage = parseKm(form.mileage);
@@ -498,7 +495,7 @@ export default function NewVehiclePage() {
       inspectionExpiry: form.inspectionExpiry,
       lastServiceDate: form.lastServiceDate,
       lastServiceMileage: parseKm(form.lastServiceMileage),
-      nextServiceMileage: parseKm(form.lastServiceMileage) + 10000,
+      nextServiceMileage: parseKm(form.lastServiceMileage) + 15000,
       maintenanceItems,
       notes: form.notes,
     };
