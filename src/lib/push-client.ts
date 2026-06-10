@@ -24,6 +24,25 @@ export function isPushSupported(): boolean {
 }
 
 /**
+ * Hazır (active) bir service worker kaydı döndürür. Kayıt yoksa kaydeder.
+ * navigator.serviceWorker.ready bazı durumlarda sonsuza kadar bekleyebildiği
+ * için, kaydı garanti edip makul bir zaman aşımıyla yarıştırırız.
+ */
+async function getReadyRegistration(): Promise<ServiceWorkerRegistration> {
+  // Kayıt yoksa oluştur (örn. henüz register edilmemişse).
+  const existing = await navigator.serviceWorker.getRegistration();
+  if (!existing) {
+    await navigator.serviceWorker.register("/sw.js");
+  }
+
+  const ready = navigator.serviceWorker.ready;
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Service worker hazır olmadı (zaman aşımı). Sayfayı yenileyip tekrar deneyin.")), 10_000),
+  );
+  return Promise.race([ready, timeout]);
+}
+
+/**
  * İzin ister, service worker'a abone olur ve aboneliği sunucuya kaydeder.
  * İzin verilmezse veya hata olursa Error fırlatır.
  */
@@ -34,7 +53,7 @@ export async function subscribeToPush(): Promise<void> {
   const permission = await Notification.requestPermission();
   if (permission !== "granted") throw new Error("Bildirim izni verilmedi.");
 
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await getReadyRegistration();
 
   // Var olan aboneliği tekrar kullan; yoksa yeni oluştur.
   let sub = await reg.pushManager.getSubscription();
@@ -56,7 +75,8 @@ export async function subscribeToPush(): Promise<void> {
 /** Aboneliği iptal eder ve sunucudan siler. */
 export async function unsubscribeFromPush(): Promise<void> {
   if (!isPushSupported()) return;
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) return;
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
 
@@ -69,10 +89,11 @@ export async function unsubscribeFromPush(): Promise<void> {
   await sub.unsubscribe().catch(() => {});
 }
 
-/** Bu cihazda aktif bir push aboneliği var mı? */
+/** Bu cihazda aktif bir push aboneliği var mı? (mount'ta bekletmemek için ready kullanmaz) */
 export async function getPushSubscribed(): Promise<boolean> {
   if (!isPushSupported()) return false;
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) return false;
   const sub = await reg.pushManager.getSubscription();
   return !!sub;
 }

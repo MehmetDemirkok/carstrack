@@ -74,7 +74,16 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
+// localhost'ta (geliştirme) önbelleklemeyi tamamen atlarız — Next.js HMR ile
+// çakışmaması için. Push/notification işleyicileri bundan etkilenmez.
+const IS_LOCALHOST =
+  self.location.hostname === "localhost" ||
+  self.location.hostname === "127.0.0.1";
+
 self.addEventListener("fetch", (event) => {
+  // Geliştirme ortamında isteklere hiç dokunma.
+  if (IS_LOCALHOST) return;
+
   // Yalnızca GET isteklerine dokun; geri kalanını tarayıcıya bırak.
   if (event.request.method !== "GET") return;
 

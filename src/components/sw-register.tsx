@@ -3,15 +3,15 @@
 import { useEffect } from "react";
 
 /**
- * Service worker'ı kaydeder. Uygulamanın telefonlarda PWA olarak yüklenebilmesi
- * (ana ekrana eklenebilmesi) için gereklidir. Layout'a bir kez monte edilir.
+ * Service worker'ı kaydeder. Hem PWA olarak yüklenebilmek (ana ekrana ekleme)
+ * hem de Web Push bildirimleri için gereklidir. Layout'a bir kez monte edilir.
  *
- * Geliştirme ortamında kaydetmeyiz — Next.js HMR ile çakışmaması ve bayat
- * varlık önbelleği oluşmaması için yalnızca production'da etkindir.
+ * Not: Web Push'u localhost'ta da test edebilmek için geliştirme ortamında da
+ * kaydederiz. sw.js'in fetch işleyicisi ağ-öncelikli olduğundan ve localhost'ta
+ * önbelleklemeyi atladığından HMR ile çakışmaz.
  */
 export function ServiceWorkerRegister() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") return;
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
     const register = () => {
