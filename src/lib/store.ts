@@ -118,6 +118,44 @@ export function getMaintenanceProgress(item: MaintenanceItem, currentMileage: nu
   return Math.round(Math.max(kmRatio, monthRatio) * 100);
 }
 
+// ─── Periodic Service Sync ────────────────────────────────────
+// Bir "periyodik bakım" servis kaydı eklenince çağrılır. Kullanıcının bu
+// serviste "yapıldı" olarak işaretlediği bakım kalemlerinin (doneItemIds) son
+// yapılma tarih/km'sini kayıttan günceller; "Son Servis" alanlarını ve yağ
+// kalemine göre sonraki servis km'sini yeniden hesaplar. Bakım sekmesi bu
+// maintenanceItems'i okuduğu için iki yer otomatik senkron kalır.
+// Tek giriş noktası: servis kaydı.
+const DEFAULT_OIL_INTERVAL_KM = 15000;
+
+export function applyPeriodicService(
+  vehicle: Vehicle,
+  recordDate: string,
+  recordMileage: number,
+  doneItemIds: string[]
+): Partial<Vehicle> {
+  const done = new Set(doneItemIds);
+  const maintenanceItems = vehicle.maintenanceItems.map((item) =>
+    done.has(item.id)
+      ? { ...item, lastDoneDate: recordDate, lastDoneMileage: recordMileage }
+      : item
+  );
+
+  // Sonraki servis km'si yağ değişimine göre belirlenir; yağ bu serviste
+  // yapıldıysa kayıt km'sinden, yapılmadıysa mevcut yağ verisinden türer.
+  const oil = maintenanceItems.find((i) => i.id === "oil");
+  const nextServiceMileage =
+    oil?.lastDoneMileage !== undefined
+      ? oil.lastDoneMileage + (oil.intervalKm ?? DEFAULT_OIL_INTERVAL_KM)
+      : vehicle.nextServiceMileage;
+
+  return {
+    maintenanceItems,
+    lastServiceDate: recordDate,
+    lastServiceMileage: recordMileage,
+    nextServiceMileage,
+  };
+}
+
 // ─── Fleet Alerts ─────────────────────────────────────────────
 
 function formatDate(dateStr: string): string {

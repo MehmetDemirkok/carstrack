@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { addRecord, deleteRecord, updateRecord, updateVehicle } from "@/lib/db";
+import { applyPeriodicService } from "@/lib/store";
 import { useData } from "@/context/data-context";
 import type { ServiceRecord, ServiceType, TireSeasonType, Vehicle } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import Link from "next/link";
 import {
   Wrench, CheckCircle2, AlertTriangle, Disc3, Car, Plus,
   Filter, Trash2, BatteryCharging, ClipboardList, Download, FileDown,
-  Sun, Snowflake, Layers, Pencil,
+  Sun, Snowflake, Layers, Pencil, Check,
 } from "lucide-react";
 import { exportServiceHistoryExcel } from "@/lib/export";
 import { exportServiceHistoryPDF } from "@/lib/pdf-export";
@@ -84,6 +85,7 @@ export default function HistoryPage() {
     size: "",
     qty: "",
   });
+  const [recordMaintIds, setRecordMaintIds] = useState<string[]>([]);
 
   const reload = refresh;
 
@@ -115,10 +117,15 @@ export default function HistoryPage() {
           tireInstallDate: form.date,
           tireMileage: recordMileage,
         });
+      } else if (form.type === "routine" && v) {
+        // Periyodik bakım kaydı → işaretli kalemler + "Son Servis" senkronla
+        const update = applyPeriodicService(v, form.date, recordMileage, recordMaintIds);
+        await updateVehicle(v.id, update);
       }
       setShowAdd(false);
       setForm({ vehicleId: "", date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
       setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" });
+      setRecordMaintIds([]);
       await reload();
     } catch (err) {
       console.error("Add record failed:", err instanceof Error ? err.message : err);
@@ -208,7 +215,7 @@ export default function HistoryPage() {
           <Button variant="outline" size="icon" className="rounded-full h-9 w-9 shadow-sm border-border/50" onClick={() => setShowFilters((s) => !s)}>
             <Filter className={`h-4 w-4 ${showFilters ? "text-primary" : ""}`} />
           </Button>
-          <Button size="icon" className="rounded-full h-9 w-9 shadow-md" onClick={() => setShowAdd(true)}>
+          <Button size="icon" className="rounded-full h-9 w-9 shadow-md" onClick={() => { setRecordMaintIds(["oil"]); setShowAdd(true); }}>
             <Plus className="h-4 w-4" />
           </Button>
         </div>
@@ -288,7 +295,7 @@ export default function HistoryPage() {
               </Button>
             </Link>
           ) : (
-            <Button className="rounded-full px-6 gap-2 shadow-md" onClick={() => setShowAdd(true)}>
+            <Button className="rounded-full px-6 gap-2 shadow-md" onClick={() => { setRecordMaintIds(["oil"]); setShowAdd(true); }}>
               <Plus className="h-4 w-4" /> Servis Kaydı Ekle
             </Button>
           )}
@@ -353,8 +360,8 @@ export default function HistoryPage() {
       )}
 
       {/* Add record dialog */}
-      <Dialog open={showAdd} onOpenChange={(o) => { setShowAdd(o); if (!o) setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); }}>
-        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl">
+      <Dialog open={showAdd} onOpenChange={(o) => { setShowAdd(o); if (!o) { setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); setRecordMaintIds([]); } }}>
+        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit">Servis Kaydı Ekle</DialogTitle>
           </DialogHeader>
@@ -430,6 +437,38 @@ export default function HistoryPage() {
                 </div>
               </div>
             )}
+
+            {/* ── Yapılan bakım kalemleri — sadece type === "routine" ── */}
+            {form.type === "routine" && (() => {
+              const selectedVehicle = vehicles.find((vv) => vv.id === form.vehicleId);
+              if (!selectedVehicle || selectedVehicle.maintenanceItems.length === 0) return null;
+              return (
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                    <Wrench className="h-3.5 w-3.5" /> Yapılan İşlemler
+                  </p>
+                  <p className="text-[11px] text-muted-foreground -mt-0.5">Bu serviste değişen/yapılan kalemleri işaretleyin. İşaretli kalemlerin sayacı bu tarih ve km&apos;ye sıfırlanır.</p>
+                  <div className="space-y-1.5">
+                    {selectedVehicle.maintenanceItems.map((item) => {
+                      const checked = recordMaintIds.includes(item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setRecordMaintIds((p) => checked ? p.filter((id) => id !== item.id) : [...p, item.id])}
+                          className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors ${checked ? "border-primary/40 bg-primary/10" : "border-border/40 bg-card"}`}
+                        >
+                          <span className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "bg-primary border-primary" : "border-border"}`}>
+                            {checked && <Check className="h-2.5 w-2.5 text-white" />}
+                          </span>
+                          <span className="text-sm">{item.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="space-y-1"><Label className={iLabel}>Başlık</Label><Input className={iCls} placeholder="Periyodik bakım..." value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">

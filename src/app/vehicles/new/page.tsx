@@ -493,9 +493,11 @@ export default function NewVehiclePage() {
       greenCardCompany: form.greenCardCompany,
       greenCardExpiry: form.greenCardExpiry,
       inspectionExpiry: form.inspectionExpiry,
-      lastServiceDate: form.lastServiceDate,
-      lastServiceMileage: parseKm(form.lastServiceMileage),
-      nextServiceMileage: parseKm(form.lastServiceMileage) + 15000,
+      // Son servis bilgisi araç oluştururken girilmez; ilk "Periyodik Bakım"
+      // servis kaydı eklendiğinde otomatik dolar (bkz. applyPeriodicService).
+      lastServiceDate: "",
+      lastServiceMileage: 0,
+      nextServiceMileage: 0,
       maintenanceItems,
       notes: form.notes,
     };
@@ -809,12 +811,6 @@ export default function NewVehiclePage() {
                     <DatePicker value={form.inspectionExpiry} onChange={(v) => set("inspectionExpiry", v)} />
                   </Field>
                   <div className="h-px bg-border/40" />
-                  <Field label="Son Servis Tarihi">
-                    <DatePicker value={form.lastServiceDate} onChange={(v) => set("lastServiceDate", v)} />
-                  </Field>
-                  <Field label="Son Servisteki km">
-                    <Input className={cls} type="number" placeholder="0" value={form.lastServiceMileage} onChange={(e) => set("lastServiceMileage", e.target.value)} />
-                  </Field>
                   <Field label="Notlar">
                     <textarea
                       className="w-full rounded-xl bg-muted/30 border border-border/40 text-sm p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"

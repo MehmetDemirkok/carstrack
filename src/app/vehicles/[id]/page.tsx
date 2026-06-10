@@ -15,7 +15,7 @@ import {
 } from "@/lib/db";
 import {
   calculateHealthScore, getMaintenanceStatusForItem,
-  getMaintenanceProgress, MAINTENANCE_TEMPLATES,
+  getMaintenanceProgress, MAINTENANCE_TEMPLATES, applyPeriodicService,
 } from "@/lib/store";
 import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -306,16 +306,6 @@ export default function VehicleDetailPage() {
   const [showAddRecord, setShowAddRecord] = useState(false);
   const [showDeleteRecord, setShowDeleteRecord] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
-  const [showMaintEdit, setShowMaintEdit] = useState(false);
-  const [maintEditItem, setMaintEditItem] = useState<{ id: string; name: string; intervalKm?: number } | null>(null);
-  const [maintEditDate, setMaintEditDate] = useState("");
-  const [maintEditKm, setMaintEditKm] = useState("");
-
-  // Bulk maintenance entry
-  const [showBulkEntry, setShowBulkEntry] = useState(false);
-  const [bulkKm, setBulkKm] = useState("");
-  const [bulkDate, setBulkDate] = useState("");
-  const [bulkChecked, setBulkChecked] = useState<Record<string, boolean>>({});
 
   const [editData, setEditData] = useState<Partial<Vehicle>>({});
   const [recordForm, setRecordForm] = useState({
@@ -432,60 +422,6 @@ export default function VehicleDetailPage() {
     }
   };
 
-  const handleSaveMaintEdit = async () => {
-    if (!maintEditItem) return;
-    const updatedItems = vehicle.maintenanceItems.map((item) =>
-      item.id === maintEditItem.id
-        ? {
-            ...item,
-            lastDoneDate: maintEditDate || undefined,
-            lastDoneMileage: maintEditKm ? parseKm(maintEditKm) : undefined,
-          }
-        : item
-    );
-    try {
-      await updateVehicle(vehicle.id, { maintenanceItems: updatedItems });
-      setShowMaintEdit(false);
-      reload();
-      toast.success("Güncellendi", { description: "Bakım bilgisi kaydedildi." });
-    } catch (err) {
-      console.error(err);
-      toast.error("Hata", { description: "Bakım bilgisi kaydedilemedi." });
-    }
-  };
-
-  const openBulkEntry = () => {
-    if (!vehicle) return;
-    const checked: Record<string, boolean> = {};
-    vehicle.maintenanceItems.forEach((item) => { checked[item.id] = true; });
-    setBulkKm(vehicle.mileage > 0 ? String(vehicle.mileage) : "");
-    setBulkDate(new Date().toISOString().split("T")[0]);
-    setBulkChecked(checked);
-    setShowBulkEntry(true);
-  };
-
-  const handleSaveBulkEntry = async () => {
-    if (!vehicle) return;
-    const km = parseInt(bulkKm) || 0;
-    const updatedItems = vehicle.maintenanceItems.map((item) => {
-      if (!bulkChecked[item.id]) return item;
-      return {
-        ...item,
-        lastDoneDate: bulkDate || undefined,
-        lastDoneMileage: km > 0 ? km : undefined,
-      };
-    });
-    try {
-      await updateVehicle(vehicle.id, { maintenanceItems: updatedItems });
-      setShowBulkEntry(false);
-      reload();
-      toast.success("Kaydedildi", { description: "Bakım bilgileri güncellendi." });
-    } catch (err) {
-      console.error(err);
-      toast.error("Hata", { description: "Bakım bilgileri kaydedilemedi." });
-    }
-  };
-
   const handleAddRecord = async () => {
     try {
       const recordMileage = recordForm.mileage ? parseKm(recordForm.mileage) : vehicle.mileage;
@@ -506,9 +442,14 @@ export default function VehicleDetailPage() {
           tireInstallDate: recordForm.date,
           tireMileage: recordMileage,
         });
+      } else if (recordForm.type === "routine") {
+        // Periyodik bakım kaydı → işaretli kalemler + "Son Servis" senkronla
+        const update = applyPeriodicService(vehicle, recordForm.date, recordMileage, recordMaintIds);
+        await updateVehicle(vehicle.id, update);
       }
       setShowAddRecord(false);
       setRecordForm({ date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
+      setRecordMaintIds([]);
       setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" });
       reload();
       toast.success("Kayıt Eklendi", { description: "Servis kaydı başarıyla eklendi." });
@@ -811,18 +752,6 @@ export default function VehicleDetailPage() {
                 {/* ── BAKIM ── (sürücü göremez) */}
                 {!isDriver && (
                 <TabsContent value="maintenance" className="space-y-3 outline-none">
-                  {vehicle.maintenanceItems.length > 0 && (
-                    <div className="flex justify-end">
-                      <button
-                        onClick={openBulkEntry}
-                        className="flex items-center gap-1.5 text-[11px] font-semibold text-primary border border-primary/30 rounded-xl px-3 py-1.5 hover:bg-primary/10 transition-colors"
-                      >
-                        <Wrench className="h-3.5 w-3.5" />
-                        Toplu Veri Girişi
-                      </button>
-                    </div>
-                  )}
-
                   {vehicle.maintenanceItems.length === 0 && (
                     <div className="text-center py-10 text-muted-foreground">
                       <Wrench className="h-10 w-10 mx-auto mb-3 opacity-30" />
@@ -831,36 +760,21 @@ export default function VehicleDetailPage() {
                     </div>
                   )}
 
-                  {/* No maintenance data warning */}
+                  {/* No maintenance data — yönlendirme (giriş artık servis kaydı üzerinden) */}
                   {!hasAnyMaintenanceData && vehicle.maintenanceItems.length > 0 && (
-                    <div className="bg-amber-500/8 border border-amber-500/20 rounded-2xl p-4 space-y-3">
+                    <div className="bg-amber-500/8 border border-amber-500/20 rounded-2xl p-4 space-y-2">
                       <div className="flex gap-3">
                         <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                         <div>
                           <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Bakım bilgisi henüz girilmemiş</p>
                           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                            Doğru takip ve uyarı alabilmek için aşağıdaki adımları izleyin:
+                            Bu sekme yalnızca durumu gösterir. Takibi başlatmak için aşağıdaki
+                            <span className="font-semibold"> Servis Geçmişi</span> bölümünden
+                            <span className="font-semibold"> &ldquo;Periyodik Bakım&rdquo;</span> türünde bir kayıt ekleyin —
+                            yağ değişimi ve sonraki servis kilometresi otomatik güncellenir.
                           </p>
                         </div>
                       </div>
-                      <div className="space-y-2 pl-1">
-                        {[
-                          { step: "1", text: "Aşağıdaki bakım kalemlerinden birine tıklayın (kalem ikonu)" },
-                          { step: "2", text: "Son yapılma tarihini ve o anki kilometreyi girin" },
-                          { step: "3", text: "Kaydet — CarsTrack bir sonraki bakım zamanını otomatik hesaplar" },
-                        ].map(({ step, text }) => (
-                          <div key={step} className="flex items-start gap-2.5">
-                            <span className="shrink-0 h-5 w-5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-bold flex items-center justify-center mt-0.5">{step}</span>
-                            <p className="text-xs text-muted-foreground leading-relaxed">{text}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <button
-                        onClick={openBulkEntry}
-                        className="w-full text-xs font-semibold text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl py-2 hover:bg-amber-500/10 transition-colors"
-                      >
-                        Tüm bakım verilerini tek seferde gir →
-                      </button>
                     </div>
                   )}
 
@@ -872,19 +786,7 @@ export default function VehicleDetailPage() {
                             <Wrench className="h-4 w-4 text-muted-foreground/40" />
                             <span className="text-sm font-medium text-muted-foreground">{item.name}</span>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
-                            onClick={() => {
-                              setMaintEditItem({ id: item.id, name: item.name, intervalKm: item.intervalKm });
-                              setMaintEditDate(item.lastDoneDate || "");
-                              setMaintEditKm(item.lastDoneMileage !== undefined ? String(item.lastDoneMileage) : "");
-                              setShowMaintEdit(true);
-                            }}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
+                          <span className="text-[10px] text-muted-foreground/60">Veri yok</span>
                         </div>
                       ))
                     : vehicle.maintenanceItems.map((item) => {
@@ -906,19 +808,6 @@ export default function VehicleDetailPage() {
                                 <Badge className={`text-[10px] font-bold border-none ${statusBadge[status]}`}>
                                   {statusLabel[status]}
                                 </Badge>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
-                                  onClick={() => {
-                                    setMaintEditItem({ id: item.id, name: item.name, intervalKm: item.intervalKm });
-                                    setMaintEditDate(item.lastDoneDate || "");
-                                    setMaintEditKm(item.lastDoneMileage !== undefined ? String(item.lastDoneMileage) : "");
-                                    setShowMaintEdit(true);
-                                  }}
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
                               </div>
                             </div>
                             <Progress value={progress} className="h-2 mb-2" indicatorClassName={statusColor[status]} />
@@ -1231,7 +1120,7 @@ export default function VehicleDetailPage() {
                 <TabsContent value="history" className="outline-none">
                   <div className="flex justify-between items-center mb-3">
                     <p className="text-xs text-muted-foreground">{records.length} servis kaydı</p>
-                    <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={() => setShowAddRecord(true)}>
+                    <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={() => { setRecordMaintIds(vehicle.maintenanceItems.some((i) => i.id === "oil") ? ["oil"] : []); setShowAddRecord(true); }}>
                       <Plus className="h-3.5 w-3.5" /> Kayıt Ekle
                     </Button>
                   </div>
@@ -1484,8 +1373,8 @@ export default function VehicleDetailPage() {
       </Dialog>
 
       {/* ── ADD RECORD DIALOG ── */}
-      <Dialog open={showAddRecord} onOpenChange={(o) => { setShowAddRecord(o); if (!o) { setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); } }}>
-        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl">
+      <Dialog open={showAddRecord} onOpenChange={(o) => { setShowAddRecord(o); if (!o) { setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); setRecordMaintIds([]); } }}>
+        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit">Servis Kaydı Ekle</DialogTitle>
           </DialogHeader>
@@ -1549,6 +1438,34 @@ export default function VehicleDetailPage() {
               </div>
             )}
 
+            {/* ── Yapılan bakım kalemleri — sadece type === "routine" ── */}
+            {recordForm.type === "routine" && vehicle.maintenanceItems.length > 0 && (
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+                <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                  <Wrench className="h-3.5 w-3.5" /> Yapılan İşlemler
+                </p>
+                <p className="text-[11px] text-muted-foreground -mt-0.5">Bu serviste değişen/yapılan kalemleri işaretleyin. İşaretli kalemlerin sayacı bu tarih ve km&apos;ye sıfırlanır.</p>
+                <div className="space-y-1.5">
+                  {vehicle.maintenanceItems.map((item) => {
+                    const checked = recordMaintIds.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setRecordMaintIds((p) => checked ? p.filter((id) => id !== item.id) : [...p, item.id])}
+                        className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors ${checked ? "border-primary/40 bg-primary/10" : "border-border/40 bg-card"}`}
+                      >
+                        <span className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "bg-primary border-primary" : "border-border"}`}>
+                          {checked && <Check className="h-2.5 w-2.5 text-white" />}
+                        </span>
+                        <span className="text-sm">{item.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1"><Label className={iLabel}>Başlık</Label><Input className={iCls} placeholder="Periyodik bakım..." value={recordForm.title} onChange={(e) => setRecordForm((f) => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="text" inputMode="numeric" placeholder={String(vehicle.mileage)} value={recordForm.mileage} onChange={(e) => setRecordForm((f) => ({ ...f, mileage: e.target.value }))} /></div>
@@ -1596,118 +1513,6 @@ export default function VehicleDetailPage() {
             >
               Evet, Sil
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── BAKIM GÜNCELLE DIALOG ── */}
-      {/* ── TOPLU BAKIM GİRİŞİ ── */}
-      <Dialog open={showBulkEntry} onOpenChange={setShowBulkEntry}>
-        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-outfit flex items-center gap-2">
-              <Wrench className="h-4 w-4 text-primary" />
-              Toplu Bakım Girişi
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2 overflow-y-auto flex-1 pr-1">
-            {/* Tarih + Km */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className={iLabel}>Son Bakım Tarihi</Label>
-                <DatePicker value={bulkDate} onChange={setBulkDate} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className={iLabel}>Kilometre</Label>
-                <Input
-                  className={iCls}
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Örn: 105565"
-                  value={bulkKm}
-                  onChange={(e) => setBulkKm(e.target.value)}
-                />
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground -mt-2">Seçili tüm kalemlere bu tarih ve km uygulanır.</p>
-
-            {/* Tümünü seç / kaldır */}
-            <div className="flex items-center justify-between px-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bakım Kalemleri</p>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setBulkChecked(Object.fromEntries(vehicle!.maintenanceItems.map((i) => [i.id, true])))}
-                  className="text-[11px] text-primary font-medium hover:underline"
-                >
-                  Tümünü seç
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBulkChecked(Object.fromEntries(vehicle!.maintenanceItems.map((i) => [i.id, false])))}
-                  className="text-[11px] text-muted-foreground font-medium hover:underline"
-                >
-                  Tümünü kaldır
-                </button>
-              </div>
-            </div>
-
-            {/* Kalem listesi */}
-            <div className="space-y-2">
-              {vehicle?.maintenanceItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setBulkChecked((p) => ({ ...p, [item.id]: !p[item.id] }))}
-                  className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors text-left ${bulkChecked[item.id] ? "border-primary/30 bg-primary/5" : "border-border/40 bg-card opacity-60"}`}
-                >
-                  <span className={`h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${bulkChecked[item.id] ? "bg-primary border-primary" : "border-border"}`}>
-                    {bulkChecked[item.id] && <Check className="h-3 w-3 text-white" />}
-                  </span>
-                  <span className="text-sm font-medium">{item.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <DialogFooter className="pt-2">
-            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
-            <Button
-              onClick={handleSaveBulkEntry}
-              disabled={!bulkKm || !Object.values(bulkChecked).some(Boolean)}
-              className="rounded-xl flex-1"
-            >
-              Kaydet
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showMaintEdit} onOpenChange={setShowMaintEdit}>
-        <DialogContent className="max-w-[92vw] md:max-w-sm rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="font-outfit flex items-center gap-2">
-              <Wrench className="h-4 w-4 text-primary" />
-              {maintEditItem?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-xs text-muted-foreground">En son ne zaman yapıldığını girin. Boş bırakırsanız kayıt temizlenir.</p>
-            <div className="space-y-1">
-              <Label className={iLabel}>Son Yapılma Tarihi</Label>
-              <DatePicker value={maintEditDate} onChange={setMaintEditDate} />
-            </div>
-            {maintEditItem?.intervalKm && (
-              <div className="space-y-1">
-                <Label className={iLabel}>Son Yapılma km</Label>
-                <Input className={iCls} type="text" inputMode="numeric" placeholder="100000" value={maintEditKm} onChange={(e) => setMaintEditKm(e.target.value)} />
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
-            <Button onClick={handleSaveMaintEdit} className="rounded-xl flex-1">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

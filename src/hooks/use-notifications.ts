@@ -161,8 +161,8 @@ export function useNotifications() {
           if (!hasMaintData) {
             notifs.push({
               id: `maint_empty_${v.id}`,
-              title: "Bakım Verilerini Doldurun",
-              description: `${v.plate} plakalı aracın bakım geçmişi boş. Araç detayından her bakım kalemi için son yapılma tarihini ekleyin.`,
+              title: "İlk Periyodik Bakımı Ekleyin",
+              description: `${v.plate} plakalı aracın bakım takibi henüz başlamadı. Servis Geçmişi'nden "Periyodik Bakım" türünde bir kayıt ekleyin; yağ değişimi ve sonraki servis kilometresi otomatik hesaplanır.`,
               type: "info",
               date: new Date().toISOString(),
               vehicleId: v.id,
