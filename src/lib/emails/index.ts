@@ -1,6 +1,7 @@
 import { resend } from "@/lib/resend";
 import { getResetPasswordHtml } from "./reset-password";
 import { getFleetAlertsHtml } from "./fleet-alerts";
+import { getEventEmailHtml, type EventEmailParams } from "./event";
 import type { FleetAlert } from "@/lib/types";
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? "CarsTrack <onboarding@resend.dev>";
@@ -37,5 +38,18 @@ export async function sendFleetAlertDigest(params: {
       appUrl: params.appUrl,
       date: params.date,
     }),
+  });
+}
+
+/**
+ * Tek bir filo olayı (görev başladı/bitti, yeni arıza vb.) için e-posta gönderir.
+ * Telegram/push ile aynı olaylarda, aynı kitleye (yönetici/operatör) gider.
+ */
+export async function sendEventEmail(params: { to: string; subject: string } & EventEmailParams) {
+  return resend.emails.send({
+    from: FROM,
+    to: params.to,
+    subject: params.subject,
+    html: getEventEmailHtml(params),
   });
 }

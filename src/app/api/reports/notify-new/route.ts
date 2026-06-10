@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { sendPushToManagers } from "@/lib/push";
+import { sendEventEmailToManagers } from "@/lib/notify-email";
 
 const CATEGORY_LABELS: Record<string, string> = {
   engine: "Motor", brake: "Fren", tire: "Lastik", electrical: "Elektrik",
@@ -80,10 +82,6 @@ export async function POST(req: NextRequest) {
       .map((m) => m.telegram_chat_id as string | null)
       .filter((c): c is string => !!c);
 
-    if (chatIds.length === 0) {
-      return NextResponse.json({ ok: true, notified: 0 });
-    }
-
     const vehicle = report.vehicles as { plate?: string; brand?: string; model?: string } | null;
     const reporter = report.profiles as { full_name?: string } | null;
     const reporterName = reporter?.full_name || "Bir sürücü";
@@ -123,7 +121,42 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, notified });
+    // Telefon (Web Push) bildirimi — Telegram'dan bağımsız, aynı kitleye
+    const pushed = await sendPushToManagers(admin, companyId, {
+      title: "🔧 Yeni Arıza Bildirimi",
+      body: `${reporterName}, ${vehicleName} (${plate}) için arıza bildirdi: ${title} (${severity})`,
+      url: "/dashboard",
+      tag: `report-${report.id}`,
+    }).catch((err) => {
+      console.error("[reports/notify-new] push gönderim hatası:", err);
+      return 0;
+    });
+
+    // E-posta (Resend) — Telegram/push ile aynı kitleye, aynı olay
+    const emailed = await sendEventEmailToManagers(admin, companyId, {
+      subject: `CarsTrack — Yeni Arıza Bildirimi (${plate})`,
+      title: "Yeni Arıza Bildirimi",
+      emoji: "🔧",
+      intro: `${reporterName}, ${vehicleName} (${plate}) için bir arıza bildirdi.`,
+      rows: [
+        { label: "Bildiren", value: reporterName },
+        { label: "Araç", value: `${vehicleName} (${plate})` },
+        { label: "Başlık", value: title },
+        { label: "Kategori", value: category },
+        { label: "Önem", value: severity },
+        { label: "Tarih", value: when },
+        ...(photoCount > 0 ? [{ label: "Fotoğraf", value: `${photoCount} adet (uygulamada)` }] : []),
+      ],
+      note: desc || undefined,
+      accent: report.severity === "critical" ? "#dc2626" : "#f97316",
+      ctaUrl: "/dashboard",
+      ctaLabel: "Bildirimi Görüntüle",
+    }).catch((err) => {
+      console.error("[reports/notify-new] e-posta gönderim hatası:", err);
+      return 0;
+    });
+
+    return NextResponse.json({ ok: true, notified, pushed, emailed });
   } catch (err) {
     console.error("POST /api/reports/notify-new error:", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });

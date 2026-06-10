@@ -25,6 +25,55 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// ── Web Push ────────────────────────────────────────────────────────────
+// Sunucu, web-push ile şifreli bir payload gönderir. Burada onu çözüp
+// telefonun bildirim alanında gösteririz. Telegram'a giden mesajların
+// telefona da düşmesini sağlayan kısım budur.
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    // Düz metin geldiyse gövde olarak kullan.
+    payload = { body: event.data ? event.data.text() : "" };
+  }
+
+  const title = payload.title || "CarsTrack";
+  const options = {
+    body: payload.body || "",
+    icon: payload.icon || "/icon.png",
+    badge: "/icon.png",
+    tag: payload.tag,            // Aynı tag'li bildirimler üst üste yığılmaz.
+    data: { url: payload.url || "/" },
+    vibrate: [80, 40, 80],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Bildirime dokunulduğunda uygulamayı (ilgili sayfayı) aç/öne getir.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || "/";
+
+  event.waitUntil(
+    (async () => {
+      const allClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of allClients) {
+        // Zaten açık bir pencere varsa onu öne getir ve hedefe yönlendir.
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client && targetUrl) {
+            try { await client.navigate(targetUrl); } catch { /* yoksay */ }
+          }
+          return;
+        }
+      }
+      if (self.clients.openWindow) await self.clients.openWindow(targetUrl);
+    })()
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   // Yalnızca GET isteklerine dokun; geri kalanını tarayıcıya bırak.
   if (event.request.method !== "GET") return;

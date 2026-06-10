@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { sendPushToManagers } from "@/lib/push";
+import { sendEventEmailToManagers } from "@/lib/notify-email";
 
 /**
  * Bir görev başladığında (araç göreve çıktığında) şirketteki Telegram'a bağlı
@@ -69,10 +71,6 @@ export async function POST(req: NextRequest) {
       .map((m) => m.telegram_chat_id as string | null)
       .filter((c): c is string => !!c);
 
-    if (chatIds.length === 0) {
-      return NextResponse.json({ ok: true, notified: 0 });
-    }
-
     const vehicle = task.vehicles as { plate?: string; brand?: string; model?: string } | null;
     const driver = task.profiles as { full_name?: string } | null;
     const driverName = driver?.full_name || "Bir sürücü";
@@ -105,7 +103,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, notified });
+    // Telefon (Web Push) bildirimi — Telegram'dan bağımsız, aynı kitleye
+    const pushed = await sendPushToManagers(admin, companyId, {
+      title: "🟢 Görev Başladı",
+      body: `${driverName}, ${vehicleName} (${plate}) ile göreve çıktı. Başlangıç KM: ${startKm}`,
+      url: "/dashboard",
+      tag: `task-start-${task.id}`,
+    }).catch((err) => {
+      console.error("[tasks/notify-start] push gönderim hatası:", err);
+      return 0;
+    });
+
+    // E-posta (Resend) — Telegram/push ile aynı kitleye, aynı olay
+    const emailed = await sendEventEmailToManagers(admin, companyId, {
+      subject: `CarsTrack — Görev Başladı (${plate})`,
+      title: "Görev Başladı",
+      emoji: "🟢",
+      intro: `${driverName}, ${vehicleName} (${plate}) ile göreve çıktı.`,
+      rows: [
+        { label: "Sürücü", value: driverName },
+        { label: "Araç", value: `${vehicleName} (${plate})` },
+        { label: "Tarih", value: when },
+        { label: "Başlangıç KM", value: startKm },
+      ],
+      note: desc || undefined,
+      accent: "#16a34a",
+      ctaUrl: "/dashboard",
+      ctaLabel: "Görevleri Görüntüle",
+    }).catch((err) => {
+      console.error("[tasks/notify-start] e-posta gönderim hatası:", err);
+      return 0;
+    });
+
+    return NextResponse.json({ ok: true, notified, pushed, emailed });
   } catch (err) {
     console.error("POST /api/tasks/notify-start error:", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });

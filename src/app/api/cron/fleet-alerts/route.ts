@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendFleetAlertDigest } from "@/lib/emails";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { sendPushToManagers } from "@/lib/push";
 import { getFleetAlerts } from "@/lib/store";
 import { toVehicleFromRow } from "@/lib/vehicle-mapper";
 import type { FleetAlert } from "@/lib/types";
@@ -253,11 +254,33 @@ export async function GET(req: Request) {
     }
   }
 
+  // ── 8b. TELEFON (Web Push): şirket başına tek günlük özet ─────────
+  // Yönetici + operatörlerin tüm cihazlarına gider (Telegram ile aynı kitle).
+  let pushSent = 0;
+  for (const [companyId, alerts] of alertsByCompany) {
+    const counts = { critical: 0, warning: 0, info: 0 } as Record<string, number>;
+    for (const a of alerts) counts[a.severity] = (counts[a.severity] ?? 0) + 1;
+    const body =
+      alerts.length === 0
+        ? "✅ Her şey yolunda — aktif uyarı yok."
+        : `🔴 ${counts.critical} kritik · 🟡 ${counts.warning} uyarı · 🔵 ${counts.info} bilgi`;
+    try {
+      pushSent += await sendPushToManagers(admin, companyId, {
+        title: "🚗 Günlük Filo Raporu",
+        body,
+        url: "/vehicles",
+        tag: "fleet-digest",
+      });
+    } catch (err) {
+      console.error(`[cron/fleet-alerts] push send failed for company ${companyId}:`, err);
+    }
+  }
+
   // ── 9. Özet döndür ──────────────────────────────────────────────
   const sent    = results.filter((r) => r.status === "sent").length;
   const errors  = results.filter((r) => r.status === "error").length;
   const skipped = results.filter((r) => r.status.startsWith("skipped")).length;
 
-  console.log(`[cron/fleet-alerts] done — email_sent:${sent} email_errors:${errors} skipped:${skipped} | telegram_sent:${telegramSent} telegram_errors:${telegramError}`);
-  return NextResponse.json({ ok: true, emailSent: sent, emailErrors: errors, skipped, telegramSent, telegramError, total: results.length });
+  console.log(`[cron/fleet-alerts] done — email_sent:${sent} email_errors:${errors} skipped:${skipped} | telegram_sent:${telegramSent} telegram_errors:${telegramError} | push_sent:${pushSent}`);
+  return NextResponse.json({ ok: true, emailSent: sent, emailErrors: errors, skipped, telegramSent, telegramError, pushSent, total: results.length });
 }

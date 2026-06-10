@@ -9,8 +9,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Car,
-  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Lock, Send,
+  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Lock, Send, BellRing,
 } from "lucide-react";
+import { isPushSupported, subscribeToPush, unsubscribeFromPush, getPushSubscribed } from "@/lib/push-client";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -237,6 +238,32 @@ export default function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
   const [notifEnabled, setNotifEnabled] = useState(false);
 
+  // Telefon (Web Push) bildirimleri — Telegram'a giden uyarılar telefona da düşer
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  const handlePushToggle = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      if (pushSubscribed) {
+        await unsubscribeFromPush();
+        setPushSubscribed(false);
+        toast.success("Telefon bildirimleri kapatıldı");
+      } else {
+        await subscribeToPush();
+        setPushSubscribed(true);
+        toast.success("Telefon bildirimleri açıldı", { description: "Bu cihaza uyarılar gönderilecek." });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Bir hata oluştu";
+      toast.error("Bildirim açılamadı", { description: msg });
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
   // E-posta bildirimleri
   const [emailNotif, setEmailNotif] = useState(true);
   const [emailNotifSaving, setEmailNotifSaving] = useState(false);
@@ -329,6 +356,10 @@ export default function SettingsPage() {
     }
     setIsInstalled(window.matchMedia("(display-mode: standalone)").matches);
     setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
+    if (isPushSupported()) {
+      setPushSupported(true);
+      getPushSubscribed().then(setPushSubscribed).catch(() => {});
+    }
     /* eslint-enable react-hooks/set-state-in-effect */
 
     const handler = (e: Event) => {
@@ -566,6 +597,34 @@ export default function SettingsPage() {
                 trailing={<Toggle on={emailNotif} onToggle={handleEmailNotifToggle} />}
                 onClick={handleEmailNotifToggle}
               />
+              {/* Telefon (Web Push) bildirimleri — yönetici/operatör, Telegram ile aynı kitle */}
+              {profile?.role !== "user" && (
+                <SettingItem
+                  icon={BellRing}
+                  iconBg="bg-orange-500/10"
+                  iconColor="text-orange-500"
+                  label="Telefon Bildirimleri"
+                  description={
+                    !pushSupported
+                      ? (isIOS && !isInstalled
+                          ? "Önce uygulamayı ana ekrana ekleyin (iOS gereği)"
+                          : "Bu cihaz push bildirimini desteklemiyor")
+                      : pushSubscribed
+                        ? "Açık — uyarılar bu telefona gönderiliyor"
+                        : "Telegram uyarılarını telefonunuza da alın"
+                  }
+                  trailing={
+                    !pushSupported ? (
+                      <Badge variant="secondary" className="text-[10px] border-none">–</Badge>
+                    ) : pushBusy ? (
+                      <span className="h-5 w-5 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" />
+                    ) : (
+                      <Toggle on={pushSubscribed} onToggle={handlePushToggle} />
+                    )
+                  }
+                  onClick={pushSupported && !pushBusy ? handlePushToggle : undefined}
+                />
+              )}
               {/* Telegram bildirimleri yalnızca yönetici/operatör içindir — sürücü rolünde gizlenir */}
               {profile?.role === "user" ? null : telegramChatId ? (
                 <SettingItem
