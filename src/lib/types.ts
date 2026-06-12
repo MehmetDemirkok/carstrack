@@ -55,6 +55,10 @@ export interface Vehicle {
   year: number;
   color: string;
   image?: string;
+  /** Ek araç fotoğrafları (arka, yan vb.) — image ile birlikte toplamda 4 adet */
+  image2?: string;
+  image3?: string;
+  image4?: string;
   imagePosition?: number;
   imagePositionX?: number;
   imageZoom?: number;
@@ -179,7 +183,7 @@ export interface FleetAlert {
   category: "insurance" | "green-card" | "inspection" | "maintenance" | "tire";
 }
 
-export type DocumentType = "ruhsat" | "trafik_sigortasi" | "kasko" | "muayene" | "egzoz" | "diger";
+export type DocumentType = "ruhsat" | "trafik_sigortasi" | "kasko" | "muayene" | "egzoz" | "teslim" | "diger";
 
 export interface VehicleDocument {
   id: string;

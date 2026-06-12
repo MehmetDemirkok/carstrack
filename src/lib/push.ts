@@ -84,6 +84,25 @@ async function sendToSubscriptions(
 }
 
 /**
+ * Verilen kullanıcı id'lerinin tüm cihazlarına push gönderir.
+ * Telegram/e-posta ile aynı kitleye gönderim için ortak giriş noktası.
+ */
+export async function sendPushToUsers(
+  admin: SupabaseClient,
+  userIds: string[],
+  payload: PushPayload,
+): Promise<number> {
+  if (!isPushConfigured() || userIds.length === 0) return 0;
+
+  const { data: subs } = await admin
+    .from("push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .in("user_id", userIds);
+
+  return sendToSubscriptions(admin, (subs ?? []) as SubscriptionRow[], payload);
+}
+
+/**
  * Bir şirketteki yönetici + operatör rolündeki kullanıcıların tüm cihazlarına
  * push bildirimi gönderir (Telegram bildirimleriyle aynı hedef kitle).
  * Admin (service role) client RLS'i bypass eder.
@@ -103,12 +122,5 @@ export async function sendPushToManagers(
     .in("role", ["manager", "operator"]);
 
   const userIds = (managers ?? []).map((m) => m.id as string);
-  if (userIds.length === 0) return 0;
-
-  const { data: subs } = await admin
-    .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
-    .in("user_id", userIds);
-
-  return sendToSubscriptions(admin, (subs ?? []) as SubscriptionRow[], payload);
+  return sendPushToUsers(admin, userIds, payload);
 }

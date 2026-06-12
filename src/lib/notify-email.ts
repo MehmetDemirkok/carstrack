@@ -20,26 +20,26 @@ export interface EventEmailContent {
   ctaLabel?: string;
 }
 
+/** E-posta alıcısı (profiles satırından). */
+export interface EmailRecipient {
+  id: string;
+  full_name?: string | null;
+  notify_by_email?: boolean | null;
+}
+
 /**
- * Bir şirketteki yönetici + operatör rolündeki, e-posta bildirimi açık olan
- * kullanıcılara tek olay e-postası gönderir (Telegram/push ile aynı kitle).
+ * Verilen alıcı listesine (e-posta tercihi açık olanlara) tek olay e-postası
+ * gönderir. Telegram/push ile aynı kitleye gönderim için ortak giriş noktası.
  * RESEND yapılandırılmamışsa veya alıcı yoksa sessizce 0 döner; akışı kesmez.
  */
-export async function sendEventEmailToManagers(
+export async function sendEventEmailToUsers(
   admin: SupabaseClient,
-  companyId: string,
+  recipientProfiles: EmailRecipient[],
   content: EventEmailContent,
 ): Promise<number> {
   if (!process.env.RESEND_API_KEY) return 0;
 
-  // Şirketteki yönetici/operatörler (e-posta tercihi açık olanlar)
-  const { data: profiles } = await admin
-    .from("profiles")
-    .select("id, full_name, notify_by_email")
-    .eq("company_id", companyId)
-    .in("role", ["manager", "operator"]);
-
-  const recipients = (profiles ?? []).filter((p) => p.notify_by_email !== false);
+  const recipients = recipientProfiles.filter((p) => p.notify_by_email !== false);
   if (recipients.length === 0) return 0;
 
   // id → e-posta eşlemesi (auth tablosundan)
@@ -50,12 +50,12 @@ export async function sendEventEmailToManagers(
 
   const settled = await Promise.allSettled(
     recipients.map((p) => {
-      const email = emailMap.get(p.id as string);
+      const email = emailMap.get(p.id);
       if (!email) return Promise.resolve();
       return sendEventEmail({
         to: email,
         subject: content.subject,
-        recipientName: (p.full_name as string) || email,
+        recipientName: p.full_name || email,
         title: content.title,
         emoji: content.emoji,
         intro: content.intro,
@@ -75,4 +75,24 @@ export async function sendEventEmailToManagers(
     else console.error("[notify-email] gönderim hatası:", r.reason);
   }
   return sent;
+}
+
+/**
+ * Bir şirketteki yönetici + operatör rolündeki, e-posta bildirimi açık olan
+ * kullanıcılara tek olay e-postası gönderir (Telegram/push ile aynı kitle).
+ */
+export async function sendEventEmailToManagers(
+  admin: SupabaseClient,
+  companyId: string,
+  content: EventEmailContent,
+): Promise<number> {
+  if (!process.env.RESEND_API_KEY) return 0;
+
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id, full_name, notify_by_email")
+    .eq("company_id", companyId)
+    .in("role", ["manager", "operator"]);
+
+  return sendEventEmailToUsers(admin, (profiles ?? []) as EmailRecipient[], content);
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { dispatchToManagers } from "@/lib/notify";
 
 function generateInviteCode(): string {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -56,6 +57,28 @@ export async function POST(req: Request) {
         await supabaseAdmin.auth.admin.deleteUser(userId);
         return NextResponse.json({ error: "Profil oluşturulurken hata oluştu." }, { status: 500 });
       }
+
+      // Yöneticilere "yeni sürücü katıldı" bildirimi — 4 kanaldan (akışı kesmez)
+      await dispatchToManagers(supabaseAdmin, company.id as string, {
+        type: "driver_new",
+        severity: "info",
+        title: "👋 Yeni Sürücü Katıldı",
+        body: `${fullName} ekibe katıldı.`,
+        telegram: `👋 <b>Yeni Sürücü Katıldı</b>\n\n👤 <b>${fullName}</b> ekibe katıldı.`,
+        url: "/users",
+        tag: `driver-new-${userId}`,
+        meta: { driverId: userId },
+        email: {
+          subject: "CarsTrack — Yeni Sürücü Katıldı",
+          title: "Yeni Sürücü Katıldı",
+          emoji: "👋",
+          intro: `${fullName} davet koduyla ekibinize katıldı.`,
+          rows: [{ label: "Sürücü", value: fullName }],
+          accent: "#0ea5e9",
+          ctaUrl: "/users",
+          ctaLabel: "Ekibi Görüntüle",
+        },
+      }).catch((e) => { console.error("[register] driver_new bildirim hatası:", e); return null; });
 
       return NextResponse.json({ message: "Şirkete başarıyla katıldınız.", companyName: company.name }, { status: 200 });
     }

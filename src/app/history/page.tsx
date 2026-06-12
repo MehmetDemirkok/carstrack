@@ -361,7 +361,7 @@ export default function HistoryPage() {
 
       {/* Add record dialog */}
       <Dialog open={showAdd} onOpenChange={(o) => { setShowAdd(o); if (!o) { setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); setRecordMaintIds([]); } }}>
-        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[92vw] md:max-w-xl rounded-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit">Servis Kaydı Ekle</DialogTitle>
           </DialogHeader>
@@ -369,16 +369,29 @@ export default function HistoryPage() {
             <div className="space-y-1">
               <Label className={iLabel}>Araç</Label>
               <Select value={form.vehicleId} onValueChange={(v) => v && setForm((f) => ({ ...f, vehicleId: v }))}>
-                <SelectTrigger className={iCls}>
+                <SelectTrigger className="w-full rounded-xl h-14 bg-muted/30 border-border/40 text-base font-semibold *:data-[slot=select-value]:line-clamp-none">
                   <SelectValue placeholder="Araç seçiniz...">
                     {(value: unknown) => {
                       const v = vehicles.find((x) => x.id === value);
-                      return v ? `${v.plate} — ${v.brand} ${v.model}` : "Araç seçiniz...";
+                      if (!v) return "Araç seçiniz...";
+                      return (
+                        <span className="flex flex-col items-start leading-tight text-left">
+                          <span className="font-outfit font-bold text-base tracking-wide">{v.plate}</span>
+                          <span className="text-xs font-medium text-muted-foreground">{v.brand} {v.model}{v.year ? ` • ${v.year}` : ""}</span>
+                        </span>
+                      );
                     }}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.plate} — {v.brand} {v.model}</SelectItem>)}
+                  {vehicles.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      <span className="flex flex-col items-start leading-tight">
+                        <span className="font-outfit font-bold tracking-wide">{v.plate}</span>
+                        <span className="text-xs text-muted-foreground">{v.brand} {v.model}{v.year ? ` • ${v.year}` : ""}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

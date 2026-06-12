@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendTelegramMessage } from "@/lib/telegram";
-import { sendPushToManagers } from "@/lib/push";
-import { sendEventEmailToManagers } from "@/lib/notify-email";
+import { dispatchToManagers } from "@/lib/notify";
 
 /**
  * Bir görev tamamlandığında (araç görevden döndüğünde) şirketteki Telegram'a
@@ -48,7 +46,7 @@ export async function POST(req: NextRequest) {
     // Görevi çek (sürücü + araç bilgisiyle)
     const { data: task, error: taskErr } = await admin
       .from("vehicle_tasks")
-      .select("id, company_id, start_km, end_km, distance, start_time, end_time, description, vehicles(plate, brand, model), profiles(full_name)")
+      .select("id, company_id, start_km, end_km, distance, start_time, end_time, description, vehicle_id, vehicles(plate, brand, model), profiles(full_name)")
       .eq("id", body.taskId)
       .single();
 
@@ -59,18 +57,6 @@ export async function POST(req: NextRequest) {
     if ((task.company_id as string) !== companyId) {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
-
-    // Telegram'a bağlı yönetici/operatörleri bul
-    const { data: managers } = await admin
-      .from("profiles")
-      .select("telegram_chat_id")
-      .eq("company_id", companyId)
-      .in("role", ["manager", "operator"])
-      .not("telegram_chat_id", "is", null);
-
-    const chatIds = (managers ?? [])
-      .map((m) => m.telegram_chat_id as string | null)
-      .filter((c): c is string => !!c);
 
     const vehicle = task.vehicles as { plate?: string; brand?: string; model?: string } | null;
     const driver = task.profiles as { full_name?: string } | null;
@@ -89,7 +75,7 @@ export async function POST(req: NextRequest) {
     const distance = task.distance != null ? (task.distance as number).toLocaleString("tr-TR") : "—";
     const desc = (task.description as string)?.trim();
 
-    const msg =
+    const telegramMsg =
       `🔴 <b>Görev Tamamlandı</b>\n\n` +
       `👤 <b>${driverName}</b>, <b>${vehicleName}</b> (${plate}) ile görevini tamamladı.\n` +
       `🕒 ${when}\n` +
@@ -98,51 +84,37 @@ export async function POST(req: NextRequest) {
       `🛣️ Gidilen Mesafe: <b>${distance} km</b>` +
       (desc ? `\n📝 ${desc}` : "");
 
-    const settled = await Promise.allSettled(
-      chatIds.map((chatId) => sendTelegramMessage(chatId, msg))
-    );
-    const notified = settled.filter((r) => r.status === "fulfilled").length;
-    for (const r of settled) {
-      if (r.status === "rejected") {
-        console.error("[tasks/notify-end] telegram gönderim hatası:", r.reason);
-      }
-    }
-
-    // Telefon (Web Push) bildirimi — Telegram'dan bağımsız, aynı kitleye
-    const pushed = await sendPushToManagers(admin, companyId, {
+    const result = await dispatchToManagers(admin, companyId, {
+      type: "task_end",
+      severity: "info",
       title: "🔴 Görev Tamamlandı",
       body: `${driverName}, ${vehicleName} (${plate}) görevini tamamladı. Mesafe: ${distance} km`,
+      telegram: telegramMsg,
       url: "/dashboard",
       tag: `task-end-${task.id}`,
-    }).catch((err) => {
-      console.error("[tasks/notify-end] push gönderim hatası:", err);
-      return 0;
+      vehicleId: (task.vehicle_id as string) || undefined,
+      vehiclePlate: plate,
+      email: {
+        subject: `CarsTrack — Görev Tamamlandı (${plate})`,
+        title: "Görev Tamamlandı",
+        emoji: "🔴",
+        intro: `${driverName}, ${vehicleName} (${plate}) ile görevini tamamladı.`,
+        rows: [
+          { label: "Sürücü", value: driverName },
+          { label: "Araç", value: `${vehicleName} (${plate})` },
+          { label: "Tarih", value: when },
+          { label: "Başlangıç KM", value: startKm },
+          { label: "Bitiş KM", value: endKm },
+          { label: "Gidilen Mesafe", value: `${distance} km` },
+        ],
+        note: desc || undefined,
+        accent: "#dc2626",
+        ctaUrl: "/dashboard",
+        ctaLabel: "Görevleri Görüntüle",
+      },
     });
 
-    // E-posta (Resend) — Telegram/push ile aynı kitleye, aynı olay
-    const emailed = await sendEventEmailToManagers(admin, companyId, {
-      subject: `CarsTrack — Görev Tamamlandı (${plate})`,
-      title: "Görev Tamamlandı",
-      emoji: "🔴",
-      intro: `${driverName}, ${vehicleName} (${plate}) ile görevini tamamladı.`,
-      rows: [
-        { label: "Sürücü", value: driverName },
-        { label: "Araç", value: `${vehicleName} (${plate})` },
-        { label: "Tarih", value: when },
-        { label: "Başlangıç KM", value: startKm },
-        { label: "Bitiş KM", value: endKm },
-        { label: "Gidilen Mesafe", value: `${distance} km` },
-      ],
-      note: desc || undefined,
-      accent: "#dc2626",
-      ctaUrl: "/dashboard",
-      ctaLabel: "Görevleri Görüntüle",
-    }).catch((err) => {
-      console.error("[tasks/notify-end] e-posta gönderim hatası:", err);
-      return 0;
-    });
-
-    return NextResponse.json({ ok: true, notified, pushed, emailed });
+    return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error("POST /api/tasks/notify-end error:", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });

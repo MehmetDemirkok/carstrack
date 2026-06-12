@@ -128,6 +128,9 @@ function toVehicle(row: Record<string, unknown>): Vehicle {
     year: row.year as number,
     color: (row.color as string) || "",
     image: (row.image as string) || "",
+    image2: (row.image_2 as string) || "",
+    image3: (row.image_3 as string) || "",
+    image4: (row.image_4 as string) || "",
     imagePosition: (row.image_position as number) ?? 50,
     imagePositionX: (row.image_position_x as number) ?? 50,
     imageZoom: (row.image_zoom as number) ?? 100,
@@ -174,6 +177,9 @@ function toDbVehicle(v: Partial<Vehicle>, companyId?: string) {
   if (v.year !== undefined) obj.year = v.year;
   if (v.color !== undefined) obj.color = v.color;
   if (v.image !== undefined) obj.image = v.image;
+  if (v.image2 !== undefined) obj.image_2 = v.image2;
+  if (v.image3 !== undefined) obj.image_3 = v.image3;
+  if (v.image4 !== undefined) obj.image_4 = v.image4;
   if (v.imagePosition !== undefined) obj.image_position = v.imagePosition;
   if (v.imagePositionX !== undefined) obj.image_position_x = v.imagePositionX;
   if (v.imageZoom !== undefined) obj.image_zoom = v.imageZoom;
@@ -285,7 +291,10 @@ export async function addVehicle(
     .single();
   if (error) throw error;
   bustCache(`vehicles:${companyId}`);
-  return toVehicle(inserted);
+  const vehicle = toVehicle(inserted);
+  // Yöneticilere bildirim (fire-and-forget) — 4 kanaldan
+  notifyEvent("/api/vehicles/notify-new", { vehicleId: vehicle.id });
+  return vehicle;
 }
 
 export async function updateVehicle(id: string, updates: Partial<Vehicle>): Promise<void> {
@@ -389,7 +398,10 @@ export async function addRecord(
   if (error) throw error;
   bustCache(`records:${companyId}`);
   bustCache(`vrecords:${companyId}`);
-  return toRecord(inserted);
+  const record = toRecord(inserted);
+  // Yöneticilere bildirim (fire-and-forget) — 4 kanaldan
+  notifyEvent("/api/records/notify-new", { recordId: record.id });
+  return record;
 }
 
 export async function updateRecord(
@@ -594,6 +606,24 @@ export async function unassignDriver(driverId: string): Promise<void> {
     .delete()
     .eq("driver_id", driverId);
   if (error) throw error;
+}
+
+// ─── Bildirim tetikleyicisi ───────────────────────────────────
+
+// Bir olay bildirimi route'unu fire-and-forget tetikler. Sunucu tarafında
+// dispatchToManagers ile 4 kanala (zil + telegram + push + e-posta) dağıtılır.
+// Başarısız olsa bile çağıran akışı etkilemez.
+function notifyEvent(path: string, body: Record<string, unknown>): void {
+  try {
+    void fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(body),
+    }).catch(() => {});
+  } catch {
+    /* yoksay */
+  }
 }
 
 // ─── Vehicle Tasks ────────────────────────────────────────────
@@ -1248,6 +1278,11 @@ export async function updateReportStatus(
     note: note ?? "",
   });
 
+  // Durum gerçekten değiştiyse yöneticilere bildirim (fire-and-forget) — 4 kanaldan
+  if (fromStatus !== toStatus) {
+    notifyEvent("/api/reports/notify-status", { reportId, fromStatus, toStatus, note: note ?? "" });
+  }
+
   // Arıza çözüldüğünde (ve daha önce çözülmemişse) aracın servis geçmişine
   // otomatik bir "tamir/bakım" kaydı düşerek geriye dönük takibi kolaylaştırır.
   if (toStatus === "resolved" && fromStatus !== "resolved") {
@@ -1308,4 +1343,59 @@ export async function deleteReport(reportId: string): Promise<void> {
     .eq("id", reportId)
     .eq("company_id", companyId);
   if (error) throw error;
+}
+
+// ─── Uygulama içi (zil) bildirimleri ──────────────────────────
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  url: string | null;
+  severity: "info" | "warning" | "critical";
+  vehicleId: string | null;
+  vehiclePlate: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+function toNotification(row: Record<string, unknown>): AppNotification {
+  return {
+    id: row.id as string,
+    type: row.type as string,
+    title: row.title as string,
+    body: row.body as string,
+    url: (row.url as string) ?? null,
+    severity: (row.severity as AppNotification["severity"]) || "info",
+    vehicleId: (row.vehicle_id as string) ?? null,
+    vehiclePlate: (row.vehicle_plate as string) ?? null,
+    readAt: (row.read_at as string) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+/** Kullanıcının kendi olay bildirimleri (RLS ile sınırlı), en yeniden eskiye. */
+export async function getNotifications(limit = 30): Promise<AppNotification[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("id, type, title, body, url, severity, vehicle_id, vehicle_plate, read_at, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("getNotifications error:", error);
+    return [];
+  }
+  return (data ?? []).map(toNotification);
+}
+
+/** Okunmamış tüm olay bildirimlerini okundu işaretler. */
+export async function markAllNotificationsRead(): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .is("read_at", null);
+  if (error) console.error("markAllNotificationsRead error:", error);
 }

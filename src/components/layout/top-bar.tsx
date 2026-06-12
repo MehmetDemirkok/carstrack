@@ -205,7 +205,7 @@ export function TopBar() {
                     ) : (
                       <div className="flex flex-col">
                         {notifications.map((notif) => (
-                          <Link key={notif.id} href={`/vehicles/${notif.vehicleId}`}
+                          <Link key={notif.id} href={notif.url || (notif.vehicleId ? `/vehicles/${notif.vehicleId}` : "/dashboard")}
                             onClick={() => setShowNotifications(false)}
                             className="px-4 py-3 block hover:bg-muted/40 transition-colors border-b border-border/30 last:border-0">
                             <div className="flex gap-3">

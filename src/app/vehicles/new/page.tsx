@@ -247,6 +247,9 @@ interface FormData {
   rentCompany: string;
   ruhsatSahibi: string;
   image: string;
+  image2: string;
+  image3: string;
+  image4: string;
   imagePosition: number;
   imageZoom: number;
   plate: string;
@@ -278,7 +281,7 @@ interface FormData {
 
 const defaultForm: FormData = {
   ownershipType: "ozmal", rentCompany: "", ruhsatSahibi: "",
-  image: "", imagePosition: 50, imageZoom: 100, plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
+  image: "", image2: "", image3: "", image4: "", imagePosition: 50, imageZoom: 100, plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
   color: "Beyaz", mileage: "", engineVolume: "",
   fuelType: "Benzin", transmission: "Otomatik",
   tireStatus: "Yazlık", tireBrand: "", tireSize: "", tireInstallDate: "", tireMileage: "0",
@@ -357,6 +360,13 @@ export default function NewVehiclePage() {
       }
     };
     img.src = compressed;
+  };
+
+  // Ek araç fotoğrafları (arka, yan vb.) — kart görünümünde ana fotoğraf `image` kullanılır
+  const handleExtraPhoto = async (field: "image2" | "image3" | "image4", file: File | null) => {
+    if (!file) return;
+    const compressed = await compressImage(file);
+    set(field, compressed);
   };
 
   const [error, setError] = useState<string>("");
@@ -488,6 +498,9 @@ export default function NewVehiclePage() {
       rentCompany: form.rentCompany,
       ruhsatSahibi: form.ruhsatSahibi,
       image: form.image,
+      image2: form.image2,
+      image3: form.image3,
+      image4: form.image4,
       imagePosition: form.imagePosition,
       imageZoom: form.imageZoom,
       plate: form.plate.toUpperCase(),
@@ -901,6 +914,47 @@ export default function NewVehiclePage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Ek fotoğraflar — toplamda 4 (ana + 3 ek) */}
+                  <div className="px-1">
+                    <p className="text-[11px] text-muted-foreground mb-1.5">Ek fotoğraflar (opsiyonel) — arka, yan vb.</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { field: "image2", label: "Arka" },
+                        { field: "image3", label: "Sol Yan" },
+                        { field: "image4", label: "Sağ Yan" },
+                      ] as const).map(({ field, label }) => {
+                        const val = form[field];
+                        return (
+                          <div key={field} className="relative">
+                            <label className="block cursor-pointer">
+                              <div className="relative aspect-square rounded-xl border-2 border-dashed border-border/50 overflow-hidden bg-muted/30 flex items-center justify-center hover:border-primary/50 transition-colors">
+                                {val ? (
+                                  <div className="absolute inset-0" style={{ backgroundImage: `url(${val})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                                ) : (
+                                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                                    <Camera className="h-5 w-5" />
+                                    <span className="text-[10px] font-medium">{label}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleExtraPhoto(field, e.target.files?.[0] ?? null)} />
+                            </label>
+                            {val && (
+                              <button
+                                type="button"
+                                onClick={() => set(field, "")}
+                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80 transition-colors"
+                                aria-label={`${label} fotoğrafını kaldır`}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 <Card className="rounded-2xl border-border/40">

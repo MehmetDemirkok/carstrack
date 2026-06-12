@@ -32,7 +32,7 @@ import {
   Sun, Snowflake, Layers, BatteryCharging, ShieldCheck, CalendarDays,
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
-  Shield, Download, Upload,
+  Shield, Download, Upload, ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 import { exportVehicleReportPDF } from "@/lib/pdf-export";
@@ -85,8 +85,13 @@ const DOC_TYPE_OPTIONS: { value: DocumentType; label: string; defaultTitle: stri
   { value: "kasko",            label: "Kasko",            defaultTitle: "Kasko Poliçesi" },
   { value: "muayene",          label: "Muayene",          defaultTitle: "TÜVTÜRK Muayene Belgesi" },
   { value: "egzoz",            label: "Egzoz Emisyon",    defaultTitle: "Egzoz Emisyon Belgesi" },
+  { value: "teslim",           label: "Araç Teslim Formu",defaultTitle: "Araç Teslim Formu" },
   { value: "diger",            label: "Diğer",            defaultTitle: "" },
 ];
+
+// "Diğer Evrak" bölümünde gösterilen belge türü (araç teslim formu vb.) — en fazla 2 adet
+const OTHER_DOC_TYPE: DocumentType = "teslim";
+const MAX_OTHER_DOCS = 2;
 
 const DOC_TYPE_META: Record<DocumentType, { label: string; Icon: LucideIcon; bg: string; color: string }> = {
   ruhsat:           { label: "Ruhsat",           Icon: FileText,    bg: "bg-blue-500/10",    color: "text-blue-500" },
@@ -94,6 +99,7 @@ const DOC_TYPE_META: Record<DocumentType, { label: string; Icon: LucideIcon; bg:
   kasko:            { label: "Kasko",            Icon: ShieldCheck, bg: "bg-emerald-500/10", color: "text-emerald-500" },
   muayene:          { label: "Muayene",          Icon: CalendarDays,bg: "bg-indigo-500/10",  color: "text-indigo-500" },
   egzoz:            { label: "Egzoz Emisyon",    Icon: Zap,         bg: "bg-yellow-500/10",  color: "text-yellow-600 dark:text-yellow-400" },
+  teslim:           { label: "Araç Teslim Formu",Icon: ClipboardCheck, bg: "bg-orange-500/10", color: "text-orange-500" },
   diger:            { label: "Diğer",            Icon: FileText,    bg: "bg-gray-500/10",    color: "text-gray-500" },
 };
 
@@ -326,6 +332,7 @@ export default function VehicleDetailPage() {
 
   // Document management state
   const [documents, setDocuments] = useState<VehicleDocument[]>([]);
+  const [photoView, setPhotoView] = useState<string | null>(null);
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [showEditDoc, setShowEditDoc] = useState(false);
   const [showDeleteDoc, setShowDeleteDoc] = useState(false);
@@ -388,6 +395,10 @@ export default function VehicleDetailPage() {
   }, [authLoading, company, reload, reloadDocs, reloadStatus]);
 
   if (!vehicle) return null;
+
+  // Belgeleri ikiye ayır: "Diğer Evrak" (araç teslim formu vb.) ve standart araç belgeleri
+  const otherDocs = documents.filter((d) => d.type === OTHER_DOC_TYPE);
+  const mainDocs = documents.filter((d) => d.type !== OTHER_DOC_TYPE);
 
   const score = calculateHealthScore(vehicle);
   const hasAnyMaintenanceData = vehicle.maintenanceItems.some(
@@ -488,6 +499,18 @@ export default function VehicleDetailPage() {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // Standart belge ekleme — formu varsayılana sıfırlar
+  const openAddDoc = () => {
+    setDocForm({ type: "diger", title: "", file: null, issueDate: "", expiryDate: "", notes: "" });
+    setShowAddDoc(true);
+  };
+
+  // "Diğer Evrak" (araç teslim formu vb.) ekleme — belge türünü önceden ayarlar
+  const openAddOtherDoc = () => {
+    setDocForm({ type: OTHER_DOC_TYPE, title: "Araç Teslim Formu", file: null, issueDate: "", expiryDate: "", notes: "" });
+    setShowAddDoc(true);
   };
 
   const handleEditDoc = async () => {
@@ -716,6 +739,26 @@ export default function VehicleDetailPage() {
               </div>
             ))}
           </motion.div>
+
+          {/* Fotoğraf galerisi — birden fazla fotoğraf varsa göster */}
+          {(() => {
+            const photos = [vehicle.image, vehicle.image2, vehicle.image3, vehicle.image4].filter((p): p is string => !!p);
+            if (photos.length < 2) return null;
+            return (
+              <motion.div variants={fadeUp} className="grid grid-cols-4 gap-2">
+                {photos.map((p, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setPhotoView(p)}
+                    className="relative aspect-square rounded-xl overflow-hidden border border-border/40 bg-muted/30 hover:ring-2 hover:ring-primary/50 transition-shadow"
+                  >
+                    <div className="absolute inset-0" style={{ backgroundImage: `url(${p})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                  </button>
+                ))}
+              </motion.div>
+            );
+          })()}
 
           <motion.div variants={fadeUp}>
             <Tabs key={isDriver ? "driver-tabs" : "full-tabs"} defaultValue={isDriver ? "technical" : "maintenance"} className="w-full">
@@ -1005,31 +1048,93 @@ export default function VehicleDetailPage() {
                     </div>
                   )}
 
+                  {/* Diğer Evraklar — araç teslim formu vb. (en fazla 2) */}
+                  <div className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-semibold flex items-center gap-2">
+                          <ClipboardCheck className="h-4 w-4 text-orange-500" /> Diğer Evraklar
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Araç teslim formu vb. — en fazla {MAX_OTHER_DOCS} evrak</p>
+                      </div>
+                      {!isDriver && otherDocs.length < MAX_OTHER_DOCS && (
+                        <Button size="sm" variant="outline" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={openAddOtherDoc}>
+                          <Plus className="h-3.5 w-3.5" /> Evrak Ekle
+                        </Button>
+                      )}
+                    </div>
+
+                    {otherDocs.length === 0 ? (
+                      <button
+                        type="button"
+                        disabled={isDriver}
+                        onClick={isDriver ? undefined : openAddOtherDoc}
+                        className="w-full text-center py-6 bg-muted/30 rounded-xl border border-dashed border-border/40 transition-colors enabled:hover:border-orange-500/40 disabled:cursor-default"
+                      >
+                        <ClipboardCheck className="h-7 w-7 mx-auto mb-1.5 opacity-20" />
+                        <p className="text-xs text-muted-foreground">{isDriver ? "Evrak eklenmemiş." : "Araç teslim formu veya diğer evrak ekle"}</p>
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
+                        {otherDocs.map((doc) => {
+                          const meta = DOC_TYPE_META[doc.type] ?? DOC_TYPE_META.diger;
+                          const { Icon: DocIcon } = meta;
+                          return (
+                            <div key={doc.id} className="flex items-center gap-3 rounded-xl border border-border/40 bg-muted/20 p-3">
+                              <div className={`p-2 ${meta.bg} rounded-xl shrink-0`}>
+                                <DocIcon className={`h-4 w-4 ${meta.color}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-semibold leading-snug truncate">{doc.title}</h4>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {doc.fileName}{doc.fileSize ? ` • ${formatBytes(doc.fileSize)}` : ""}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleViewDoc(doc)} title="Görüntüle">
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleDownloadDoc(doc)} title="İndir">
+                                  <Download className="h-3.5 w-3.5" />
+                                </Button>
+                                {!isDriver && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => { setDocToDelete(doc); setShowDeleteDoc(true); }} title="Sil">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Uploaded documents */}
                   <div className="flex justify-between items-center pt-1">
                     <p className="text-sm font-semibold flex items-center gap-2">
                       <Upload className="h-4 w-4 text-muted-foreground" /> Araç Belgeleri
                     </p>
                     {!isDriver && (
-                      <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={() => setShowAddDoc(true)}>
+                      <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={openAddDoc}>
                         <Plus className="h-3.5 w-3.5" /> Belge Ekle
                       </Button>
                     )}
                   </div>
 
-                  {documents.length === 0 ? (
+                  {mainDocs.length === 0 ? (
                     <div className="text-center py-8 bg-muted/30 rounded-2xl border border-border/20">
                       <FileText className="h-8 w-8 mx-auto mb-2 opacity-20" />
                       <p className="text-sm text-muted-foreground">Henüz belge yüklenmemiş.</p>
                       {!isDriver && (
-                        <button className="text-xs text-primary mt-2 hover:underline" onClick={() => setShowAddDoc(true)}>
+                        <button className="text-xs text-primary mt-2 hover:underline" onClick={openAddDoc}>
                           İlk belgeyi ekle
                         </button>
                       )}
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {documents.map((doc) => {
+                      {mainDocs.map((doc) => {
                         const meta = DOC_TYPE_META[doc.type] ?? DOC_TYPE_META.diger;
                         const { Icon: DocIcon } = meta;
                         const status = getDocStatus(doc.expiryDate);
@@ -1277,6 +1382,48 @@ export default function VehicleDetailPage() {
                   trackClassName="bg-muted"
                 />
               )}
+
+              {/* Ek fotoğraflar — toplamda 4 (ana + 3 ek) */}
+              <p className="text-[11px] text-muted-foreground">Ek fotoğraflar — arka, yan vb.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(["image2", "image3", "image4"] as const).map((field, idx) => {
+                  const label = ["Arka", "Sol Yan", "Sağ Yan"][idx];
+                  const val = editData[field];
+                  return (
+                    <div key={field} className="relative">
+                      <label className="block cursor-pointer">
+                        <div className="relative aspect-square rounded-xl border-2 border-dashed border-border/50 overflow-hidden bg-muted/30 flex items-center justify-center hover:border-primary/50 transition-colors">
+                          {val ? (
+                            <div className="absolute inset-0" style={{ backgroundImage: `url(${val})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                          ) : (
+                            <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                              <Car className="h-5 w-5 opacity-40" />
+                              <span className="text-[10px] font-medium">{label}</span>
+                            </div>
+                          )}
+                        </div>
+                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const compressed = await compressImage(file);
+                          setEditData((d) => ({ ...d, [field]: compressed }));
+                          e.target.value = "";
+                        }} />
+                      </label>
+                      {val && (
+                        <button
+                          type="button"
+                          onClick={() => setEditData((d) => ({ ...d, [field]: "" }))}
+                          className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80 transition-colors"
+                          aria-label={`${label} fotoğrafını kaldır`}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
@@ -1709,6 +1856,19 @@ export default function VehicleDetailPage() {
                 </Button>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── PHOTO LIGHTBOX ── */}
+      <Dialog open={!!photoView} onOpenChange={(o) => { if (!o) setPhotoView(null); }}>
+        <DialogContent className="rounded-3xl max-w-3xl w-[95vw] p-0 overflow-hidden bg-black/90 border-none">
+          <DialogTitle className="sr-only">Araç Fotoğrafı</DialogTitle>
+          <div className="flex items-center justify-center min-h-[40vh] p-2">
+            {photoView && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoView} alt="Araç fotoğrafı" className="max-h-[80vh] w-auto max-w-full object-contain rounded-xl" />
+            )}
           </div>
         </DialogContent>
       </Dialog>

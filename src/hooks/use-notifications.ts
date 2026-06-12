@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getVehicles } from "@/lib/db";
+import { getVehicles, getNotifications, markAllNotificationsRead, type AppNotification } from "@/lib/db";
 import { useAuth } from "@/context/auth-context";
 
 const STORAGE_KEY = "carstrack_read_notif_ids";
@@ -14,6 +14,19 @@ export interface NotificationItem {
   date: string;
   vehicleId: string;
   vehiclePlate: string;
+  /** Tıklanınca gidilecek yol. Yoksa araç sayfasına düşülür. */
+  url?: string;
+  /** "db" = kalıcı olay bildirimi (okundu DB'de). Tanımsız = türetilen hatırlatma (localStorage). */
+  source?: "db" | "derived";
+  /** db kaynaklı bildirimler için okundu bilgisi. */
+  read?: boolean;
+}
+
+// DB olay önemini zil tipine eşler.
+function severityToType(s: AppNotification["severity"]): NotificationType {
+  if (s === "critical") return "error";
+  if (s === "warning") return "warning";
+  return "info";
 }
 
 export function useNotifications() {
@@ -35,9 +48,14 @@ export function useNotifications() {
       return;
     }
 
+    let cancelled = false;
+
     const loadNotifications = async () => {
       try {
-        const vehicles = await getVehicles();
+        const [vehicles, dbNotifs] = await Promise.all([
+          getVehicles(),
+          getNotifications().catch(() => [] as AppNotification[]),
+        ]);
         const notifs: NotificationItem[] = [];
         const today = new Date();
 
@@ -171,31 +189,55 @@ export function useNotifications() {
           }
         });
 
-        // En aciller (error -> urgent -> warning -> info) en üstte olacak şekilde sıralayalım
+        // Türetilen hatırlatmalar: en aciller (error -> urgent -> warning -> info) üstte
         const typeWeight = { error: 4, urgent: 3, warning: 2, info: 1 };
         notifs.sort((a, b) => typeWeight[b.type] - typeWeight[a.type]);
 
-        setNotifications(notifs);
+        // Kalıcı olay bildirimleri (DB) — en yeniden eskiye, türetilenlerin üstünde
+        const dbItems: NotificationItem[] = dbNotifs.map((n) => ({
+          id: n.id,
+          title: n.title,
+          description: n.body,
+          type: severityToType(n.severity),
+          date: n.createdAt,
+          vehicleId: n.vehicleId ?? "",
+          vehiclePlate: n.vehiclePlate ?? "",
+          url: n.url ?? undefined,
+          source: "db",
+          read: n.readAt != null,
+        }));
+
+        if (!cancelled) setNotifications([...dbItems, ...notifs]);
       } catch (error) {
         console.error("Bildirimler yüklenemedi:", error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadNotifications();
+    return () => { cancelled = true; };
   }, [profile?.companyId]);
 
   const markAllRead = useCallback(() => {
-    const ids = notifications.map((n) => n.id);
-    const next = new Set<string>(ids);
+    // Türetilenler: localStorage; DB olayları: read_at güncelle + optimistik işaretle
+    const derivedIds = notifications.filter((n) => n.source !== "db").map((n) => n.id);
+    const next = new Set<string>([...readIds, ...derivedIds]);
     setReadIds(next);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
     } catch {}
-  }, [notifications]);
 
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
+    const hasUnreadDb = notifications.some((n) => n.source === "db" && !n.read);
+    if (hasUnreadDb) {
+      setNotifications((prev) => prev.map((n) => n.source === "db" ? { ...n, read: true } : n));
+      void markAllNotificationsRead();
+    }
+  }, [notifications, readIds]);
+
+  const unreadCount = notifications.filter((n) =>
+    n.source === "db" ? !n.read : !readIds.has(n.id)
+  ).length;
 
   return { notifications, loading, unreadCount, markAllRead };
 }
