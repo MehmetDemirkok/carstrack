@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    // Uzun ömürlü "immutable" cache yalnızca production'da uygulanır.
+    // Dev modda Next.js chunk adlarını tekrar kullandığı için bu header tarayıcıda
+    // eski kodun servis edilmesine (HMR'ın görünmemesine) yol açar.
+    const isProd = process.env.NODE_ENV === "production";
     return [
       // Security headers on all routes
       {
@@ -37,20 +41,24 @@ const nextConfig: NextConfig = {
           { key: "Expires", value: "0" },
         ],
       },
-      // Long-lived cache for versioned static assets
-      {
-        source: "/_next/static/(.*)",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
-        ],
-      },
-      // Cache fonts from /public/fonts
-      {
-        source: "/fonts/(.*)",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
-        ],
-      },
+      // Long-lived cache for versioned static assets (production only)
+      ...(isProd
+        ? [
+            {
+              source: "/_next/static/(.*)",
+              headers: [
+                { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+              ],
+            },
+            // Cache fonts from /public/fonts
+            {
+              source: "/fonts/(.*)",
+              headers: [
+                { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+              ],
+            },
+          ]
+        : []),
       // Cache icons and images
       {
         source: "/(favicon\\.ico|apple-touch-icon\\.png|icon\\.png|icon-192\\.png|icon-512\\.png|logo\\.svg|og-image\\.png)",

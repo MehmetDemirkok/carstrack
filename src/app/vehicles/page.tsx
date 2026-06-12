@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { deleteVehicles, updateVehicle, getVehicleStatuses } from "@/lib/db";
+import { deleteVehicles, updateVehicle, updateVehicleOrder, getVehicleStatuses } from "@/lib/db";
 import { useData } from "@/context/data-context";
-import { calculateHealthScore } from "@/lib/store";
+import { calculateHealthScore, getMaintenanceStatusForItem } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,11 +15,19 @@ import Link from "next/link";
 import {
   Car, ChevronRight, Plus, Gauge, Trash2,
   CheckCircle2, Circle, Fuel, Shield, Wrench, Calendar, Download, Move, Send,
+  AlertTriangle, GripVertical, ArrowUpDown,
 } from "lucide-react";
 import { exportVehiclesExcel } from "@/lib/export";
 import { DragSlider } from "@/components/ui/drag-slider";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext, rectSortingStrategy, arrayMove, useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -36,6 +44,59 @@ const tireColor = {
   "Dört Mevsim": "bg-teal-500/10 text-teal-600 dark:text-teal-400",
 };
 
+// Skoru düşüren en kritik sebebi tek bir çip olarak özetler — böylece sağlık
+// skorunun yanında "neden" de görünür. Sigorta/muayene bitişi ve geciken/yaklaşan
+// bakım kalemleri arasından en aciline öncelik verilir.
+type VehicleAlert = { label: string; tone: "critical" | "warning" };
+function getVehicleAlert(v: Vehicle): VehicleAlert | null {
+  const dayDiff = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86_400_000);
+  const candidates: (VehicleAlert & { rank: number })[] = [];
+
+  for (const [date, label] of [
+    [v.insuranceExpiry, "Sigorta"],
+    [v.inspectionExpiry, "Muayene"],
+  ] as const) {
+    if (!date) continue;
+    const d = dayDiff(date);
+    if (d < 0) candidates.push({ label: `${label} süresi doldu`, tone: "critical", rank: d });
+    else if (d <= 30) candidates.push({ label: `${label} ${d} gün kaldı`, tone: d <= 14 ? "critical" : "warning", rank: d });
+  }
+
+  const overdue = v.maintenanceItems.filter((i) => getMaintenanceStatusForItem(i, v.mileage) === "overdue");
+  const warning = v.maintenanceItems.filter((i) => getMaintenanceStatusForItem(i, v.mileage) === "warning");
+  if (overdue.length) {
+    candidates.push({ label: overdue.length === 1 ? `${overdue[0].name} gecikti` : `${overdue.length} bakım gecikti`, tone: "critical", rank: -1 });
+  } else if (warning.length) {
+    candidates.push({ label: warning.length === 1 ? `${warning[0].name} yaklaştı` : `${warning.length} bakım yaklaştı`, tone: "warning", rank: 60 });
+  }
+
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => {
+    if (a.tone !== b.tone) return a.tone === "critical" ? -1 : 1;
+    return a.rank - b.rank;
+  });
+  return { label: candidates[0].label, tone: candidates[0].tone };
+}
+
+// Sırala modunda her kartı dnd-kit ile sürüklenebilir yapan sarmalayıcı.
+function SortableVehicleCard({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`relative touch-none cursor-grab active:cursor-grabbing ${isDragging ? "z-50 opacity-90 scale-[1.03]" : ""}`}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="absolute top-3 right-3 z-40 bg-black/55 backdrop-blur-sm border border-white/15 rounded-lg p-1.5 text-white/90 shadow-lg pointer-events-none">
+        <GripVertical className="h-4 w-4" />
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function VehiclesPage() {
   const router = useRouter();
   const { profile } = useAuth();
@@ -49,6 +110,11 @@ export default function VehiclesPage() {
   const [pendingPosY, setPendingPosY] = useState(50);
   const [pendingPosX, setPendingPosX] = useState(50);
   const [positionSaving, setPositionSaving] = useState(false);
+  const [isSortMode, setIsSortMode] = useState(false);
+  const saveOrderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 8px eşiği: kısa tıklama ile sürüklemeyi ayırır, kazara sıralamayı önler.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   // Araç durumu: aktif görevdeki araçlar (vehicleId → sürücü adı)
   const [activeVehicleMap, setActiveVehicleMap] = useState<Map<string, string | undefined>>(new Map());
@@ -97,6 +163,30 @@ export default function VehiclesPage() {
     setSelectedIds([]);
   };
 
+  const enterSortMode = () => {
+    setIsSelectionMode(false);
+    setSelectedIds([]);
+    setRepositioningId(null);
+    setIsSortMode(true);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = vehicles.findIndex((v) => v.id === active.id);
+    const newIndex = vehicles.findIndex((v) => v.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(vehicles, oldIndex, newIndex);
+    setVehicles(reordered);
+    // Ardışık sürüklemeleri tek kayda topla; kullanıcı durunca DB'ye yaz.
+    if (saveOrderTimer.current) clearTimeout(saveOrderTimer.current);
+    saveOrderTimer.current = setTimeout(() => {
+      updateVehicleOrder(reordered.map((v) => v.id))
+        .then(() => toast.success("Sıralama kaydedildi"))
+        .catch(() => { toast.error("Sıralama kaydedilemedi"); refresh(); });
+    }, 700);
+  };
+
   const handleDelete = async () => {
     const ids = selectedIds;
     setVehicles((prev) => prev.filter((v) => !ids.includes(v.id)));
@@ -111,6 +201,195 @@ export default function VehiclesPage() {
       toast.error("Hata", { description: "Araçlar silinirken hata oluştu." });
       refresh();
     }
+  };
+
+  // Kart içeriği — hem normal (Link'li) hem Sırala (sürüklenebilir) modda
+  // aynı görseli kullanmak için tek yerde tutulur.
+  const cardBody = (vehicle: Vehicle, score: number) => {
+    const selected = selectedIds.includes(vehicle.id);
+    const alert = getVehicleAlert(vehicle);
+    return (
+      <Card className={`overflow-hidden rounded-3xl shadow-md transition-all relative group ${selected ? "border-primary ring-2 ring-primary/20 shadow-primary/20" : "border-border/40 hover:shadow-2xl hover:shadow-primary/15"}`}>
+        {isSelectionMode && (
+          <div className={`absolute inset-0 z-20 pointer-events-none transition-colors rounded-3xl ${selected ? "bg-primary/5" : "bg-black/40"}`} />
+        )}
+        {isSelectionMode && (
+          <div className="absolute top-3 right-3 z-30">
+            {selected ? <CheckCircle2 className="h-7 w-7 text-primary fill-primary/20 drop-shadow-md" /> : <Circle className="h-7 w-7 text-white/80 drop-shadow-md" />}
+          </div>
+        )}
+
+        {/* Hero */}
+        <div className="h-52 relative overflow-hidden">
+          {vehicle.image ? (
+            <div
+              className="absolute inset-0 transition-[background-position] duration-100 group-hover:scale-105 transition-transform duration-700"
+              style={{
+                backgroundImage: `url(${vehicle.image})`,
+                backgroundSize: "cover",
+                backgroundPosition: repositioningId === vehicle.id
+                  ? `${pendingPosX}% ${pendingPosY}%`
+                  : `${vehicle.imagePositionX ?? 50}% ${vehicle.imagePosition ?? 50}%`,
+              }}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-primary/15 to-transparent flex items-center justify-center">
+              <Car className="h-24 w-24 text-primary/20" />
+            </div>
+          )}
+
+          {/* Gradient overlays */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" />
+          {vehicle.image && <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />}
+
+          {/* Reposition overlay */}
+          {repositioningId === vehicle.id && (
+            <div
+              className="absolute inset-0 z-30 bg-black/55 flex flex-col items-center justify-center gap-4 px-5"
+              style={{ pointerEvents: "auto" }}
+            >
+              <p className="text-white/80 text-[11px] font-semibold tracking-wide uppercase select-none">
+                Görseli konumlandır
+              </p>
+              <DragSlider
+                value={pendingPosY}
+                onChange={setPendingPosY}
+                label="Üst"
+                labelEnd="Alt"
+                className="w-full"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setRepositioningId(null)}
+                  className="text-xs text-white/70 border border-white/20 rounded-xl px-4 py-2 hover:bg-white/10 transition-colors"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={() => savePosition(vehicle.id)}
+                  disabled={positionSaving}
+                  className="text-xs font-semibold text-white bg-primary rounded-xl px-5 py-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {positionSaving ? "Kaydediliyor…" : "Kaydet"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Plate badge + durum */}
+          <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1.5 shadow-lg">
+              <Car className="h-3 w-3 text-white/70" />
+              <span className="font-outfit font-black text-xs text-white tracking-wide">{vehicle.plate}</span>
+            </div>
+            {!isSelectionMode && repositioningId !== vehicle.id && (
+              activeVehicleMap.has(vehicle.id) ? (
+                <span
+                  className="flex items-center gap-1 bg-amber-500/90 text-white rounded-lg px-2 py-1 text-[10px] font-bold shadow-lg"
+                  title={activeVehicleMap.get(vehicle.id) ? `${activeVehicleMap.get(vehicle.id)} kullanımında` : "Görevde"}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                  Görevde
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 bg-green-500/85 text-white rounded-lg px-2 py-1 text-[10px] font-bold shadow-lg">
+                  Müsait
+                </span>
+              )
+            )}
+          </div>
+
+          {/* Health score + reposition button */}
+          {!isSelectionMode && repositioningId !== vehicle.id && !isSortMode && (
+            <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
+              <div className="relative w-11 h-11">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
+                  <circle cx="22" cy="22" r="18" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+                  <circle
+                    cx="22" cy="22" r="18" fill="none"
+                    stroke={score >= 85 ? "#22c55e" : score >= 65 ? "#f59e0b" : "#ef4444"}
+                    strokeWidth="3"
+                    strokeDasharray={`${score * 1.131} ${113.1 - score * 1.131}`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-white text-[11px] font-black">{score}</span>
+              </div>
+              {vehicle.image && !isDriver && (
+                <button
+                  onClick={(e) => startReposition(e, vehicle)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 backdrop-blur-sm border border-white/15 rounded-lg p-1.5 text-white/70 hover:text-white hover:bg-black/70"
+                  title="Görseli konumlandır"
+                >
+                  <Move className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Bottom info */}
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-8 z-10">
+            <div className="flex items-end justify-between">
+              <div>
+                <h2 className="text-2xl font-black font-outfit text-white leading-tight drop-shadow-sm">
+                  {vehicle.brand}
+                </h2>
+                <p className="text-sm text-white/60 font-medium mt-0.5">{vehicle.model} · {vehicle.year}</p>
+              </div>
+              {!isSelectionMode && repositioningId !== vehicle.id && !isSortMode && (
+                <div className="bg-white/10 backdrop-blur-md border border-white/15 text-white p-2 rounded-full shadow-lg group-hover:bg-primary group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Info bar */}
+        <div className="px-4 py-3 bg-card/95 flex items-center justify-between">
+          <div className="flex items-center gap-3.5 text-[11px]">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Gauge className="h-3.5 w-3.5" />
+              <span className="font-medium">{vehicle.mileage.toLocaleString("tr-TR")} km</span>
+            </div>
+            <div className="w-px h-3 bg-border/60" />
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Fuel className="h-3.5 w-3.5" />
+              <span className="font-medium">{vehicle.fuelType}</span>
+            </div>
+          </div>
+          <Badge variant="secondary" className={`text-[10px] font-bold rounded-lg px-2 py-0.5 border-none ${tireColor[vehicle.tireStatus]}`}>
+            {vehicle.tireStatus}
+          </Badge>
+        </div>
+
+        {/* Sağlık skoru uyarı çipi: skoru düşüren en kritik sebep */}
+        {alert && !isSelectionMode && repositioningId !== vehicle.id && (
+          <div className={`flex items-center gap-1.5 px-4 py-2 text-[11px] font-semibold border-t ${
+            alert.tone === "critical"
+              ? "text-red-600 dark:text-red-400 bg-red-500/5 border-red-500/15"
+              : "text-amber-600 dark:text-amber-400 bg-amber-500/5 border-amber-500/15"
+          }`}>
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{alert.label}</span>
+          </div>
+        )}
+
+        {/* Sürücü: hızlı arıza bildir */}
+        {isDriver && !isSelectionMode && repositioningId !== vehicle.id && !isSortMode && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push(`/reports?vehicle=${vehicle.id}`);
+            }}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-amber-600 dark:text-amber-400 border-t border-border/40 hover:bg-amber-500/5 transition-colors"
+          >
+            <Wrench className="h-3.5 w-3.5" /> Arıza Bildir
+          </button>
+        )}
+      </Card>
+    );
   };
 
   if (loading) return (
@@ -145,37 +424,76 @@ export default function VehiclesPage() {
           <p className="text-xs text-muted-foreground mt-0.5">{vehicles.length} kayıtlı araç</p>
         </div>
         <div className="flex items-center gap-2">
-          {vehicles.length > 0 && !isSelectionMode && (
+          {isSortMode ? (
             <Button
-              variant="outline"
-              size="icon"
-              className="rounded-full h-9 w-9 shadow-sm border-border/50"
-              title="Excel'e Aktar"
-              onClick={() => exportVehiclesExcel(vehicles)}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-          )}
-          {!isDriver && vehicles.length > 0 && (
-            <Button
-              variant={isSelectionMode ? "default" : "outline"}
               size="sm"
-              className="rounded-full h-9 px-4 font-semibold"
-              onClick={isSelectionMode ? cancelSelection : () => setIsSelectionMode(true)}
+              className="rounded-full h-9 px-5 font-semibold shadow-md"
+              onClick={() => setIsSortMode(false)}
             >
-              {isSelectionMode ? "İptal" : "Seç"}
+              Bitti
             </Button>
-          )}
-          {!isDriver && !isSelectionMode && (
-            <Link href="/vehicles/new">
-              <Button size="sm" className="rounded-full h-9 px-4 gap-1.5 shadow-md font-semibold">
-                <Plus className="h-4 w-4" />
-                <span className="text-xs hidden sm:inline">Yeni Araç</span>
-              </Button>
-            </Link>
+          ) : (
+            <>
+              {vehicles.length > 0 && !isSelectionMode && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                  title="Excel'e Aktar"
+                  onClick={() => exportVehiclesExcel(vehicles)}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              )}
+              {!isDriver && vehicles.length > 1 && !isSelectionMode && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                  title="Sırala"
+                  onClick={enterSortMode}
+                >
+                  <ArrowUpDown className="h-4 w-4" />
+                </Button>
+              )}
+              {!isDriver && vehicles.length > 0 && (
+                <Button
+                  variant={isSelectionMode ? "default" : "outline"}
+                  size="sm"
+                  className="rounded-full h-9 px-4 font-semibold"
+                  onClick={isSelectionMode ? cancelSelection : () => setIsSelectionMode(true)}
+                >
+                  {isSelectionMode ? "İptal" : "Seç"}
+                </Button>
+              )}
+              {!isDriver && !isSelectionMode && (
+                <Link href="/vehicles/new">
+                  <Button size="sm" className="rounded-full h-9 px-4 gap-1.5 shadow-md font-semibold">
+                    <Plus className="h-4 w-4" />
+                    <span className="text-xs hidden sm:inline">Yeni Araç</span>
+                  </Button>
+                </Link>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {isSortMode && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center gap-2 rounded-2xl bg-primary/10 border border-primary/20 px-4 py-2.5 text-xs font-medium text-primary">
+              <GripVertical className="h-4 w-4 shrink-0" />
+              Kartları sürükleyip bırakarak sıralamayı değiştirin. Değişiklik otomatik kaydedilir.
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {isDriver && vehicles.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
@@ -195,10 +513,22 @@ export default function VehiclesPage() {
         </motion.div>
       )}
 
+      {isSortMode ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={vehicles.map((v) => v.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {vehicles.map((vehicle) => (
+                <SortableVehicleCard key={vehicle.id} id={vehicle.id}>
+                  {cardBody(vehicle, calculateHealthScore(vehicle))}
+                </SortableVehicleCard>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
       <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {vehicles.map((vehicle) => {
           const score = calculateHealthScore(vehicle);
-          const selected = selectedIds.includes(vehicle.id);
           return (
             <div key={vehicle.id} className="relative">
               <Link
@@ -215,174 +545,7 @@ export default function VehiclesPage() {
                   whileTap={isSelectionMode || repositioningId === vehicle.id ? {} : { scale: 0.97 }}
                   whileHover={isSelectionMode || repositioningId === vehicle.id ? {} : { y: -4 }}
                 >
-                  <Card className={`overflow-hidden rounded-3xl shadow-md transition-all relative group ${selected ? "border-primary ring-2 ring-primary/20 shadow-primary/20" : "border-border/40 hover:shadow-2xl hover:shadow-primary/15"}`}>
-                    {isSelectionMode && (
-                      <div className={`absolute inset-0 z-20 pointer-events-none transition-colors rounded-3xl ${selected ? "bg-primary/5" : "bg-black/40"}`} />
-                    )}
-                    {isSelectionMode && (
-                      <div className="absolute top-3 right-3 z-30">
-                        {selected ? <CheckCircle2 className="h-7 w-7 text-primary fill-primary/20 drop-shadow-md" /> : <Circle className="h-7 w-7 text-white/80 drop-shadow-md" />}
-                      </div>
-                    )}
-
-                    {/* Hero */}
-                    <div className="h-52 relative overflow-hidden">
-                      {vehicle.image ? (
-                        <div
-                          className="absolute inset-0 transition-[background-position] duration-100 group-hover:scale-105 transition-transform duration-700"
-                          style={{
-                            backgroundImage: `url(${vehicle.image})`,
-                            backgroundSize: "cover",
-                            backgroundPosition: repositioningId === vehicle.id
-                              ? `${pendingPosX}% ${pendingPosY}%`
-                              : `${vehicle.imagePositionX ?? 50}% ${vehicle.imagePosition ?? 50}%`,
-                          }}
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-primary/15 to-transparent flex items-center justify-center">
-                          <Car className="h-24 w-24 text-primary/20" />
-                        </div>
-                      )}
-
-                      {/* Gradient overlays */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" />
-                      {vehicle.image && <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />}
-
-                      {/* Reposition overlay */}
-                      {repositioningId === vehicle.id && (
-                        <div
-                          className="absolute inset-0 z-30 bg-black/55 flex flex-col items-center justify-center gap-4 px-5"
-                          style={{ pointerEvents: "auto" }}
-                        >
-                          <p className="text-white/80 text-[11px] font-semibold tracking-wide uppercase select-none">
-                            Görseli konumlandır
-                          </p>
-                          <DragSlider
-                            value={pendingPosY}
-                            onChange={setPendingPosY}
-                            label="Üst"
-                            labelEnd="Alt"
-                            className="w-full"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setRepositioningId(null)}
-                              className="text-xs text-white/70 border border-white/20 rounded-xl px-4 py-2 hover:bg-white/10 transition-colors"
-                            >
-                              İptal
-                            </button>
-                            <button
-                              onClick={() => savePosition(vehicle.id)}
-                              disabled={positionSaving}
-                              className="text-xs font-semibold text-white bg-primary rounded-xl px-5 py-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
-                            >
-                              {positionSaving ? "Kaydediliyor…" : "Kaydet"}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Plate badge + durum */}
-                      <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-1.5">
-                        <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1.5 shadow-lg">
-                          <Car className="h-3 w-3 text-white/70" />
-                          <span className="font-outfit font-black text-xs text-white tracking-wide">{vehicle.plate}</span>
-                        </div>
-                        {!isSelectionMode && repositioningId !== vehicle.id && (
-                          activeVehicleMap.has(vehicle.id) ? (
-                            <span
-                              className="flex items-center gap-1 bg-amber-500/90 text-white rounded-lg px-2 py-1 text-[10px] font-bold shadow-lg"
-                              title={activeVehicleMap.get(vehicle.id) ? `${activeVehicleMap.get(vehicle.id)} kullanımında` : "Görevde"}
-                            >
-                              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-                              Görevde
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 bg-green-500/85 text-white rounded-lg px-2 py-1 text-[10px] font-bold shadow-lg">
-                              Müsait
-                            </span>
-                          )
-                        )}
-                      </div>
-
-                      {/* Health score + reposition button */}
-                      {!isSelectionMode && repositioningId !== vehicle.id && (
-                        <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
-                          <div className="relative w-11 h-11">
-                            <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
-                              <circle cx="22" cy="22" r="18" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
-                              <circle
-                                cx="22" cy="22" r="18" fill="none"
-                                stroke={score >= 85 ? "#22c55e" : score >= 65 ? "#f59e0b" : "#ef4444"}
-                                strokeWidth="3"
-                                strokeDasharray={`${score * 1.131} ${113.1 - score * 1.131}`}
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                            <span className="absolute inset-0 flex items-center justify-center text-white text-[11px] font-black">{score}</span>
-                          </div>
-                          {vehicle.image && !isDriver && (
-                            <button
-                              onClick={(e) => startReposition(e, vehicle)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 backdrop-blur-sm border border-white/15 rounded-lg p-1.5 text-white/70 hover:text-white hover:bg-black/70"
-                              title="Görseli konumlandır"
-                            >
-                              <Move className="h-3 w-3" />
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Bottom info */}
-                      <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-8 z-10">
-                        <div className="flex items-end justify-between">
-                          <div>
-                            <h2 className="text-2xl font-black font-outfit text-white leading-tight drop-shadow-sm">
-                              {vehicle.brand}
-                            </h2>
-                            <p className="text-sm text-white/60 font-medium mt-0.5">{vehicle.model} · {vehicle.year}</p>
-                          </div>
-                          {!isSelectionMode && repositioningId !== vehicle.id && (
-                            <div className="bg-white/10 backdrop-blur-md border border-white/15 text-white p-2 rounded-full shadow-lg group-hover:bg-primary group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
-                              <ChevronRight className="h-4 w-4" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Info bar */}
-                    <div className="px-4 py-3 bg-card/95 flex items-center justify-between">
-                      <div className="flex items-center gap-3.5 text-[11px]">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Gauge className="h-3.5 w-3.5" />
-                          <span className="font-medium">{vehicle.mileage.toLocaleString("tr-TR")} km</span>
-                        </div>
-                        <div className="w-px h-3 bg-border/60" />
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Fuel className="h-3.5 w-3.5" />
-                          <span className="font-medium">{vehicle.fuelType}</span>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className={`text-[10px] font-bold rounded-lg px-2 py-0.5 border-none ${tireColor[vehicle.tireStatus]}`}>
-                        {vehicle.tireStatus}
-                      </Badge>
-                    </div>
-
-                    {/* Sürücü: hızlı arıza bildir */}
-                    {isDriver && !isSelectionMode && repositioningId !== vehicle.id && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          router.push(`/reports?vehicle=${vehicle.id}`);
-                        }}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-amber-600 dark:text-amber-400 border-t border-border/40 hover:bg-amber-500/5 transition-colors"
-                      >
-                        <Wrench className="h-3.5 w-3.5" /> Arıza Bildir
-                      </button>
-                    )}
-                  </Card>
+                  {cardBody(vehicle, score)}
                 </motion.div>
               </Link>
             </div>
@@ -427,6 +590,7 @@ export default function VehiclesPage() {
           </motion.div>
         )}
       </motion.div>
+      )}
 
       {/* Float action bar */}
       <AnimatePresence>

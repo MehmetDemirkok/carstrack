@@ -306,6 +306,8 @@ export default function NewVehiclePage() {
   const [form, setForm] = useState<FormData>(defaultForm);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  // Sıfır (fabrikasyon) araç: işaretlenince bakım/lastik/akü baseline'ları teslime göre otomatik dolar
+  const [factoryNew, setFactoryNew] = useState(false);
 
   // Document scan state — multi-doc
   const initDocSlots = (): Record<DocKey, DocSlot> => ({
@@ -322,6 +324,23 @@ export default function NewVehiclePage() {
 
   const parseKm = (value: string) =>
     parseInt(value.replace(/\./g, "").replace(/,/g, ""), 10) || 0;
+
+  // Yerel tarihi YYYY-MM-DD olarak döndürür (UTC kaymasını önlemek için)
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  // "Sıfır araç" işaretlenince lastik & akü montaj tarihini bugüne ayarla; kaldırılınca temizle
+  const toggleFactoryNew = (checked: boolean) => {
+    setFactoryNew(checked);
+    setForm((prev) => ({
+      ...prev,
+      tireInstallDate: checked ? todayISO() : "",
+      batteryInstallDate: checked ? todayISO() : "",
+      tireMileage: checked ? prev.mileage || "0" : prev.tireMileage,
+    }));
+  };
 
   const handleFile = async (file: File | null) => {
     if (!file) return;
@@ -459,7 +478,10 @@ export default function NewVehiclePage() {
     setSaving(true);
     setError("");
     const mileage = parseKm(form.mileage);
-    const maintenanceItems = MAINTENANCE_TEMPLATES.map((t) => ({ ...t }));
+    // Sıfır araçta tüm bakım kalemleri teslim noktasını (bugün / girilen km) baseline alır
+    const maintenanceItems = factoryNew
+      ? MAINTENANCE_TEMPLATES.map((t) => ({ ...t, lastDoneDate: todayISO(), lastDoneMileage: mileage }))
+      : MAINTENANCE_TEMPLATES.map((t) => ({ ...t }));
 
     const data: Omit<Vehicle, "id" | "createdAt" | "updatedAt"> = {
       ownershipType: form.ownershipType,
@@ -484,7 +506,7 @@ export default function NewVehiclePage() {
       tireBrand: form.tireBrand,
       tireSize: form.tireSize,
       tireInstallDate: form.tireInstallDate,
-      tireMileage: parseKm(form.tireMileage),
+      tireMileage: factoryNew ? mileage : parseKm(form.tireMileage),
       batteryBrand: form.batteryBrand,
       batteryCapacity: form.batteryCapacity,
       batteryInstallDate: form.batteryInstallDate,
@@ -493,10 +515,11 @@ export default function NewVehiclePage() {
       greenCardCompany: form.greenCardCompany,
       greenCardExpiry: form.greenCardExpiry,
       inspectionExpiry: form.inspectionExpiry,
-      // Son servis bilgisi araç oluştururken girilmez; ilk "Periyodik Bakım"
+      // Son servis bilgisi normalde araç oluştururken girilmez; ilk "Periyodik Bakım"
       // servis kaydı eklendiğinde otomatik dolar (bkz. applyPeriodicService).
-      lastServiceDate: "",
-      lastServiceMileage: 0,
+      // Sıfır araçta ise teslim noktası (bugün / girilen km) baseline kabul edilir.
+      lastServiceDate: factoryNew ? todayISO() : "",
+      lastServiceMileage: factoryNew ? mileage : 0,
       nextServiceMileage: 0,
       maintenanceItems,
       notes: form.notes,
@@ -971,6 +994,33 @@ export default function NewVehiclePage() {
                   <Field label="Kilometre">
                     <Input className={cls} type="text" inputMode="numeric" placeholder="45000" value={form.mileage} onChange={(e) => set("mileage", e.target.value)} />
                   </Field>
+
+                  {/* Sıfır (fabrikasyon) araç kısayolu */}
+                  <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
+                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={factoryNew}
+                        onChange={(e) => toggleFactoryNew(e.target.checked)}
+                        className="h-4 w-4 rounded accent-primary cursor-pointer"
+                      />
+                      <span className="text-sm font-medium text-foreground">Sıfır (0 km) araç — bayiden yeni teslim alındı</span>
+                    </label>
+                    {factoryNew && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="flex gap-2 rounded-lg bg-primary/5 border border-primary/15 p-2.5"
+                      >
+                        <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                        <div className="text-[11px] leading-relaxed text-muted-foreground space-y-1">
+                          <p className="text-foreground font-medium">Bakım verileri teslime göre otomatik doldurulacak.</p>
+                          <p>Tüm periyodik bakımlar (yağ, filtreler, balata, triger…) teslimden itibaren sayılmaya başlar; lastik ve akü montaj tarihi <span className="font-semibold text-foreground">bugün</span> olarak işaretlenir. Sağlık skoru %100 başlar. Girdiğiniz kilometre korunur — elle bakım girmenize gerek yok.</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
                   <Field label="Motor Hacmi (L)">
                     <Input className={cls} placeholder="2.0" value={form.engineVolume} onChange={(e) => set("engineVolume", e.target.value)} />
                   </Field>

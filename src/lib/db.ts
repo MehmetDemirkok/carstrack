@@ -131,6 +131,7 @@ function toVehicle(row: Record<string, unknown>): Vehicle {
     imagePosition: (row.image_position as number) ?? 50,
     imagePositionX: (row.image_position_x as number) ?? 50,
     imageZoom: (row.image_zoom as number) ?? 100,
+    sortOrder: (row.sort_order as number) ?? undefined,
     mileage: (row.mileage as number) || 0,
     engineType: (row.engine_type as string) || "",
     engineVolume: (row.engine_volume as string) || "",
@@ -176,6 +177,7 @@ function toDbVehicle(v: Partial<Vehicle>, companyId?: string) {
   if (v.imagePosition !== undefined) obj.image_position = v.imagePosition;
   if (v.imagePositionX !== undefined) obj.image_position_x = v.imagePositionX;
   if (v.imageZoom !== undefined) obj.image_zoom = v.imageZoom;
+  if (v.sortOrder !== undefined) obj.sort_order = v.sortOrder;
   if (v.mileage !== undefined) obj.mileage = v.mileage;
   if (v.engineType !== undefined) obj.engine_type = v.engineType;
   if (v.engineVolume !== undefined) obj.engine_volume = v.engineVolume;
@@ -230,9 +232,31 @@ export async function getVehicles(): Promise<Vehicle[]> {
     .from("vehicles")
     .select("*")
     .eq("company_id", companyId)
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
   return setCached(cacheKey, (data ?? []).map(toVehicle));
+}
+
+/**
+ * Persists a manual drag-and-drop ordering of vehicles. `orderedIds` is the
+ * full list of vehicle ids in their new visual order; each gets a sort_order
+ * matching its index so the order survives reloads and is shared company-wide.
+ */
+export async function updateVehicleOrder(orderedIds: string[]): Promise<void> {
+  const companyId = await requireCompanyId();
+  const supabase = createClient();
+  const updates = orderedIds.map((id, index) =>
+    supabase
+      .from("vehicles")
+      .update({ sort_order: index })
+      .eq("id", id)
+      .eq("company_id", companyId)
+  );
+  const results = await Promise.all(updates);
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw failed.error;
+  bustCache(`vehicles:${companyId}`);
 }
 
 export async function getVehicle(id: string): Promise<Vehicle | null> {

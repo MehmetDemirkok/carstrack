@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CarFront, Activity, Settings, ClipboardList, Users, Wrench } from "lucide-react";
+import { LayoutDashboard, CarFront, Activity, Settings, ClipboardList, Users, Wrench, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/context/language-context";
@@ -29,6 +29,7 @@ export function BottomNav() {
         { href: "/tasks", icon: ClipboardList, label: t("nav_tasks") },
         { href: "/reports", icon: Wrench, label: "Arıza" },
         { href: "/users", icon: Users, label: "Ekip" },
+        { href: "/history", icon: History, label: "Servis" },
         { href: "/analytics", icon: Activity, label: t("nav_analytics").split(" ")[0] },
         { href: "/settings", icon: Settings, label: t("nav_settings") },
       ];

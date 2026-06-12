@@ -1349,6 +1349,10 @@ export default function VehicleDetailPage() {
                     <SelectContent>{TIRE_SEASONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1"><Label className={iLabel}>Lastik Markası</Label><Input className={iCls} value={editData.tireBrand || ""} onChange={(e) => setEditData((d) => ({ ...d, tireBrand: e.target.value }))} placeholder="Bridgestone, Michelin..." /></div>
+                  <div className="space-y-1"><Label className={iLabel}>Lastik Ebatı</Label><Input className={iCls} value={editData.tireSize || ""} onChange={(e) => setEditData((d) => ({ ...d, tireSize: e.target.value }))} placeholder="205/55R16" /></div>
+                </div>
                 <div className="space-y-1"><Label className={iLabel}>Sigorta Bitiş</Label><DatePicker value={editData.insuranceExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, insuranceExpiry: v }))} /></div>
                 <div className="space-y-1">
                   <Label className={iLabel}>Yeşil Kart Bitiş</Label>

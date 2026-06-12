@@ -14,8 +14,9 @@ import {
 import {
   Car, Wrench, Shield, BarChart3, Users, Bell,
   CheckCircle2, ArrowRight, FileText, ChevronRight,
-  CalendarDays, Gauge, Disc3, AlertTriangle, Clock, Sparkles,
+  CalendarDays, Gauge, Disc3, AlertTriangle, Clock, Sparkles, Sun, Moon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 
 /* ───────────────────────── data ───────────────────────── */
 
@@ -377,6 +378,9 @@ function HeroMockup() {
 /* ───────────────────────── page ───────────────────────── */
 
 export default function LandingClient() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -393,8 +397,7 @@ export default function LandingClient() {
         initial={{ y: -60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: EASE }}
-        className="sticky top-0 z-50 border-b border-border/40"
-        style={{ background: "rgba(9,9,11,0.85)", backdropFilter: "blur(20px)" }}
+        className="sticky top-0 z-50 border-b border-border/40 bg-background/85 backdrop-blur-xl"
       >
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
@@ -414,6 +417,17 @@ export default function LandingClient() {
             </span>
           </Link>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              title={mounted ? (theme === "dark" ? "Açık tema" : "Koyu tema") : undefined}
+              aria-label="Tema değiştir"
+              suppressHydrationWarning
+              className="relative grid place-items-center h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </button>
             <Link
               href="/login"
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted/50"

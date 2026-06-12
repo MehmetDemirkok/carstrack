@@ -65,6 +65,7 @@ export async function proxy(request: NextRequest) {
   // The matcher regex should already exclude these, but an explicit guard
   // ensures correctness even if the matcher is bypassed in some edge case.
   const isStaticAsset =
+    pathname === "/sw.js" ||
     pathname === "/sitemap.xml" ||
     pathname === "/robots.txt" ||
     pathname === "/manifest.json" ||
@@ -169,6 +170,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|api|favicon\\.ico|manifest\\.json|robots\\.txt|sitemap\\.xml|apple-icon\\.png|icon\\.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
+    "/((?!_next/static|_next/image|api|sw\\.js|favicon\\.ico|manifest\\.json|robots\\.txt|sitemap\\.xml|apple-icon\\.png|icon\\.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
   ],
 };

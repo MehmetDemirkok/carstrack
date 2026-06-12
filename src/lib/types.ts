@@ -58,6 +58,7 @@ export interface Vehicle {
   imagePosition?: number;
   imagePositionX?: number;
   imageZoom?: number;
+  sortOrder?: number;
   mileage: number;
   engineType: string;
   engineVolume: string;

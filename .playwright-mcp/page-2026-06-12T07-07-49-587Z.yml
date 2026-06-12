@@ -1,0 +1,108 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e6]:
+      - link "CarsTrack Filo Yönetim Sistemi" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img [ref=e9]
+        - generic [ref=e13]:
+          - generic [ref=e14]: CarsTrack
+          - paragraph [ref=e15]: Filo Yönetim Sistemi
+      - generic [ref=e17]:
+        - img "Araç İllüstrasyonu" [ref=e22]
+        - img [ref=e36]
+        - img [ref=e40]
+        - img [ref=e42]
+        - img [ref=e46]
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - generic [ref=e51]: "247"
+            - generic [ref=e52]: Araç
+            - generic [ref=e53]: Aktif Filo
+          - generic [ref=e54]:
+            - generic [ref=e55]: 99.2%
+            - generic [ref=e56]: Uptime
+            - generic [ref=e57]: Kesintisiz
+          - generic [ref=e58]:
+            - generic [ref=e59]: 7/24
+            - generic [ref=e60]: Takip
+            - generic [ref=e61]: Gerçek Zamanlı
+        - paragraph [ref=e62]: Filosunu gerçek zamanlı takip et.
+    - generic [ref=e63]:
+      - button [ref=e65]:
+        - img [ref=e66]
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - generic [ref=e72]: ▸ SİSTEM GİRİŞİ
+            - heading "Panele Giriş" [level=1] [ref=e73]
+            - paragraph [ref=e74]: Filo yönetim sistemine erişmek için kimlik bilgilerinizi girin.
+          - generic [ref=e75]:
+            - generic [ref=e76]:
+              - text: E-posta
+              - textbox "E-posta" [ref=e77]:
+                - /placeholder: ornek@sirket.com
+            - generic [ref=e78]:
+              - generic [ref=e79]:
+                - generic [ref=e80]: Şifre
+                - button "Şifremi Unuttum?" [ref=e81] [cursor=pointer]
+              - generic [ref=e82]:
+                - textbox "Şifre" [ref=e83]:
+                  - /placeholder: ••••••••
+                - button [ref=e84] [cursor=pointer]:
+                  - img [ref=e85]
+            - button "SİSTEM GİRİŞİ" [ref=e88] [cursor=pointer]:
+              - generic [ref=e89]:
+                - text: SİSTEM GİRİŞİ
+                - img [ref=e90]
+          - paragraph [ref=e92]:
+            - text: Hesabınız yok mu?
+            - link "Kayıt İsteği Oluştur" [ref=e93] [cursor=pointer]:
+              - /url: /register
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - generic [ref=e96]: ▸ NEDEN CARSTRACK?
+            - heading "Filo yönetiminin akıllı yolu" [level=2] [ref=e97]:
+              - text: Filo yönetiminin
+              - text: akıllı yolu
+            - paragraph [ref=e98]: Araç bakımından sigorta takibine, servis geçmişinden ekip koordinasyonuna kadar tek platform.
+          - generic [ref=e99]:
+            - generic [ref=e100]:
+              - img [ref=e102]
+              - generic [ref=e106]:
+                - heading "Araç Takibi" [level=3] [ref=e107]
+                - paragraph [ref=e108]: Tüm araçlarınız tek ekranda — model, km, yakıt ve daha fazlası.
+            - generic [ref=e109]:
+              - img [ref=e111]
+              - generic [ref=e113]:
+                - heading "Bakım Yönetimi" [level=3] [ref=e114]
+                - paragraph [ref=e115]: Periyodik bakım zamanlarını asla kaçırmayın, otomatik hatırlatmalar.
+            - generic [ref=e116]:
+              - img [ref=e118]
+              - generic [ref=e120]:
+                - heading "Sigorta & Muayene" [level=3] [ref=e121]
+                - paragraph [ref=e122]: Vade dolmadan önce uyarı alın, belgeleri dijital ortamda saklayın.
+            - generic [ref=e123]:
+              - img [ref=e125]
+              - generic [ref=e127]:
+                - heading "Filo Analitiği" [level=3] [ref=e128]
+                - paragraph [ref=e129]: Maliyet raporları, filo sağlık skoru ve trend analizleri.
+            - generic [ref=e130]:
+              - img [ref=e132]
+              - generic [ref=e137]:
+                - heading "Ekip Yönetimi" [level=3] [ref=e138]
+                - paragraph [ref=e139]: Şirket yetkilisi ve sürücü rolleri, görev atama ve koordinasyon.
+            - generic [ref=e140]:
+              - img [ref=e142]
+              - generic [ref=e145]:
+                - heading "Akıllı Bildirimler" [level=3] [ref=e146]
+                - paragraph [ref=e147]: Kritik uyarılar anında telefonunuza, hiçbir şeyi kaçırmayın.
+          - generic [ref=e148]:
+            - generic [ref=e149]:
+              - generic [ref=e150]: A
+              - generic [ref=e151]: B
+              - generic [ref=e152]: C
+            - generic [ref=e153]:
+              - paragraph [ref=e154]: 500+ şirket güveniyor
+              - paragraph [ref=e155]: Türkiye genelinde aktif kullanım
+  - region "Notifications alt+T"
