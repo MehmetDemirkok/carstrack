@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getVehicles, getNotifications, markAllNotificationsRead, type AppNotification } from "@/lib/db";
+import { getVehicles, getNotifications, markAllNotificationsRead, markNotificationsRead, type AppNotification } from "@/lib/db";
 import { useAuth } from "@/context/auth-context";
 
 const STORAGE_KEY = "carstrack_read_notif_ids";
@@ -235,9 +235,32 @@ export function useNotifications() {
     }
   }, [notifications, readIds]);
 
-  const unreadCount = notifications.filter((n) =>
-    n.source === "db" ? !n.read : !readIds.has(n.id)
-  ).length;
+  // Tek bir bildirimi okundu işaretle (üzerine tıklanınca).
+  const markRead = useCallback((id: string) => {
+    const item = notifications.find((n) => n.id === id);
+    if (!item) return;
+    if (item.source === "db") {
+      if (item.read) return;
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+      void markNotificationsRead([id]);
+    } else {
+      if (readIds.has(id)) return;
+      const next = new Set<string>([...readIds, id]);
+      setReadIds(next);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+      } catch {}
+    }
+  }, [notifications, readIds]);
 
-  return { notifications, loading, unreadCount, markAllRead };
+  const isUnread = useCallback(
+    (n: NotificationItem) => (n.source === "db" ? !n.read : !readIds.has(n.id)),
+    [readIds],
+  );
+
+  // Zilde yalnızca okunmamışlar gösterilir; okundu işaretlenen anında listeden düşer.
+  const visibleNotifications = notifications.filter(isUnread);
+  const unreadCount = visibleNotifications.length;
+
+  return { notifications: visibleNotifications, loading, unreadCount, markAllRead, markRead };
 }

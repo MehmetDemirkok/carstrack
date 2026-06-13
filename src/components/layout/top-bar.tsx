@@ -49,7 +49,7 @@ export function TopBar() {
     ? getInitials(profile.fullName)
     : user?.email ? getInitials(user.email.split("@")[0]) : "?";
 
-  const { notifications, loading: notifLoading, unreadCount, markAllRead } = useNotifications();
+  const { notifications, loading: notifLoading, unreadCount, markAllRead, markRead } = useNotifications();
 
   const getTypeDot = (type: NotificationItem["type"]) => {
     switch (type) {
@@ -117,11 +117,7 @@ export function TopBar() {
               size="icon"
               className={`relative rounded-xl h-9 w-9 transition-colors ${showNotifications ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
               suppressHydrationWarning
-              onClick={() => {
-                const opening = !showNotifications;
-                setShowNotifications(opening);
-                if (opening) markAllRead();
-              }}
+              onClick={() => setShowNotifications((v) => !v)}
             >
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
@@ -187,7 +183,7 @@ export function TopBar() {
                       <div className="flex flex-col">
                         {notifications.map((notif) => (
                           <Link key={notif.id} href={notif.url || (notif.vehicleId ? `/vehicles/${notif.vehicleId}` : "/dashboard")}
-                            onClick={() => setShowNotifications(false)}
+                            onClick={() => { markRead(notif.id); setShowNotifications(false); }}
                             className="px-4 py-3 block hover:bg-muted/40 transition-colors border-b border-border/30 last:border-0">
                             <div className="flex gap-3">
                               <div className="mt-1 shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: getTypeDot(notif.type) }} />

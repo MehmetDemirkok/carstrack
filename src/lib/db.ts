@@ -1399,3 +1399,15 @@ export async function markAllNotificationsRead(): Promise<void> {
     .is("read_at", null);
   if (error) console.error("markAllNotificationsRead error:", error);
 }
+
+/** Belirli olay bildirimlerini okundu işaretler (tek tek tıklandığında). */
+export async function markNotificationsRead(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .in("id", ids)
+    .is("read_at", null);
+  if (error) console.error("markNotificationsRead error:", error);
+}
