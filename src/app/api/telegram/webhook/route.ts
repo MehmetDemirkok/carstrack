@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendTelegramMessage } from "@/lib/telegram";
+import { sendTelegramMessage, TELEGRAM_WEBHOOK_SECRET } from "@/lib/telegram";
 import { getFleetAlerts } from "@/lib/store";
 import { toVehicleFromRow } from "@/lib/vehicle-mapper";
 
@@ -14,6 +14,16 @@ interface TelegramUpdate {
 
 export async function POST(req: NextRequest) {
   try {
+    // ── GÜVENLİK: İsteğin gerçekten Telegram'dan geldiğini doğrula ──────────
+    // Telegram, setWebhook'ta kaydettiğimiz gizli token'ı her istekte bu
+    // başlıkta geri gönderir. Eşleşmiyorsa sahte istek → sessizce yok say.
+    if (TELEGRAM_WEBHOOK_SECRET) {
+      const sig = req.headers.get("x-telegram-bot-api-secret-token");
+      if (sig !== TELEGRAM_WEBHOOK_SECRET) {
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     const update = await req.json() as TelegramUpdate;
     const message = update.message;
     if (!message) return NextResponse.json({ ok: true });
@@ -22,8 +32,10 @@ export async function POST(req: NextRequest) {
     const text = message.text ?? "";
     const firstName = message.from?.first_name ?? "Kullanıcı";
 
-    // /start <userId>  →  kullanıcıyı bağla
-    const match = text.match(/^\/start\s+([a-f0-9-]{36})$/i);
+    // /start <code>  →  tek-kullanımlık koda göre kullanıcıyı bağla.
+    // GÜVENLİK: Artık user.id DEĞİL, /api/telegram/link-code ile üretilen
+    // rastgele, kısa ömürlü kod kullanılır (bkz. C-3 düzeltmesi).
+    const match = text.match(/^\/start\s+([A-Za-z0-9_-]{20,64})$/);
     if (!match) {
       await sendTelegramMessage(chatId,
         `Merhaba ${firstName}! 👋\n\nBotu bağlamak için CarsTrack Ayarlar sayfasındaki <b>Telegram'ı Bağla</b> butonunu kullanın.`
@@ -31,24 +43,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const userId = match[1];
+    const code = match[1];
     const admin = createAdminClient();
 
-    // Profil + şirket bilgisini çek
+    // Kodu doğrula: süresi geçmemiş ve mevcut bir profile ait olmalı.
     const { data: profile, error: profileErr } = await admin
       .from("profiles")
-      .select("company_id, role, full_name")
-      .eq("id", userId)
+      .select("id, company_id, role, full_name, telegram_link_expires_at")
+      .eq("telegram_link_code", code)
       .single();
 
-    if (profileErr || !profile) {
-      await sendTelegramMessage(chatId, "Hesap bulunamadı. Lütfen tekrar deneyin.");
+    const expired =
+      !profile?.telegram_link_expires_at ||
+      new Date(profile.telegram_link_expires_at as string).getTime() < Date.now();
+
+    if (profileErr || !profile || expired) {
+      await sendTelegramMessage(chatId,
+        "Bağlantı kodu geçersiz veya süresi dolmuş. Ayarlar sayfasından <b>Telegram'ı Bağla</b> ile yeni bir bağlantı oluşturun."
+      );
       return NextResponse.json({ ok: true });
     }
 
+    const userId = profile.id as string;
+
+    // Sohbeti bağla ve tek-kullanımlık kodu hemen temizle.
     const { error } = await admin
       .from("profiles")
-      .update({ telegram_chat_id: chatId })
+      .update({
+        telegram_chat_id: chatId,
+        telegram_link_code: null,
+        telegram_link_expires_at: null,
+      })
       .eq("id", userId);
 
     if (error) {

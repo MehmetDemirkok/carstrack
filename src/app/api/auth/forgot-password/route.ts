@@ -1,14 +1,29 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPasswordResetEmail } from "@/lib/emails";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
+
+// GÜVENLİK: Bu uç nokta her zaman aynı jenerik yanıtı döndürür. Hesabın var
+// olup olmadığını açıklamayız (kullanıcı sayımı engellenir) ve rate limit ile
+// e-posta bombardımanı/Resend kota istismarı sınırlanır.
+const GENERIC_OK = { ok: true } as const;
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    // Rate limit: IP başına 5 istek / 15 dk
+    const rl = rateLimit(`forgot:${clientIp(req)}`, 5, 15 * 60_000);
+    if (!rl.ok) {
+      return NextResponse.json(GENERIC_OK, {
+        status: 200,
+        headers: { "Retry-After": String(rl.retryAfterSec) },
+      });
+    }
+
+    const body = await req.json().catch(() => ({}));
     const { email } = body as { email?: string };
 
     if (!email || typeof email !== "string") {
-      return NextResponse.json({ error: "Email is required." }, { status: 400 });
+      return NextResponse.json(GENERIC_OK, { status: 200 });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -33,11 +48,12 @@ export async function POST(req: Request) {
     });
 
     if (linkError) {
+      // Kullanıcı yoksa (422) bile jenerik başarı döndür — sayımı engelle.
       if (linkError.status === 422 || linkError.message.toLowerCase().includes("not found")) {
-        return NextResponse.json({ found: false }, { status: 200 });
+        return NextResponse.json(GENERIC_OK, { status: 200 });
       }
       console.error("[forgot-password] generateLink error:", linkError.message);
-      return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
+      return NextResponse.json(GENERIC_OK, { status: 200 });
     }
 
     const resetLink = linkData.properties.action_link;
@@ -45,13 +61,14 @@ export async function POST(req: Request) {
     const { error: emailError } = await sendPasswordResetEmail(normalizedEmail, resetLink);
 
     if (emailError) {
+      // Hata logla ama istemciye yine jenerik yanıt ver.
       console.error("[forgot-password] resend error:", emailError);
-      return NextResponse.json({ error: "Failed to send reset email." }, { status: 500 });
+      return NextResponse.json(GENERIC_OK, { status: 200 });
     }
 
-    return NextResponse.json({ found: true, sent: true }, { status: 200 });
+    return NextResponse.json(GENERIC_OK, { status: 200 });
   } catch (err: unknown) {
     console.error("[forgot-password] unexpected error:", err);
-    return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
+    return NextResponse.json(GENERIC_OK, { status: 200 });
   }
 }

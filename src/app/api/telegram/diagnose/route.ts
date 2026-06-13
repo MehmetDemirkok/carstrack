@@ -9,7 +9,10 @@ import { isTelegramConfigured, getMe, getWebhookInfo } from "@/lib/telegram";
  *   GET /api/telegram/diagnose?secret=CRON_SECRET
  */
 export async function GET(req: NextRequest) {
-  const secret = new URL(req.url).searchParams.get("secret");
+  // Sırrı tercihen Authorization başlığından oku (query string log sızıntısı).
+  const authHeader = req.headers.get("authorization");
+  const headerSecret = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const secret = headerSecret ?? new URL(req.url).searchParams.get("secret");
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

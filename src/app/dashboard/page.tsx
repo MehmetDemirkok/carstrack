@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,30 @@ export default function Dashboard() {
   const [telegramBannerDismissed, setTelegramBannerDismissed] = useState(false);
 
   const showTelegramBanner = !telegramBannerDismissed && !profile?.telegramChatId;
-  const telegramConnectUrl = `https://t.me/Carstrack_APP_Bot?start=${user?.id ?? ""}`;
+
+  // GÜVENLİK: Telegram bağlama, tahmin edilebilir user.id yerine sunucuda
+  // üretilen tek-kullanımlık koda dayanır (C-3).
+  const [telegramConnecting, setTelegramConnecting] = useState(false);
+  const handleTelegramConnect = async () => {
+    const tab = window.open("", "_blank");
+    setTelegramConnecting(true);
+    try {
+      const res = await fetch("/api/telegram/link-code", { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.url) {
+        if (tab) tab.location.href = json.url as string;
+        else window.location.href = json.url as string;
+      } else {
+        tab?.close();
+        toast.error("Bağlantı oluşturulamadı", { description: json?.error || "Tekrar deneyin." });
+      }
+    } catch {
+      tab?.close();
+      toast.error("Bağlantı hatası");
+    } finally {
+      setTelegramConnecting(false);
+    }
+  };
 
   const vehicleIds = new Set(vehicles.map((x) => x.id));
   const alerts: FleetAlert[] = getFleetAlerts(vehicles);
@@ -158,14 +182,14 @@ export default function Dashboard() {
                 <p className="text-[11px] text-muted-foreground">Filo uyarılarını anında Telegram&apos;dan al</p>
               </div>
               {user?.id ? (
-                <a
-                  href={telegramConnectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 text-xs font-semibold text-sky-500 border border-sky-500/30 rounded-xl px-3 py-1.5 hover:bg-sky-500/10 transition-colors"
+                <button
+                  type="button"
+                  onClick={handleTelegramConnect}
+                  disabled={telegramConnecting}
+                  className="shrink-0 text-xs font-semibold text-sky-500 border border-sky-500/30 rounded-xl px-3 py-1.5 hover:bg-sky-500/10 transition-colors disabled:opacity-50"
                 >
-                  Bağla
-                </a>
+                  {telegramConnecting ? "..." : "Bağla"}
+                </button>
               ) : (
                 <span className="shrink-0 text-xs font-semibold text-sky-500/40 border border-sky-500/15 rounded-xl px-3 py-1.5 cursor-not-allowed">
                   Bağla

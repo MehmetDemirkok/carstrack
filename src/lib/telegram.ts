@@ -1,6 +1,11 @@
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const API = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : null;
 
+// GÜVENLİK: Webhook'un gerçekten Telegram'dan geldiğini doğrulamak için gizli
+// token. Telegram her webhook isteğinde bunu "X-Telegram-Bot-Api-Secret-Token"
+// başlığında geri gönderir; setWebhook sırasında kaydedilir.
+export const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET ?? "";
+
 /** TELEGRAM_BOT_TOKEN tanımlı mı? Çağrılardan önce kontrol için. */
 export function isTelegramConfigured(): boolean {
   return !!BOT_TOKEN;
@@ -42,10 +47,13 @@ export async function sendTelegramMessage(chatId: string, text: string): Promise
 
 export async function setWebhook(webhookUrl: string): Promise<void> {
   if (!API) throw new Error("TELEGRAM_BOT_TOKEN tanımlı değil.");
+  const payload: Record<string, unknown> = { url: webhookUrl };
+  // Gizli token kaydı — Telegram bunu her istekte başlıkta geri gönderir.
+  if (TELEGRAM_WEBHOOK_SECRET) payload.secret_token = TELEGRAM_WEBHOOK_SECRET;
   const res = await fetch(`${API}/setWebhook`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url: webhookUrl }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`setWebhook failed: ${await res.text()}`);
 }

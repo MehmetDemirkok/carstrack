@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchToManagers } from "@/lib/notify";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 function generateInviteCode(): string {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -8,11 +9,28 @@ function generateInviteCode(): string {
 
 export async function POST(req: Request) {
   try {
+    // GÜVENLİK: kayıt suistimalini sınırla — IP başına 5 deneme / saat
+    const rl = rateLimit(`register:${clientIp(req)}`, 5, 60 * 60_000);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      );
+    }
+
     const body = await req.json();
     const { mode, fullName, email, password, companyName, inviteCode } = body;
 
     if (!fullName || !email || !password) {
       return NextResponse.json({ error: "Lütfen tüm alanları doldurun." }, { status: 400 });
+    }
+
+    // Girdi doğrulama (güvenlik): geçerli e-posta + minimum parola gücü
+    if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Geçerli bir e-posta adresi girin." }, { status: 400 });
+    }
+    if (typeof password !== "string" || password.length < 8) {
+      return NextResponse.json({ error: "Parola en az 8 karakter olmalıdır." }, { status: 400 });
     }
 
     const supabaseAdmin = createAdminClient();
@@ -37,7 +55,11 @@ export async function POST(req: Request) {
         email,
         password,
         email_confirm: true,
-        user_metadata: { company_id: company.id } // Store for non-recursive RLS
+        // GÜVENLİK: company_id YETKİLENDİRME için app_metadata'da tutulur
+        // (yalnızca service-role yazabilir; RLS get_auth_company_id() bunu okur).
+        // user_metadata yalnızca istemci tarafı hızlı yükleme içindir.
+        app_metadata: { company_id: company.id },
+        user_metadata: { company_id: company.id },
       });
 
       if (authError) {
@@ -104,7 +126,10 @@ export async function POST(req: Request) {
       email,
       password,
       email_confirm: true,
-      user_metadata: { company_id: companyData.id }
+      // GÜVENLİK: company_id app_metadata'da (yetkilendirme kaynağı), user_metadata
+      // yalnızca istemci hızlı yükleme için.
+      app_metadata: { company_id: companyData.id },
+      user_metadata: { company_id: companyData.id },
     });
 
     if (authError) {

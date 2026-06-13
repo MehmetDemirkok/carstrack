@@ -300,7 +300,31 @@ export default function SettingsPage() {
     setTelegramChatId(profile?.telegramChatId);
   }, [profile?.telegramChatId]);
 
-  const telegramConnectUrl = `https://t.me/Carstrack_APP_Bot?start=${user?.id ?? ""}`;
+  // GÜVENLİK: Telegram bağlama artık tahmin edilebilir user.id yerine sunucuda
+  // üretilen tek-kullanımlık koda dayanır (C-3). Butona basınca kod alınıp
+  // Telegram derin bağlantısı açılır.
+  const [telegramConnecting, setTelegramConnecting] = useState(false);
+  const handleTelegramConnect = async () => {
+    // Popup engelleyiciye takılmamak için sekmeyi senkron aç, sonra adres ver.
+    const tab = window.open("", "_blank");
+    setTelegramConnecting(true);
+    try {
+      const res = await fetch("/api/telegram/link-code", { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.url) {
+        if (tab) tab.location.href = json.url as string;
+        else window.location.href = json.url as string;
+      } else {
+        tab?.close();
+        toast.error("Bağlantı oluşturulamadı", { description: json?.error || "Tekrar deneyin." });
+      }
+    } catch {
+      tab?.close();
+      toast.error("Bağlantı hatası");
+    } finally {
+      setTelegramConnecting(false);
+    }
+  };
 
   const [telegramTesting, setTelegramTesting] = useState(false);
   const handleTelegramTest = async () => {
@@ -653,16 +677,21 @@ export default function SettingsPage() {
                   }
                 />
               ) : user?.id ? (
-                <a href={telegramConnectUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <button
+                  type="button"
+                  onClick={handleTelegramConnect}
+                  disabled={telegramConnecting}
+                  className="block w-full text-left disabled:opacity-60"
+                >
                   <SettingItem
                     icon={Send}
                     iconBg="bg-sky-500/10"
                     iconColor="text-sky-500"
                     label="Telegram'ı Bağla"
-                    description="Filo uyarılarını Telegram'dan al"
+                    description={telegramConnecting ? "Bağlantı oluşturuluyor…" : "Filo uyarılarını Telegram'dan al"}
                     trailing={<ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                   />
-                </a>
+                </button>
               ) : (
                 <SettingItem
                   icon={Send}

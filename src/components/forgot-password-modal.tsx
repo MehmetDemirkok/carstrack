@@ -45,18 +45,13 @@ export function ForgotPasswordModal({ open, onOpenChange }: Props) {
         body: JSON.stringify({ email }),
       });
 
-      const data: { found?: boolean; sent?: boolean; error?: string } = await res.json();
-
       if (!res.ok) {
         setError("İstek gönderilemedi. Lütfen tekrar deneyin.");
         return;
       }
 
-      if (!data.found) {
-        setError("No account found with this email address.");
-        return;
-      }
-
+      // GÜVENLİK: Hesabın var olup olmadığını AÇIKLAMAYIZ (kullanıcı sayımını
+      // engellemek için). Her durumda aynı onay mesajını gösteririz.
       setSent(true);
     } catch {
       setError("İstek gönderilemedi. Lütfen tekrar deneyin.");
@@ -84,10 +79,11 @@ export function ForgotPasswordModal({ open, onOpenChange }: Props) {
               className="flex flex-col items-center gap-3 py-2 text-center"
             >
               <CheckCircle2 className="h-10 w-10 text-emerald-500" />
-              <p className="font-semibold text-sm">Bağlantı gönderildi!</p>
+              <p className="font-semibold text-sm">İsteğiniz alındı</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                <span className="font-medium text-foreground">{email}</span>{" "}
-                adresine şifre sıfırlama bağlantısı gönderildi. Gelen kutunuzu kontrol edin.
+                Eğer <span className="font-medium text-foreground">{email}</span>{" "}
+                adresine kayıtlı bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.
+                Gelen kutunuzu kontrol edin.
               </p>
               <Button
                 variant="outline"
