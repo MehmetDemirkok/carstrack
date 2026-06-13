@@ -9,6 +9,7 @@ import {
   Wrench, BarChart3, Users, Bell, Sun, Moon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { LogoMark } from "@/components/brand/logo-mark";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -131,10 +132,7 @@ export default function LoginClient() {
         <div className="relative z-10 flex flex-col justify-between h-full p-8 xl:p-10">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="p-2.5 rounded-xl"
-              style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}>
-              <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
-            </div>
+            <LogoMark size={42} className="shrink-0" />
             <div>
               <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "#e8eaf0", fontWeight: 800, fontSize: "1.15rem" }}>
                 Cars<span style={{ color: "#6366f1" }}>Track</span>

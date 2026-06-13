@@ -17,6 +17,7 @@ import {
   CalendarDays, Gauge, Disc3, AlertTriangle, Clock, Sparkles, Sun, Moon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { LogoMark } from "@/components/brand/logo-mark";
 
 /* ───────────────────────── data ───────────────────────── */
 
@@ -404,10 +405,9 @@ export default function LandingClient() {
             <motion.div
               whileHover={{ rotate: -8, scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
-              className="p-2 rounded-xl"
-              style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.28)" }}
+              className="shrink-0"
             >
-              <Car className="h-4 w-4" style={{ color: "#6366f1" }} />
+              <LogoMark size={36} />
             </motion.div>
             <span
               className="font-extrabold text-lg tracking-tight"

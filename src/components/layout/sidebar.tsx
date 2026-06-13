@@ -7,6 +7,7 @@ import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
+import { LogoMark } from "@/components/brand/logo-mark";
 
 function getInitials(name: string): string {
   return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
@@ -59,10 +60,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="p-6 relative">
         <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className="p-2.5 rounded-xl transition-shadow"
-            style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.28)" }}>
-            <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
-          </div>
+          <LogoMark size={40} className="shrink-0 transition-transform group-hover:scale-105" />
           <div className="flex flex-col leading-none">
             <span className="text-foreground font-extrabold text-lg tracking-tight"
               style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif" }}>

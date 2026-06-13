@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx next *)",
+      "Bash(rsvg-convert -w 40 -h 40 public/logo.svg -o /tmp/s40.png)",
+      "Bash(rsvg-convert -w 64 -h 64 public/logo.svg -o /tmp/s64.png)"
+    ]
+  }
+}
