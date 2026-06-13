@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
+import { useData } from "@/context/data-context";
 import Link from "next/link";
 import {
   getVehicles, updateVehicle, deleteVehicle, getVehicle,
@@ -303,6 +304,9 @@ export default function VehicleDetailPage() {
   const router = useRouter();
   const id = params.id as string;
   const { loading: authLoading, company, profile } = useAuth();
+  // Paylaşılan veri context'i — detay sayfasındaki değişikliklerin dashboard,
+  // /history, /vehicles ve /analytics'e yenileme gerektirmeden yansıması için.
+  const { refresh: refreshShared } = useData();
   const isDriver = profile?.role === "user";
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
@@ -415,6 +419,7 @@ export default function VehicleDetailPage() {
       await updateVehicle(vehicle.id, editData);
       setShowEdit(false);
       reload();
+      refreshShared();
       toast.success("Güncellendi", { description: "Araç bilgileri kaydedildi." });
     } catch (err) {
       console.error(err);
@@ -425,6 +430,7 @@ export default function VehicleDetailPage() {
   const handleDelete = async () => {
     try {
       await deleteVehicle(vehicle.id);
+      await refreshShared();
       toast.success("Silindi", { description: "Araç başarıyla silindi." });
       router.push("/vehicles");
     } catch (err) {
@@ -463,6 +469,7 @@ export default function VehicleDetailPage() {
       setRecordMaintIds([]);
       setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" });
       reload();
+      refreshShared();
       toast.success("Kayıt Eklendi", { description: "Servis kaydı başarıyla eklendi." });
     } catch (err) {
       console.error(err);
@@ -1656,6 +1663,7 @@ export default function VehicleDetailPage() {
                   setShowDeleteRecord(false);
                   setRecordToDelete(null);
                   reload();
+                  refreshShared();
                   toast.success("Silindi", { description: "Kayıt başarıyla silindi." });
                 } catch (err) {
                   toast.error("Hata", { description: "Kayıt silinirken hata oluştu." });

@@ -14,6 +14,7 @@ import { addVehicle, addVehicleDocument, uploadDocumentFile } from "@/lib/db";
 import type { FuelType, TransmissionType, TireSeasonType, OwnershipType, Vehicle } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileText, XCircle, Upload } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { useData } from "@/context/data-context";
 import { DatePicker } from "@/components/ui/date-picker";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
@@ -304,6 +305,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 export default function NewVehiclePage() {
   const router = useRouter();
   const { company, profile } = useAuth();
+  const { refresh } = useData();
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
@@ -567,6 +569,10 @@ export default function NewVehiclePage() {
           })
         );
       }
+
+      // Yeni aracın listede anında görünmesi için ortak veri context'ini tazele
+      // (addVehicle db önbelleğini temizlediğinden taze veri çekilir).
+      await refresh();
 
       setSaving(false);
       setDone(true);

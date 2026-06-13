@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Bell, Search, LogOut, Sun, Moon } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -25,7 +25,7 @@ function getGreeting(): string {
 }
 
 export function TopBar() {
-  const { profile, user, signOut } = useAuth();
+  const { profile, company, user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -71,6 +71,9 @@ export function TopBar() {
           className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/60 group"
         >
           <Avatar className="h-8 w-8 transition-transform group-hover:scale-105" style={{ border: "1px solid rgba(99,102,241,0.35)" }}>
+            {profile?.avatarUrl && (
+              <AvatarImage src={profile.avatarUrl} alt={displayName} className="object-cover" />
+            )}
             <AvatarFallback className="text-xs font-bold" style={{ background: "rgba(99,102,241,0.15)", color: "#6366f1" }}>
               {initials}
             </AvatarFallback>
@@ -85,6 +88,9 @@ export function TopBar() {
               style={{ fontFamily: "var(--font-barlow), sans-serif" }}>
               {displayName}
             </span>
+            {company?.name && (
+              <span className="text-xs text-muted-foreground truncate mt-0.5">{company.name}</span>
+            )}
           </div>
         </Link>
 

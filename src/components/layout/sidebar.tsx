@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
 
@@ -15,7 +15,7 @@ function getInitials(name: string): string {
 export function Sidebar() {
   const pathname = usePathname();
   const { t } = useLanguage();
-  const { profile, loading } = useAuth();
+  const { profile, company, loading } = useAuth();
   const isDriver = profile?.role === "user";
 
   const navItems = isDriver
@@ -132,6 +132,9 @@ export function Sidebar() {
             className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/50 transition-colors group"
             title={profile.fullName}>
             <Avatar className="h-8 w-8" style={{ border: "1px solid rgba(99,102,241,0.28)" }}>
+              {profile.avatarUrl && (
+                <AvatarImage src={profile.avatarUrl} alt={profile.fullName || "Profil"} className="object-cover" />
+              )}
               <AvatarFallback className="text-xs font-bold"
                 style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>
                 {initials}
@@ -139,6 +142,9 @@ export function Sidebar() {
             </Avatar>
             <div className="flex flex-col min-w-0 flex-1 leading-none">
               <span className="text-sm font-semibold text-foreground truncate">{profile.fullName || "Kullanıcı"}</span>
+              {company?.name && (
+                <span className="text-xs text-muted-foreground truncate mt-0.5">{company.name}</span>
+              )}
               <span className="text-muted-foreground mt-0.5"
                 style={{ fontSize: "0.58rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
                 {profile.role === "manager" ? "ŞİRKET YETKİLİSİ" : profile.role === "operator" ? "OPERATÖR" : "KULLANICI"}
