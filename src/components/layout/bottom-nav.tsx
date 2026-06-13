@@ -41,7 +41,7 @@ export function BottomNav() {
           style={{ backdropFilter: "blur(20px)" }}>
           {/* Top orange edge line */}
           <div className="absolute inset-x-0 top-0 h-px"
-            style={{ background: "linear-gradient(90deg, transparent, rgba(99,102,241,0.35), transparent)" }} />
+            style={{ background: "linear-gradient(90deg, transparent, color-mix(in oklab, var(--primary) 35%, transparent), transparent)" }} />
 
           <div className="flex justify-around items-center h-16 px-1">
             {!loading && navItems.map((item) => {
@@ -53,14 +53,14 @@ export function BottomNav() {
                     <motion.div
                       layoutId="navPill"
                       className="absolute inset-y-2 inset-x-1 rounded-2xl"
-                      style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.22)" }}
+                      style={{ background: "color-mix(in oklab, var(--primary) 12%, transparent)", border: "1px solid color-mix(in oklab, var(--primary) 22%, transparent)" }}
                       transition={{ type: "spring", stiffness: 400, damping: 32 }}
                     />
                   )}
                   <div className="relative z-10">
                     <item.icon
                       className={cn("w-5 h-5 transition-all duration-300")}
-                      style={{ color: isActive ? "#6366f1" : undefined }}
+                      style={{ color: isActive ? "var(--primary)" : undefined }}
                     />
                     {!isActive && <item.icon className="w-5 h-5 hidden" />}
                     {item.href === "/settings" && needsProfileCompletion && !isActive && (

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Outfit, Barlow_Condensed, IBM_Plex_Mono } from "next/font/google";
+import { Inter, Hanken_Grotesk, Barlow_Condensed, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ShellWrapper } from "@/components/layout/shell-wrapper";
@@ -14,13 +14,20 @@ import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+// Hanken Grotesk drives all heading/display text (exposed as --font-outfit so every
+// existing `font-outfit` usage picks it up automatically).
+const hankenGrotesk = Hanken_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-outfit",
+  weight: ["400", "500", "600", "700", "800"],
+});
 const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],
   variable: "--font-barlow",
   weight: ["400", "500", "600", "700", "800", "900"],
 });
-const ibmPlexMono = IBM_Plex_Mono({
+// JetBrains Mono for label-caps / mono accents (exposed as --font-ibm-mono).
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-ibm-mono",
   weight: ["400", "500", "600"],
@@ -126,7 +133,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.variable} ${outfit.variable} ${barlowCondensed.variable} ${ibmPlexMono.variable} font-sans antialiased bg-background text-foreground min-h-[100dvh] flex flex-col`}
+        className={`${inter.variable} ${hankenGrotesk.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} font-sans antialiased bg-background text-foreground min-h-[100dvh] flex flex-col`}
       >
         <ThemeProvider
           attribute="class"

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench } from "lucide-react";
+import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
@@ -16,7 +16,7 @@ function getInitials(name: string): string {
 export function Sidebar() {
   const pathname = usePathname();
   const { t } = useLanguage();
-  const { profile, company, loading } = useAuth();
+  const { profile, company, loading, signOut } = useAuth();
   const isDriver = profile?.role === "user";
 
   const navItems = isDriver
@@ -49,13 +49,13 @@ export function Sidebar() {
       <div
         className="absolute inset-0 pointer-events-none opacity-60 dark:opacity-100"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(99,102,241,0.06)' stroke-width='0.8'/%3E%3C/svg%3E")`,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(0,74,198,0.06)' stroke-width='0.8'/%3E%3C/svg%3E")`,
           backgroundSize: "60px 52px",
         }}
       />
       {/* Ambient top glow */}
       <div className="absolute -top-16 -left-8 w-48 h-48 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%)" }} />
+        style={{ background: "radial-gradient(circle, color-mix(in oklab, var(--primary) 7%, transparent) 0%, transparent 70%)" }} />
 
       {/* Logo */}
       <div className="p-6 relative">
@@ -64,7 +64,7 @@ export function Sidebar() {
           <div className="flex flex-col leading-none">
             <span className="text-foreground font-extrabold text-lg tracking-tight"
               style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif" }}>
-              Cars<span style={{ color: "#6366f1" }}>Track</span>
+              Cars<span style={{ color: "var(--primary)" }}>Track</span>
             </span>
             <span className="text-muted-foreground mt-0.5"
               style={{ fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
@@ -75,7 +75,7 @@ export function Sidebar() {
       </div>
 
       {/* Divider */}
-      <div className="mx-4 h-px mb-2" style={{ background: "rgba(99,102,241,0.1)" }} />
+      <div className="mx-4 h-px mb-2" style={{ background: "color-mix(in oklab, var(--primary) 10%, transparent)" }} />
 
       <div className="flex-1 px-3 space-y-0.5 overflow-y-auto no-scrollbar relative">
         {!loading && navItems.map((item) => {
@@ -93,8 +93,8 @@ export function Sidebar() {
                   layoutId="sidebar-active"
                   className="absolute inset-0 rounded-xl"
                   style={{
-                    background: "rgba(99,102,241,0.12)",
-                    borderLeft: "2px solid #6366f1",
+                    background: "color-mix(in oklab, var(--primary) 12%, transparent)",
+                    borderLeft: "2px solid var(--primary)",
                   }}
                   transition={{ type: "spring", stiffness: 320, damping: 28 }}
                 />
@@ -102,7 +102,7 @@ export function Sidebar() {
               <div className="relative shrink-0">
                 <item.icon
                   className="relative z-10 transition-all"
-                  style={{ width: 18, height: 18, color: isActive ? "#6366f1" : undefined }}
+                  style={{ width: 18, height: 18, color: isActive ? "var(--primary)" : undefined }}
                 />
                 {item.href === "/settings" && profile && !profile.department && !isActive && (
                   <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background z-20" />
@@ -113,7 +113,7 @@ export function Sidebar() {
                 <motion.span
                   layoutId="sidebar-active-dot"
                   className="ml-auto h-1.5 w-1.5 rounded-full relative z-10"
-                  style={{ background: "#6366f1" }}
+                  style={{ background: "var(--primary)" }}
                 />
               )}
             </Link>
@@ -123,32 +123,38 @@ export function Sidebar() {
 
       {/* Bottom: user + add vehicle */}
       <div className="p-3 space-y-2 relative">
-        <div className="mx-1 h-px mb-3" style={{ background: "rgba(99,102,241,0.1)" }} />
+        <div className="mx-1 h-px mb-3" style={{ background: "color-mix(in oklab, var(--primary) 10%, transparent)" }} />
 
         {profile && (
-          <Link href="/settings"
-            className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/50 transition-colors group"
-            title={profile.fullName}>
-            <Avatar className="h-8 w-8" style={{ border: "1px solid rgba(99,102,241,0.28)" }}>
-              {profile.avatarUrl && (
-                <AvatarImage src={profile.avatarUrl} alt={profile.fullName || "Profil"} className="object-cover" />
-              )}
-              <AvatarFallback className="text-xs font-bold"
-                style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col min-w-0 flex-1 leading-none">
-              <span className="text-sm font-semibold text-foreground truncate">{profile.fullName || "Kullanıcı"}</span>
-              {company?.name && (
-                <span className="text-xs text-muted-foreground truncate mt-0.5">{company.name}</span>
-              )}
-              <span className="text-muted-foreground mt-0.5"
-                style={{ fontSize: "0.58rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
-                {profile.role === "manager" ? "ŞİRKET YETKİLİSİ" : profile.role === "operator" ? "OPERATÖR" : "KULLANICI"}
-              </span>
-            </div>
-          </Link>
+          <div className="flex items-center gap-3 bg-accent rounded-2xl p-3">
+            <Link href="/settings"
+              className="flex items-center gap-3 min-w-0 flex-1 group"
+              title={profile.fullName}>
+              <Avatar className="h-9 w-9 shrink-0" style={{ border: "2px solid color-mix(in oklab, var(--primary) 30%, transparent)" }}>
+                {profile.avatarUrl && (
+                  <AvatarImage src={profile.avatarUrl} alt={profile.fullName || "Profil"} className="object-cover" />
+                )}
+                <AvatarFallback className="text-xs font-bold"
+                  style={{ background: "color-mix(in oklab, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col min-w-0 leading-none">
+                <span className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{profile.fullName || "Kullanıcı"}</span>
+                <span className="text-muted-foreground truncate mt-1"
+                  style={{ fontSize: "0.58rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.04em" }}>
+                  {[company?.name, profile.role === "manager" ? "ADMIN" : profile.role === "operator" ? "OPERATÖR" : "KULLANICI"].filter(Boolean).join(" · ")}
+                </span>
+              </div>
+            </Link>
+            <button
+              onClick={signOut}
+              title="Çıkış Yap"
+              className="ml-auto shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         )}
       </div>
     </aside>

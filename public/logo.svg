@@ -1,9 +1,9 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CarsTrack">
   <defs>
-    <!-- Badge background gradient: indigo → teal -->
+    <!-- Badge background gradient: blue → teal -->
     <linearGradient id="ct-bg" x1="48" y1="32" x2="464" y2="480" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#818cf8"/>
-      <stop offset="0.45" stop-color="#6366f1"/>
+      <stop offset="0" stop-color="#5b8dff"/>
+      <stop offset="0.45" stop-color="#2563eb"/>
       <stop offset="1" stop-color="#15b8c5"/>
     </linearGradient>
     <!-- Soft top highlight -->

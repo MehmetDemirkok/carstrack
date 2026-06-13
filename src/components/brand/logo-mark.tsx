@@ -35,8 +35,8 @@ export function LogoMark({ size = 40, className, bare = false, title = "CarsTrac
     >
       <defs>
         <linearGradient id={bg} x1="48" y1="32" x2="464" y2="480" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#818cf8" />
-          <stop offset="0.45" stopColor="#6366f1" />
+          <stop offset="0" stopColor="#5b8dff" />
+          <stop offset="0.45" stopColor="#2563eb" />
           <stop offset="1" stopColor="#15b8c5" />
         </linearGradient>
         <radialGradient

@@ -8,14 +8,13 @@ import { useData } from "@/context/data-context";
 import { calculateHealthScore, getMaintenanceStatusForItem } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import Link from "next/link";
 import {
   Car, ChevronRight, Plus, Gauge, Trash2,
   CheckCircle2, Circle, Fuel, Shield, Wrench, Calendar, Download, Move, Send,
-  AlertTriangle, GripVertical, ArrowUpDown,
+  AlertTriangle, GripVertical, ArrowUpDown, Settings2,
 } from "lucide-react";
 import { exportVehiclesExcel } from "@/lib/export";
 import { DragSlider } from "@/components/ui/drag-slider";
@@ -111,6 +110,7 @@ export default function VehiclesPage() {
   const [pendingPosX, setPendingPosX] = useState(50);
   const [positionSaving, setPositionSaving] = useState(false);
   const [isSortMode, setIsSortMode] = useState(false);
+  const [filter, setFilter] = useState<"all" | "available" | "onTask" | "alert">("all");
   const saveOrderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 8px eşiği: kısa tıklama ile sürüklemeyi ayırır, kazara sıralamayı önler.
@@ -128,6 +128,20 @@ export default function VehiclesPage() {
     });
     return () => { cancelled = true; };
   }, [vehicles.length]);
+
+  // Filtre sayıları + aktif filtreye göre görüntülenecek araçlar
+  const filterPills = [
+    { key: "all" as const, label: "Tümü", count: vehicles.length },
+    { key: "available" as const, label: "Müsait", count: vehicles.filter((v) => !activeVehicleMap.has(v.id)).length },
+    { key: "onTask" as const, label: "Görevde", count: vehicles.filter((v) => activeVehicleMap.has(v.id)).length },
+    { key: "alert" as const, label: "Uyarı", count: vehicles.filter((v) => getVehicleAlert(v) !== null).length },
+  ];
+  const visibleVehicles = vehicles.filter((v) => {
+    if (filter === "available") return !activeVehicleMap.has(v.id);
+    if (filter === "onTask") return activeVehicleMap.has(v.id);
+    if (filter === "alert") return getVehicleAlert(v) !== null;
+    return true;
+  });
 
   const startReposition = (e: React.MouseEvent, vehicle: Vehicle) => {
     e.preventDefault();
@@ -208,8 +222,10 @@ export default function VehiclesPage() {
   const cardBody = (vehicle: Vehicle, score: number) => {
     const selected = selectedIds.includes(vehicle.id);
     const alert = getVehicleAlert(vehicle);
+    const onTask = activeVehicleMap.has(vehicle.id);
+    const scoreTone = score >= 85 ? "text-mint" : score >= 65 ? "text-amber-300" : "text-red-300";
     return (
-      <Card className={`overflow-hidden rounded-3xl shadow-md transition-all relative group ${selected ? "border-primary ring-2 ring-primary/20 shadow-primary/20" : "border-border/40 hover:shadow-2xl hover:shadow-primary/15"}`}>
+      <Card className={`overflow-hidden rounded-3xl shadow-sm transition-all relative group flex flex-col h-full ${selected ? "border-primary ring-2 ring-primary/20 shadow-primary/20" : "border-border/40 hover:shadow-2xl hover:shadow-primary/10"}`}>
         {isSelectionMode && (
           <div className={`absolute inset-0 z-20 pointer-events-none transition-colors rounded-3xl ${selected ? "bg-primary/5" : "bg-black/40"}`} />
         )}
@@ -219,11 +235,11 @@ export default function VehiclesPage() {
           </div>
         )}
 
-        {/* Hero */}
-        <div className="h-52 relative overflow-hidden">
+        {/* Image hero */}
+        <div className="relative h-52 md:h-56 overflow-hidden">
           {vehicle.image ? (
             <div
-              className="absolute inset-0 transition-[background-position] duration-100 group-hover:scale-105 transition-transform duration-700"
+              className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"
               style={{
                 backgroundImage: `url(${vehicle.image})`,
                 backgroundSize: "cover",
@@ -238,9 +254,8 @@ export default function VehiclesPage() {
             </div>
           )}
 
-          {/* Gradient overlays */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" />
-          {vehicle.image && <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />}
+          {/* Subtle top-down tint for badge legibility */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/10 pointer-events-none" />
 
           {/* Reposition overlay */}
           {repositioningId === vehicle.id && (
@@ -276,44 +291,34 @@ export default function VehiclesPage() {
             </div>
           )}
 
-          {/* Plate badge + durum */}
-          <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-1.5">
-            <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1.5 shadow-lg">
-              <Car className="h-3 w-3 text-white/70" />
-              <span className="font-outfit font-black text-xs text-white tracking-wide">{vehicle.plate}</span>
-            </div>
+          {/* Top-left: plate + durum pills */}
+          <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2">
+            <span className="bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-lg text-[12px] font-mono tracking-wide border border-white/15 shadow-lg">
+              {vehicle.plate}
+            </span>
             {!isSelectionMode && repositioningId !== vehicle.id && (
-              activeVehicleMap.has(vehicle.id) ? (
+              onTask ? (
                 <span
-                  className="flex items-center gap-1 bg-amber-500/90 text-white rounded-lg px-2 py-1 text-[10px] font-bold shadow-lg"
+                  className="flex items-center gap-1 bg-amber-500/85 backdrop-blur-md text-white rounded-lg px-2.5 py-1 text-[12px] font-medium border border-amber-300/30 shadow-lg"
                   title={activeVehicleMap.get(vehicle.id) ? `${activeVehicleMap.get(vehicle.id)} kullanımında` : "Görevde"}
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
                   Görevde
                 </span>
               ) : (
-                <span className="flex items-center gap-1 bg-green-500/85 text-white rounded-lg px-2 py-1 text-[10px] font-bold shadow-lg">
+                <span className="bg-[var(--success)]/85 backdrop-blur-md text-white rounded-lg px-2.5 py-1 text-[12px] font-medium border border-white/15 shadow-lg">
                   Müsait
                 </span>
               )
             )}
           </div>
 
-          {/* Health score + reposition button */}
+          {/* Top-right: score circle + reposition */}
           {!isSelectionMode && repositioningId !== vehicle.id && !isSortMode && (
-            <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
-              <div className="relative w-11 h-11">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
-                  <circle cx="22" cy="22" r="18" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
-                  <circle
-                    cx="22" cy="22" r="18" fill="none"
-                    stroke={score >= 85 ? "#22c55e" : score >= 65 ? "#f59e0b" : "#ef4444"}
-                    strokeWidth="3"
-                    strokeDasharray={`${score * 1.131} ${113.1 - score * 1.131}`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-white text-[11px] font-black">{score}</span>
+            <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
+              <div className="w-12 h-12 bg-white/10 backdrop-blur-lg rounded-full flex flex-col items-center justify-center border border-white/20 shadow-lg">
+                <span className={`text-[14px] font-bold leading-none ${scoreTone}`}>{score}</span>
+                <span className="text-white/60 text-[8px] font-mono mt-0.5">SKOR</span>
               </div>
               {vehicle.image && !isDriver && (
                 <button
@@ -326,54 +331,53 @@ export default function VehiclesPage() {
               )}
             </div>
           )}
+        </div>
 
-          {/* Bottom info */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-8 z-10">
-            <div className="flex items-end justify-between">
-              <div>
-                <h2 className="text-2xl font-black font-outfit text-white leading-tight drop-shadow-sm">
-                  {vehicle.brand}
-                </h2>
-                <p className="text-sm text-white/60 font-medium mt-0.5">{vehicle.model} · {vehicle.year}</p>
+        {/* Body */}
+        <div className="p-5 flex flex-col flex-1">
+          <div className="flex justify-between items-start gap-2 mb-4">
+            <div className="min-w-0">
+              <h2 className="font-outfit text-[22px] font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                {vehicle.brand}
+              </h2>
+              <p className="text-muted-foreground text-[14px]">{vehicle.model} · {vehicle.year}</p>
+              <span className={`inline-block mt-1.5 text-[10px] font-medium rounded-md px-2 py-0.5 ${tireColor[vehicle.tireStatus]}`}>
+                {vehicle.tireStatus}
+              </span>
+            </div>
+            {!isSelectionMode && repositioningId !== vehicle.id && !isSortMode && (
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                <ChevronRight className="h-4 w-4" />
               </div>
-              {!isSelectionMode && repositioningId !== vehicle.id && !isSortMode && (
-                <div className="bg-white/10 backdrop-blur-md border border-white/15 text-white p-2 rounded-full shadow-lg group-hover:bg-primary group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
-                  <ChevronRight className="h-4 w-4" />
-                </div>
-              )}
+            )}
+          </div>
+
+          {/* Sağlık skoru uyarı çipi: skoru düşüren en kritik sebep */}
+          {alert && !isSelectionMode && repositioningId !== vehicle.id && (
+            <div className={`flex items-center gap-1.5 mb-3 px-3 py-2 rounded-xl text-[11px] font-semibold ${
+              alert.tone === "critical"
+                ? "text-red-600 dark:text-red-400 bg-red-500/8"
+                : "text-amber-600 dark:text-amber-400 bg-amber-500/8"
+            }`}>
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{alert.label}</span>
             </div>
+          )}
+
+          {/* Stat tiles */}
+          <div className="grid grid-cols-3 gap-2 mt-auto">
+            {[
+              { Icon: Gauge, value: `${vehicle.mileage.toLocaleString("tr-TR")} km` },
+              { Icon: Fuel, value: vehicle.fuelType },
+              { Icon: Settings2, value: vehicle.transmission },
+            ].map(({ Icon, value }, idx) => (
+              <div key={idx} className="bg-surface-2 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 text-center">
+                <Icon className="h-4 w-4 text-primary" />
+                <span className="font-mono text-[10px] text-muted-foreground truncate w-full">{value}</span>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* Info bar */}
-        <div className="px-4 py-3 bg-card/95 flex items-center justify-between">
-          <div className="flex items-center gap-3.5 text-[11px]">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Gauge className="h-3.5 w-3.5" />
-              <span className="font-medium">{vehicle.mileage.toLocaleString("tr-TR")} km</span>
-            </div>
-            <div className="w-px h-3 bg-border/60" />
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Fuel className="h-3.5 w-3.5" />
-              <span className="font-medium">{vehicle.fuelType}</span>
-            </div>
-          </div>
-          <Badge variant="secondary" className={`text-[10px] font-bold rounded-lg px-2 py-0.5 border-none ${tireColor[vehicle.tireStatus]}`}>
-            {vehicle.tireStatus}
-          </Badge>
-        </div>
-
-        {/* Sağlık skoru uyarı çipi: skoru düşüren en kritik sebep */}
-        {alert && !isSelectionMode && repositioningId !== vehicle.id && (
-          <div className={`flex items-center gap-1.5 px-4 py-2 text-[11px] font-semibold border-t ${
-            alert.tone === "critical"
-              ? "text-red-600 dark:text-red-400 bg-red-500/5 border-red-500/15"
-              : "text-amber-600 dark:text-amber-400 bg-amber-500/5 border-amber-500/15"
-          }`}>
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{alert.label}</span>
-          </div>
-        )}
 
         {/* Sürücü: hızlı arıza bildir */}
         {isDriver && !isSelectionMode && repositioningId !== vehicle.id && !isSortMode && (
@@ -513,6 +517,25 @@ export default function VehiclesPage() {
         </motion.div>
       )}
 
+      {/* Filtre çipleri */}
+      {!isSortMode && !isSelectionMode && vehicles.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+          {filterPills.map((pill) => (
+            <button
+              key={pill.key}
+              onClick={() => setFilter(pill.key)}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors whitespace-nowrap ${
+                filter === pill.key
+                  ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                  : "bg-surface-2 text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              {pill.label} ({pill.count})
+            </button>
+          ))}
+        </div>
+      )}
+
       {isSortMode ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={vehicles.map((v) => v.id)} strategy={rectSortingStrategy}>
@@ -526,14 +549,14 @@ export default function VehiclesPage() {
           </SortableContext>
         </DndContext>
       ) : (
-      <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {vehicles.map((vehicle) => {
+      <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+        {visibleVehicles.map((vehicle) => {
           const score = calculateHealthScore(vehicle);
           return (
             <div key={vehicle.id} className="relative">
               <Link
                 href={repositioningId === vehicle.id || isSelectionMode ? "#" : `/vehicles/${vehicle.id}`}
-                className="block tap-highlight-transparent"
+                className="block tap-highlight-transparent h-full"
                 style={{ pointerEvents: repositioningId === vehicle.id ? "none" : "auto" }}
                 onClick={(e) => {
                   if (repositioningId === vehicle.id) { e.preventDefault(); return; }
@@ -542,6 +565,7 @@ export default function VehiclesPage() {
               >
                 <motion.div
                   variants={cardAnim}
+                  className="h-full"
                   whileTap={isSelectionMode || repositioningId === vehicle.id ? {} : { scale: 0.97 }}
                   whileHover={isSelectionMode || repositioningId === vehicle.id ? {} : { y: -4 }}
                 >
@@ -552,6 +576,29 @@ export default function VehiclesPage() {
 
           );
         })}
+
+        {/* Yeni araç ekle — placeholder kart */}
+        {!isDriver && !isSelectionMode && vehicles.length > 0 && (
+          <Link href="/vehicles/new" className="block h-full min-h-[360px]">
+            <div className="h-full border-2 border-dashed border-border/60 rounded-3xl p-6 flex flex-col items-center justify-center gap-4 hover:border-primary hover:bg-primary/5 transition-all group">
+              <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                <Plus className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
+              <div className="text-center">
+                <h3 className="font-outfit font-semibold text-muted-foreground group-hover:text-primary transition-colors">Yeni Araç Ekle</h3>
+                <p className="text-[13px] text-muted-foreground/70">Filonuza yeni bir araç tanımlayın</p>
+              </div>
+            </div>
+          </Link>
+        )}
+
+        {/* Filtre sonuç vermedi */}
+        {vehicles.length > 0 && visibleVehicles.length === 0 && (
+          <div className="col-span-full py-12 flex flex-col items-center gap-2 text-center text-muted-foreground">
+            <Car className="h-10 w-10 opacity-40" />
+            <p className="text-sm">Bu filtrede araç yok.</p>
+          </div>
+        )}
 
         {vehicles.length === 0 && (
           <motion.div
