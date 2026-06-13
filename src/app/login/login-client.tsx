@@ -93,10 +93,10 @@ export default function LoginClient() {
 
   const inputStyle: React.CSSProperties = {
     background: "var(--card)",
-    borderLeft: "2px solid #6366f1",
-    borderTop: "1px solid rgba(99,102,241,0.12)",
-    borderRight: "1px solid rgba(99,102,241,0.12)",
-    borderBottom: "1px solid rgba(99,102,241,0.12)",
+    borderLeft: "2px solid #d0bcff",
+    borderTop: "1px solid rgba(208,188,255,0.12)",
+    borderRight: "1px solid rgba(208,188,255,0.12)",
+    borderBottom: "1px solid rgba(208,188,255,0.12)",
     borderRadius: "0 6px 6px 0",
     color: "var(--foreground)",
     fontFamily: "var(--font-ibm-mono), monospace",
@@ -111,12 +111,12 @@ export default function LoginClient() {
       {/* ── LEFT — Vehicle illustration panel (desktop only) ── */}
       <div
         className="hidden lg:flex lg:w-[36%] xl:w-[38%] relative overflow-hidden flex-col justify-between"
-        style={{ background: "linear-gradient(160deg, #12122e 0%, #0d0d21 100%)" }}
+        style={{ background: "linear-gradient(160deg, #161a2e 0%, #0f131d 60%, #0a0e18 100%)" }}
       >
         {/* Hex grid */}
         <div className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(99,102,241,0.05)' stroke-width='0.8'/%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(208,188,255,0.05)' stroke-width='0.8'/%3E%3C/svg%3E")`,
             backgroundSize: "60px 52px",
           }}
         />
@@ -124,7 +124,7 @@ export default function LoginClient() {
           animate={{ backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"] }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
           style={{
-            background: "linear-gradient(135deg, rgba(99,102,241,0.04) 0%, transparent 50%, rgba(14,14,45,0.8) 100%)",
+            background: "linear-gradient(135deg, rgba(208,188,255,0.04) 0%, transparent 50%, rgba(10,14,24,0.8) 100%)",
             backgroundSize: "200% 200%",
           }}
         />
@@ -135,7 +135,7 @@ export default function LoginClient() {
             <LogoMark size={42} className="shrink-0" />
             <div>
               <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "#e8eaf0", fontWeight: 800, fontSize: "1.15rem" }}>
-                Cars<span style={{ color: "#6366f1" }}>Track</span>
+                Cars<span style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
               </span>
               <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace", marginTop: 2 }}>
                 Filo Yönetim Sistemi
@@ -148,26 +148,26 @@ export default function LoginClient() {
             <div className="relative flex items-center justify-center" style={{ width: 230, height: 230 }}>
               {[1, 2, 3].map((i) => (
                 <motion.div key={i} className="absolute rounded-full"
-                  style={{ width: 70 + i * 50, height: 70 + i * 50, border: `1px solid rgba(99,102,241,${0.35 - i * 0.08})` }}
+                  style={{ width: 70 + i * 50, height: 70 + i * 50, border: `1px solid rgba(208,188,255,${0.35 - i * 0.08})` }}
                   animate={{ scale: [1, 1.08, 1], opacity: [0.7, 0.3, 0.7] }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
                 />
               ))}
               <div className="relative z-10" style={{ width: 100, height: 100 }}>
                 <svg viewBox="0 0 100 160" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", height: "100%" }} role="img" aria-label="Araç İllüstrasyonu">
-                  <rect x="18" y="30" width="64" height="100" rx="14" fill="#1a1a3f" stroke="rgba(99,102,241,0.5)" strokeWidth="1.5"/>
-                  <rect x="26" y="48" width="48" height="60" rx="8" fill="#12122e" stroke="rgba(99,102,241,0.3)" strokeWidth="1"/>
-                  <rect x="29" y="50" width="42" height="22" rx="5" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.4)" strokeWidth="0.8"/>
-                  <rect x="29" y="88" width="42" height="16" rx="5" fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0.3)" strokeWidth="0.8"/>
-                  <rect x="20" y="30" width="14" height="8" rx="3" fill="rgba(99,102,241,0.7)"/>
-                  <rect x="66" y="30" width="14" height="8" rx="3" fill="rgba(99,102,241,0.7)"/>
-                  <rect x="20" y="122" width="14" height="8" rx="3" fill="rgba(129,140,248,0.6)"/>
-                  <rect x="66" y="122" width="14" height="8" rx="3" fill="rgba(129,140,248,0.6)"/>
-                  <rect x="6" y="38" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
-                  <rect x="80" y="38" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
-                  <rect x="6" y="94" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
-                  <rect x="80" y="94" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
-                  <line x1="50" y1="50" x2="50" y2="106" stroke="rgba(99,102,241,0.15)" strokeWidth="1" strokeDasharray="4 3"/>
+                  <rect x="18" y="30" width="64" height="100" rx="14" fill="#1c1f2a" stroke="rgba(208,188,255,0.5)" strokeWidth="1.5"/>
+                  <rect x="26" y="48" width="48" height="60" rx="8" fill="#0f131d" stroke="rgba(208,188,255,0.3)" strokeWidth="1"/>
+                  <rect x="29" y="50" width="42" height="22" rx="5" fill="rgba(208,188,255,0.12)" stroke="rgba(208,188,255,0.4)" strokeWidth="0.8"/>
+                  <rect x="29" y="88" width="42" height="16" rx="5" fill="rgba(208,188,255,0.08)" stroke="rgba(208,188,255,0.3)" strokeWidth="0.8"/>
+                  <rect x="20" y="30" width="14" height="8" rx="3" fill="rgba(208,188,255,0.7)"/>
+                  <rect x="66" y="30" width="14" height="8" rx="3" fill="rgba(208,188,255,0.7)"/>
+                  <rect x="20" y="122" width="14" height="8" rx="3" fill="rgba(76,215,246,0.6)"/>
+                  <rect x="66" y="122" width="14" height="8" rx="3" fill="rgba(76,215,246,0.6)"/>
+                  <rect x="6" y="38" width="14" height="28" rx="5" fill="#1c1f2a" stroke="rgba(208,188,255,0.4)" strokeWidth="1"/>
+                  <rect x="80" y="38" width="14" height="28" rx="5" fill="#1c1f2a" stroke="rgba(208,188,255,0.4)" strokeWidth="1"/>
+                  <rect x="6" y="94" width="14" height="28" rx="5" fill="#1c1f2a" stroke="rgba(208,188,255,0.4)" strokeWidth="1"/>
+                  <rect x="80" y="94" width="14" height="28" rx="5" fill="#1c1f2a" stroke="rgba(208,188,255,0.4)" strokeWidth="1"/>
+                  <line x1="50" y1="50" x2="50" y2="106" stroke="rgba(208,188,255,0.15)" strokeWidth="1" strokeDasharray="4 3"/>
                 </svg>
               </div>
               {floatingIcons.map(({ icon: Icon, delay }, idx) => {
@@ -181,12 +181,12 @@ export default function LoginClient() {
                       marginLeft: Math.cos(rad) * r - 14,
                       marginTop: Math.sin(rad) * r - 14,
                       width: 28, height: 28,
-                      background: "rgba(99,102,241,0.1)",
-                      border: "1px solid rgba(99,102,241,0.25)",
+                      background: "rgba(208,188,255,0.1)",
+                      border: "1px solid rgba(208,188,255,0.25)",
                     }}
                     animate={{ opacity: [0.4, 1, 0.4] }}
                     transition={{ duration: 2, repeat: Infinity, delay, ease: "easeInOut" }}>
-                    <Icon style={{ color: "#6366f1", width: 12, height: 12 }} />
+                    <Icon style={{ color: "#d0bcff", width: 12, height: 12 }} />
                   </motion.div>
                 );
               })}
@@ -197,11 +197,11 @@ export default function LoginClient() {
           <div className="space-y-3">
             <div className="flex gap-2">
               {statCards.map(({ value, label, sub }, i) => (
-                <motion.div key={label} className="flex-1 rounded-lg p-2.5"
-                  style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.14)" }}
+                <motion.div key={label} className="flex-1 rounded-xl p-2.5"
+                  style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)", borderTop: "1px solid rgba(255,255,255,0.2)", borderLeft: "1px solid rgba(255,255,255,0.2)" }}
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + i * 0.15, duration: 0.5 }}>
-                  <div style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#6366f1", fontSize: "0.95rem", fontWeight: 600 }}>{value}</div>
+                  <div style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff", fontSize: "0.95rem", fontWeight: 600 }}>{value}</div>
                   <div style={{ color: "#e8eaf0", fontSize: "0.6rem", fontFamily: "var(--font-barlow), sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>{label}</div>
                   <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.58rem" }}>{sub}</div>
                 </motion.div>
@@ -224,7 +224,7 @@ export default function LoginClient() {
         {/* Diagonal line pattern */}
         <div className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(99,102,241,0.015) 40px, rgba(99,102,241,0.015) 41px)`,
+            backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(208,188,255,0.015) 40px, rgba(208,188,255,0.015) 41px)`,
           }}
         />
 
@@ -232,11 +232,11 @@ export default function LoginClient() {
         <div className="lg:hidden flex items-center justify-between px-5 pt-8 pb-4 relative z-10">
           <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="p-2 rounded-lg"
-              style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}>
-              <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
+              style={{ background: "rgba(208,188,255,0.15)", border: "1px solid rgba(208,188,255,0.3)" }}>
+              <Car className="h-5 w-5" style={{ color: "#d0bcff" }} />
             </div>
             <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "var(--foreground)", fontWeight: 800, fontSize: "1.15rem" }}>
-              Cars<span style={{ color: "#6366f1" }}>Track</span>
+              Cars<span style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
             </span>
           </Link>
           <div className="flex items-center gap-3">
@@ -244,12 +244,12 @@ export default function LoginClient() {
               type="button"
               onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
               className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors relative"
-              style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", color: "#6366f1" }}
+              style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "#d0bcff" }}
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </button>
-            <Link href="/register" style={{ color: "#6366f1", fontSize: "0.75rem", fontWeight: 600 }}>
+            <Link href="/register" style={{ color: "#d0bcff", fontSize: "0.75rem", fontWeight: 600 }}>
               Kayıt ol →
             </Link>
           </div>
@@ -261,7 +261,7 @@ export default function LoginClient() {
             type="button"
             onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
             className="h-9 w-9 flex items-center justify-center rounded-xl transition-all hover:scale-105 relative"
-            style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", color: "#6366f1" }}
+            style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "#d0bcff" }}
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -277,7 +277,7 @@ export default function LoginClient() {
               {/* Breadcrumb */}
               <div className="mb-6">
                 <span style={{
-                  fontFamily: "var(--font-ibm-mono), monospace", color: "#6366f1",
+                  fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff",
                   fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase",
                   display: "block", marginBottom: "0.75rem",
                 }}>
@@ -312,7 +312,7 @@ export default function LoginClient() {
                       Şifre
                     </label>
                     <button type="button" onClick={() => setForgotOpen(true)} tabIndex={-1}
-                      style={{ color: "rgba(99,102,241,0.7)", fontSize: "0.68rem", fontFamily: "var(--font-ibm-mono), monospace", background: "none", border: "none", cursor: "pointer" }}>
+                      style={{ color: "rgba(208,188,255,0.7)", fontSize: "0.68rem", fontFamily: "var(--font-ibm-mono), monospace", background: "none", border: "none", cursor: "pointer" }}>
                       Şifremi Unuttum?
                     </button>
                   </div>
@@ -342,11 +342,11 @@ export default function LoginClient() {
                 )}
 
                 {/* Submit */}
-                <button type="submit" disabled={anyBusy} className="w-full h-11 relative overflow-hidden transition-all disabled:opacity-60"
+                <button type="submit" disabled={anyBusy} className="w-full h-11 relative overflow-hidden transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-60 rounded-xl"
                   style={{
-                    background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)",
-                    clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))",
-                    color: "#fff", fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif",
+                    background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)",
+                    boxShadow: "0 0 24px rgba(109,59,215,0.55)",
+                    color: "#23005c", fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif",
                     fontWeight: 700, fontSize: "0.9rem", letterSpacing: "0.12em",
                     border: "none", cursor: anyBusy ? "not-allowed" : "pointer",
                   }}>
@@ -359,14 +359,14 @@ export default function LoginClient() {
 
               <p style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", textAlign: "center", marginTop: "1.25rem" }}>
                 Hesabınız yok mu?{" "}
-                <Link href="/register" style={{ color: "#6366f1", fontWeight: 600 }}>Kayıt İsteği Oluştur</Link>
+                <Link href="/register" style={{ color: "#d0bcff", fontWeight: 600 }}>Kayıt İsteği Oluştur</Link>
               </p>
             </div>
 
             {/* ── FEATURES COLUMN — desktop only ── */}
             <motion.div
               className="hidden lg:flex flex-col justify-center pl-10 xl:pl-14 ml-10 xl:ml-14"
-              style={{ borderLeft: "1px solid rgba(99,102,241,0.1)", flex: 1, minWidth: 0 }}
+              style={{ borderLeft: "1px solid rgba(208,188,255,0.1)", flex: 1, minWidth: 0 }}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
@@ -374,7 +374,7 @@ export default function LoginClient() {
               {/* Heading */}
               <div className="mb-8">
                 <span style={{
-                  fontFamily: "var(--font-ibm-mono), monospace", color: "#6366f1",
+                  fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff",
                   fontSize: "0.65rem", letterSpacing: "0.15em", textTransform: "uppercase",
                   display: "block", marginBottom: "0.6rem",
                 }}>
@@ -385,7 +385,7 @@ export default function LoginClient() {
                   fontSize: "1.9rem", fontWeight: 800, color: "var(--foreground)", lineHeight: 1.15,
                 }}>
                   Filo yönetiminin<br />
-                  <span style={{ color: "#6366f1" }}>akıllı</span> yolu
+                  <span style={{ color: "#d0bcff" }}>akıllı</span> yolu
                 </h2>
                 <p style={{ color: "var(--muted-foreground)", fontSize: "0.82rem", marginTop: "0.6rem", lineHeight: 1.6, maxWidth: 320 }}>
                   Araç bakımından sigorta takibine, servis geçmişinden ekip koordinasyonuna kadar tek platform.
@@ -399,8 +399,8 @@ export default function LoginClient() {
                     key={title}
                     className="flex gap-3 p-3 rounded-xl"
                     style={{
-                      background: "rgba(99,102,241,0.04)",
-                      border: "1px solid rgba(99,102,241,0.1)",
+                      background: "rgba(208,188,255,0.04)",
+                      border: "1px solid rgba(208,188,255,0.1)",
                     }}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -410,11 +410,11 @@ export default function LoginClient() {
                       className="shrink-0 flex items-center justify-center rounded-lg mt-0.5"
                       style={{
                         width: 32, height: 32,
-                        background: "rgba(99,102,241,0.1)",
-                        border: "1px solid rgba(99,102,241,0.2)",
+                        background: "rgba(208,188,255,0.1)",
+                        border: "1px solid rgba(208,188,255,0.2)",
                       }}
                     >
-                      <Icon style={{ color: "#6366f1", width: 15, height: 15 }} />
+                      <Icon style={{ color: "#d0bcff", width: 15, height: 15 }} />
                     </div>
                     <div className="min-w-0">
                       <h3 style={{
@@ -436,7 +436,7 @@ export default function LoginClient() {
                 <div className="flex -space-x-2">
                   {["A", "B", "C"].map((l) => (
                     <div key={l} className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ring-2"
-                      style={{ background: "rgba(99,102,241,0.15)", color: "#6366f1" }}>
+                      style={{ background: "rgba(208,188,255,0.15)", color: "#d0bcff" }}>
                       {l}
                     </div>
                   ))}

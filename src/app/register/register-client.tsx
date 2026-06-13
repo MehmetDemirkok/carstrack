@@ -6,9 +6,10 @@ import Link from "next/link";
 import {
   Car, Eye, EyeOff, ArrowRight, CheckCircle2,
   Building2, Users, User, Mail, Lock,
-  MapPin, Fuel, Signal, Shield, Home, Sun, Moon,
+  MapPin, Wrench, BarChart3, Home, Sun, Moon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { LogoMark } from "@/components/brand/logo-mark";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -19,17 +20,16 @@ const container = { hidden: {}, show: { transition: { staggerChildren: 0.06, del
 
 type Mode = "create" | "join";
 
-const floatingIcons = [
-  { icon: Fuel,   delay: 0 },
-  { icon: Signal, delay: 0.4 },
-  { icon: MapPin, delay: 0.8 },
-  { icon: Shield, delay: 1.2 },
+const statCards = [
+  { label: "Aktif Filo", value: "247 Araç", accent: "#4cd7f6" },
+  { label: "Uptime Oranı", value: "99.2%", accent: "#d0bcff" },
+  { label: "Güvenlik", value: "7/24 Takip", accent: "#c2c1ff" },
 ];
 
-const statCards = [
-  { value: "247",   label: "Araç",  sub: "Aktif Filo" },
-  { value: "99.2%", label: "Uptime",sub: "Kesintisiz" },
-  { value: "7/24",  label: "Takip", sub: "Gerçek Zamanlı" },
+const features = [
+  { icon: MapPin,    title: "Araç Takibi",       desc: "Tüm araçlarınız tek ekranda — model, km, yakıt ve daha fazlası." },
+  { icon: Wrench,    title: "Bakım Yönetimi",    desc: "Öngörücü bakım uyarıları ile beklenmedik duruşları minimize edin." },
+  { icon: BarChart3, title: "Gelişmiş Analitik", desc: "Yakıt tüketimi ve filo performansı üzerine derinlemesine raporlar." },
 ];
 
 function getPasswordStrength(pw: string): { level: number; label: string } {
@@ -56,6 +56,7 @@ export default function RegisterClient() {
   const [success, setSuccess]             = useState(false);
   const [joinedCompany, setJoinedCompany] = useState("");
   const router = useRouter();
+  const { setTheme } = useTheme();
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
@@ -90,16 +91,14 @@ export default function RegisterClient() {
     setTimeout(() => { router.push("/dashboard"); router.refresh(); }, 1400);
   };
 
-  const { setTheme } = useTheme();
-
   const strength = getPasswordStrength(form.password);
 
   const inputStyle: React.CSSProperties = {
     background: "var(--card)",
-    borderLeft: "2px solid #6366f1",
-    borderTop: "1px solid rgba(99,102,241,0.12)",
-    borderRight: "1px solid rgba(99,102,241,0.12)",
-    borderBottom: "1px solid rgba(99,102,241,0.12)",
+    borderLeft: "2px solid #d0bcff",
+    borderTop: "1px solid rgba(208,188,255,0.12)",
+    borderRight: "1px solid rgba(208,188,255,0.12)",
+    borderBottom: "1px solid rgba(208,188,255,0.12)",
     borderRadius: "0 6px 6px 0",
     color: "var(--foreground)",
     fontFamily: "var(--font-ibm-mono), monospace",
@@ -108,160 +107,109 @@ export default function RegisterClient() {
     boxShadow: "none",
   };
 
+  const labelStyle: React.CSSProperties = {
+    color: "var(--muted-foreground)", fontSize: "0.62rem",
+    fontFamily: "var(--font-ibm-mono), monospace",
+    letterSpacing: "0.1em", textTransform: "uppercase",
+  };
+
   return (
     <div className="auth-page min-h-[100dvh] w-full flex-1 flex flex-col lg:flex-row overflow-x-hidden bg-background">
 
-      {/* ── LEFT — Fleet panel (desktop only) ── */}
+      {/* ── LEFT — stats panel (desktop only) ── */}
       <div
-        className="hidden lg:flex lg:w-[42%] relative overflow-hidden flex-col justify-between"
-        style={{ background: "linear-gradient(160deg, #12122e 0%, #0d0d21 100%)" }}
+        className="hidden lg:flex lg:w-[32%] relative overflow-hidden flex-col justify-between"
+        style={{ background: "var(--ct-panel-bg)" }}
       >
         {/* Hex grid */}
-        <div
-          className="absolute inset-0 pointer-events-none"
+        <div className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(99,102,241,0.05)' stroke-width='0.8'/%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(99,102,241,0.06)' stroke-width='0.8'/%3E%3C/svg%3E")`,
             backgroundSize: "60px 52px",
           }}
         />
+        {/* Radar pulse */}
         <motion.div
-          className="absolute inset-0 pointer-events-none"
-          animate={{ backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"] }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute pointer-events-none"
           style={{
-            background: "linear-gradient(135deg, rgba(99,102,241,0.04) 0%, transparent 50%, rgba(14,14,45,0.8) 100%)",
-            backgroundSize: "200% 200%",
+            top: "40%", left: "50%", width: 420, height: 420, marginLeft: -210, marginTop: -210,
+            background: "radial-gradient(circle, rgba(76,215,246,0.12) 0%, transparent 70%)",
           }}
+          animate={{ scale: [1, 1.12, 1], opacity: [0.5, 0.85, 0.5] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         />
 
-        <div className="relative z-10 flex flex-col justify-between h-full p-10 xl:p-12">
+        <div className="relative z-10 flex flex-col justify-between h-full p-9 xl:p-11">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div
-              className="p-2.5 rounded-xl"
-              style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}
-            >
-              <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
-            </div>
+            <LogoMark size={42} className="shrink-0" />
             <div>
-              <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "#e8eaf0", fontWeight: 800, fontSize: "1.2rem" }}>
-                Cars<span style={{ color: "#6366f1" }}>Track</span>
+              <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "var(--ct-panel-text)", fontWeight: 800, fontSize: "1.15rem" }}>
+                Cars<span style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
               </span>
-              <p style={{ color: "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", marginTop: 2 }}>
+              <p style={{ color: "var(--ct-panel-muted)", fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace", marginTop: 2 }}>
                 Filo Yönetim Sistemi
               </p>
             </div>
           </Link>
 
-          {/* Center: vehicle illustration */}
-          <div className="flex flex-col items-center justify-center flex-1 py-6">
-            <div className="relative flex items-center justify-center" style={{ width: 240, height: 240 }}>
-              {[1, 2, 3].map((i) => (
-                <motion.div
-                  key={i}
-                  className="absolute rounded-full"
-                  style={{
-                    width: 70 + i * 52, height: 70 + i * 52,
-                    border: `1px solid rgba(99,102,241,${0.35 - i * 0.08})`,
-                  }}
-                  animate={{ scale: [1, 1.08, 1], opacity: [0.7, 0.3, 0.7] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
-                />
-              ))}
-              <div className="relative z-10" style={{ width: 100, height: 100 }}>
-                <svg viewBox="0 0 100 160" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", height: "100%" }} role="img" aria-label="Araç İllüstrasyonu">
-                  <rect x="18" y="30" width="64" height="100" rx="14" fill="#1a1a3f" stroke="rgba(99,102,241,0.5)" strokeWidth="1.5"/>
-                  <rect x="26" y="48" width="48" height="60" rx="8" fill="#12122e" stroke="rgba(99,102,241,0.3)" strokeWidth="1"/>
-                  <rect x="29" y="50" width="42" height="22" rx="5" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.4)" strokeWidth="0.8"/>
-                  <rect x="29" y="88" width="42" height="16" rx="5" fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0.3)" strokeWidth="0.8"/>
-                  <rect x="20" y="30" width="14" height="8" rx="3" fill="rgba(99,102,241,0.7)"/>
-                  <rect x="66" y="30" width="14" height="8" rx="3" fill="rgba(99,102,241,0.7)"/>
-                  <rect x="20" y="122" width="14" height="8" rx="3" fill="rgba(129,140,248,0.6)"/>
-                  <rect x="66" y="122" width="14" height="8" rx="3" fill="rgba(129,140,248,0.6)"/>
-                  <rect x="6" y="38" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
-                  <rect x="80" y="38" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
-                  <rect x="6" y="94" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
-                  <rect x="80" y="94" width="14" height="28" rx="5" fill="#1a1a3f" stroke="rgba(99,102,241,0.4)" strokeWidth="1"/>
-                  <line x1="50" y1="50" x2="50" y2="106" stroke="rgba(99,102,241,0.15)" strokeWidth="1" strokeDasharray="4 3"/>
-                </svg>
-              </div>
-              {floatingIcons.map(({ icon: Icon, delay }, idx) => {
-                const angles = [315, 45, 135, 225];
-                const rad = (angles[idx] * Math.PI) / 180;
-                const r = 108;
-                const x = Math.cos(rad) * r;
-                const y = Math.sin(rad) * r;
-                return (
-                  <motion.div
-                    key={idx}
-                    className="absolute flex items-center justify-center rounded-lg"
-                    style={{
-                      left: "50%", top: "50%",
-                      marginLeft: x - 14, marginTop: y - 14,
-                      width: 28, height: 28,
-                      background: "rgba(99,102,241,0.1)",
-                      border: "1px solid rgba(99,102,241,0.25)",
-                    }}
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 2, repeat: Infinity, delay, ease: "easeInOut" }}
-                  >
-                    <Icon style={{ color: "#6366f1", width: 12, height: 12 }} />
-                  </motion.div>
-                );
-              })}
-            </div>
+          {/* Stat cards */}
+          <div className="space-y-4">
+            {statCards.map(({ label, value, accent }, i) => (
+              <motion.div
+                key={label}
+                className="rounded-xl p-5"
+                style={{
+                  background: "var(--ct-card-bg)",
+                  backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                  border: "1px solid var(--ct-card-border)",
+                  borderLeft: `4px solid ${accent}`,
+                }}
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 + i * 0.12, duration: 0.5 }}
+                whileHover={{ x: 6 }}
+              >
+                <div style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "var(--ct-panel-muted)", fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>
+                  {label}
+                </div>
+                <div style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "var(--ct-panel-text)", fontSize: "1.5rem", fontWeight: 700, lineHeight: 1.1 }}>
+                  {value}
+                </div>
+              </motion.div>
+            ))}
           </div>
 
-          {/* Stat cards */}
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              {statCards.map(({ value, label, sub }, i) => (
-                <motion.div
-                  key={label}
-                  className="flex-1 rounded-lg p-2.5"
-                  style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.14)" }}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + i * 0.15, duration: 0.5 }}
-                >
-                  <div style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#6366f1", fontSize: "0.95rem", fontWeight: 600 }}>{value}</div>
-                  <div style={{ color: "#e8eaf0", fontSize: "0.62rem", fontFamily: "var(--font-barlow), sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>{label}</div>
-                  <div style={{ color: "#4a5568", fontSize: "0.58rem" }}>{sub}</div>
-                </motion.div>
-              ))}
-            </div>
-            <p style={{ color: "#4a5568", fontSize: "0.72rem", fontStyle: "italic", textAlign: "center" }}>
-              Filosunu gerçek zamanlı takip et.
-            </p>
-          </div>
+          {/* Tagline */}
+          <p style={{ color: "var(--ct-panel-muted)", fontSize: "0.8rem", lineHeight: 1.6, maxWidth: 260 }}>
+            Yapay zeka destekli lojistik yönetimi ile operasyonel maliyetlerinizi %30&apos;a kadar azaltın.
+          </p>
         </div>
       </div>
 
-      {/* ── RIGHT — form panel ── */}
+      {/* ── MIDDLE — registration form ── */}
       <motion.div
         className="flex-1 flex flex-col lg:overflow-y-auto relative bg-background"
-        initial={{ x: 50, opacity: 0 }}
+        initial={{ x: 30, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <div
-          className="absolute inset-0 pointer-events-none"
+        {/* Diagonal line pattern */}
+        <div className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(99,102,241,0.018) 40px, rgba(99,102,241,0.018) 41px)`,
+            backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(208,188,255,0.015) 40px, rgba(208,188,255,0.015) 41px)`,
           }}
         />
 
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center justify-between px-5 pt-8 pb-4 relative z-10">
           <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <div
-              className="p-2 rounded-lg"
-              style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}
-            >
-              <Car className="h-5 w-5" style={{ color: "#6366f1" }} />
+            <div className="p-2 rounded-lg"
+              style={{ background: "rgba(208,188,255,0.15)", border: "1px solid rgba(208,188,255,0.3)" }}>
+              <Car className="h-5 w-5" style={{ color: "#d0bcff" }} />
             </div>
             <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "var(--foreground)", fontWeight: 800, fontSize: "1.15rem" }}>
-              Cars<span style={{ color: "#6366f1" }}>Track</span>
+              Cars<span style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
             </span>
           </Link>
           <div className="flex items-center gap-3">
@@ -269,12 +217,12 @@ export default function RegisterClient() {
               type="button"
               onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
               className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors relative"
-              style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", color: "#6366f1" }}
+              style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "#d0bcff" }}
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </button>
-            <Link href="/login" style={{ color: "#6366f1", fontSize: "0.75rem", fontWeight: 600 }}>Giriş yap →</Link>
+            <Link href="/login" style={{ color: "#d0bcff", fontSize: "0.75rem", fontWeight: 600 }}>Giriş yap →</Link>
           </div>
         </div>
 
@@ -284,7 +232,7 @@ export default function RegisterClient() {
             type="button"
             onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
             className="h-9 w-9 flex items-center justify-center rounded-xl transition-all hover:scale-105 relative"
-            style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", color: "#6366f1" }}
+            style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "#d0bcff" }}
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -293,7 +241,7 @@ export default function RegisterClient() {
 
         {/* Form area — centered, max-width constrained */}
         <div className="flex-1 flex flex-col justify-center items-center relative z-10 px-4 py-8 lg:py-10">
-          <div className="w-full max-w-[420px]">
+          <div className="w-full max-w-[440px]">
 
             {/* Back to home */}
             <Link
@@ -301,44 +249,47 @@ export default function RegisterClient() {
               className="inline-flex items-center gap-1.5 mb-5 transition-colors group"
               style={{ color: "var(--muted-foreground)", fontSize: "0.72rem", fontFamily: "var(--font-ibm-mono), monospace", textDecoration: "none" }}
             >
-              <Home className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" style={{ color: "#6366f1" }} />
+              <Home className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" style={{ color: "#d0bcff" }} />
               <span className="group-hover:text-foreground transition-colors" style={{ color: "inherit" }}>Ana Sayfaya Dön</span>
             </Link>
 
-            {/* Step indicator */}
-            <div className="flex items-center gap-2 mb-4">
-              {[1, 2].map((s) => (
-                <div key={s} className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ background: s === 1 ? "#6366f1" : "rgba(99,102,241,0.22)", border: "1px solid rgba(99,102,241,0.35)" }}
-                  />
-                  {s < 2 && <div className="w-8 h-px" style={{ background: "rgba(99,102,241,0.18)" }} />}
-                </div>
-              ))}
-              <span style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", marginLeft: 6 }}>
-                ADIM 1 / 2
-              </span>
-            </div>
-
             {/* Header */}
-            <div className="mb-5">
-              <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#6366f1", fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: "0.6rem" }}>
+            <div className="mb-6">
+              <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff", fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: "0.6rem" }}>
                 ▸ YENİ HESAP
               </span>
               <h1 style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", fontSize: "2.2rem", fontWeight: 800, color: "var(--foreground)", lineHeight: 1.1 }}>
                 Sisteme Kayıt Ol
               </h1>
-              <p style={{ color: "var(--muted-foreground)", fontSize: "0.8rem", marginTop: "0.4rem" }}>
+              <p style={{ color: "var(--muted-foreground)", fontSize: "0.82rem", marginTop: "0.4rem" }}>
                 Filo takip sistemine erişim için hesap oluşturun.{" "}
-                <Link href="/login" style={{ color: "#6366f1", fontWeight: 600 }}>Giriş yapın</Link>
+                <Link href="/login" style={{ color: "#d0bcff", fontWeight: 600 }}>Giriş yapın</Link>
               </p>
+            </div>
+
+            {/* Progress */}
+            <div className="mb-6">
+              <div className="flex justify-between items-end mb-2">
+                <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  ADIM 1 / 2
+                </span>
+                <span style={{ ...labelStyle }}>TEMEL BİLGİLER</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: "rgba(208,188,255,0.12)" }}>
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", boxShadow: "0 0 16px rgba(208,188,255,0.5)" }}
+                  initial={{ width: 0 }}
+                  animate={{ width: "50%" }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
+                />
+              </div>
             </div>
 
             {/* Mode Switcher */}
             <div
               className="flex mb-5 gap-1 p-1 rounded-lg"
-              style={{ background: "rgba(14,14,45,0.9)", border: "1px solid rgba(99,102,241,0.1)" }}
+              style={{ background: "var(--ct-switch-track)", border: "1px solid var(--ct-chip-border)" }}
             >
               {([
                 { id: "create" as Mode, icon: Building2, label: "Şirket Kur" },
@@ -348,11 +299,11 @@ export default function RegisterClient() {
                   key={id}
                   type="button"
                   onClick={() => switchMode(id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md transition-all active:scale-95"
                   style={{
-                    background: mode === id ? "rgba(99,102,241,0.14)" : "transparent",
-                    border: mode === id ? "1px solid rgba(99,102,241,0.28)" : "1px solid transparent",
-                    color: mode === id ? "#6366f1" : "#4a5568",
+                    background: mode === id ? "var(--ct-chip-bg)" : "transparent",
+                    border: mode === id ? "1px solid var(--ct-chip-border)" : "1px solid transparent",
+                    color: mode === id ? "var(--ct-purple)" : "var(--muted-foreground)",
                     fontFamily: "var(--font-barlow), sans-serif",
                     fontWeight: 700,
                     fontSize: "0.8rem",
@@ -380,17 +331,17 @@ export default function RegisterClient() {
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
                   >
-                    <CheckCircle2 className="h-20 w-20" style={{ color: "#6366f1" }} />
+                    <CheckCircle2 className="h-20 w-20" style={{ color: "#4cd7f6" }} />
                   </motion.div>
-                  <p style={{ fontFamily: "var(--font-barlow), sans-serif", fontWeight: 800, fontSize: "1.5rem", color: "var(--foreground)", textAlign: "center" }}>
+                  <p style={{ fontFamily: "var(--font-barlow), sans-serif", fontWeight: 800, fontSize: "1.5rem", color: "#e8eaf0", textAlign: "center" }}>
                     {mode === "create" ? "Şirket Oluşturuldu!" : "Katılım Başarılı!"}
                   </p>
                   {mode === "join" && joinedCompany && (
-                    <p style={{ color: "var(--muted-foreground)", textAlign: "center" }}>
-                      <span style={{ color: "var(--foreground)", fontWeight: 600 }}>{joinedCompany}</span> şirketine katıldınız.
+                    <p style={{ color: "rgba(255,255,255,0.6)", textAlign: "center" }}>
+                      <span style={{ color: "#e8eaf0", fontWeight: 600 }}>{joinedCompany}</span> şirketine katıldınız.
                     </p>
                   )}
-                  <p style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                  <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.78rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
                     Yönlendiriliyorsunuz...
                   </p>
                 </motion.div>
@@ -410,16 +361,15 @@ export default function RegisterClient() {
               >
                 {mode === "create" ? (
                   <motion.div variants={item} className="space-y-1">
-                    <label htmlFor="reg-company" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                      Şirket / Filo Adı
-                    </label>
-                    <Input id="reg-company" value={form.companyName} onChange={set("companyName")} placeholder="ABC Lojistik" className="h-11 pl-4 border-0" style={inputStyle} required />
+                    <label htmlFor="reg-company" style={labelStyle}>Şirket / Filo Adı</label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
+                      <Input id="reg-company" value={form.companyName} onChange={set("companyName")} placeholder="ABC Lojistik" className="h-11 pl-9 border-0" style={inputStyle} required />
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.div variants={item} className="space-y-1">
-                    <label htmlFor="reg-invite" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                      Davet Kodu
-                    </label>
+                    <label htmlFor="reg-invite" style={labelStyle}>Davet Kodu</label>
                     <Input
                       id="reg-invite"
                       value={form.inviteCode}
@@ -437,9 +387,7 @@ export default function RegisterClient() {
                 )}
 
                 <motion.div variants={item} className="space-y-1">
-                  <label htmlFor="reg-fullname" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                    Ad Soyad
-                  </label>
+                  <label htmlFor="reg-fullname" style={labelStyle}>Ad Soyad</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
                     <Input id="reg-fullname" value={form.fullName} onChange={set("fullName")} placeholder="Ahmet Yılmaz" className="h-11 pl-9 border-0" style={inputStyle} required />
@@ -447,9 +395,7 @@ export default function RegisterClient() {
                 </motion.div>
 
                 <motion.div variants={item} className="space-y-1">
-                  <label htmlFor="reg-email" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                    E-posta
-                  </label>
+                  <label htmlFor="reg-email" style={labelStyle}>E-posta</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
                     <Input
@@ -468,9 +414,7 @@ export default function RegisterClient() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <motion.div variants={item} className="space-y-1">
-                    <label htmlFor="reg-password" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                      Şifre
-                    </label>
+                    <label htmlFor="reg-password" style={labelStyle}>Şifre</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
                       <Input
@@ -492,9 +436,7 @@ export default function RegisterClient() {
                   </motion.div>
 
                   <motion.div variants={item} className="space-y-1">
-                    <label htmlFor="reg-confirm" style={{ color: "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                      Tekrar
-                    </label>
+                    <label htmlFor="reg-confirm" style={labelStyle}>Tekrar</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
                       <Input
@@ -524,11 +466,11 @@ export default function RegisterClient() {
                         <div
                           key={seg}
                           className="h-1 flex-1 rounded-full transition-all duration-300"
-                          style={{ background: seg <= strength.level ? "#6366f1" : "rgba(99,102,241,0.12)" }}
+                          style={{ background: seg <= strength.level ? "#d0bcff" : "rgba(208,188,255,0.12)" }}
                         />
                       ))}
                     </div>
-                    <p style={{ color: strength.level >= 3 ? "#6366f1" : "#4a5568", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                    <p style={{ color: strength.level >= 3 ? "#4cd7f6" : "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
                       {strength.label}
                     </p>
                   </motion.div>
@@ -552,14 +494,14 @@ export default function RegisterClient() {
                   <button
                     type="submit"
                     disabled={loading || success}
-                    className="w-full h-11 relative overflow-hidden transition-all disabled:opacity-60"
+                    className="w-full h-11 mt-1 relative overflow-hidden transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-60 rounded-xl"
                     style={{
-                      background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)",
-                      clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))",
-                      color: "#fff",
+                      background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)",
+                      boxShadow: "0 0 24px rgba(109,59,215,0.55)",
+                      color: "#23005c",
                       fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif",
                       fontWeight: 700,
-                      fontSize: "0.88rem",
+                      fontSize: "0.9rem",
                       letterSpacing: "0.12em",
                       border: "none",
                       cursor: loading || success ? "not-allowed" : "pointer",
@@ -574,12 +516,129 @@ export default function RegisterClient() {
               </motion.form>
             </AnimatePresence>
 
+            <p style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", textAlign: "center", marginTop: "1.25rem" }}>
+              Zaten hesabınız var mı?{" "}
+              <Link href="/login" style={{ color: "#d0bcff", fontWeight: 600 }}>Giriş yap</Link>
+            </p>
+
           </div>
         </div>
       </motion.div>
 
+      {/* ── RIGHT — features & social proof (xl only) ── */}
+      <motion.div
+        className="hidden xl:flex xl:w-[28%] relative overflow-hidden flex-col justify-between p-10 2xl:p-12"
+        style={{ background: "var(--ct-panel-bg)", borderLeft: "1px solid var(--ct-divider)" }}
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+      >
+        <div className="space-y-9">
+          <div>
+            <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "var(--ct-purple)", fontSize: "0.65rem", letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: "0.6rem" }}>
+              ▸ NEDEN CARSTRACK?
+            </span>
+            <h3 style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", fontSize: "1.5rem", fontWeight: 800, color: "var(--ct-panel-text)", lineHeight: 1.2 }}>
+              Filo yönetiminin<br /><span style={{ color: "var(--ct-purple)" }}>akıllı</span> yolu
+            </h3>
+          </div>
+
+          <div className="space-y-6">
+            {features.map(({ icon: Icon, title, desc }, i) => (
+              <motion.div
+                key={title}
+                className="flex gap-4"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 + i * 0.1, duration: 0.4 }}
+              >
+                <div
+                  className="shrink-0 flex items-center justify-center rounded-xl"
+                  style={{ width: 44, height: 44, background: "var(--ct-chip-bg)", border: "1px solid var(--ct-chip-border)" }}
+                >
+                  <Icon style={{ color: "var(--ct-cyan)", width: 18, height: 18 }} />
+                </div>
+                <div className="min-w-0">
+                  <h4 style={{ color: "var(--ct-panel-text)", fontWeight: 700, fontSize: "0.85rem", fontFamily: "var(--font-barlow), sans-serif", marginBottom: 3 }}>
+                    {title}
+                  </h4>
+                  <p style={{ color: "var(--ct-panel-muted)", fontSize: "0.74rem", lineHeight: 1.5 }}>
+                    {desc}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Social proof */}
+        <motion.div
+          className="rounded-2xl p-7 relative overflow-hidden"
+          style={{
+            background: "var(--ct-card-bg)",
+            backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid var(--ct-card-border)",
+          }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+        >
+          <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full blur-3xl" style={{ background: "rgba(76,215,246,0.12)" }} />
+          <div className="relative flex flex-col items-center text-center">
+            <div className="flex -space-x-3 mb-4">
+              {["A", "B", "C"].map((l) => (
+                <div key={l} className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold"
+                  style={{ background: "var(--ct-chip-bg)", color: "var(--ct-purple)", border: "2px solid var(--ct-ring)" }}>
+                  {l}
+                </div>
+              ))}
+              <div className="h-10 w-10 rounded-full flex items-center justify-center text-[10px] font-bold"
+                style={{ background: "linear-gradient(135deg, #d0bcff 0%, #4cd7f6 100%)", color: "#23005c", border: "2px solid var(--ct-ring)" }}>
+                +49
+              </div>
+            </div>
+            <div style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", fontSize: "1.6rem", fontWeight: 800, color: "var(--ct-panel-text)", lineHeight: 1 }}>
+              500+
+            </div>
+            <p style={{ color: "var(--ct-panel-muted)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 6 }}>
+              Şirket Güveniyor
+            </p>
+          </div>
+        </motion.div>
+      </motion.div>
+
       <style>{`
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Side-panel theming — light defaults, overridden in dark */
+        .auth-page {
+          --ct-purple: #6d5bd0;
+          --ct-cyan: #1c8aa8;
+          --ct-panel-bg: linear-gradient(160deg, #f2f1fb 0%, #eaedf7 60%, #e3e7f4 100%);
+          --ct-panel-text: #1b2333;
+          --ct-panel-muted: #5b6478;
+          --ct-card-bg: rgba(255,255,255,0.66);
+          --ct-card-border: rgba(99,102,241,0.16);
+          --ct-chip-bg: rgba(99,102,241,0.09);
+          --ct-chip-border: rgba(99,102,241,0.2);
+          --ct-divider: rgba(99,102,241,0.14);
+          --ct-ring: #eef0f8;
+          --ct-switch-track: rgba(99,102,241,0.07);
+        }
+        .dark .auth-page {
+          --ct-purple: #d0bcff;
+          --ct-cyan: #4cd7f6;
+          --ct-panel-bg: linear-gradient(160deg, #161a2e 0%, #0f131d 60%, #0a0e18 100%);
+          --ct-panel-text: #e8eaf0;
+          --ct-panel-muted: rgba(255,255,255,0.5);
+          --ct-card-bg: rgba(255,255,255,0.03);
+          --ct-card-border: rgba(255,255,255,0.1);
+          --ct-chip-bg: rgba(208,188,255,0.1);
+          --ct-chip-border: rgba(208,188,255,0.2);
+          --ct-divider: rgba(208,188,255,0.1);
+          --ct-ring: #0f131d;
+          --ct-switch-track: rgba(15,19,29,0.9);
+        }
       `}</style>
     </div>
   );

@@ -21,48 +21,74 @@ import { LogoMark } from "@/components/brand/logo-mark";
 
 /* ───────────────────────── data ───────────────────────── */
 
+/* ── design.md palette (Material 3) ── */
+const PRIMARY = "#d0bcff"; // pastel purple
+const SECONDARY = "#4cd7f6"; // cyan
+const ON_PRIMARY = "#23005c"; // dark text on gradient/primary surfaces
+const GRAD = "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)";
+const GLOW = "0 0 24px rgba(109,59,215,0.55)";
+const PRIMARY_BG = "rgba(208,188,255,0.10)";
+const SECONDARY_BG = "rgba(76,215,246,0.10)";
+
+const glassCard: React.CSSProperties = {
+  background: "rgba(255,255,255,0.03)",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderTop: "1px solid rgba(255,255,255,0.2)",
+  borderLeft: "1px solid rgba(255,255,255,0.2)",
+};
+
+const textGradient: React.CSSProperties = {
+  background: GRAD,
+  WebkitBackgroundClip: "text",
+  backgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+  color: "transparent",
+};
+
 const features = [
   {
     icon: Wrench,
     title: "Bakım Takibi",
     desc: "Yağ değişimi, fren, filtre gibi periyodik bakımları otomatik takip edin. Kilometre ve zaman bazlı hatırlatmalarla asla kaçırmayın.",
-    color: "#6366f1",
-    bg: "rgba(99,102,241,0.1)",
+    color: PRIMARY,
+    bg: PRIMARY_BG,
   },
   {
     icon: Shield,
     title: "Sigorta & Muayene",
     desc: "Kasko, trafik sigortası ve TÜVTÜRK muayene sürelerini takip edin. Vade dolmadan önce otomatik uyarı alın.",
-    color: "#10b981",
-    bg: "rgba(16,185,129,0.1)",
+    color: SECONDARY,
+    bg: SECONDARY_BG,
   },
   {
     icon: FileText,
     title: "Servis Geçmişi",
     desc: "Tüm servis ve onarım kayıtlarını dijital arşivde tutun. PDF ve Excel formatında dışa aktarın, paylaşın.",
-    color: "#3b82f6",
-    bg: "rgba(59,130,246,0.1)",
+    color: PRIMARY,
+    bg: PRIMARY_BG,
   },
   {
     icon: BarChart3,
     title: "Filo Analitiği",
     desc: "Araç sağlık skoru, maliyet dağılımı ve bakım trendi raporları ile filonuzun gerçek durumunu görün.",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.1)",
+    color: SECONDARY,
+    bg: SECONDARY_BG,
   },
   {
     icon: Users,
     title: "Ekip Yönetimi",
     desc: "Şirket yetkilisi ve sürücü rolleri ile araç atama, seyahat takibi ve koordinasyonu kolayca yönetin.",
-    color: "#ec4899",
-    bg: "rgba(236,72,153,0.1)",
+    color: PRIMARY,
+    bg: PRIMARY_BG,
   },
   {
     icon: Bell,
     title: "Akıllı Bildirimler",
     desc: "Kritik bakım ve belge uyarıları anında bildirim olarak ulaşır. E-posta ile de otomatik hatırlatma alın.",
-    color: "#f97316",
-    bg: "rgba(249,115,22,0.1)",
+    color: SECONDARY,
+    bg: SECONDARY_BG,
   },
 ];
 
@@ -121,13 +147,14 @@ type Stat = {
   text?: string;
   label: string;
   icon: typeof Car;
+  color: string;
 };
 
 const stats: Stat[] = [
-  { to: 247, suffix: "+", label: "Aktif Araç", icon: Car },
-  { to: 99.2, suffix: "%", decimals: 1, label: "Kesintisiz Çalışma", icon: Gauge },
-  { to: 0, text: "7/24", label: "Gerçek Zamanlı Takip", icon: CheckCircle2 },
-  { to: 6, label: "Bakım Kategorisi", icon: Disc3 },
+  { to: 247, suffix: "+", label: "Aktif Araç", icon: Car, color: PRIMARY },
+  { to: 99.2, suffix: "%", decimals: 1, label: "Kesintisiz Çalışma", icon: Gauge, color: SECONDARY },
+  { to: 0, text: "7/24", label: "Gerçek Zamanlı Takip", icon: CheckCircle2, color: PRIMARY },
+  { to: 6, label: "Bakım Kategorisi", icon: Disc3, color: SECONDARY },
 ];
 
 /* ───────────────────────── motion helpers ───────────────────────── */
@@ -243,8 +270,8 @@ function HealthRing() {
         />
         <defs>
           <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#6366f1" />
-            <stop offset="100%" stopColor="#22d3ee" />
+            <stop offset="0%" stopColor={SECONDARY} />
+            <stop offset="100%" stopColor={PRIMARY} />
           </linearGradient>
         </defs>
       </svg>
@@ -276,28 +303,27 @@ function HeroMockup() {
       {/* glow behind the card */}
       <div
         className="absolute -inset-6 rounded-[2rem] pointer-events-none"
-        style={{ background: "radial-gradient(ellipse at center, rgba(99,102,241,0.35), transparent 70%)" }}
+        style={{ background: "radial-gradient(ellipse at center, rgba(208,188,255,0.30), rgba(76,215,246,0.12) 40%, transparent 70%)" }}
       />
       <div
-        className="relative rounded-3xl p-5 backdrop-blur-xl"
-        style={{
-          background: "linear-gradient(160deg, rgba(30,30,60,0.9), rgba(15,15,30,0.85))",
-          border: "1px solid rgba(255,255,255,0.1)",
-          boxShadow: "0 30px 80px -20px rgba(0,0,0,0.6)",
-        }}
+        className="relative rounded-3xl p-5"
+        style={{ ...glassCard, boxShadow: "0 30px 80px -20px rgba(0,0,0,0.6)" }}
       >
         {/* header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg" style={{ background: "rgba(99,102,241,0.18)" }}>
-              <Car className="h-3.5 w-3.5" style={{ color: "#818cf8" }} />
+            <div className="p-1.5 rounded-full" style={{ background: PRIMARY_BG }}>
+              <Car className="h-3.5 w-3.5" style={{ color: PRIMARY }} />
             </div>
             <span className="text-sm font-bold text-white">Filo Paneli</span>
           </div>
-          <div className="flex gap-1">
-            <span className="w-2 h-2 rounded-full bg-white/20" />
-            <span className="w-2 h-2 rounded-full bg-white/20" />
-            <span className="w-2 h-2 rounded-full bg-white/20" />
+          {/* insurance status pill */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            style={{ background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.20)" }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-[10px] font-bold text-emerald-400">Sigorta OK</span>
           </div>
         </div>
 
@@ -324,7 +350,7 @@ function HeroMockup() {
                 <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
-                    style={{ background: "linear-gradient(90deg,#6366f1,#22d3ee)" }}
+                    style={{ background: GRAD }}
                     initial={{ width: 0 }}
                     animate={{ width: row.w }}
                     transition={{ delay: 0.9 + i * 0.12, duration: 0.9, ease: EASE }}
@@ -353,24 +379,17 @@ function HeroMockup() {
         </div>
       </div>
 
-      {/* floating chips */}
+      {/* floating chip */}
       <motion.div
-        className="absolute -right-4 top-10 rounded-xl px-3 py-2 backdrop-blur-md hidden sm:flex items-center gap-1.5"
-        style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)" }}
-        animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <Shield className="h-3.5 w-3.5" style={{ color: "#34d399" }} />
-        <span className="text-[10px] font-bold text-white">Sigorta OK</span>
-      </motion.div>
-      <motion.div
-        className="absolute -left-4 bottom-16 rounded-xl px-3 py-2 backdrop-blur-md hidden sm:flex items-center gap-1.5"
-        style={{ background: "rgba(99,102,241,0.18)", border: "1px solid rgba(99,102,241,0.32)" }}
+        className="absolute -left-4 -bottom-5 rounded-2xl px-4 py-3 hidden sm:flex items-center gap-3 shadow-2xl"
+        style={glassCard}
         animate={{ y: [0, 12, 0] }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
       >
-        <Bell className="h-3.5 w-3.5" style={{ color: "#a5b4fc" }} />
-        <span className="text-[10px] font-bold text-white">Bakım hatırlatması</span>
+        <span className="grid place-items-center w-8 h-8 rounded-full shrink-0" style={{ background: PRIMARY }}>
+          <Bell className="h-4 w-4" style={{ color: ON_PRIMARY }} />
+        </span>
+        <span className="text-[11px] font-semibold text-white whitespace-nowrap">Bakım hatırlatması</span>
       </motion.div>
     </motion.div>
   );
@@ -413,7 +432,7 @@ export default function LandingClient() {
               className="font-extrabold text-lg tracking-tight"
               style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif" }}
             >
-              Cars<span style={{ color: "#6366f1" }}>Track</span>
+              Cars<span style={textGradient}>Track</span>
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -436,8 +455,8 @@ export default function LandingClient() {
             </Link>
             <Link
               href="/register"
-              className="px-4 py-2 text-sm font-bold rounded-xl transition-transform hover:scale-[1.03] active:scale-95"
-              style={{ background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)", color: "#fff" }}
+              className="px-5 py-2 text-sm font-bold rounded-full transition-transform hover:scale-[1.03] active:scale-95"
+              style={{ background: GRAD, color: ON_PRIMARY, boxShadow: GLOW }}
             >
               Ücretsiz Başla
             </Link>
@@ -449,27 +468,28 @@ export default function LandingClient() {
       <section
         ref={heroRef}
         className="relative overflow-hidden pt-20 pb-24 px-4"
-        style={{ background: "linear-gradient(160deg, #12122e 0%, #0d0d21 60%, #09090b 100%)" }}
+        style={{ background: "linear-gradient(160deg, #161a2e 0%, #0f131d 60%, #0a0e18 100%)" }}
       >
-        {/* parallax hex grid */}
+        {/* parallax square grid */}
         <motion.div
           style={{
             y: gridY,
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(99,102,241,0.07)' stroke-width='0.8'/%3E%3C/svg%3E")`,
-            backgroundSize: "60px 52px",
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
           }}
-          className="absolute inset-0 pointer-events-none opacity-50"
+          className="absolute inset-0 pointer-events-none opacity-40"
         />
         {/* animated orbs */}
         <motion.div
           className="orb w-[420px] h-[420px] -top-32 left-1/2 -translate-x-1/2"
-          style={{ background: "rgba(99,102,241,0.25)" }}
+          style={{ background: "rgba(208,188,255,0.18)" }}
           animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
           className="orb w-72 h-72 top-40 -right-20"
-          style={{ background: "rgba(34,211,238,0.18)" }}
+          style={{ background: "rgba(76,215,246,0.16)" }}
           animate={{ y: [0, 30, 0], x: [0, -20, 0] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
         />
@@ -487,10 +507,10 @@ export default function LandingClient() {
           >
             <motion.div
               variants={fadeUp}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
-              style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", color: "#a5b4fc" }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.75)" }}
             >
-              <Sparkles className="h-3 w-3" />
+              <Sparkles className="h-3 w-3" style={{ color: PRIMARY }} />
               Ücretsiz kullanmaya başlayın · Kredi kartı gerekmez
             </motion.div>
 
@@ -500,16 +520,7 @@ export default function LandingClient() {
               style={{ fontFamily: "var(--font-outfit), sans-serif" }}
             >
               Araç Filonuzu{" "}
-              <span className="relative inline-block">
-                <span style={{ color: "#6366f1" }}>Akıllıca</span>
-                <motion.span
-                  className="absolute left-0 -bottom-1 h-1 rounded-full"
-                  style={{ background: "linear-gradient(90deg,#6366f1,#22d3ee)" }}
-                  initial={{ width: 0 }}
-                  animate={{ width: "100%" }}
-                  transition={{ delay: 0.9, duration: 0.7, ease: EASE }}
-                />
-              </span>{" "}
+              <span style={textGradient}>Akıllıca</span>{" "}
               Yönetin
             </motion.h1>
 
@@ -525,7 +536,7 @@ export default function LandingClient() {
               <Link
                 href="/register"
                 className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-transform hover:scale-[1.03] active:scale-95"
-                style={{ background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)", color: "#fff", boxShadow: "0 0 24px rgba(99,102,241,0.35)" }}
+                style={{ background: GRAD, color: ON_PRIMARY, boxShadow: GLOW }}
               >
                 Hemen Ücretsiz Dene
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -557,7 +568,7 @@ export default function LandingClient() {
             <motion.div key={stat.label} variants={fadeUp} className="text-center">
               <p
                 className="text-2xl md:text-3xl font-black"
-                style={{ fontFamily: "var(--font-outfit), sans-serif", color: "#6366f1" }}
+                style={{ fontFamily: "var(--font-outfit), sans-serif", color: stat.color }}
               >
                 {stat.text ? stat.text : <CountUp to={stat.to} suffix={stat.suffix} decimals={stat.decimals} />}
               </p>
@@ -606,7 +617,7 @@ export default function LandingClient() {
       {/* ── How It Works ── */}
       <section
         className="py-16 px-4"
-        style={{ background: "rgba(99,102,241,0.03)", borderTop: "1px solid rgba(99,102,241,0.08)", borderBottom: "1px solid rgba(99,102,241,0.08)" }}
+        style={{ background: "rgba(208,188,255,0.03)", borderTop: "1px solid rgba(208,188,255,0.08)", borderBottom: "1px solid rgba(208,188,255,0.08)" }}
       >
         <div className="max-w-3xl mx-auto">
           <Reveal className="text-center mb-10">
@@ -628,18 +639,18 @@ export default function LandingClient() {
                 {i < steps.length - 1 && (
                   <div
                     className="hidden md:block absolute top-5 left-[calc(100%-8px)] w-full h-px z-0"
-                    style={{ background: "linear-gradient(90deg, rgba(99,102,241,0.3), transparent)" }}
+                    style={{ background: "linear-gradient(90deg, rgba(208,188,255,0.35), transparent)" }}
                   />
                 )}
                 <div className="relative z-10 text-center space-y-3">
                   <motion.div
                     whileHover={{ scale: 1.08, rotate: 4 }}
                     className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center"
-                    style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)" }}
+                    style={{ background: PRIMARY_BG, border: "1px solid rgba(208,188,255,0.2)" }}
                   >
-                    <step.icon className="h-5 w-5" style={{ color: "#6366f1" }} />
+                    <step.icon className="h-5 w-5" style={{ color: PRIMARY }} />
                   </motion.div>
-                  <span className="block text-xs font-black" style={{ color: "#6366f1", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                  <span className="block text-xs font-black" style={{ color: PRIMARY, fontFamily: "var(--font-ibm-mono), monospace" }}>
                     {step.num}
                   </span>
                   <h3 className="font-bold text-sm">{step.title}</h3>
@@ -691,22 +702,22 @@ export default function LandingClient() {
           <div
             className="max-w-2xl mx-auto text-center rounded-3xl p-10 space-y-5 relative overflow-hidden"
             style={{
-              background: "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(79,70,229,0.08) 100%)",
-              border: "1px solid rgba(99,102,241,0.2)",
+              background: "linear-gradient(135deg, rgba(208,188,255,0.12) 0%, rgba(76,215,246,0.08) 100%)",
+              border: "1px solid rgba(208,188,255,0.2)",
             }}
           >
             <motion.div
               className="orb w-64 h-64 -top-20 left-1/2 -translate-x-1/2"
-              style={{ background: "rgba(99,102,241,0.2)" }}
+              style={{ background: "rgba(208,188,255,0.2)" }}
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             />
             <motion.div
               whileHover={{ rotate: -6, scale: 1.05 }}
               className="relative w-14 h-14 rounded-2xl mx-auto flex items-center justify-center"
-              style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.28)" }}
+              style={{ background: PRIMARY_BG, border: "1px solid rgba(208,188,255,0.28)" }}
             >
-              <Car className="h-7 w-7" style={{ color: "#6366f1" }} />
+              <Car className="h-7 w-7" style={{ color: PRIMARY }} />
             </motion.div>
             <h2 className="relative text-2xl md:text-3xl font-black tracking-tight" style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
               Araçlarınızı Hemen Takibe Alın
@@ -717,7 +728,7 @@ export default function LandingClient() {
             <Link
               href="/register"
               className="group relative inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-transform hover:scale-[1.03] active:scale-95"
-              style={{ background: "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)", color: "#fff", boxShadow: "0 0 32px rgba(99,102,241,0.3)" }}
+              style={{ background: GRAD, color: ON_PRIMARY, boxShadow: GLOW }}
             >
               Ücretsiz Başla
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -730,9 +741,9 @@ export default function LandingClient() {
       <footer className="border-t border-border/40 py-8 px-4">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Car className="h-4 w-4" style={{ color: "#6366f1" }} />
+            <Car className="h-4 w-4" style={{ color: PRIMARY }} />
             <span className="font-bold text-sm">
-              Cars<span style={{ color: "#6366f1" }}>Track</span>
+              Cars<span style={textGradient}>Track</span>
             </span>
             <span className="text-muted-foreground text-xs ml-2">
               © {new Date().getFullYear()} Tüm hakları saklıdır.
