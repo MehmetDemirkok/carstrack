@@ -19,7 +19,8 @@ import {
   getMaintenanceProgress, MAINTENANCE_TEMPLATES, applyPeriodicService,
 } from "@/lib/store";
 import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType } from "@/lib/types";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,9 +34,14 @@ import {
   Sun, Snowflake, Layers, BatteryCharging, ShieldCheck, CalendarDays,
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
-  Shield, Download, Upload, ClipboardCheck,
+  Shield, Download, Upload, ClipboardCheck, CalendarPlus, ExternalLink,
   type LucideIcon,
 } from "lucide-react";
+
+/** TÜVTÜRK online araç muayene randevusu alma sayfası (yalnızca Türkiye). */
+const TUVTURK_RANDEVU_URL = "https://www.tuvturk.com.tr/hizmetlerimiz/hizli-islemler/arac-muayene-randevusu-alma";
+/** Muayene randevusu butonunun aktifleşeceği eşik — bitişe 1 ay (30 gün) kala. */
+const MUAYENE_RANDEVU_ESIK_GUN = 30;
 import { exportVehicleReportPDF } from "@/lib/pdf-export";
 import { DatePicker } from "@/components/ui/date-picker";
 import { DragSlider } from "@/components/ui/drag-slider";
@@ -1014,11 +1020,13 @@ export default function VehicleDetailPage() {
                 <TabsContent value="docs" className="space-y-3 outline-none">
                   <div className="bg-card rounded-2xl p-5 border border-border/40 shadow-sm space-y-4">
                     {[
-                      { icon: ShieldCheck, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "Kasko & Sigorta", sub: vehicle.insuranceCompany || "—", date: vehicle.insuranceExpiry },
-                      { icon: ShieldCheck, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500", label: "Yurtdışı Sigortası (Yeşil Kart)", sub: vehicle.greenCardCompany || "—", date: vehicle.greenCardExpiry },
-                      { icon: CalendarDays, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "TÜVTÜRK Muayene", sub: "", date: vehicle.inspectionExpiry },
+                      { icon: ShieldCheck, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "Kasko & Sigorta", sub: vehicle.insuranceCompany || "—", date: vehicle.insuranceExpiry, inspection: false },
+                      { icon: ShieldCheck, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500", label: "Yurtdışı Sigortası (Yeşil Kart)", sub: vehicle.greenCardCompany || "—", date: vehicle.greenCardExpiry, inspection: false },
+                      { icon: CalendarDays, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "TÜVTÜRK Muayene", sub: "", date: vehicle.inspectionExpiry, inspection: true },
                     ].map((doc, i) => {
                       const days = daysUntil(doc.date);
+                      // Muayeneye 1 ay (30 gün) kala — süresi geçmişse de — randevu butonu aktif.
+                      const randevuAktif = doc.inspection && !!doc.date && days <= MUAYENE_RANDEVU_ESIK_GUN;
                       return (
                         <div key={i}>
                           {i > 0 && <Separator />}
@@ -1039,6 +1047,26 @@ export default function VehicleDetailPage() {
                               </Badge>
                             )}
                           </div>
+                          {doc.inspection && (
+                            randevuAktif ? (
+                              <a
+                                href={TUVTURK_RANDEVU_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(buttonVariants({ size: "sm" }), "w-full mt-3 gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold")}
+                              >
+                                <CalendarPlus className="h-3.5 w-3.5" /> Muayene Randevusu Al
+                                <ExternalLink className="h-3 w-3 opacity-70" />
+                              </a>
+                            ) : (
+                              <div className="mt-3 flex items-center gap-1.5 rounded-xl bg-muted/40 border border-border/30 px-3 py-2 text-[10px] text-muted-foreground">
+                                <CalendarPlus className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                                {doc.date
+                                  ? `Randevu alma, muayeneye 1 ay kala (${MUAYENE_RANDEVU_ESIK_GUN} gün) aktifleşir.`
+                                  : "Muayene tarihi girilince randevu butonu aktifleşir."}
+                              </div>
+                            )
+                          )}
                         </div>
                       );
                     })}
