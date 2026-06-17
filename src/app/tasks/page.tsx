@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ClipboardList,
@@ -781,6 +781,8 @@ function ManagerView() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [members, setMembers]   = useState<Profile[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Filters
   const [fVehicle, setFVehicle] = useState("");
@@ -815,20 +817,28 @@ function ManagerView() {
     new Set(members.map((m) => m.department).filter(Boolean))
   ).sort();
 
-  async function loadAll(filters?: {
+  type TaskFilters = {
     vehicleId?: string; driverId?: string; department?: string;
     dateFrom?: string; dateTo?: string; status?: string;
-  }) {
-    setLoading(true);
+  };
+
+  // Canlı yenilemenin doğru filtreyle çalışması için son uygulanan filtreyi tut.
+  const appliedFilters = useRef<TaskFilters>({});
+
+  async function loadAll(filters?: TaskFilters, opts?: { silent?: boolean }) {
+    if (filters) appliedFilters.current = filters;
+    const active = filters ?? appliedFilters.current;
+    if (opts?.silent) setRefreshing(true);
+    else setLoading(true);
     try {
       const [t, v, m] = await Promise.all([
         getTasks({
-          vehicleId:  filters?.vehicleId  || undefined,
-          driverId:   filters?.driverId   || undefined,
-          department: filters?.department || undefined,
-          dateFrom:   filters?.dateFrom   || undefined,
-          dateTo:     filters?.dateTo     || undefined,
-          status:     (filters?.status as "active" | "completed") || undefined,
+          vehicleId:  active.vehicleId  || undefined,
+          driverId:   active.driverId   || undefined,
+          department: active.department || undefined,
+          dateFrom:   active.dateFrom   || undefined,
+          dateTo:     active.dateTo     || undefined,
+          status:     (active.status as "active" | "completed") || undefined,
         }),
         vehicles.length ? Promise.resolve(vehicles) : getVehicles(),
         members.length  ? Promise.resolve(members)  : getMembers(),
@@ -836,14 +846,29 @@ function ManagerView() {
       setTasks(t);
       setVehicles(v as Vehicle[]);
       setMembers(m as Profile[]);
+      setLastUpdated(new Date());
     } catch {
-      toast.error("Veriler yüklenirken hata oluştu");
+      // Sessiz yenilemede kullanıcıyı rahatsız etme; sadece manuel/ilk yüklemede uyar.
+      if (!opts?.silent) toast.error("Veriler yüklenirken hata oluştu");
     } finally {
-      setLoading(false);
+      if (opts?.silent) setRefreshing(false);
+      else setLoading(false);
     }
   }
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Canlı yenileme — sekme görünürken her 15 sn'de bir sessizce tazele.
+  // Güncel loadAll closure'ını ref ile çağır ki taze vehicles/members kullanılsın.
+  const loadAllRef = useRef(loadAll);
+  loadAllRef.current = loadAll;
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      loadAllRef.current(undefined, { silent: true });
+    }, 15000);
+    return () => clearInterval(id);
+  }, []);
 
   function handleSearch() {
     loadAll({ vehicleId: fVehicle, driverId: fMember, department: fDept, dateFrom: fFrom, dateTo: fTo, status: fStatus });
@@ -851,7 +876,7 @@ function ManagerView() {
 
   function clearFilters() {
     setFVehicle(""); setFMember(""); setFDept(""); setFFrom(""); setFTo(""); setFStatus("");
-    loadAll();
+    loadAll({});
   }
 
   function openAddForm() {
@@ -968,6 +993,31 @@ function ManagerView() {
         >
           <Plus className="h-4 w-4" /> Görev Ekle
         </Button>
+      </div>
+
+      {/* Live status */}
+      <div className="flex items-center justify-between -mt-2">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          </span>
+          Canlı
+          {lastUpdated && (
+            <span className="text-muted-foreground/60">
+              • {lastUpdated.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} güncellendi
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => loadAll(undefined, { silent: true })}
+          disabled={refreshing}
+          title="Yenile"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 transition-colors text-xs font-semibold text-foreground/80 hover:text-foreground disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          Yenile
+        </button>
       </div>
 
       {/* Filters */}
