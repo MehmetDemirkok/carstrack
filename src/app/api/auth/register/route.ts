@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchToManagers } from "@/lib/notify";
+import { sendWelcomeEmail } from "@/lib/email/sendEmail";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 function generateInviteCode(): string {
@@ -102,6 +103,12 @@ export async function POST(req: Request) {
         },
       }).catch((e) => { console.error("[register] driver_new bildirim hatası:", e); return null; });
 
+      // Yeni üyeye hoş geldin e-postası (akışı kesmez — başarısızlık yutulur)
+      await sendWelcomeEmail(email, { recipientName: fullName }).catch((e) => {
+        console.error("[register] welcome email hatası:", e);
+        return null;
+      });
+
       return NextResponse.json({ message: "Şirkete başarıyla katıldınız.", companyName: company.name }, { status: 200 });
     }
 
@@ -152,6 +159,12 @@ export async function POST(req: Request) {
       await supabaseAdmin.auth.admin.deleteUser(userId);
       return NextResponse.json({ error: "Profil oluşturulurken hata oluştu." }, { status: 500 });
     }
+
+    // Yeni yöneticiye hoş geldin e-postası (akışı kesmez — başarısızlık yutulur)
+    await sendWelcomeEmail(email, { recipientName: fullName }).catch((e) => {
+      console.error("[register] welcome email hatası:", e);
+      return null;
+    });
 
     return NextResponse.json({ message: "Kayıt işlemi başarıyla tamamlandı." }, { status: 200 });
   } catch (err: unknown) {

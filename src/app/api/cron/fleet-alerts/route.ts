@@ -4,7 +4,7 @@ export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendFleetAlertDigest } from "@/lib/emails";
+import { sendFleetAlertDigest } from "@/lib/email/sendEmail";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { sendPushToManagers } from "@/lib/push";
 import { getFleetAlerts } from "@/lib/store";
@@ -231,13 +231,19 @@ export async function GET(req: Request) {
 
     // ── E-posta gönder ──────────────────────────────────────────
     try {
-      await sendFleetAlertDigest({
+      const sendResult = await sendFleetAlertDigest({
         to: email!,
         recipientName: (profile.full_name as string) || email!,
         alerts: alertsToSend,
         appUrl,
         date: turkishDate,
       });
+
+      // Gönderim başarısızsa (veya atlandıysa) "sent" olarak loglama.
+      if (!sendResult.success) {
+        results.push({ userId, status: sendResult.skipped ? "skipped_unconfigured" : "error" });
+        continue;
+      }
 
       const logRows = alertsToSend.map((alert) => ({
         user_id: userId,

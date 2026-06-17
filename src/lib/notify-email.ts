@@ -1,21 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendEventEmail } from "@/lib/emails";
-import type { EventEmailRow } from "@/lib/emails/event";
-
-function getAppUrl(): string {
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "https://carstrack.app";
-}
+import { sendNotificationEmail } from "@/lib/email/sendEmail";
+import { getAppUrl, type NotificationRow } from "@/lib/email/emailTypes";
 
 export interface EventEmailContent {
   subject: string;
   title: string;
   emoji: string;
   intro: string;
-  rows: EventEmailRow[];
+  rows: NotificationRow[];
   note?: string;
+  /** Vurgu rengi (kart üst çizgisi + buton). */
   accent?: string;
+  /** CTA hedefi — appUrl'e göre göreli yol (örn. "/users"). */
   ctaUrl?: string;
   ctaLabel?: string;
 }
@@ -51,17 +47,15 @@ export async function sendEventEmailToUsers(
   const settled = await Promise.allSettled(
     recipients.map((p) => {
       const email = emailMap.get(p.id);
-      if (!email) return Promise.resolve();
-      return sendEventEmail({
-        to: email,
-        subject: content.subject,
+      if (!email) return Promise.resolve({ success: false });
+      return sendNotificationEmail(email, content.subject, {
         recipientName: p.full_name || email,
         title: content.title,
         emoji: content.emoji,
         intro: content.intro,
         rows: content.rows,
         note: content.note,
-        accent: content.accent,
+        accentColor: content.accent,
         appUrl,
         ctaUrl: content.ctaUrl ? `${appUrl}${content.ctaUrl}` : undefined,
         ctaLabel: content.ctaLabel,
@@ -71,8 +65,8 @@ export async function sendEventEmailToUsers(
 
   let sent = 0;
   for (const r of settled) {
-    if (r.status === "fulfilled") sent++;
-    else console.error("[notify-email] gönderim hatası:", r.reason);
+    if (r.status === "fulfilled" && r.value.success) sent++;
+    else if (r.status === "rejected") console.error("[notify-email] gönderim hatası:", r.reason);
   }
   return sent;
 }

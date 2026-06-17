@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendPasswordResetEmail } from "@/lib/emails";
+import { sendPasswordResetEmail } from "@/lib/email/sendEmail";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 // GÜVENLİK: Bu uç nokta her zaman aynı jenerik yanıtı döndürür. Hesabın var
@@ -58,11 +58,11 @@ export async function POST(req: Request) {
 
     const resetLink = linkData.properties.action_link;
 
-    const { error: emailError } = await sendPasswordResetEmail(normalizedEmail, resetLink);
+    const result = await sendPasswordResetEmail(normalizedEmail, { resetUrl: resetLink });
 
-    if (emailError) {
-      // Hata logla ama istemciye yine jenerik yanıt ver.
-      console.error("[forgot-password] resend error:", emailError);
+    if (!result.success) {
+      // Hata logla ama istemciye yine jenerik yanıt ver (enumeration koruması).
+      console.error("[forgot-password] resend error:", result.error ?? "skipped");
       return NextResponse.json(GENERIC_OK, { status: 200 });
     }
 
