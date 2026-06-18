@@ -743,6 +743,38 @@ export async function getTasks(filters?: {
   }
 }
 
+// Bir araç 24 saat (aynı takvim günü) içinde fiziksel olarak en fazla bu kadar
+// km yapabilir. Bunun üzerindeki kayıtlar hatalı kabul edilir ve engellenir;
+// aksi halde araç KM'si ve buna bağlı bakım hesapları yanlış şişer.
+export const MAX_VEHICLE_DAILY_KM = 1500;
+
+/**
+ * Verilen aracın belirli bir takvim günündeki tamamlanmış görevlerinden
+ * toplam kat edilen km'yi döndürür. `excludeTaskId` ile kendi görevini hariç
+ * tutarak güncellenen görevi çift saymayı önler.
+ */
+async function getVehicleDailyKm(
+  supabase: ReturnType<typeof createClient>,
+  vehicleId: string,
+  refDate: Date,
+  excludeTaskId?: string
+): Promise<number> {
+  const dayStart = new Date(refDate); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(refDate); dayEnd.setHours(23, 59, 59, 999);
+
+  const { data } = await supabase
+    .from("vehicle_tasks")
+    .select("id, distance")
+    .eq("vehicle_id", vehicleId)
+    .eq("status", "completed")
+    .gte("start_time", dayStart.toISOString())
+    .lte("start_time", dayEnd.toISOString());
+
+  return (data ?? [])
+    .filter((r) => r.id !== excludeTaskId)
+    .reduce((sum, r) => sum + ((r.distance as number) ?? 0), 0);
+}
+
 export async function startTask(data: {
   vehicleId: string;
   startKm: number;
@@ -779,13 +811,35 @@ export async function endTask(taskId: string, endKm: number): Promise<VehicleTas
 
   const { data: existing, error: fetchErr } = await supabase
     .from("vehicle_tasks")
-    .select("start_km, vehicle_id")
+    .select("start_km, vehicle_id, start_time")
     .eq("id", taskId)
     .eq("status", "active")
     .single();
 
   if (fetchErr || !existing) throw new Error("Aktif görev bulunamadı.");
   const distance = endKm - (existing.start_km as number);
+
+  if (distance < 0) {
+    throw new Error(`Bitiş KM, başlangıç KM'den (${(existing.start_km as number).toLocaleString("tr-TR")}) küçük olamaz.`);
+  }
+
+  // Günlük 1500 km sınırı — tek seferde ve aynı gün toplamında aşılamaz.
+  if (distance > MAX_VEHICLE_DAILY_KM) {
+    throw new Error(
+      `Bir araç günde en fazla ${MAX_VEHICLE_DAILY_KM.toLocaleString("tr-TR")} km yapabilir. ` +
+      `Bu seyahat ${distance.toLocaleString("tr-TR")} km görünüyor — bitiş KM'yi kontrol edin.`
+    );
+  }
+  const vehicleIdForLimit = existing.vehicle_id as string;
+  const refDate = existing.start_time ? new Date(existing.start_time as string) : new Date();
+  const priorKm = await getVehicleDailyKm(supabase, vehicleIdForLimit, refDate, taskId);
+  if (priorKm + distance > MAX_VEHICLE_DAILY_KM) {
+    throw new Error(
+      `Bu araç bugün zaten ${priorKm.toLocaleString("tr-TR")} km yaptı. ` +
+      `Bu seyahatle birlikte günlük ${MAX_VEHICLE_DAILY_KM.toLocaleString("tr-TR")} km sınırı aşılıyor ` +
+      `(${(priorKm + distance).toLocaleString("tr-TR")} km).`
+    );
+  }
 
   const { data: updated, error } = await supabase
     .from("vehicle_tasks")
