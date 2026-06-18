@@ -172,6 +172,24 @@ export interface VehicleReportLog {
   actorName?: string;
 }
 
+// ─── Kullanıcı Geri Bildirimleri ──────────────────────────────
+export type FeedbackType = "bug" | "suggestion" | "other";
+export type FeedbackStatus = "new" | "seen" | "resolved";
+
+export interface Feedback {
+  id: string;
+  companyId: string;
+  userId: string;
+  type: FeedbackType;
+  message: string;
+  /** Geri bildirimin gönderildiği sayfa (bağlam). */
+  pageUrl?: string;
+  status: FeedbackStatus;
+  createdAt: string;
+  // join'den gelen (opsiyonel)
+  userName?: string;
+}
+
 export interface FleetAlert {
   id: string;
   vehicleId: string;

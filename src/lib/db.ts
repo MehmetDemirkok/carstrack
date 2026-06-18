@@ -2,6 +2,7 @@ import { createClient } from "./supabase/client";
 import type {
   Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask, VehicleDocument,
   VehicleReport, VehicleReportLog, ReportStatus, ReportSeverity, ReportCategory,
+  Feedback, FeedbackType,
 } from "./types";
 
 // ─── TTL data cache ───────────────────────────────────────────
@@ -1464,4 +1465,88 @@ export async function markNotificationsRead(ids: string[]): Promise<void> {
     .in("id", ids)
     .is("read_at", null);
   if (error) console.error("markNotificationsRead error:", error);
+}
+
+// ─── Kullanıcı Geri Bildirimleri (Feedback) ───────────────────
+
+function toFeedback(row: Record<string, unknown>): Feedback {
+  const profile = row.profiles as { full_name?: string } | null;
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    userId: row.user_id as string,
+    type: row.type as FeedbackType,
+    message: (row.message as string) || "",
+    pageUrl: (row.page_url as string) || undefined,
+    status: row.status as Feedback["status"],
+    createdAt: row.created_at as string,
+    userName: profile?.full_name ?? undefined,
+  };
+}
+
+/** Yeni geri bildirimi uygulama sahibine e-posta ile bildirir (fire-and-forget). */
+function notifyFeedbackCreate(feedbackId: string): void {
+  try {
+    void fetch("/api/feedback/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ feedbackId }),
+    }).catch(() => {});
+  } catch {
+    /* yoksay */
+  }
+}
+
+/** Mevcut kullanıcı adına yeni bir geri bildirim oluşturur. */
+export async function submitFeedback(data: {
+  type: FeedbackType;
+  message: string;
+  pageUrl?: string;
+}): Promise<Feedback> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Oturum bulunamadı.");
+
+  const message = data.message.trim();
+  if (!message) throw new Error("Lütfen bir mesaj yazın.");
+
+  const { data: inserted, error } = await supabase
+    .from("feedback")
+    .insert({
+      company_id: companyId,
+      user_id: userId,
+      type: data.type,
+      message: message.slice(0, 4000),
+      page_url: (data.pageUrl ?? "").slice(0, 500),
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : "",
+      status: "new",
+    })
+    .select("*, profiles(full_name)")
+    .single();
+
+  if (error) throw error;
+  const feedback = toFeedback(inserted as Record<string, unknown>);
+  notifyFeedbackCreate(feedback.id);
+  return feedback;
+}
+
+/** Mevcut kullanıcının gönderdiği geri bildirimleri (en yeni önce) döndürür. */
+export async function getMyFeedback(): Promise<Feedback[]> {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) return [];
+
+  const { data, error } = await supabase
+    .from("feedback")
+    .select("*, profiles(full_name)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error) throw error;
+  return (data ?? []).map((r) => toFeedback(r as Record<string, unknown>));
 }

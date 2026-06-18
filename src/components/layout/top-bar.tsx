@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bell, Search, LogOut, Sun, Moon } from "lucide-react";
+import { Bell, Search, LogOut, Sun, Moon, MessageSquarePlus } from "lucide-react";
+import { FeedbackDialog } from "@/components/feedback-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,6 +30,7 @@ export function TopBar() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,18 @@ export function TopBar() {
 
         {/* Right: actions + user */}
         <div className="flex items-center gap-1">
+          {/* Geri Bildirim */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-xl h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            onClick={() => setShowFeedback(true)}
+            title="Geri Bildirim"
+            suppressHydrationWarning
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+          </Button>
+
           {/* Theme Toggle — suppressHydrationWarning prevents title mismatch */}
           <Button
             variant="ghost"
@@ -236,6 +250,8 @@ export function TopBar() {
           </Link>
         </div>
       </div>
+
+      <FeedbackDialog open={showFeedback} onOpenChange={setShowFeedback} />
     </header>
   );
 }
