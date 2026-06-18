@@ -7,7 +7,7 @@
 // sürümleme/önbellekleme mekanizması ile çakışmaması ve bayat içerik
 // gösterilmemesi için istekler ağ üzerinden geçirilir.
 
-const VERSION = "carstrack-v1";
+const VERSION = "carstrack-v2";
 
 self.addEventListener("install", () => {
   // Yeni service worker'ı hemen etkinleştir.
@@ -87,18 +87,20 @@ self.addEventListener("fetch", (event) => {
   // Yalnızca GET isteklerine dokun; geri kalanını tarayıcıya bırak.
   if (event.request.method !== "GET") return;
 
-  // Ağ öncelikli, sessiz geri dönüş: çevrimdışıyken aynı sayfa için
-  // son başarılı yanıtı önbellekten döndürmeyi dener.
+  // ÖNEMLİ: HTML gezinmelerini ve JS/CSS varlıklarını ASLA önbelleğe almıyoruz.
+  // Next.js her derlemede hash'li chunk üretir; bayat bir HTML önbellekten
+  // sunulursa artık var olmayan eski chunk'ları ister ve ChunkLoadError ile
+  // "This page couldn't load" hatası oluşur. Bu istekleri her zaman ağa
+  // bırakıyoruz; tarayıcı/Vercel kendi sürümleme ve önbelleklemesini yapar.
+  if (event.request.mode === "navigate" || event.request.destination !== "image") {
+    return; // tarayıcı normal şekilde işlesin
+  }
+
+  // Yalnızca görseller: ağ öncelikli, çevrimdışı için sessiz önbellek geri dönüşü.
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Yalnızca temel (same-origin) gezinme/varlık yanıtlarını önbelleğe al.
-        if (
-          response &&
-          response.status === 200 &&
-          response.type === "basic" &&
-          (event.request.mode === "navigate" || event.request.destination === "image")
-        ) {
+        if (response && response.status === 200 && response.type === "basic") {
           const copy = response.clone();
           caches.open(VERSION).then((cache) => cache.put(event.request, copy)).catch(() => {});
         }
@@ -107,7 +109,8 @@ self.addEventListener("fetch", (event) => {
       .catch(async () => {
         const cached = await caches.match(event.request);
         if (cached) return cached;
-        throw new Error("offline");
+        // Görsel bulunamazsa hatayı yutmadan bir yanıt döndür; sayfayı bozma.
+        return Response.error();
       })
   );
 });

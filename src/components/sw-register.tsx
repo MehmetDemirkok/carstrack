@@ -24,8 +24,39 @@ export function ServiceWorkerRegister() {
       register();
     } else {
       window.addEventListener("load", register, { once: true });
-      return () => window.removeEventListener("load", register);
     }
+
+    // Kurtarma: yeni bir derleme sonrası eski (bayat) chunk'lar artık sunucuda
+    // bulunmayabilir; bu durumda ChunkLoadError oluşur. Böyle bir hata
+    // yakalanırsa sayfayı bir kez (sessionStorage ile sonsuz döngüye karşı
+    // korumalı) sert yeniler ki en güncel HTML/chunk'lar çekilsin.
+    const RELOAD_FLAG = "chunk-reload-once";
+    // Bu bileşen mount olduysa sayfa sağlıklı yüklenmiş demektir; bir sonraki
+    // gerçek chunk hatasının da kurtarılabilmesi için bayrağı temizle.
+    sessionStorage.removeItem(RELOAD_FLAG);
+
+    const isChunkError = (msg?: string) =>
+      !!msg && (/ChunkLoadError/.test(msg) || /Loading chunk [\d]+ failed/.test(msg) || /Failed to load .*chunk/i.test(msg));
+
+    const recover = (msg?: string) => {
+      if (!isChunkError(msg)) return;
+      if (sessionStorage.getItem(RELOAD_FLAG)) return;
+      sessionStorage.setItem(RELOAD_FLAG, "1");
+      window.location.reload();
+    };
+
+    const onError = (e: ErrorEvent) => recover(e.message || String(e.error));
+    const onRejection = (e: PromiseRejectionEvent) =>
+      recover(e.reason?.message || String(e.reason));
+
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+
+    return () => {
+      window.removeEventListener("load", register);
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, []);
 
   return null;
