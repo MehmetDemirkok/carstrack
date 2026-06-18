@@ -75,6 +75,19 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
   const resend = getResendClient();
   if (!resend) return { success: false, skipped: true };
 
+  // YAPILANDIRMA KORUMASI: RESEND_FROM_EMAIL tanımlı değilse BRAND.fromAddress
+  // Resend'in paylaşımlı sandbox göndericisi `onboarding@resend.dev`'e düşer.
+  // Bu adres YALNIZCA hesap sahibinin kendi e-postasına teslim eder; diğer tüm
+  // alıcıları 403 ile reddeder. Production'da bu sessizce olursa "sadece bir
+  // kişiye mail gidiyor" hatasına yol açar — bu yüzden yüksek sesle uyar.
+  if (BRAND.fromAddress.includes("onboarding@resend.dev") && process.env.NODE_ENV === "production") {
+    console.error(
+      `[email:${template}] YAPILANDIRMA HATASI: RESEND_FROM_EMAIL tanımlı değil — ` +
+        `gönderici sandbox 'onboarding@resend.dev' (yalnız hesap sahibine teslim eder). ` +
+        `Doğrulanmış alan adresini ortam değişkenine ekleyin (to=${recipientLabel(to)}).`,
+    );
+  }
+
   const headers: Record<string, string> = {};
   if (listUnsubscribe) {
     headers["List-Unsubscribe"] = listUnsubscribe;
