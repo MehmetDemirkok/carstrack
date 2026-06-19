@@ -49,10 +49,23 @@ interface ManagerProfile {
   notify_by_email: boolean | null;
 }
 
+/** dispatchToManagers ek seçenekleri. */
+export interface DispatchOptions {
+  /**
+   * Yönetici + operatör kitlesine ek olarak bildirilecek kullanıcı id'leri
+   * (örn. arızayı açan "kullanıcı" rolündeki kişi). Aynı şirkete ait olmalı;
+   * kitledeki kişilerle ve birbirleriyle çakışanlar otomatik tekilleştirilir.
+   */
+  extraUserIds?: string[];
+}
+
 /**
  * Bir şirketteki yönetici + operatör rolündeki kullanıcılara olayı 4 kanaldan
  * birden iletir. Her kanal birbirinden bağımsız; biri başarısız olsa (örn. Telegram
  * bağlı değil, RESEND yok) diğerleri çalışmaya devam eder ve fonksiyon asla throw etmez.
+ *
+ * `options.extraUserIds` ile kitle dışındaki belirli kullanıcılara da (ör. arızayı
+ * açan kişi) aynı olay iletilebilir.
  *
  * @param admin Service-role Supabase client (RLS bypass — notifications insert için şart).
  */
@@ -60,6 +73,7 @@ export async function dispatchToManagers(
   admin: SupabaseClient,
   companyId: string,
   event: NotifyEvent,
+  options?: DispatchOptions,
 ): Promise<DispatchResult> {
   const result: DispatchResult = { recipients: 0, inApp: 0, telegram: 0, push: 0, email: 0 };
 
@@ -71,6 +85,22 @@ export async function dispatchToManagers(
     .in("role", ["manager", "operator"]);
 
   const managers = (profiles ?? []) as ManagerProfile[];
+
+  // Ek alıcılar (ör. arızayı açan kullanıcı) — kitlede olmayanları aynı şirketten çek.
+  const extraIds = (options?.extraUserIds ?? []).filter(
+    (id): id is string => !!id && !managers.some((m) => m.id === id),
+  );
+  if (extraIds.length > 0) {
+    const { data: extraProfiles } = await admin
+      .from("profiles")
+      .select("id, full_name, telegram_chat_id, notify_by_email")
+      .eq("company_id", companyId)
+      .in("id", extraIds);
+    for (const p of (extraProfiles ?? []) as ManagerProfile[]) {
+      if (!managers.some((m) => m.id === p.id)) managers.push(p);
+    }
+  }
+
   if (managers.length === 0) return result;
   result.recipients = managers.length;
 

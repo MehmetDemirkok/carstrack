@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     const { data: report, error: repErr } = await admin
       .from("vehicle_reports")
-      .select("id, company_id, vehicle_id, title, vehicles(plate, brand, model)")
+      .select("id, company_id, vehicle_id, reporter_id, title, vehicles(plate, brand, model)")
       .eq("id", body.reportId)
       .single();
 
@@ -103,6 +103,10 @@ export async function POST(req: NextRequest) {
         ctaUrl: "/reports",
         ctaLabel: "Bildirimi Görüntüle",
       },
+    }, {
+      // Arızayı açan kullanıcı (şoför/kullanıcı rolü) kendi bildiriminin
+      // gelişmelerinden 4 kanaldan haberdar olsun.
+      extraUserIds: [report.reporter_id as string].filter(Boolean),
     });
 
     return NextResponse.json({ ok: true, ...result });
