@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { getReports, getVehicles, getMembers, updateReportStatus, deleteReport } from "@/lib/db";
+import { useData } from "@/context/data-context";
 import type { Vehicle, Profile, VehicleReport, ReportStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,10 @@ function noteRequired(status: ReportStatus): boolean {
 }
 
 export function ManagerReportsView() {
+  // Arıza "çözüldü" olarak işaretlendiğinde db.ts otomatik bir servis kaydı
+  // ekler; paylaşılan veri (geçmiş/panel/analitik) bu kaydı görmek için
+  // yenilenmelidir.
+  const { refresh: refreshSharedData } = useData();
   const [reports, setReports] = useState<VehicleReport[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [members, setMembers] = useState<Profile[]>([]);
@@ -97,6 +102,7 @@ export function ManagerReportsView() {
       return;
     }
     setSubmitting(true);
+    const willResolve = nextStatus === "resolved" && target.status !== "resolved";
     try {
       await updateReportStatus(target.id, nextStatus, note.trim() || undefined);
       setReports((prev) => prev.map((r) =>
@@ -104,6 +110,9 @@ export function ManagerReportsView() {
           ? { ...r, status: nextStatus, resolutionNote: nextStatus === "resolved" ? note.trim() : r.resolutionNote, resolvedAt: nextStatus === "resolved" ? new Date().toISOString() : undefined }
           : r
       ));
+      // Çözülen arıza için db.ts otomatik bir servis kaydı eklediğinden,
+      // geçmiş/panel/analitik sayfalarındaki paylaşılan kayıtları tazele.
+      if (willResolve) void refreshSharedData();
       setTarget(null);
       toast.success("Durum güncellendi", { description: `${STATUS_META[nextStatus].label} olarak işaretlendi.` });
     } catch (err) {
