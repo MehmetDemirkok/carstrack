@@ -561,12 +561,37 @@ export default function VehicleDetailPage() {
   };
 
   const handleDownloadDoc = async (doc: VehicleDocument) => {
+    // Dosyayı (jpeg/pdf/png vb.) gerçekten indirir. Hem web hem PWA (standalone)
+    // ortamında çalışması için imzalı URL'den blob çekip <a download> ile tetikler.
+    const fileName = doc.fileName || `${doc.title || "belge"}`;
+    const toastId = toast.loading("İndiriliyor...", { description: fileName });
     try {
-      const url = await getDocumentSignedUrl(doc.filePath);
-      window.open(url, "_blank", "noopener,noreferrer");
+      // Supabase imzalı URL'ine download adı gömülür → Content-Disposition: attachment
+      const url = await getDocumentSignedUrl(doc.filePath, fileName);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Blob URL'i hemen revoke etme; bazı tarayıcılar indirme başlamadan iptal eder
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+      toast.success("İndirildi", { id: toastId, description: fileName });
     } catch (err) {
       console.error(err);
-      toast.error("Hata", { description: "Belge açılırken hata oluştu." });
+      // Fallback: blob indirilemezse (CORS vb.) imzalı URL'i yeni sekmede aç
+      try {
+        const url = await getDocumentSignedUrl(doc.filePath, fileName);
+        window.open(url, "_blank", "noopener,noreferrer");
+        toast.dismiss(toastId);
+      } catch {
+        toast.error("Hata", { id: toastId, description: "Belge indirilirken hata oluştu." });
+      }
     }
   };
 
@@ -1870,7 +1895,7 @@ export default function VehicleDetailPage() {
                   <p className="text-sm">Belge görüntülenemedi.</p>
                   {docToView && (
                     <Button variant="outline" size="sm" className="rounded-xl gap-1.5" onClick={() => handleDownloadDoc(docToView)}>
-                      <Download className="h-3.5 w-3.5" /> Yeni sekmede aç
+                      <Download className="h-3.5 w-3.5" /> İndir
                     </Button>
                   )}
                 </div>
@@ -1885,7 +1910,7 @@ export default function VehicleDetailPage() {
                   <p className="text-sm">Bu dosya türü önizlenemiyor.</p>
                   {docToView && (
                     <Button variant="outline" size="sm" className="rounded-xl gap-1.5" onClick={() => handleDownloadDoc(docToView)}>
-                      <Download className="h-3.5 w-3.5" /> İndir / Yeni sekmede aç
+                      <Download className="h-3.5 w-3.5" /> İndir
                     </Button>
                   )}
                 </div>

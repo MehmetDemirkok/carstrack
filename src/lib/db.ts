@@ -1030,11 +1030,14 @@ export async function deleteVehicleDocument(id: string, filePath: string): Promi
   bustCache(`vdocs:${companyId}`);
 }
 
-export async function getDocumentSignedUrl(filePath: string): Promise<string> {
+export async function getDocumentSignedUrl(
+  filePath: string,
+  downloadName?: string,
+): Promise<string> {
   const supabase = createClient();
   const { data, error } = await supabase.storage
     .from("vehicle-documents")
-    .createSignedUrl(filePath, 3600);
+    .createSignedUrl(filePath, 3600, downloadName ? { download: downloadName } : undefined);
   if (error) throw error;
   return data.signedUrl;
 }
