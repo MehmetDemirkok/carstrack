@@ -1020,7 +1020,8 @@ export default function VehicleDetailPage() {
                 <TabsContent value="docs" className="space-y-3 outline-none">
                   <div className="bg-card rounded-2xl p-5 border border-border/40 shadow-sm space-y-4">
                     {[
-                      { icon: ShieldCheck, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "Kasko & Sigorta", sub: vehicle.insuranceCompany || "—", date: vehicle.insuranceExpiry, inspection: false },
+                      { icon: ShieldCheck, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "Zorunlu Trafik Sigortası", sub: vehicle.insuranceCompany || "—", date: vehicle.insuranceExpiry, inspection: false },
+                      { icon: ShieldCheck, iconBg: "bg-sky-500/10", iconColor: "text-sky-500", label: "Kasko Poliçesi", sub: vehicle.kaskoCompany || "—", date: vehicle.kaskoExpiry, inspection: false },
                       { icon: ShieldCheck, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500", label: "Yurtdışı Sigortası (Yeşil Kart)", sub: vehicle.greenCardCompany || "—", date: vehicle.greenCardExpiry, inspection: false },
                       { icon: CalendarDays, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "TÜVTÜRK Muayene", sub: "", date: vehicle.inspectionExpiry, inspection: true },
                     ].map((doc, i) => {
@@ -1536,6 +1537,20 @@ export default function VehicleDetailPage() {
                   <div className="space-y-1"><Label className={iLabel}>Lastik Ebatı</Label><Input className={iCls} value={editData.tireSize || ""} onChange={(e) => setEditData((d) => ({ ...d, tireSize: e.target.value }))} placeholder="205/55R16" /></div>
                 </div>
                 <div className="space-y-1"><Label className={iLabel}>Sigorta Bitiş</Label><DatePicker value={editData.insuranceExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, insuranceExpiry: v }))} /></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1"><Label className={iLabel}>Kasko Şirketi</Label><Input className={iCls} value={editData.kaskoCompany || ""} onChange={(e) => setEditData((d) => ({ ...d, kaskoCompany: e.target.value }))} placeholder="Allianz, Axa..." /></div>
+                  <div className="space-y-1">
+                    <Label className={iLabel}>Kasko Bitiş</Label>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1"><DatePicker value={editData.kaskoExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, kaskoExpiry: v }))} /></div>
+                      {editData.kaskoExpiry && (
+                        <button type="button" onClick={() => setEditData((d) => ({ ...d, kaskoExpiry: "" }))} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0" title="Tarihi kaldır">
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <div className="space-y-1">
                   <Label className={iLabel}>Yeşil Kart Bitiş</Label>
                   <div className="flex items-center gap-1.5">

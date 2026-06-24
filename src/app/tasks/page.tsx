@@ -34,7 +34,7 @@ import {
   createTaskAsManager,
   deleteTask,
   getVehicleStatuses,
-  MAX_VEHICLE_DAILY_KM,
+  MAX_VEHICLE_TASK_KM,
 } from "@/lib/db";
 import { exportTasksExcel } from "@/lib/export";
 import type { Vehicle, VehicleTask, Profile } from "@/lib/types";
@@ -219,17 +219,8 @@ function StaffView() {
       return;
     }
     const tripKm = km - activeTask.startKm;
-    if (tripKm > MAX_VEHICLE_DAILY_KM) {
-      toast.error(`Bir araç günde en fazla ${formatKm(MAX_VEHICLE_DAILY_KM)} km yapabilir. Bu seyahat ${formatKm(tripKm)} km — bitiş KM'yi kontrol edin.`);
-      return;
-    }
-    // Bu araçla bugün yapılan tamamlanmış seferlerin toplamı + bu sefer 1500'ü aşamaz.
-    const today = new Date().toDateString();
-    const priorKm = allMyTasks
-      .filter((t) => t.vehicleId === activeTask.vehicleId && t.status === "completed" && new Date(t.startTime).toDateString() === today)
-      .reduce((s, t) => s + (t.distance ?? 0), 0);
-    if (priorKm + tripKm > MAX_VEHICLE_DAILY_KM) {
-      toast.error(`Bu araç bugün zaten ${formatKm(priorKm)} km yaptı. Bu seferle birlikte günlük ${formatKm(MAX_VEHICLE_DAILY_KM)} km sınırı aşılıyor (${formatKm(priorKm + tripKm)} km).`);
+    if (tripKm > MAX_VEHICLE_TASK_KM) {
+      toast.error(`Bir araç tek görevde en fazla ${formatKm(MAX_VEHICLE_TASK_KM)} km yapabilir. Bu seyahat ${formatKm(tripKm)} km — bitiş KM'yi kontrol edin.`);
       return;
     }
 
@@ -855,7 +846,10 @@ function ManagerView() {
           dateTo:     active.dateTo     || undefined,
           status:     (active.status as "active" | "completed") || undefined,
         }),
-        vehicles.length ? Promise.resolve(vehicles) : getVehicles(),
+        // Araçları her zaman taze çek: görev bitince araç KM'si (mileage) güncellenir
+        // ve db cache temizlenir; böylece bir sonraki görevde başlangıç KM doğru
+        // (bir önceki görevin bitiş KM'si) gelir ve yönetici/şoför görünümleri eşleşir.
+        getVehicles(),
         members.length  ? Promise.resolve(members)  : getMembers(),
       ]);
       setTasks(t);
@@ -942,8 +936,8 @@ function ManagerView() {
       return;
     }
     const tripKm = km - taskToEnd.startKm;
-    if (tripKm > MAX_VEHICLE_DAILY_KM) {
-      toast.error(`Bir araç günde en fazla ${formatKm(MAX_VEHICLE_DAILY_KM)} km yapabilir. Bu seyahat ${formatKm(tripKm)} km — bitiş KM'yi kontrol edin.`);
+    if (tripKm > MAX_VEHICLE_TASK_KM) {
+      toast.error(`Bir araç tek görevde en fazla ${formatKm(MAX_VEHICLE_TASK_KM)} km yapabilir. Bu seyahat ${formatKm(tripKm)} km — bitiş KM'yi kontrol edin.`);
       return;
     }
     // Aynı gün toplamı için sunucu (endTask) nihai kontrolü yapar.

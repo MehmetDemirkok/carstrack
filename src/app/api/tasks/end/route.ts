@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 // Bir araç 24 saat (aynı takvim günü) içinde en fazla bu kadar km yapabilir.
-const MAX_VEHICLE_DAILY_KM = 1500;
+const MAX_VEHICLE_TASK_KM = 1500;
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,29 +43,11 @@ export async function POST(req: NextRequest) {
 
     const distance = endKm - (task.start_km as number);
 
-    // Günlük 1500 km sınırı — tek seferde ve aynı gün toplamında aşılamaz.
-    if (distance > MAX_VEHICLE_DAILY_KM) {
+    // Görev başına 1500 km sınırı — tek bir sefer bunu aşamaz. Gün içindeki
+    // birden çok görevin toplamı kontrol edilmez.
+    if (distance > MAX_VEHICLE_TASK_KM) {
       return NextResponse.json({
-        error: `Bir araç günde en fazla ${MAX_VEHICLE_DAILY_KM} km yapabilir. Bu seyahat ${distance} km — bitiş KM'yi kontrol edin.`,
-      }, { status: 400 });
-    }
-
-    const refDate = task.start_time ? new Date(task.start_time as string) : new Date();
-    const dayStart = new Date(refDate); dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(refDate); dayEnd.setHours(23, 59, 59, 999);
-    const { data: dayTasks } = await supabase
-      .from("vehicle_tasks")
-      .select("id, distance")
-      .eq("vehicle_id", task.vehicle_id as string)
-      .eq("status", "completed")
-      .gte("start_time", dayStart.toISOString())
-      .lte("start_time", dayEnd.toISOString());
-    const priorKm = (dayTasks ?? [])
-      .filter((r) => r.id !== task.id)
-      .reduce((s, r) => s + ((r.distance as number) ?? 0), 0);
-    if (priorKm + distance > MAX_VEHICLE_DAILY_KM) {
-      return NextResponse.json({
-        error: `Bu araç bugün zaten ${priorKm} km yaptı. Bu seyahatle birlikte günlük ${MAX_VEHICLE_DAILY_KM} km sınırı aşılıyor (${priorKm + distance} km).`,
+        error: `Bir araç tek görevde en fazla ${MAX_VEHICLE_TASK_KM} km yapabilir. Bu seyahat ${distance} km — bitiş KM'yi kontrol edin.`,
       }, { status: 400 });
     }
 

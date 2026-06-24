@@ -153,6 +153,8 @@ function toVehicle(row: Record<string, unknown>): Vehicle {
     batteryInstallDate: (row.battery_install_date as string) || "",
     insuranceCompany: (row.insurance_company as string) || "",
     insuranceExpiry: (row.insurance_expiry as string) || "",
+    kaskoCompany: (row.kasko_company as string) || "",
+    kaskoExpiry: (row.kasko_expiry as string) || "",
     greenCardCompany: (row.green_card_company as string) || "",
     greenCardExpiry: (row.green_card_expiry as string) || "",
     inspectionExpiry: (row.inspection_expiry as string) || "",
@@ -202,6 +204,8 @@ function toDbVehicle(v: Partial<Vehicle>, companyId?: string) {
   if (v.batteryInstallDate !== undefined) obj.battery_install_date = v.batteryInstallDate || null;
   if (v.insuranceCompany !== undefined) obj.insurance_company = v.insuranceCompany;
   if (v.insuranceExpiry !== undefined) obj.insurance_expiry = v.insuranceExpiry || null;
+  if (v.kaskoCompany !== undefined) obj.kasko_company = v.kaskoCompany;
+  if (v.kaskoExpiry !== undefined) obj.kasko_expiry = v.kaskoExpiry || null;
   if (v.greenCardCompany !== undefined) obj.green_card_company = v.greenCardCompany;
   if (v.greenCardExpiry !== undefined) obj.green_card_expiry = v.greenCardExpiry || null;
   if (v.inspectionExpiry !== undefined) obj.inspection_expiry = v.inspectionExpiry || null;
@@ -744,37 +748,12 @@ export async function getTasks(filters?: {
   }
 }
 
-// Bir araç 24 saat (aynı takvim günü) içinde fiziksel olarak en fazla bu kadar
-// km yapabilir. Bunun üzerindeki kayıtlar hatalı kabul edilir ve engellenir;
+// Bir araç tek bir görevde (sefer) fiziksel olarak en fazla bu kadar km
+// yapabilir. Bunun üzerindeki kayıtlar hatalı kabul edilir ve engellenir;
 // aksi halde araç KM'si ve buna bağlı bakım hesapları yanlış şişer.
-export const MAX_VEHICLE_DAILY_KM = 1500;
-
-/**
- * Verilen aracın belirli bir takvim günündeki tamamlanmış görevlerinden
- * toplam kat edilen km'yi döndürür. `excludeTaskId` ile kendi görevini hariç
- * tutarak güncellenen görevi çift saymayı önler.
- */
-async function getVehicleDailyKm(
-  supabase: ReturnType<typeof createClient>,
-  vehicleId: string,
-  refDate: Date,
-  excludeTaskId?: string
-): Promise<number> {
-  const dayStart = new Date(refDate); dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(refDate); dayEnd.setHours(23, 59, 59, 999);
-
-  const { data } = await supabase
-    .from("vehicle_tasks")
-    .select("id, distance")
-    .eq("vehicle_id", vehicleId)
-    .eq("status", "completed")
-    .gte("start_time", dayStart.toISOString())
-    .lte("start_time", dayEnd.toISOString());
-
-  return (data ?? [])
-    .filter((r) => r.id !== excludeTaskId)
-    .reduce((sum, r) => sum + ((r.distance as number) ?? 0), 0);
-}
+// Not: Sınır görev başınadır — gün içindeki birden çok görevin toplamı kontrol
+// edilmez (km farkını kapatabilmek için kasıtlı olarak böyle).
+export const MAX_VEHICLE_TASK_KM = 1500;
 
 export async function startTask(data: {
   vehicleId: string;
@@ -824,21 +803,12 @@ export async function endTask(taskId: string, endKm: number): Promise<VehicleTas
     throw new Error(`Bitiş KM, başlangıç KM'den (${(existing.start_km as number).toLocaleString("tr-TR")}) küçük olamaz.`);
   }
 
-  // Günlük 1500 km sınırı — tek seferde ve aynı gün toplamında aşılamaz.
-  if (distance > MAX_VEHICLE_DAILY_KM) {
+  // Görev başına 1500 km sınırı — tek bir sefer bunu aşamaz. Gün içindeki
+  // birden çok görevin toplamı KONTROL EDİLMEZ (km farkını kapatabilmek için).
+  if (distance > MAX_VEHICLE_TASK_KM) {
     throw new Error(
-      `Bir araç günde en fazla ${MAX_VEHICLE_DAILY_KM.toLocaleString("tr-TR")} km yapabilir. ` +
+      `Bir araç tek görevde en fazla ${MAX_VEHICLE_TASK_KM.toLocaleString("tr-TR")} km yapabilir. ` +
       `Bu seyahat ${distance.toLocaleString("tr-TR")} km görünüyor — bitiş KM'yi kontrol edin.`
-    );
-  }
-  const vehicleIdForLimit = existing.vehicle_id as string;
-  const refDate = existing.start_time ? new Date(existing.start_time as string) : new Date();
-  const priorKm = await getVehicleDailyKm(supabase, vehicleIdForLimit, refDate, taskId);
-  if (priorKm + distance > MAX_VEHICLE_DAILY_KM) {
-    throw new Error(
-      `Bu araç bugün zaten ${priorKm.toLocaleString("tr-TR")} km yaptı. ` +
-      `Bu seyahatle birlikte günlük ${MAX_VEHICLE_DAILY_KM.toLocaleString("tr-TR")} km sınırı aşılıyor ` +
-      `(${(priorKm + distance).toLocaleString("tr-TR")} km).`
     );
   }
 

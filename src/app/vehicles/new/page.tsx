@@ -272,6 +272,8 @@ interface FormData {
   batteryInstallDate: string;
   insuranceCompany: string;
   insuranceExpiry: string;
+  kaskoCompany: string;
+  kaskoExpiry: string;
   greenCardCompany: string;
   greenCardExpiry: string;
   inspectionExpiry: string;
@@ -287,7 +289,7 @@ const defaultForm: FormData = {
   fuelType: "Benzin", transmission: "Otomatik",
   tireStatus: "Yazlık", tireBrand: "", tireSize: "", tireInstallDate: "", tireMileage: "0",
   batteryBrand: "", batteryCapacity: "", batteryInstallDate: "",
-  insuranceCompany: "", insuranceExpiry: "", greenCardCompany: "", greenCardExpiry: "", inspectionExpiry: "",
+  insuranceCompany: "", insuranceExpiry: "", kaskoCompany: "", kaskoExpiry: "", greenCardCompany: "", greenCardExpiry: "", inspectionExpiry: "",
   lastServiceDate: "", lastServiceMileage: "0", notes: "",
 };
 
@@ -527,6 +529,8 @@ export default function NewVehiclePage() {
       batteryInstallDate: form.batteryInstallDate,
       insuranceCompany: form.insuranceCompany,
       insuranceExpiry: form.insuranceExpiry,
+      kaskoCompany: form.kaskoCompany,
+      kaskoExpiry: form.kaskoExpiry,
       greenCardCompany: form.greenCardCompany,
       greenCardExpiry: form.greenCardExpiry,
       inspectionExpiry: form.inspectionExpiry,
@@ -551,7 +555,7 @@ export default function NewVehiclePage() {
             const uploaded = await uploadDocumentFile(vehicle.id, doc.file!);
             const expiry =
               key === "trafik_sigortasi" ? (form.insuranceExpiry || undefined) :
-              key === "kasko"            ? (form.greenCardExpiry  || undefined) :
+              key === "kasko"            ? (form.kaskoExpiry  || undefined) :
               undefined;
             await addVehicleDocument({
               companyId: company?.id ?? "",
@@ -839,6 +843,14 @@ export default function NewVehiclePage() {
                   </Field>
                   <Field label="Sigorta Bitiş Tarihi">
                     <DatePicker value={form.insuranceExpiry} onChange={(v) => set("insuranceExpiry", v)} />
+                  </Field>
+                  <div className="h-px bg-border/40" />
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kasko Poliçesi</h3>
+                  <Field label="Kasko Şirketi">
+                    <Input className={cls} placeholder="Allianz, Axa..." value={form.kaskoCompany} onChange={(e) => set("kaskoCompany", e.target.value)} />
+                  </Field>
+                  <Field label="Kasko Bitiş Tarihi">
+                    <DatePicker value={form.kaskoExpiry} onChange={(v) => set("kaskoExpiry", v)} />
                   </Field>
                   <div className="h-px bg-border/40" />
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Yurtdışı Sigortası (Yeşil Kart)</h3>

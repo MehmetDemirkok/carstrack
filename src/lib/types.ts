@@ -80,6 +80,8 @@ export interface Vehicle {
   batteryInstallDate: string;
   insuranceCompany: string;
   insuranceExpiry: string;
+  kaskoCompany: string;
+  kaskoExpiry: string;
   greenCardCompany: string;
   greenCardExpiry: string;
   inspectionExpiry: string;
