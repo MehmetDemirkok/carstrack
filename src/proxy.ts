@@ -73,7 +73,8 @@ export async function proxy(request: NextRequest) {
     pathname.endsWith(".png") ||
     pathname.endsWith(".svg") ||
     pathname.endsWith(".txt") ||
-    pathname.endsWith(".xml");
+    pathname.endsWith(".xml") ||
+    pathname.endsWith(".html");
 
   if (isStaticAsset) return supabaseResponse;
 
@@ -170,6 +171,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|api|sw\\.js|favicon\\.ico|manifest\\.json|robots\\.txt|sitemap\\.xml|apple-icon\\.png|icon\\.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
+    "/((?!_next/static|_next/image|api|sw\\.js|favicon\\.ico|manifest\\.json|robots\\.txt|sitemap\\.xml|apple-icon\\.png|icon\\.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html)).*)",
   ],
 };
