@@ -67,7 +67,9 @@
       "Bash(curl -s \"https://api.telegram.org/bot8988946673:AAG9ijusxDVrRb-UTyPb2ipu-awBYxJehg0/getUpdates\")",
       "Bash(curl -s \"https://api.telegram.org/bot8988946673:AAG9ijusxDVrRb-UTyPb2ipu-awBYxJehg0/deleteWebhook\")",
       "Bash(curl *)",
-      "mcp__supabase__get_advisors"
+      "mcp__supabase__get_advisors",
+      "Bash(gh api *)",
+      "Bash(npx vercel *)"
     ]
   }
 }
