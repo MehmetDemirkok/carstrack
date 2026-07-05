@@ -1,8 +1,9 @@
 import { createClient } from "./supabase/client";
+import { logActivity } from "./audit";
 import type {
   Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask, VehicleDocument,
   VehicleReport, VehicleReportLog, ReportStatus, ReportSeverity, ReportCategory,
-  Feedback, FeedbackType,
+  Feedback, FeedbackType, ServiceProvider, AuditLog,
 } from "./types";
 
 // ─── TTL data cache ───────────────────────────────────────────
@@ -318,6 +319,7 @@ export async function updateVehicle(id: string, updates: Partial<Vehicle>): Prom
 export async function deleteVehicle(id: string): Promise<void> {
   const supabase = createClient();
   const companyId = await requireCompanyId();
+  const { data: vehicle } = await supabase.from("vehicles").select("plate").eq("id", id).single();
   const { error } = await supabase
     .from("vehicles")
     .delete()
@@ -325,12 +327,17 @@ export async function deleteVehicle(id: string): Promise<void> {
     .eq("company_id", companyId);
   if (error) throw error;
   bustCache(`vehicles:${companyId}`);
+  void logActivity("vehicle_deleted", "vehicle", {
+    entityId: id,
+    entityLabel: (vehicle?.plate as string) || undefined,
+  });
 }
 
 export async function deleteVehicles(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const supabase = createClient();
   const companyId = await requireCompanyId();
+  const { data: vehicles } = await supabase.from("vehicles").select("plate").in("id", ids);
   const { error } = await supabase
     .from("vehicles")
     .delete()
@@ -338,6 +345,11 @@ export async function deleteVehicles(ids: string[]): Promise<void> {
     .eq("company_id", companyId);
   if (error) throw error;
   bustCache(`vehicles:${companyId}`);
+  const plates = (vehicles ?? []).map((v) => v.plate as string).filter(Boolean).join(", ");
+  void logActivity("vehicle_deleted", "vehicle", {
+    entityLabel: plates || `${ids.length} araç`,
+    meta: { ids },
+  });
 }
 
 // ─── Records ─────────────────────────────────────────────────
@@ -443,6 +455,109 @@ export async function deleteRecord(id: string): Promise<void> {
   if (error) throw error;
   bustCache(`records:${companyId}`);
   bustCache(`vrecords:${companyId}`);
+}
+
+// ─── Service Providers (servis sağlayıcı defteri) ─────────────
+
+function toServiceProvider(row: Record<string, unknown>): ServiceProvider {
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    name: row.name as string,
+    phone: (row.phone as string) || undefined,
+    address: (row.address as string) || undefined,
+    notes: (row.notes as string) || undefined,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function getServiceProviders(): Promise<ServiceProvider[]> {
+  const companyId = await requireCompanyId();
+  const cacheKey = `providers:${companyId}`;
+  const cached = getCached<ServiceProvider[]>(cacheKey);
+  if (cached) return cached;
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("service_providers")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("name");
+  if (error) throw error;
+  return setCached(cacheKey, (data ?? []).map(toServiceProvider));
+}
+
+export async function addServiceProvider(data: {
+  name: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+}): Promise<ServiceProvider> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data: inserted, error } = await supabase
+    .from("service_providers")
+    .insert({
+      company_id: companyId,
+      name: data.name,
+      phone: data.phone || null,
+      address: data.address || null,
+      notes: data.notes || null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  bustCache(`providers:${companyId}`);
+  return toServiceProvider(inserted);
+}
+
+export async function updateServiceProvider(
+  id: string,
+  updates: Partial<{ name: string; phone: string; address: string; notes: string }>
+): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const patch: Record<string, unknown> = {};
+  if (updates.name !== undefined) patch.name = updates.name;
+  if (updates.phone !== undefined) patch.phone = updates.phone || null;
+  if (updates.address !== undefined) patch.address = updates.address || null;
+  if (updates.notes !== undefined) patch.notes = updates.notes || null;
+  const { error } = await supabase.from("service_providers").update(patch).eq("id", id);
+  if (error) throw error;
+  bustCache(`providers:${companyId}`);
+}
+
+export async function deleteServiceProvider(id: string): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { error } = await supabase.from("service_providers").delete().eq("id", id);
+  if (error) throw error;
+  bustCache(`providers:${companyId}`);
+}
+
+// ─── Audit Log / Aktivite Geçmişi ──────────────────────────────
+
+export async function getAuditLogs(limit = 50): Promise<AuditLog[]> {
+  const companyId = await requireCompanyId();
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("audit_logs")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    companyId: row.company_id as string,
+    actorId: (row.actor_id as string) || undefined,
+    actorName: row.actor_name as string,
+    action: row.action as string,
+    entityType: row.entity_type as string,
+    entityId: (row.entity_id as string) || undefined,
+    entityLabel: (row.entity_label as string) || undefined,
+    meta: (row.meta as Record<string, unknown>) || {},
+    createdAt: row.created_at as string,
+  }));
 }
 
 // ─── Drivers / Profiles ──────────────────────────────────────
@@ -599,9 +714,19 @@ export async function updateMemberRole(
   role: "manager" | "operator" | "user"
 ): Promise<void> {
   const supabase = createClient();
+  const { data: before } = await supabase
+    .from("profiles")
+    .select("full_name, role")
+    .eq("id", memberId)
+    .single();
   const { error } = await supabase.from("profiles").update({ role }).eq("id", memberId);
   if (error) throw error;
   bustCache("members:");
+  void logActivity("role_changed", "profile", {
+    entityId: memberId,
+    entityLabel: (before?.full_name as string) || undefined,
+    meta: { from: before?.role, to: role },
+  });
 }
 
 export async function unassignDriver(driverId: string): Promise<void> {
@@ -890,11 +1015,22 @@ export async function createTaskAsManager(data: {
 
 export async function deleteTask(taskId: string): Promise<void> {
   const supabase = createClient();
+  const { data: task } = await supabase
+    .from("vehicle_tasks")
+    .select("vehicles(plate), profiles(full_name)")
+    .eq("id", taskId)
+    .single();
   const { error } = await supabase
     .from("vehicle_tasks")
     .delete()
     .eq("id", taskId);
   if (error) throw error;
+  const vehiclePlate = (task?.vehicles as { plate?: string } | null)?.plate;
+  const driverName = (task?.profiles as { full_name?: string } | null)?.full_name;
+  void logActivity("task_deleted", "vehicle_task", {
+    entityId: taskId,
+    entityLabel: [driverName, vehiclePlate].filter(Boolean).join(" — ") || undefined,
+  });
 }
 
 // ─── Vehicle Status (görevde / müsait) ────────────────────────

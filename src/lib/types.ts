@@ -192,6 +192,31 @@ export interface Feedback {
   userName?: string;
 }
 
+// ─── Servis Sağlayıcı Defteri ─────────────────────────────────
+export interface ServiceProvider {
+  id: string;
+  companyId: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// ─── Audit Log / Aktivite Geçmişi ─────────────────────────────
+export interface AuditLog {
+  id: string;
+  companyId: string;
+  actorId?: string;
+  actorName: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  entityLabel?: string;
+  meta: Record<string, unknown>;
+  createdAt: string;
+}
+
 export interface FleetAlert {
   id: string;
   vehicleId: string;

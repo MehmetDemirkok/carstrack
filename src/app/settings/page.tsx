@@ -10,6 +10,7 @@ import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Car,
   Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Lock, Send, BellRing,
+  RefreshCw, Activity,
 } from "lucide-react";
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, getPushSubscribed } from "@/lib/push-client";
 import { useTheme } from "next-themes";
@@ -172,23 +173,41 @@ export default function SettingsPage() {
 
   // Invite code (fetched separately for managers in case auth context doesn't have it)
   const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteCodeExpiresAt, setInviteCodeExpiresAt] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
     if (profile?.role !== "manager" && profile?.role !== "operator") return;
-    if (company?.inviteCode) { setInviteCode(company.inviteCode); return; }
     setInviteLoading(true);
     const supabase = createClient();
     supabase
       .from("companies")
-      .select("invite_code")
+      .select("invite_code, invite_code_expires_at")
       .eq("id", profile.companyId)
       .single()
-      .then(({ data }: { data: { invite_code: string } | null }) => {
+      .then(({ data }: { data: { invite_code: string; invite_code_expires_at: string | null } | null }) => {
         if (data?.invite_code) setInviteCode(data.invite_code);
+        setInviteCodeExpiresAt(data?.invite_code_expires_at ?? null);
         setInviteLoading(false);
       });
-  }, [profile, company]);
+  }, [profile]);
+
+  const handleRegenerateInviteCode = async () => {
+    setRegenerating(true);
+    try {
+      const res = await fetch("/api/companies/regenerate-invite-code", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || "Kod yenilenemedi"); return; }
+      setInviteCode(data.inviteCode);
+      setInviteCodeExpiresAt(data.expiresAt);
+      toast.success("Yeni davet kodu oluşturuldu", { description: "Eski kod artık geçersiz." });
+    } catch {
+      toast.error("Kod yenilenemedi");
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   // Dialogs
   const [showLang, setShowLang] = useState(false);
@@ -552,25 +571,51 @@ export default function SettingsPage() {
                     Kod yükleniyor...
                   </div>
                 ) : inviteCode ? (
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-muted/60 border border-border/50 rounded-xl px-4 py-3 flex items-center gap-3">
-                      <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="font-mono font-black text-lg tracking-[0.3em] text-foreground select-all">
-                        {inviteCode}
-                      </span>
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 bg-muted/60 border border-border/50 rounded-xl px-4 py-3 flex items-center gap-3">
+                        <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="font-mono font-black text-lg tracking-[0.3em] text-foreground select-all">
+                          {inviteCode}
+                        </span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-xl h-12 w-12 shrink-0 border-border/50"
+                        onClick={() => {
+                          navigator.clipboard.writeText(inviteCode);
+                          toast.success("Kopyalandı", { description: "Davet kodu panoya kopyalandı." });
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="rounded-xl h-12 w-12 shrink-0 border-border/50"
-                      onClick={() => {
-                        navigator.clipboard.writeText(inviteCode);
-                        toast.success("Kopyalandı", { description: "Davet kodu panoya kopyalandı." });
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        {inviteCodeExpiresAt
+                          ? (() => {
+                              // eslint-disable-next-line react-hooks/purity -- kod süresi anlık zamana göre kontrol edilir (görsel rozet)
+                              const expired = new Date(inviteCodeExpiresAt).getTime() < Date.now();
+                              return expired
+                                ? <span className="text-destructive font-semibold">Süresi doldu</span>
+                                : `Geçerlilik: ${new Date(inviteCodeExpiresAt).toLocaleDateString("tr-TR")} tarihine kadar`;
+                            })()
+                          : "Süresiz"}
+                      </p>
+                      {profile?.role === "manager" && (
+                        <button
+                          type="button"
+                          onClick={handleRegenerateInviteCode}
+                          disabled={regenerating}
+                          className="flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline disabled:opacity-50 shrink-0"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${regenerating ? "animate-spin" : ""}`} />
+                          Yeni Kod Oluştur
+                        </button>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <div className="bg-muted/50 border border-border/40 rounded-xl px-4 py-3 text-xs text-muted-foreground">
                     Davet kodu henüz oluşturulmamış. Lütfen şirket yetkilisi ile iletişime geçin.
@@ -580,6 +625,26 @@ export default function SettingsPage() {
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   Yeni çalışanlar kayıt ekranında <span className="font-semibold text-foreground">&ldquo;Şirkete Katıl&rdquo;</span> seçeneğini seçip bu kodu girerek filonuza erişim sağlayabilir. Katılanlar otomatik olarak <span className="font-semibold text-foreground">Sürücü</span> rolüyle eklenir.
                 </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Yönetim — aktivite geçmişi */}
+        {profile?.role === "manager" && (
+          <motion.div variants={fadeUp} className="space-y-1">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">Yönetim</h3>
+            <Card className="rounded-2xl border-border/40 shadow-sm">
+              <CardContent className="p-2">
+                <Link href="/activity" className="block">
+                  <SettingItem
+                    icon={Activity}
+                    iconBg="bg-indigo-500/10"
+                    iconColor="text-indigo-500"
+                    label="Aktivite Geçmişi"
+                    description="Ekip aksiyonlarının kaydı"
+                  />
+                </Link>
               </CardContent>
             </Card>
           </motion.div>

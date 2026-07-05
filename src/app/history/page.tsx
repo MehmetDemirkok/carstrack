@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { addRecord, deleteRecord, updateRecord, updateVehicle } from "@/lib/db";
+import { addRecord, deleteRecord, updateRecord, updateVehicle, getServiceProviders, addServiceProvider, deleteServiceProvider } from "@/lib/db";
 import { applyPeriodicService } from "@/lib/store";
 import { useData } from "@/context/data-context";
-import type { ServiceRecord, ServiceType, TireSeasonType, Vehicle } from "@/lib/types";
+import type { ServiceRecord, ServiceType, TireSeasonType, Vehicle, ServiceProvider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -54,6 +54,48 @@ const fadeLeft = { hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, tra
 
 export default function HistoryPage() {
   const { vehicles, records, loading: dataLoading, refresh, setRecords } = useData();
+
+  // Servis sağlayıcı defteri — "Servis Noktası" alanına otomatik tamamlama + yönetim
+  const [providers, setProviders] = useState<ServiceProvider[]>([]);
+  const [showProviders, setShowProviders] = useState(false);
+  const [providersLoading, setProvidersLoading] = useState(false);
+  const [newProviderName, setNewProviderName] = useState("");
+  const [newProviderPhone, setNewProviderPhone] = useState("");
+  const [providerSubmitting, setProviderSubmitting] = useState(false);
+
+  const loadProviders = () => {
+    setProvidersLoading(true);
+    getServiceProviders()
+      .then(setProviders)
+      .catch((err) => console.error("Load providers failed:", err instanceof Error ? err.message : err))
+      .finally(() => setProvidersLoading(false));
+  };
+  useEffect(() => { loadProviders(); }, []);
+
+  const handleAddProvider = async () => {
+    if (!newProviderName.trim()) return;
+    setProviderSubmitting(true);
+    try {
+      const created = await addServiceProvider({ name: newProviderName.trim(), phone: newProviderPhone.trim() || undefined });
+      setProviders((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, "tr")));
+      setNewProviderName("");
+      setNewProviderPhone("");
+    } catch (err) {
+      console.error("Add provider failed:", err instanceof Error ? err.message : err);
+    } finally {
+      setProviderSubmitting(false);
+    }
+  };
+
+  const handleDeleteProvider = async (id: string) => {
+    try {
+      await deleteServiceProvider(id);
+      setProviders((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error("Delete provider failed:", err instanceof Error ? err.message : err);
+    }
+  };
+
   const [filter, setFilter] = useState<ServiceType | "all">("all");
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
@@ -186,6 +228,9 @@ export default function HistoryPage() {
 
   return (
     <div className="p-4 space-y-5 pb-28">
+      <datalist id="service-providers-list">
+        {providers.map((p) => <option key={p.id} value={p.name} />)}
+      </datalist>
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-outfit font-bold tracking-tight">Servis Geçmişi</h1>
@@ -211,6 +256,15 @@ export default function HistoryPage() {
             onClick={() => exportServiceHistoryExcel(filtered, vehicles)}
           >
             <Download className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full h-9 w-9 shadow-sm border-border/50"
+            title="Servis Sağlayıcılar"
+            onClick={() => setShowProviders(true)}
+          >
+            <Wrench className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="icon" className="rounded-full h-9 w-9 shadow-sm border-border/50" onClick={() => setShowFilters((s) => !s)}>
             <Filter className={`h-4 w-4 ${showFilters ? "text-primary" : ""}`} />
@@ -486,7 +540,7 @@ export default function HistoryPage() {
             <div className="space-y-1"><Label className={iLabel}>Başlık</Label><Input className={iCls} placeholder="Periyodik bakım..." value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="number" value={form.mileage} onChange={(e) => setForm((f) => ({ ...f, mileage: e.target.value }))} /></div>
-              <div className="space-y-1"><Label className={iLabel}>Servis Noktası</Label><Input className={iCls} placeholder="Yetkili servis..." value={form.serviceCenter} onChange={(e) => setForm((f) => ({ ...f, serviceCenter: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className={iLabel}>Servis Noktası</Label><Input className={iCls} list="service-providers-list" placeholder="Yetkili servis..." value={form.serviceCenter} onChange={(e) => setForm((f) => ({ ...f, serviceCenter: e.target.value }))} /></div>
             </div>
             <div className="space-y-1">
               <Label className={iLabel}>Notlar</Label>
@@ -534,7 +588,7 @@ export default function HistoryPage() {
               </div>
               <div className="space-y-1">
                 <Label className={iLabel}>Servis Noktası</Label>
-                <Input className={iCls} placeholder="Yetkili servis..." value={editForm.serviceCenter} onChange={(e) => setEditForm((f) => ({ ...f, serviceCenter: e.target.value }))} />
+                <Input className={iCls} list="service-providers-list" placeholder="Yetkili servis..." value={editForm.serviceCenter} onChange={(e) => setEditForm((f) => ({ ...f, serviceCenter: e.target.value }))} />
               </div>
             </div>
             <div className="space-y-1">
@@ -567,6 +621,74 @@ export default function HistoryPage() {
           <DialogFooter className="gap-2">
             <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
             <Button variant="destructive" onClick={handleDelete} className="rounded-xl flex-1">Evet, Sil</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Servis Sağlayıcılar */}
+      <Dialog open={showProviders} onOpenChange={setShowProviders}>
+        <DialogContent className="rounded-3xl max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-orange-500" /> Servis Sağlayıcılar
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newProviderName}
+                onChange={(e) => setNewProviderName(e.target.value)}
+                placeholder="Servis adı"
+                className="flex-1 h-10 rounded-xl border border-border bg-muted/40 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <input
+                type="text"
+                value={newProviderPhone}
+                onChange={(e) => setNewProviderPhone(e.target.value)}
+                placeholder="Telefon (ops.)"
+                className="w-32 h-10 rounded-xl border border-border bg-muted/40 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <Button
+                size="icon"
+                className="h-10 w-10 rounded-xl shrink-0"
+                onClick={handleAddProvider}
+                disabled={providerSubmitting || !newProviderName.trim()}
+              >
+                {providerSubmitting
+                  ? <span className="h-4 w-4 rounded-full border-2 border-white border-r-transparent animate-spin" />
+                  : <Check className="h-4 w-4" />}
+              </Button>
+            </div>
+
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {providersLoading ? (
+                <div className="flex items-center gap-2 py-2 text-muted-foreground text-sm">
+                  <span className="h-4 w-4 rounded-full border-2 border-current border-r-transparent animate-spin shrink-0" />
+                  Yükleniyor...
+                </div>
+              ) : providers.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">Henüz kayıtlı servis yok.</p>
+              ) : (
+                providers.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between gap-2 bg-muted/40 rounded-xl px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{p.name}</p>
+                      {p.phone && <p className="text-xs text-muted-foreground">{p.phone}</p>}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteProvider(p.id)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" className="w-full rounded-xl" />}>Kapat</DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>

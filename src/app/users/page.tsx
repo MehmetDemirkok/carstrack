@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Users, Car, Route, Pencil, UserCog, X, Plus } from "lucide-react";
+import { Users, Car, Route, Pencil, UserCog, X, Plus, Mail, Send, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import {
@@ -75,6 +75,64 @@ export default function UsersPage() {
   const [addVehicleId, setAddVehicleId] = useState("");
   const [assignSubmitting, setAssignSubmitting] = useState(false);
 
+  // Davet dialog + bekleyen davetler
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<UserRole>("user");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<
+    { id: string; email: string; role: UserRole; created_at: string; expires_at: string }[]
+  >([]);
+
+  async function loadInvites() {
+    try {
+      const res = await fetch("/api/invites");
+      if (res.ok) {
+        const data = await res.json();
+        setPendingInvites(data.invites ?? []);
+      }
+    } catch {
+      /* sessizce yoksay — davet listesi kritik değil */
+    }
+  }
+
+  useEffect(() => {
+    if (user && profile?.role === "manager") loadInvites();
+  }, [user?.id, profile?.role]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function sendInvite(email: string, role: UserRole) {
+    setInviteSubmitting(true);
+    try {
+      const res = await fetch("/api/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || "Davet gönderilemedi"); return; }
+      toast.success("Davet gönderildi");
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteRole("user");
+      await loadInvites();
+    } catch {
+      toast.error("Davet gönderilemedi");
+    } finally {
+      setInviteSubmitting(false);
+    }
+  }
+
+  async function revokeInvite(id: string) {
+    try {
+      const res = await fetch(`/api/invites/${id}`, { method: "DELETE" });
+      if (!res.ok) { toast.error("Davet iptal edilemedi"); return; }
+      toast.success("Davet iptal edildi");
+      await loadInvites();
+    } catch {
+      toast.error("Davet iptal edilemedi");
+    }
+  }
+
   // Live timer
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -121,6 +179,7 @@ export default function UsersPage() {
 
   const userCount = members.filter((m) => m.role === "user").length;
   const activeCount = activeTasks.length;
+  const managerCount = members.filter((m) => m.role === "manager").length;
 
   // ── Edit handlers ──────────────────────────────────────────
 
@@ -203,16 +262,66 @@ export default function UsersPage() {
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="flex items-center gap-3"
+        className="flex items-center justify-between gap-3"
       >
-        <div className="bg-mesh p-2.5 rounded-2xl shadow-lg shadow-primary/30">
-          <Users className="h-5 w-5 text-white" />
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="bg-mesh p-2.5 rounded-2xl shadow-lg shadow-primary/30 shrink-0">
+            <Users className="h-5 w-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold">Ekip Takibi</h1>
+            <p className="text-sm text-muted-foreground">Üyeleri görüntüle, düzenle ve araç ata</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">Ekip Takibi</h1>
-          <p className="text-sm text-muted-foreground">Üyeleri görüntüle, düzenle ve araç ata</p>
-        </div>
+        {isManager && (
+          <Button
+            onClick={() => setInviteOpen(true)}
+            className="rounded-xl bg-mesh hover:opacity-95 text-white border-none shrink-0 gap-1.5"
+          >
+            <Mail className="h-4 w-4" /> Davet Et
+          </Button>
+        )}
       </motion.div>
+
+      {/* ── Bekleyen Davetler ── */}
+      {isManager && pendingInvites.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-3xl p-4 border border-border/40 space-y-3"
+        >
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Bekleyen Davetler ({pendingInvites.length})
+          </p>
+          <div className="space-y-2">
+            {pendingInvites.map((invite) => (
+              <div key={invite.id} className="flex items-center justify-between gap-2 bg-muted/40 rounded-2xl px-4 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{invite.email}</p>
+                  <p className="text-xs text-muted-foreground">{roleBadge(invite.role).label}</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => sendInvite(invite.email, invite.role)}
+                    disabled={inviteSubmitting}
+                    title="Yeniden Gönder"
+                    className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => revokeInvite(invite.id)}
+                    title="İptal Et"
+                    className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* ── İstatistikler ── */}
       <motion.div
@@ -390,21 +499,25 @@ export default function UsersPage() {
                 {isManager ? (
                   <>
                     <div className="flex gap-2">
-                      {ROLE_OPTIONS.map(({ value, label, activeClass }) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setEditRole(value)}
-                          disabled={editMember.id === user?.id}
-                          className={`flex-1 h-10 rounded-xl text-[11px] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                            editRole === value
-                              ? activeClass
-                              : "bg-background border-border text-muted-foreground hover:border-primary/40"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
+                      {ROLE_OPTIONS.map(({ value, label, activeClass }) => {
+                        const isLastManager = editMember.role === "manager" && managerCount === 1;
+                        const disabled = editMember.id === user?.id || (isLastManager && value !== "manager");
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setEditRole(value)}
+                            disabled={disabled}
+                            className={`flex-1 h-10 rounded-xl text-[11px] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                              editRole === value
+                                ? activeClass
+                                : "bg-background border-border text-muted-foreground hover:border-primary/40"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
                     </div>
                     {editRole !== editMember.role && (
                       <p className="text-[11px] text-amber-500 dark:text-amber-400">
@@ -417,6 +530,9 @@ export default function UsersPage() {
                     )}
                     {editMember.id === user?.id && (
                       <p className="text-[11px] text-muted-foreground">Kendi rolünüzü değiştiremezsiniz.</p>
+                    )}
+                    {editMember.id !== user?.id && editMember.role === "manager" && managerCount === 1 && (
+                      <p className="text-[11px] text-muted-foreground">Şirketin tek yöneticisi — önce başka birini yönetici yapın.</p>
                     )}
                   </>
                 ) : (
@@ -542,6 +658,69 @@ export default function UsersPage() {
           </div>
         );
       })()}
+
+      {/* ── Davet Et Dialog ── */}
+      {inviteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !inviteSubmitting && setInviteOpen(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative bg-card rounded-3xl border border-border/50 shadow-2xl w-full max-w-sm p-6 space-y-5"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-xl">
+                <Mail className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-bold text-base">Ekibe Davet Et</h2>
+                <p className="text-xs text-muted-foreground">E-posta ile davet gönder</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">E-posta</label>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="calisan@sirket.com"
+                  className={inputCls}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rol</label>
+                <div className="flex gap-2">
+                  {ROLE_OPTIONS.map(({ value, label, activeClass }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setInviteRole(value)}
+                      className={`flex-1 h-10 rounded-xl text-[11px] font-semibold border transition-colors ${
+                        inviteRole === value ? activeClass : "bg-background border-border text-muted-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setInviteOpen(false)} disabled={inviteSubmitting}>İptal</Button>
+              <Button
+                className="flex-1 rounded-xl bg-mesh hover:opacity-95 text-white border-none"
+                onClick={() => sendInvite(inviteEmail.trim(), inviteRole)}
+                disabled={inviteSubmitting || !inviteEmail.trim()}
+              >
+                {inviteSubmitting ? "Gönderiliyor..." : "Davet Gönder"}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

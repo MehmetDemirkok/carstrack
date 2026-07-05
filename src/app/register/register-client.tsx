@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Car, Eye, EyeOff, ArrowRight, CheckCircle2,
@@ -18,7 +18,13 @@ import { useTheme } from "next-themes";
 const item = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0 } };
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } } };
 
-type Mode = "create" | "join";
+type Mode = "create" | "join" | "invite";
+
+const ROLE_LABELS: Record<string, string> = {
+  manager: "Şirket Yetkilisi",
+  operator: "Operatör",
+  user: "Kullanıcı",
+};
 
 const statCards = [
   { label: "Aktif Filo", value: "247 Araç", accent: "#4cd7f6" },
@@ -56,7 +62,39 @@ export default function RegisterClient() {
   const [success, setSuccess]             = useState(false);
   const [joinedCompany, setJoinedCompany] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setTheme } = useTheme();
+
+  // ── E-posta daveti (?invite=<token>) ile gelindiyse formu davet moduna al ──
+  const inviteToken = searchParams.get("invite");
+  const [inviteInfo, setInviteInfo] = useState<{ companyName: string; role: string } | null>(null);
+  const [inviteChecking, setInviteChecking] = useState(!!inviteToken);
+  const [inviteError, setInviteError] = useState("");
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/invites/validate?token=${encodeURIComponent(inviteToken)}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setInviteError(data.error || "Davet bağlantısı geçersiz.");
+        } else {
+          setMode("invite");
+          setInviteInfo({ companyName: data.companyName, role: data.role });
+          setForm(f => ({ ...f, email: data.email }));
+        }
+      } catch {
+        if (!cancelled) setInviteError("Davet doğrulanamadı. Lütfen tekrar deneyin.");
+      } finally {
+        if (!cancelled) setInviteChecking(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inviteToken]);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
@@ -74,7 +112,10 @@ export default function RegisterClient() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode, companyName: form.companyName, inviteCode: form.inviteCode, fullName: form.fullName, email: form.email, password: form.password }),
+      body: JSON.stringify({
+        mode, companyName: form.companyName, inviteCode: form.inviteCode, inviteToken,
+        fullName: form.fullName, email: form.email, password: form.password,
+      }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -83,7 +124,7 @@ export default function RegisterClient() {
       setLoading(false);
       return;
     }
-    if (mode === "join") setJoinedCompany(data.companyName || "");
+    if (mode === "join" || mode === "invite") setJoinedCompany(data.companyName || "");
     setSuccess(true);
     toast.success(mode === "create" ? "Şirket oluşturuldu!" : "Şirkete katıldınız!");
     const supabase = createClient();
@@ -286,36 +327,57 @@ export default function RegisterClient() {
               </div>
             </div>
 
-            {/* Mode Switcher */}
-            <div
-              className="flex mb-5 gap-1 p-1 rounded-lg"
-              style={{ background: "var(--ct-switch-track)", border: "1px solid var(--ct-chip-border)" }}
-            >
-              {([
-                { id: "create" as Mode, icon: Building2, label: "Şirket Kur" },
-                { id: "join"   as Mode, icon: Users,     label: "Şirkete Katıl" },
-              ] as const).map(({ id, icon: Icon, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => switchMode(id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md transition-all active:scale-95"
-                  style={{
-                    background: mode === id ? "var(--ct-chip-bg)" : "transparent",
-                    border: mode === id ? "1px solid var(--ct-chip-border)" : "1px solid transparent",
-                    color: mode === id ? "var(--ct-purple)" : "var(--muted-foreground)",
-                    fontFamily: "var(--font-barlow), sans-serif",
-                    fontWeight: 700,
-                    fontSize: "0.8rem",
-                    letterSpacing: "0.04em",
-                    cursor: "pointer",
-                  }}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </button>
-              ))}
-            </div>
+            {/* Mode Switcher — davetle gelindiyse gizli (mod değiştirilemez) */}
+            {mode !== "invite" && (
+              <div
+                className="flex mb-5 gap-1 p-1 rounded-lg"
+                style={{ background: "var(--ct-switch-track)", border: "1px solid var(--ct-chip-border)" }}
+              >
+                {([
+                  { id: "create" as Mode, icon: Building2, label: "Şirket Kur" },
+                  { id: "join"   as Mode, icon: Users,     label: "Şirkete Katıl" },
+                ] as const).map(({ id, icon: Icon, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => switchMode(id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md transition-all active:scale-95"
+                    style={{
+                      background: mode === id ? "var(--ct-chip-bg)" : "transparent",
+                      border: mode === id ? "1px solid var(--ct-chip-border)" : "1px solid transparent",
+                      color: mode === id ? "var(--ct-purple)" : "var(--muted-foreground)",
+                      fontFamily: "var(--font-barlow), sans-serif",
+                      fontWeight: 700,
+                      fontSize: "0.8rem",
+                      letterSpacing: "0.04em",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Davet bilgi kartı */}
+            {inviteToken && (
+              <div
+                className="mb-5 px-4 py-3 rounded-xl"
+                style={{ background: "var(--ct-chip-bg)", border: "1px solid var(--ct-chip-border)" }}
+              >
+                {inviteChecking ? (
+                  <p style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }}>Davet doğrulanıyor...</p>
+                ) : inviteError ? (
+                  <p style={{ color: "#f87171", fontSize: "0.78rem" }}>{inviteError}</p>
+                ) : inviteInfo ? (
+                  <p style={{ color: "var(--foreground)", fontSize: "0.8rem" }}>
+                    <span style={{ fontWeight: 700 }}>{inviteInfo.companyName}</span> şirketine{" "}
+                    <span style={{ fontWeight: 700 }}>{ROLE_LABELS[inviteInfo.role] ?? inviteInfo.role}</span> rolüyle katılıyorsunuz.
+                  </p>
+                ) : null}
+              </div>
+            )}
 
             {/* Success overlay */}
             <AnimatePresence>
@@ -336,7 +398,7 @@ export default function RegisterClient() {
                   <p style={{ fontFamily: "var(--font-barlow), sans-serif", fontWeight: 800, fontSize: "1.5rem", color: "#e8eaf0", textAlign: "center" }}>
                     {mode === "create" ? "Şirket Oluşturuldu!" : "Katılım Başarılı!"}
                   </p>
-                  {mode === "join" && joinedCompany && (
+                  {(mode === "join" || mode === "invite") && joinedCompany && (
                     <p style={{ color: "rgba(255,255,255,0.6)", textAlign: "center" }}>
                       <span style={{ color: "#e8eaf0", fontWeight: 600 }}>{joinedCompany}</span> şirketine katıldınız.
                     </p>
@@ -367,7 +429,7 @@ export default function RegisterClient() {
                       <Input id="reg-company" value={form.companyName} onChange={set("companyName")} placeholder="ABC Lojistik" className="h-11 pl-9 border-0" style={inputStyle} required />
                     </div>
                   </motion.div>
-                ) : (
+                ) : mode === "join" ? (
                   <motion.div variants={item} className="space-y-1">
                     <label htmlFor="reg-invite" style={labelStyle}>Davet Kodu</label>
                     <Input
@@ -384,7 +446,7 @@ export default function RegisterClient() {
                       Şirket yetkilisinden aldığınız 8 haneli kodu girin.
                     </p>
                   </motion.div>
-                )}
+                ) : null}
 
                 <motion.div variants={item} className="space-y-1">
                   <label htmlFor="reg-fullname" style={labelStyle}>Ad Soyad</label>
@@ -407,6 +469,7 @@ export default function RegisterClient() {
                       className="h-11 pl-9 border-0"
                       style={inputStyle}
                       required
+                      readOnly={mode === "invite"}
                       autoComplete="email"
                     />
                   </div>

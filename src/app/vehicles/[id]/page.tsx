@@ -12,7 +12,7 @@ import {
   getVehicleRecords, addRecord, deleteRecord,
   getVehicleDocuments, addVehicleDocument, updateVehicleDocument,
   deleteVehicleDocument, getDocumentSignedUrl, uploadDocumentFile,
-  getVehicleStatuses,
+  getVehicleStatuses, getServiceProviders,
 } from "@/lib/db";
 import {
   calculateHealthScore, getMaintenanceStatusForItem,
@@ -317,6 +317,10 @@ export default function VehicleDetailPage() {
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [records, setRecords] = useState<ServiceRecord[]>([]);
+  const [providerNames, setProviderNames] = useState<string[]>([]);
+  useEffect(() => {
+    getServiceProviders().then((list) => setProviderNames(list.map((p) => p.name))).catch(() => {});
+  }, []);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showAddRecord, setShowAddRecord] = useState(false);
@@ -633,6 +637,9 @@ export default function VehicleDetailPage() {
 
   return (
     <div className="bg-background min-h-screen">
+      <datalist id="service-providers-list">
+        {providerNames.map((name) => <option key={name} value={name} />)}
+      </datalist>
       {/* Mobile sticky header */}
       <div className="sticky top-0 z-50 glass border-b border-border/30 md:hidden">
         <div className="flex items-center justify-between p-3 px-4">
@@ -1097,6 +1104,14 @@ export default function VehicleDetailPage() {
                       );
                     })}
                   </div>
+
+                  <a
+                    href={`/api/vehicles/${vehicle.id}/calendar`}
+                    download
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full gap-1.5 rounded-xl text-xs font-semibold")}
+                  >
+                    <CalendarPlus className="h-3.5 w-3.5" /> Belge Tarihlerini Takvime Ekle (.ics)
+                  </a>
 
                   {vehicle.chassisNo && (
                     <div className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm">
@@ -1695,7 +1710,7 @@ export default function VehicleDetailPage() {
             <div className="space-y-1"><Label className={iLabel}>Başlık</Label><Input className={iCls} placeholder="Periyodik bakım..." value={recordForm.title} onChange={(e) => setRecordForm((f) => ({ ...f, title: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="text" inputMode="numeric" placeholder={String(vehicle.mileage)} value={recordForm.mileage} onChange={(e) => setRecordForm((f) => ({ ...f, mileage: e.target.value }))} /></div>
-              <div className="space-y-1"><Label className={iLabel}>Servis Noktası</Label><Input className={iCls} placeholder="Yetkili servis..." value={recordForm.serviceCenter} onChange={(e) => setRecordForm((f) => ({ ...f, serviceCenter: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className={iLabel}>Servis Noktası</Label><Input className={iCls} list="service-providers-list" placeholder="Yetkili servis..." value={recordForm.serviceCenter} onChange={(e) => setRecordForm((f) => ({ ...f, serviceCenter: e.target.value }))} /></div>
             </div>
             <div className="space-y-1">
               <Label className={iLabel}>Notlar</Label>

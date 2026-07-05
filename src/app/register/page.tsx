@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import RegisterClient from "./register-client";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
@@ -25,5 +26,9 @@ export const metadata: Metadata = {
 };
 
 export default function RegisterPage() {
-  return <RegisterClient />;
+  return (
+    <Suspense fallback={null}>
+      <RegisterClient />
+    </Suspense>
+  );
 }
