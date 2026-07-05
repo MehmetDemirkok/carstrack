@@ -13,6 +13,9 @@ import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
 import { HealthScoreBreakdown } from "@/components/health-score-breakdown";
 import { FleetRiskOverview } from "@/components/fleet-risk-overview";
+import { ServiceActivityChart } from "@/components/service-activity-chart";
+import { FleetComposition } from "@/components/fleet-composition";
+import { AnimatedCounter } from "@/components/animated-counter";
 import { DriverDashboard } from "@/components/driver-dashboard";
 import { PWAInstallCard } from "@/components/pwa-install";
 import {
@@ -30,6 +33,8 @@ import {
   CheckCircle2,
   Send,
   X,
+  History,
+  FileWarning,
 } from "lucide-react";
 
 const stagger = {
@@ -205,6 +210,32 @@ export default function Dashboard() {
           </motion.div>
         )}
 
+        {/* ── Hızlı Eylemler ──────────────────────────────────────────── */}
+        <motion.div variants={fadeUp} className="grid grid-cols-4 gap-2 md:gap-3">
+          {[
+            { icon: Plus, label: "Araç Ekle", href: "/vehicles/new", gradient: "from-blue-400 via-blue-500 to-indigo-600", shadow: "shadow-blue-500/30" },
+            { icon: Car, label: "Filo", href: "/vehicles", gradient: "from-cyan-300 via-teal-500 to-emerald-600", shadow: "shadow-teal-500/30" },
+            { icon: History, label: "Servis", href: "/history", gradient: "from-amber-300 via-amber-500 to-orange-600", shadow: "shadow-amber-500/30" },
+            { icon: FileWarning, label: "Arıza Bildir", href: "/reports", gradient: "from-rose-400 via-red-500 to-red-600", shadow: "shadow-red-500/30" },
+          ].map((action) => (
+            <Link href={action.href} key={action.href} className="tap-highlight-transparent">
+              <motion.div whileTap={{ scale: 0.96 }}>
+                <Card className="rounded-2xl border-border/40 shadow-sm hover-lift group cursor-pointer">
+                  <CardContent className="p-3 md:p-4 flex flex-col items-center justify-center text-center gap-1.5 md:gap-2.5">
+                    <div
+                      className={`relative overflow-hidden w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br ${action.gradient} shadow-lg ${action.shadow} ring-1 ring-white/15 flex items-center justify-center group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300`}
+                    >
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.45),transparent_60%)]" />
+                      <action.icon className="h-5 w-5 md:h-6 md:w-6 text-white relative z-10 drop-shadow-sm" strokeWidth={2.25} />
+                    </div>
+                    <span className="text-[10px] md:text-xs font-semibold leading-tight">{action.label}</span>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </Link>
+          ))}
+        </motion.div>
+
         {/* ── ROW 1: Hero score + Skor dağılımı ──────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
           <motion.div variants={fadeUp} className={hasVehicles ? "lg:col-span-2" : "lg:col-span-3"}>
@@ -221,17 +252,20 @@ export default function Dashboard() {
                     <svg className="w-28 h-28 md:w-36 md:h-36 -rotate-90" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="9" />
                       {hasVehicles && (
-                        <circle
+                        <motion.circle
                           cx="50" cy="50" r="42" fill="none"
                           stroke="oklch(0.85 0.15 162)" strokeWidth="9"
-                          strokeDasharray={`${fleetScore * 2.64} ${264 - fleetScore * 2.64}`}
                           strokeLinecap="round"
+                          strokeDasharray="264"
+                          initial={{ strokeDashoffset: 264 }}
+                          animate={{ strokeDashoffset: 264 - fleetScore * 2.64 }}
+                          transition={{ duration: 1.1, ease: [0.25, 0.1, 0.25, 1], delay: 0.15 }}
                         />
                       )}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-4xl md:text-6xl font-black font-outfit text-white tracking-tight leading-none">
-                        {hasVehicles ? fleetScore : "—"}
+                        {hasVehicles ? <AnimatedCounter value={fleetScore} /> : "—"}
                       </span>
                       {hasVehicles && <span className="text-[10px] font-mono text-white/60 mt-1">/100</span>}
                     </div>
@@ -277,9 +311,9 @@ export default function Dashboard() {
             </motion.div>
             <motion.div variants={fadeUp} className="lg:col-span-2 grid grid-cols-3 gap-3 md:gap-4">
               {[
-                { icon: Car, value: String(vehicles.length), label: "Araç", color: "text-primary", bg: "bg-primary/10", ring: "from-primary/40 to-primary/0" },
-                { icon: AlertTriangle, value: String(criticalCount + warningCount), label: "Uyarı", color: "text-orange-500", bg: "bg-orange-500/10", ring: "from-orange-500/40 to-orange-500/0" },
-                { icon: CheckCircle2, value: String(records.length), label: "Servis", color: "text-[var(--success)] dark:text-emerald-400", bg: "bg-[var(--success)]/10", ring: "from-emerald-500/40 to-emerald-500/0" },
+                { icon: Car, value: vehicles.length, label: "Araç", color: "text-primary", bg: "bg-primary/10", ring: "from-primary/40 to-primary/0" },
+                { icon: AlertTriangle, value: criticalCount + warningCount, label: "Uyarı", color: "text-orange-500", bg: "bg-orange-500/10", ring: "from-orange-500/40 to-orange-500/0" },
+                { icon: CheckCircle2, value: records.length, label: "Servis", color: "text-[var(--success)] dark:text-emerald-400", bg: "bg-[var(--success)]/10", ring: "from-emerald-500/40 to-emerald-500/0" },
               ].map((stat, i) => (
                 <Card key={i} className="rounded-[1.5rem] border-border/40 shadow-sm hover-lift relative overflow-hidden group">
                   <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${stat.ring} opacity-0 group-hover:opacity-100 transition-opacity`} />
@@ -287,11 +321,25 @@ export default function Dashboard() {
                     <div className={`p-2.5 md:p-3 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform`}>
                       <stat.icon className={`h-5 w-5 ${stat.color}`} />
                     </div>
-                    <span className="text-xl md:text-3xl font-bold font-outfit leading-none tracking-tight">{stat.value}</span>
+                    <span className="text-xl md:text-3xl font-bold font-outfit leading-none tracking-tight">
+                      <AnimatedCounter value={stat.value} />
+                    </span>
                     <span className="text-[10px] md:text-[11px] font-mono uppercase tracking-wider text-muted-foreground">{stat.label}</span>
                   </CardContent>
                 </Card>
               ))}
+            </motion.div>
+          </div>
+        )}
+
+        {/* ── ROW 2b: Servis aktivitesi + filo kompozisyonu ───────────── */}
+        {hasVehicles && (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 lg:gap-6">
+            <motion.div variants={fadeUp} className="lg:col-span-3">
+              <ServiceActivityChart records={filteredRecords} />
+            </motion.div>
+            <motion.div variants={fadeUp} className="lg:col-span-2">
+              <FleetComposition vehicles={vehicles} />
             </motion.div>
           </div>
         )}
@@ -336,11 +384,11 @@ export default function Dashboard() {
                   return (
                     <Link href={`/vehicles/${vehicle.id}`} key={vehicle.id} className="block tap-highlight-transparent">
                       <motion.div whileTap={{ scale: 0.99 }}>
-                        <Card className="rounded-2xl overflow-hidden shadow-sm border-border/40 hover-lift">
+                        <Card className="rounded-2xl overflow-hidden shadow-sm border-border/40 hover-lift group">
                           <div className="flex h-[120px] md:h-40">
-                            <div className="w-[34%] max-w-[180px] relative shrink-0 bg-muted">
+                            <div className="w-[34%] max-w-[180px] relative shrink-0 bg-muted overflow-hidden">
                               {vehicle.image ? (
-                                <Image src={vehicle.image} alt={vehicle.plate} fill className="object-cover" sizes="180px" />
+                                <Image src={vehicle.image} alt={vehicle.plate} fill className="object-cover transition-transform duration-500 group-hover:scale-110" sizes="180px" />
                               ) : (
                                 <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 to-primary/10 flex items-center justify-center">
                                   <Car className="h-10 w-10 text-primary/30" />
@@ -357,7 +405,9 @@ export default function Dashboard() {
                                   <span className="text-[11px] md:text-sm text-muted-foreground">{vehicle.brand} {vehicle.model} • {vehicle.year}</span>
                                 </div>
                                 <div className="text-right shrink-0">
-                                  <span className={`text-xl md:text-2xl font-bold font-outfit leading-none ${tone.text}`}>{score}</span>
+                                  <span className={`text-xl md:text-2xl font-bold font-outfit leading-none ${tone.text}`}>
+                                    <AnimatedCounter value={score} />
+                                  </span>
                                   <span className="block text-[9px] font-mono uppercase tracking-wider text-muted-foreground">Skor</span>
                                 </div>
                               </div>
@@ -367,7 +417,13 @@ export default function Dashboard() {
                                   <span className="text-foreground font-semibold normal-case">{vehicle.color}</span>
                                 </div>
                                 <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                                  <div className={`${tone.bar} h-full rounded-full`} style={{ width: `${score}%` }} />
+                                  <motion.div
+                                    className={`${tone.bar} h-full rounded-full`}
+                                    initial={{ scaleX: 0 }}
+                                    animate={{ scaleX: score / 100 }}
+                                    transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+                                    style={{ originX: 0, transformOrigin: "left" }}
+                                  />
                                 </div>
                               </div>
                             </div>
