@@ -184,6 +184,8 @@ export default function SettingsPage() {
   const [licenseNumber, setLicenseNumber] = useState("");
   const [licenseEntries, setLicenseEntries] = useState<DriverLicenseEntry[]>([]);
   const [licenseSaving, setLicenseSaving] = useState(false);
+  // Bilgiler zaten doluysa varsayılan kapalı başlar (yer kaplamasın); boşsa açık başlar (doldurması kolay olsun).
+  const [licenseOpen, setLicenseOpen] = useState(() => (profile?.licenses?.length ?? 0) === 0);
 
   useEffect(() => {
     setLicenseNumber(profile?.licenseNumber ?? "");
@@ -695,11 +697,46 @@ export default function SettingsPage() {
         {/* Ehliyet Bilgileri — yalnızca sürücü rolü */}
         {profile?.role === "user" && (
           <motion.div variants={fadeUp} className="space-y-1">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">Ehliyet Bilgileri</h3>
             <Card className="rounded-2xl border-border/40 shadow-sm overflow-hidden">
-              <CardContent className="p-5 space-y-3">
+              <button
+                type="button"
+                onClick={() => setLicenseOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left tap-highlight-transparent"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <IdCard className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Ehliyet Bilgileri</h3>
+                    {!licenseOpen && (
+                      licenseEntries.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {licenseEntries.map((entry) => {
+                            const status = getOverallLicenseStatus([entry]);
+                            return (
+                              <span
+                                key={entry.class}
+                                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border ${
+                                  status === "expired" ? "border-red-500/30 text-red-500 bg-red-500/10"
+                                  : status === "expiring" ? "border-amber-500/30 text-amber-500 bg-amber-500/10"
+                                  : "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                                }`}
+                              >
+                                {entry.class}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Eklemek için dokunun</p>
+                      )
+                    )}
+                  </div>
+                </div>
+                <ChevronRight className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${licenseOpen ? "rotate-90" : ""}`} />
+              </button>
+              {licenseOpen && (
+              <CardContent className="p-5 pt-0 space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <IdCard className="h-4 w-4 shrink-0" />
                   <span>Bu bilgiler zorunlu değildir; eklerseniz süre takibi ve hatırlatma yapabiliriz.</span>
                 </div>
 
@@ -903,6 +940,7 @@ export default function SettingsPage() {
                   {licenseSaving ? "..." : "Kaydet"}
                 </button>
               </CardContent>
+              )}
             </Card>
           </motion.div>
         )}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType, type Schema } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
 import { LICENSE_CLASSES } from "@/lib/license";
 
@@ -31,23 +31,41 @@ Belgede bulunamayan alanları null yap. Sadece JSON döndür.`;
 
 const PROMPT_LICENSE = `Aşağıdaki Türkiye Cumhuriyeti sürücü belgesi (ehliyet) görsellerini analiz et. Görseller belgenin ön ve/veya arka yüzü olabilir, hepsini birlikte değerlendir.
 
-ÇOK ÖNEMLİ — YAYGIN HATA: Türk ehliyetlerinde genellikle TÜM olası sınıfları (A1, A2, A, B1, B, BE, C1, C1E, C, CE, D1, D1E, D, DE, F, G, M) listeleyen sabit, basılı bir tablo/başlık satırı bulunur. Bu sadece bir ŞABLONDUR ve belgedeki HERKESTE aynı şekilde basılıdır. Kişinin GERÇEKTEN sahip olduğu sınıflar, bu tabloda yanında elle/matbu şekilde bir VERİLİŞ TARİHİ yazılmış olan satırlardır. Yanında hiçbir tarih ya da damga bulunmayan, sadece şablonda basılı duran sınıfları KESİNLİKLE listeye ekleme — bunlar kişiye ait değildir.
+ÇOK ÖNEMLİ — YAYGIN HATA: Türk ehliyetlerinin arka yüzünde ${LICENSE_CLASSES.length} olası sınıfın hepsini (${LICENSE_CLASSES.join(", ")}) listeleyen SABİT, BASILI bir tablo bulunur. Bu satırların HEPSİ belgede basılıdır ve HERKESTE aynı şekilde görünür — bu bir ŞABLONDUR, kişinin sahip olduğu sınıfları GÖSTERMEZ. Kişinin GERÇEKTEN sahip olduğu sınıflar SADECE o satırın "veriliş tarihi" ve/veya "geçerlilik tarihi" hücresinde ELLE/MATBU şekilde rakamlar yazılı olan satırlardır.
 
-Belgeden bulabildiğin bilgileri çıkar ve YALNIZCA geçerli bir JSON nesnesi döndür (başka hiçbir metin ekleme):
+GÖREV: "rows" dizisinde TAM OLARAK bu ${LICENSE_CLASSES.length} sınıfın HEPSİNİ, hiçbirini atlamadan, şu sırayla üret: ${LICENSE_CLASSES.join(", ")}. Her sınıf için tablodaki satıra tek tek bak ve:
+- issueCellRaw: "veriliş tarihi" hücresinde GERÇEKTEN gördüğün rakamları harfiyen yaz (örn: "07 11 2014"). Hücre boşsa, çizgiyle doluysa (—, _____ vb.) ya da hiç rakam yoksa issueCellRaw'ı boş string "" yap — ASLA rakam uydurma.
+- expiryCellRaw: aynı kuralla "geçerlilik tarihi" hücresi için.
+- issueCellRaw veya expiryCellRaw doluysa, o rakamları issueDate / expiryDate alanlarına YYYY-MM-DD formatında çevir. İkisi de boşsa issueDate ve expiryDate'i null yap.
 
-{
-  "licenseNumber": "ÖN yüzdeki '5. Belge No' / 'Sürücü Belgesi No' alanı",
-  "classes": [
-    { "class": "sınıf harfi, örn: B, A2, C1, D (sadece resmi Türk ehliyet sınıflarından biri)", "issueDate": "o sınıfın veriliş tarihi YYYY-MM-DD formatında", "expiryDate": "o sınıfın geçerlilik/son kullanma tarihi YYYY-MM-DD formatında veya null" }
-  ]
-}
+KURALLAR — ÇOK SIKI UYGULA:
+- Bir hücrenin dolu mu boş mu olduğundan en ufak şüphe duyarsan, BOŞ kabul et ("").
+- Şablonu doldurma refleksiyle hiçbir sınıfa rakam/tarih uydurma. Eksik bırakmak, olmayan bir sınıfa tarih uydurmaktan çok daha iyidir.
+- licenseNumber SADECE ön yüzde "5" numaralı alanda ("Belge No" / "Sürücü Belgesi No" başlığı altında) yazan numaradır. Arka yüzdeki veya belge kenarındaki seri/sıra numarasını (barkod altındaki numara, güvenlik/takip numarası vb.) KESİNLİKLE licenseNumber olarak verme — bu farklı bir belge takip numarasıdır, ehliyet numarası DEĞİLDİR. "Belge No" alanını net göremiyorsan licenseNumber'ı null yap, tahmin etme.`;
 
-KURALLAR:
-- "classes" dizisine SADECE yanında en az bir tarih (veriliş veya geçerlilik) gerçekten yazılı olan sınıfları ekle.
-- Tarih net okunamıyorsa ama o satırda kişiye özel bir işaret/tarih olduğu kesinse sınıfı ekle, ilgili tarih alanını null yap.
-- Bir sınıfın kişiye ait olup olmadığından şüphe duyarsan o sınıfı EKLEME — eksik bırakmak, olmayan bir sınıfı eklemekten çok daha iyidir.
-- licenseNumber SADECE ön yüzde "5" numaralı alanda ("Belge No" / "Sürücü Belgesi No" başlığı altında) yazan numaradır. Arka yüzdeki veya belge kenarındaki seri/sıra numarasını (barkod altındaki numara, güvenlik/takip numarası vb.) KESİNLİKLE licenseNumber olarak verme — bu farklı bir belge takip numarasıdır, ehliyet numarası DEĞİLDİR. "Belge No" alanını net göremiyorsan licenseNumber'ı null yap, tahmin etme.
-Sadece JSON döndür.`;
+const LICENSE_RESPONSE_SCHEMA: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    licenseNumber: { type: SchemaType.STRING, nullable: true, description: "Ön yüzdeki '5. Belge No' alanı, yoksa null" },
+    rows: {
+      type: SchemaType.ARRAY,
+      minItems: LICENSE_CLASSES.length,
+      maxItems: LICENSE_CLASSES.length,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          class: { type: SchemaType.STRING, format: "enum", enum: [...LICENSE_CLASSES] },
+          issueCellRaw: { type: SchemaType.STRING, description: "Veriliş tarihi hücresinde gerçekten görülen rakamlar, yoksa boş string" },
+          expiryCellRaw: { type: SchemaType.STRING, description: "Geçerlilik tarihi hücresinde gerçekten görülen rakamlar, yoksa boş string" },
+          issueDate: { type: SchemaType.STRING, nullable: true, description: "issueCellRaw'ın YYYY-MM-DD karşılığı, boşsa null" },
+          expiryDate: { type: SchemaType.STRING, nullable: true, description: "expiryCellRaw'ın YYYY-MM-DD karşılığı, boşsa null" },
+        },
+        required: ["class", "issueCellRaw", "expiryCellRaw"],
+      },
+    },
+  },
+  required: ["rows"],
+};
 
 const ALLOWED_MIME = new Set([
   "application/pdf",
@@ -108,7 +126,14 @@ export async function POST(req: NextRequest) {
     // yüksek talep (503) yaşayabiliyor; pinlenmiş sürüm daha az dalgalanır.
     const model = genai.getGenerativeModel({
       model: "gemini-2.5-flash",
-      generationConfig: { responseMimeType: "application/json" },
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0,
+        // Ehliyet için: modelin 17 sınıfın hepsini tek tek değerlendirip ham hücre
+        // metnini yazmasını zorunlu kılan şema — serbest bırakılırsa boş hücrelere
+        // de tarih uyduruyordu.
+        ...(documentType === "license" ? { responseSchema: LICENSE_RESPONSE_SCHEMA } : {}),
+      },
     });
 
     const prompt = documentType === "license" ? PROMPT_LICENSE : PROMPT_VEHICLE;
@@ -129,17 +154,21 @@ export async function POST(req: NextRequest) {
 
     if (documentType === "license") {
       const validClasses = new Set(LICENSE_CLASSES);
-      const classes = Array.isArray(parsed.classes)
-        ? (parsed.classes as unknown[])
-            .filter((c): c is { class: unknown; issueDate?: unknown; expiryDate?: unknown } => !!c && typeof c === "object")
-            .filter((c) => typeof c.class === "string" && validClasses.has(c.class))
-            // Yanında hiçbir tarih bilgisi olmayan sınıflar, basılı şablon/legend'den
-            // hallüsine edilmiş olabilir — gerçek veri olmadan kabul etme.
-            .filter((c) => (typeof c.issueDate === "string" && c.issueDate) || (typeof c.expiryDate === "string" && c.expiryDate))
-            .map((c): LicenseClassResult => ({
-              class: c.class as string,
-              ...(typeof c.issueDate === "string" && c.issueDate ? { issueDate: c.issueDate } : {}),
-              ...(typeof c.expiryDate === "string" && c.expiryDate ? { expiryDate: c.expiryDate } : {}),
+      const hasDigit = (v: unknown): v is string => typeof v === "string" && /\d/.test(v);
+      const classes = Array.isArray(parsed.rows)
+        ? (parsed.rows as unknown[])
+            .filter((r): r is { class: unknown; issueCellRaw?: unknown; expiryCellRaw?: unknown; issueDate?: unknown; expiryDate?: unknown } => !!r && typeof r === "object")
+            .filter((r) => typeof r.class === "string" && validClasses.has(r.class))
+            // Ham hücre transkripsiyonunda (issueCellRaw/expiryCellRaw) hiç rakam yoksa
+            // hücre gerçekten boştur — bu sınıf kişiye ait değildir, basılı şablon
+            // tablosundan hallüsine edilmiş olabilir. Sadece model rakam gördüğünü
+            // iddia ederse (issueDate/expiryDate değil, ham metin) kabul et.
+            .filter((r) => hasDigit(r.issueCellRaw) || hasDigit(r.expiryCellRaw))
+            .filter((r) => (typeof r.issueDate === "string" && r.issueDate) || (typeof r.expiryDate === "string" && r.expiryDate))
+            .map((r): LicenseClassResult => ({
+              class: r.class as string,
+              ...(typeof r.issueDate === "string" && r.issueDate ? { issueDate: r.issueDate } : {}),
+              ...(typeof r.expiryDate === "string" && r.expiryDate ? { expiryDate: r.expiryDate } : {}),
             }))
         : [];
       const licenseNumber = typeof parsed.licenseNumber === "string" ? parsed.licenseNumber : undefined;
