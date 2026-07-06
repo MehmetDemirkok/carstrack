@@ -9,6 +9,13 @@ export interface Company {
   plan: PlanType;
 }
 
+/** Sürücünün sahip olduğu bir ehliyet sınıfı — her sınıfın kendi veriliş/geçerlilik tarihi vardır. */
+export interface DriverLicenseEntry {
+  class: string;
+  issueDate?: string;
+  expiryDate?: string;
+}
+
 export interface Profile {
   id: string;
   companyId: string;
@@ -19,6 +26,9 @@ export interface Profile {
   notifyByEmail: boolean;
   telegramChatId?: string;
   createdAt: string;
+  /** Sürücü (role="user") ehliyet bilgileri — hiçbiri zorunlu değildir. */
+  licenseNumber?: string;
+  licenses?: DriverLicenseEntry[];
 }
 
 export interface VehicleAssignment {

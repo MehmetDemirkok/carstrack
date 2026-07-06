@@ -3,7 +3,7 @@ import { logActivity } from "./audit";
 import type {
   Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask, VehicleDocument,
   VehicleReport, VehicleReportLog, ReportStatus, ReportSeverity, ReportCategory,
-  Feedback, FeedbackType, ServiceProvider, AuditLog,
+  Feedback, FeedbackType, ServiceProvider, AuditLog, DriverLicenseEntry,
 } from "./types";
 
 // ─── TTL data cache ───────────────────────────────────────────
@@ -584,6 +584,8 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: str
     department: (row.department as string) || "",
     notifyByEmail: row.notify_by_email !== false,
     createdAt: row.created_at as string,
+    licenseNumber: (row.license_number as string) || undefined,
+    licenses: (row.licenses as DriverLicenseEntry[]) || [],
     assignedVehicleIds: Array.isArray(row.vehicle_assignments)
       ? (row.vehicle_assignments as { vehicle_id: string }[]).map((a) => a.vehicle_id)
       : [],
@@ -693,6 +695,8 @@ export async function getMembers(): Promise<Profile[]> {
     department: (row.department as string) || "",
     notifyByEmail: row.notify_by_email !== false,
     createdAt: row.created_at as string,
+    licenseNumber: (row.license_number as string) || undefined,
+    licenses: (row.licenses as DriverLicenseEntry[]) || [],
   })));
 }
 

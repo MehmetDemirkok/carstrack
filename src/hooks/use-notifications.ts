@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getVehicles, getNotifications, markAllNotificationsRead, markNotificationsRead, type AppNotification } from "@/lib/db";
 import { useAuth } from "@/context/auth-context";
+import { getOverallLicenseStatus, getMostUrgentEntry, daysUntilDate } from "@/lib/license";
 
 const STORAGE_KEY = "carstrack_read_notif_ids";
 
@@ -58,6 +59,48 @@ export function useNotifications() {
         ]);
         const notifs: NotificationItem[] = [];
         const today = new Date();
+
+        // --- Ehliyet Kontrolü (yalnızca sürücü rolü, kendi profili) ---
+        if (profile?.role === "user") {
+          const status = getOverallLicenseStatus(profile.licenses);
+          const urgent = getMostUrgentEntry(profile.licenses);
+          if (status === "missing") {
+            notifs.push({
+              id: "license_missing",
+              title: "Ehliyet Bilgilerinizi Ekleyin",
+              description: "Süre takibi yapabilmemiz için Ayarlar'dan ehliyet bilgilerinizi eklemenizi rica ederiz.",
+              type: "info",
+              date: new Date().toISOString(),
+              vehicleId: "",
+              vehiclePlate: "",
+              url: "/settings",
+            });
+          } else if (status === "expired" && urgent) {
+            const days = Math.abs(daysUntilDate(urgent.expiryDate!));
+            notifs.push({
+              id: "license_expired",
+              title: "Ehliyetinizin Süresi Doldu!",
+              description: `${urgent.class} sınıfı ehliyetiniz ${days} gün önce doldu. Lütfen yenileyin ve bilgilerinizi güncelleyin.`,
+              type: "error",
+              date: new Date().toISOString(),
+              vehicleId: "",
+              vehiclePlate: "",
+              url: "/settings",
+            });
+          } else if (status === "expiring" && urgent) {
+            const days = daysUntilDate(urgent.expiryDate!);
+            notifs.push({
+              id: "license_expiring",
+              title: "Ehliyet Yenileme Yaklaşıyor",
+              description: `${urgent.class} sınıfı ehliyetinizin süresine ${days} gün kaldı. Yenilemeyi unutmayın.`,
+              type: days <= 7 ? "urgent" : "warning",
+              date: new Date().toISOString(),
+              vehicleId: "",
+              vehiclePlate: "",
+              url: "/settings",
+            });
+          }
+        }
 
         vehicles.forEach((v) => {
           // --- Sigorta Kontrolü ---
@@ -217,7 +260,8 @@ export function useNotifications() {
 
     loadNotifications();
     return () => { cancelled = true; };
-  }, [profile?.companyId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.companyId, profile?.role, JSON.stringify(profile?.licenses ?? [])]);
 
   const markAllRead = useCallback(() => {
     // Türetilenler: localStorage; DB olayları: read_at güncelle + optimistik işaretle

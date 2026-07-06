@@ -24,6 +24,10 @@ import type { Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
 import { HelpDialog } from "@/components/help-dialog";
+import { daysUntilDate, getOverallLicenseStatus, LICENSE_CLASSES } from "@/lib/license";
+import { IdCard, Sparkles, Upload, XCircle, CheckCircle2 } from "lucide-react";
+import type { DriverLicenseEntry } from "@/lib/types";
+import { fileToBase64, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS, SCAN_MAX_FILE_SIZE } from "@/lib/file-utils";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -78,7 +82,7 @@ function getInitials(name: string): string {
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { locale, setLocale, t } = useLanguage();
-  const { user, profile, company, signOut } = useAuth();
+  const { user, profile, company, signOut, refreshProfile } = useAuth();
   const router = useRouter();
 
   // Avatar — localAvatar stores freshly uploaded image; falls back to profile value
@@ -169,6 +173,140 @@ export default function SettingsPage() {
     } finally {
       setDeptSaving(false);
     }
+  };
+
+  // Ehliyet bilgileri — yalnızca sürücü (role="user") rolü için; hiçbir alan zorunlu değil.
+  // Bir sürücü birden fazla sınıfa sahip olabilir, her sınıfın kendi veriliş/geçerlilik tarihi vardır.
+  function sortLicenseEntries(entries: DriverLicenseEntry[]): DriverLicenseEntry[] {
+    return [...entries].sort((a, b) => LICENSE_CLASSES.indexOf(a.class) - LICENSE_CLASSES.indexOf(b.class));
+  }
+
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [licenseEntries, setLicenseEntries] = useState<DriverLicenseEntry[]>([]);
+  const [licenseSaving, setLicenseSaving] = useState(false);
+
+  useEffect(() => {
+    setLicenseNumber(profile?.licenseNumber ?? "");
+    setLicenseEntries(sortLicenseEntries(profile?.licenses ?? []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.licenseNumber, JSON.stringify(profile?.licenses ?? [])]);
+
+  const toggleLicenseClass = (c: string) => {
+    setLicenseEntries((prev) =>
+      prev.some((e) => e.class === c)
+        ? prev.filter((e) => e.class !== c)
+        : sortLicenseEntries([...prev, { class: c, issueDate: "", expiryDate: "" }])
+    );
+  };
+
+  const updateLicenseEntry = (c: string, field: "issueDate" | "expiryDate", value: string) => {
+    setLicenseEntries((prev) => prev.map((e) => (e.class === c ? { ...e, [field]: value } : e)));
+  };
+
+  const licenseDirty =
+    licenseNumber !== (profile?.licenseNumber ?? "") ||
+    JSON.stringify(licenseEntries) !== JSON.stringify(sortLicenseEntries(profile?.licenses ?? []));
+
+  const handleSaveLicense = async () => {
+    setLicenseSaving(true);
+    try {
+      const supabase = createClient();
+      const cleaned = licenseEntries.map((e) => ({
+        class: e.class,
+        ...(e.issueDate ? { issueDate: e.issueDate } : {}),
+        ...(e.expiryDate ? { expiryDate: e.expiryDate } : {}),
+      }));
+      const { error } = await supabase
+        .from("profiles")
+        .update({ license_number: licenseNumber.trim(), licenses: cleaned })
+        .eq("id", user!.id);
+      if (error) throw error;
+      await refreshProfile();
+      toast.success("Ehliyet bilgileri güncellendi");
+    } catch {
+      toast.error("Kaydedilemedi");
+    } finally {
+      setLicenseSaving(false);
+    }
+  };
+
+  // AI ile ehliyet ön/arka yüzünden otomatik doldurma — src/app/vehicles/new ile aynı desen.
+  const [licenseScanFront, setLicenseScanFront] = useState<File | null>(null);
+  const [licenseScanBack, setLicenseScanBack] = useState<File | null>(null);
+  const [licenseScanning, setLicenseScanning] = useState(false);
+  const [licenseScanResult, setLicenseScanResult] = useState<{ licenseNumber?: string; classes: DriverLicenseEntry[] } | null>(null);
+
+  const handleLicenseFileSelect = (side: "front" | "back", e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const ext = "." + (file.name.split(".").pop()?.toLowerCase() ?? "");
+    if (!SCAN_ALLOWED_TYPES.includes(file.type) && !SCAN_ALLOWED_EXTS.includes(ext)) {
+      toast.error("Desteklenmeyen dosya", { description: "PDF veya görsel (JPG, PNG, WebP) seçin." });
+      return;
+    }
+    if (file.size > SCAN_MAX_FILE_SIZE) {
+      toast.error("Dosya çok büyük", { description: "Maks. 5 MB." });
+      return;
+    }
+    if (side === "front") setLicenseScanFront(file); else setLicenseScanBack(file);
+    setLicenseScanResult(null);
+  };
+
+  const handleScanLicense = async () => {
+    const files = [licenseScanFront, licenseScanBack].filter((f): f is File => !!f);
+    if (files.length === 0) return;
+    setLicenseScanning(true);
+    try {
+      const images = await Promise.all(
+        files.map(async (f) => ({ fileData: await fileToBase64(f), mimeType: f.type || "application/octet-stream" }))
+      );
+      const res = await fetch("/api/extract-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ documentType: "license", images }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error("Belge okunamadı", { description: err.error || "Lütfen tekrar deneyin." });
+        return;
+      }
+      const { data } = await res.json() as { data: { licenseNumber?: string; classes?: DriverLicenseEntry[] } };
+      if (!data.licenseNumber && (!data.classes || data.classes.length === 0)) {
+        toast.warning("Bilgi bulunamadı", { description: "Belgeden ehliyet bilgisi çıkarılamadı." });
+        return;
+      }
+      setLicenseScanResult({ licenseNumber: data.licenseNumber, classes: data.classes ?? [] });
+      toast.success("Ehliyet tarandı", { description: "Bulunan bilgileri inceleyip uygulayabilirsiniz." });
+    } catch {
+      toast.error("Belge okunamadı", { description: "Lütfen tekrar deneyin." });
+    } finally {
+      setLicenseScanning(false);
+    }
+  };
+
+  const handleApplyLicenseScan = () => {
+    if (!licenseScanResult) return;
+    if (licenseScanResult.licenseNumber) setLicenseNumber(licenseScanResult.licenseNumber);
+    if (licenseScanResult.classes.length > 0) {
+      setLicenseEntries((prev) => {
+        const merged = [...prev];
+        for (const c of licenseScanResult.classes) {
+          const idx = merged.findIndex((e) => e.class === c.class);
+          if (idx >= 0) merged[idx] = { ...merged[idx], ...c };
+          else merged.push(c);
+        }
+        return sortLicenseEntries(merged);
+      });
+    }
+    setLicenseScanResult(null);
+    setLicenseScanFront(null);
+    setLicenseScanBack(null);
+    toast.warning("Bilgileri kontrol edin", {
+      description: "AI çıkarımı hatalı olabilir. Lütfen sınıf tarihlerini doğrulayın.",
+      duration: 8000,
+    });
   };
 
   // Invite code (fetched separately for managers in case auth context doesn't have it)
@@ -553,6 +691,221 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Ehliyet Bilgileri — yalnızca sürücü rolü */}
+        {profile?.role === "user" && (
+          <motion.div variants={fadeUp} className="space-y-1">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">Ehliyet Bilgileri</h3>
+            <Card className="rounded-2xl border-border/40 shadow-sm overflow-hidden">
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <IdCard className="h-4 w-4 shrink-0" />
+                  <span>Bu bilgiler zorunlu değildir; eklerseniz süre takibi ve hatırlatma yapabiliriz.</span>
+                </div>
+
+                {/* AI ile ön/arka yüzden otomatik doldur */}
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-primary/15 rounded-lg shrink-0">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold">Ehliyet ile Otomatik Doldur</p>
+                      <p className="text-[10px] text-muted-foreground">Ön ve arka yüzü yükleyin — AI sınıfları ve tarihleri okusun</p>
+                    </div>
+                  </div>
+
+                  {licenseScanResult ? (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Şu bilgiler bulundu:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {licenseScanResult.licenseNumber && (
+                          <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2 py-1">
+                            No: {licenseScanResult.licenseNumber}
+                          </span>
+                        )}
+                        {licenseScanResult.classes.map((c) => (
+                          <span key={c.class} className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2 py-1">
+                            {c.class}{c.expiryDate ? ` · ${new Date(c.expiryDate).toLocaleDateString("tr-TR")}` : ""}
+                          </span>
+                        ))}
+                        {licenseScanResult.classes.length === 0 && !licenseScanResult.licenseNumber && (
+                          <span className="text-[10px] text-muted-foreground">Bilgi bulunamadı</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="rounded-xl flex-1 text-xs" onClick={() => setLicenseScanResult(null)}>
+                          İptal
+                        </Button>
+                        <Button size="sm" className="rounded-xl flex-1 gap-1.5 text-xs" onClick={handleApplyLicenseScan}>
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Verileri Uygula
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["front", "back"] as const).map((side) => {
+                          const file = side === "front" ? licenseScanFront : licenseScanBack;
+                          return (
+                            <div key={side} className={`relative flex items-center gap-2 rounded-lg border px-2.5 py-2 ${file ? "border-emerald-500/30 bg-emerald-500/5" : "border-border/40 bg-background/60"}`}>
+                              {file ? (
+                                <>
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] font-semibold">{side === "front" ? "Ön Yüz" : "Arka Yüz"}</p>
+                                    <p className="text-[9px] text-muted-foreground truncate">{file.name}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => (side === "front" ? setLicenseScanFront(null) : setLicenseScanBack(null))}
+                                    className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                  >
+                                    <XCircle className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
+                              ) : (
+                                <label className="flex items-center gap-2 cursor-pointer w-full">
+                                  <Upload className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] font-semibold">{side === "front" ? "Ön Yüz" : "Arka Yüz"}</p>
+                                    <p className="text-[9px] text-muted-foreground">Opsiyonel</p>
+                                  </div>
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                    className="hidden"
+                                    onChange={(e) => handleLicenseFileSelect(side, e)}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {(licenseScanFront || licenseScanBack) && (
+                        <Button className="w-full rounded-xl gap-2 text-xs h-9" onClick={handleScanLicense} disabled={licenseScanning}>
+                          {licenseScanning ? (
+                            <>
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                                className="h-3.5 w-3.5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
+                              />
+                              Okunuyor…
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-3.5 w-3.5" /> Tara ve Doldur
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Ehliyet No</label>
+                  <input
+                    value={licenseNumber}
+                    onChange={(e) => setLicenseNumber(e.target.value)}
+                    placeholder="Opsiyonel"
+                    className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Sınıf(lar)</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {LICENSE_CLASSES.map((c) => {
+                      const active = licenseEntries.some((e) => e.class === c);
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => toggleLicenseClass(c)}
+                          className={`h-8 px-3 rounded-full text-xs font-semibold border transition-colors ${
+                            active
+                              ? "bg-primary/15 border-primary text-primary"
+                              : "bg-background border-border text-muted-foreground hover:border-primary/40"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {licenseEntries.length > 0 && (
+                  <div className="space-y-2.5">
+                    {licenseEntries.map((entry) => {
+                      const status = getOverallLicenseStatus([entry]);
+                      return (
+                        <div key={entry.class} className="rounded-xl border border-border/40 p-3 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold">{entry.class} Sınıfı</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleLicenseClass(entry.class)}
+                              className="text-muted-foreground hover:text-red-500 transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Veriliş Tarihi</label>
+                              <input
+                                type="date"
+                                value={entry.issueDate ?? ""}
+                                onChange={(e) => updateLicenseEntry(entry.class, "issueDate", e.target.value)}
+                                className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Geçerlilik Tarihi</label>
+                              <input
+                                type="date"
+                                value={entry.expiryDate ?? ""}
+                                onChange={(e) => updateLicenseEntry(entry.class, "expiryDate", e.target.value)}
+                                className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              />
+                            </div>
+                          </div>
+                          {entry.expiryDate && (
+                            <p className={`text-[11px] font-medium ${
+                              status === "expired" ? "text-red-500"
+                              : status === "expiring" ? "text-amber-500"
+                              : "text-green-600 dark:text-green-400"
+                            }`}>
+                              {status === "expired"
+                                ? `Süresi ${Math.abs(daysUntilDate(entry.expiryDate))} gün önce doldu.`
+                                : status === "expiring"
+                                ? `Süresine ${daysUntilDate(entry.expiryDate)} gün kaldı.`
+                                : "Geçerli."}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSaveLicense}
+                  disabled={licenseSaving || !licenseDirty}
+                  className="h-9 px-4 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {licenseSaving ? "..." : "Kaydet"}
+                </button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Invite Code — managers and operators */}
         {(profile?.role === "manager" || profile?.role === "operator") && (

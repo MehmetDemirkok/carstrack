@@ -60,47 +60,24 @@ export interface DispatchOptions {
 }
 
 /**
- * Bir şirketteki yönetici + operatör rolündeki kullanıcılara olayı 4 kanaldan
- * birden iletir. Her kanal birbirinden bağımsız; biri başarısız olsa (örn. Telegram
- * bağlı değil, RESEND yok) diğerleri çalışmaya devam eder ve fonksiyon asla throw etmez.
+ * Verilen alıcı profil listesine olayı 4 kanaldan birden iletir. Her kanal
+ * birbirinden bağımsız; biri başarısız olsa (örn. Telegram bağlı değil, RESEND
+ * yok) diğerleri çalışmaya devam eder ve fonksiyon asla throw etmez.
  *
- * `options.extraUserIds` ile kitle dışındaki belirli kullanıcılara da (ör. arızayı
- * açan kişi) aynı olay iletilebilir.
+ * `dispatchToManagers` ve `dispatchToUser` bu ortak gövdeyi paylaşır — kitle
+ * farkı yalnızca çağıran tarafın hangi profilleri topladığındadır.
  *
  * @param admin Service-role Supabase client (RLS bypass — notifications insert için şart).
  */
-export async function dispatchToManagers(
+async function dispatchToProfiles(
   admin: SupabaseClient,
   companyId: string,
+  recipients: ManagerProfile[],
   event: NotifyEvent,
-  options?: DispatchOptions,
 ): Promise<DispatchResult> {
   const result: DispatchResult = { recipients: 0, inApp: 0, telegram: 0, push: 0, email: 0 };
 
-  // Alıcı kitle: yönetici + operatör — bir kez çekilir.
-  const { data: profiles } = await admin
-    .from("profiles")
-    .select("id, full_name, telegram_chat_id, notify_by_email")
-    .eq("company_id", companyId)
-    .in("role", ["manager", "operator"]);
-
-  const managers = (profiles ?? []) as ManagerProfile[];
-
-  // Ek alıcılar (ör. arızayı açan kullanıcı) — kitlede olmayanları aynı şirketten çek.
-  const extraIds = (options?.extraUserIds ?? []).filter(
-    (id): id is string => !!id && !managers.some((m) => m.id === id),
-  );
-  if (extraIds.length > 0) {
-    const { data: extraProfiles } = await admin
-      .from("profiles")
-      .select("id, full_name, telegram_chat_id, notify_by_email")
-      .eq("company_id", companyId)
-      .in("id", extraIds);
-    for (const p of (extraProfiles ?? []) as ManagerProfile[]) {
-      if (!managers.some((m) => m.id === p.id)) managers.push(p);
-    }
-  }
-
+  const managers = recipients;
   if (managers.length === 0) return result;
   result.recipients = managers.length;
 
@@ -170,4 +147,66 @@ export async function dispatchToManagers(
   });
 
   return result;
+}
+
+/**
+ * Bir şirketteki yönetici + operatör rolündeki kullanıcılara olayı 4 kanaldan
+ * birden iletir (bkz. dispatchToProfiles).
+ *
+ * `options.extraUserIds` ile kitle dışındaki belirli kullanıcılara da (ör. arızayı
+ * açan kişi) aynı olay iletilebilir.
+ */
+export async function dispatchToManagers(
+  admin: SupabaseClient,
+  companyId: string,
+  event: NotifyEvent,
+  options?: DispatchOptions,
+): Promise<DispatchResult> {
+  // Alıcı kitle: yönetici + operatör — bir kez çekilir.
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id, full_name, telegram_chat_id, notify_by_email")
+    .eq("company_id", companyId)
+    .in("role", ["manager", "operator"]);
+
+  const managers = (profiles ?? []) as ManagerProfile[];
+
+  // Ek alıcılar (ör. arızayı açan kullanıcı) — kitlede olmayanları aynı şirketten çek.
+  const extraIds = (options?.extraUserIds ?? []).filter(
+    (id): id is string => !!id && !managers.some((m) => m.id === id),
+  );
+  if (extraIds.length > 0) {
+    const { data: extraProfiles } = await admin
+      .from("profiles")
+      .select("id, full_name, telegram_chat_id, notify_by_email")
+      .eq("company_id", companyId)
+      .in("id", extraIds);
+    for (const p of (extraProfiles ?? []) as ManagerProfile[]) {
+      if (!managers.some((m) => m.id === p.id)) managers.push(p);
+    }
+  }
+
+  return dispatchToProfiles(admin, companyId, managers, event);
+}
+
+/**
+ * Tek bir kullanıcıya (ör. kendi ehliyet süresi dolan sürücü) olayı 4 kanaldan
+ * birden iletir (bkz. dispatchToProfiles). Kullanıcı bulunamazsa sessizce boş
+ * sonuç döner.
+ */
+export async function dispatchToUser(
+  admin: SupabaseClient,
+  companyId: string,
+  userId: string,
+  event: NotifyEvent,
+): Promise<DispatchResult> {
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, full_name, telegram_chat_id, notify_by_email")
+    .eq("id", userId)
+    .single();
+
+  if (!profile) return { recipients: 0, inApp: 0, telegram: 0, push: 0, email: 0 };
+
+  return dispatchToProfiles(admin, companyId, [profile as ManagerProfile], event);
 }

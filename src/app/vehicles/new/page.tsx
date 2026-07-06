@@ -16,6 +16,7 @@ import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, Check
 import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
 import { DatePicker } from "@/components/ui/date-picker";
+import { fileToBase64, SCAN_MAX_FILE_SIZE, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS } from "@/lib/file-utils";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
 const MODELS: Record<string, string[]> = {
@@ -122,18 +123,6 @@ const SCAN_FIELD_LABELS: Record<string, string> = {
   greenCardExpiry: "Yeşil Kart Bitiş",
   inspectionExpiry: "Muayene Bitiş",
 };
-
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(",")[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 function formatScanValue(key: string, value: string): string {
   if ((key === "insuranceExpiry" || key === "greenCardExpiry" || key === "inspectionExpiry") && value.includes("-")) {
@@ -375,10 +364,6 @@ export default function NewVehiclePage() {
 
   const [error, setError] = useState<string>("");
 
-  const SCAN_MAX = 5 * 1024 * 1024;
-  const SCAN_ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
-  const SCAN_ALLOWED_EXTS = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
-
   const handleDocFileSelect = (key: DocKey, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -388,7 +373,7 @@ export default function NewVehiclePage() {
       toast.error("Desteklenmeyen dosya", { description: "PDF veya görsel (JPG, PNG, WebP) seçin." });
       return;
     }
-    if (file.size > SCAN_MAX) {
+    if (file.size > SCAN_MAX_FILE_SIZE) {
       toast.error("Dosya çok büyük", { description: "Maks. 5 MB." });
       return;
     }

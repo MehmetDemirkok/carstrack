@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Users, Car, Route, Pencil, UserCog, X, Plus, Mail, Send, Trash2 } from "lucide-react";
+import { Users, Car, Route, Pencil, UserCog, X, Plus, Mail, Send, Trash2, IdCard } from "lucide-react";
+import { getOverallLicenseStatus, getMostUrgentEntry, daysUntilDate } from "@/lib/license";
+import type { DriverLicenseEntry } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import {
@@ -47,6 +49,21 @@ function roleBadge(role: UserRole) {
   if (role === "manager") return { label: "Şirket Yetkilisi", cls: "bg-primary/10 text-primary" };
   if (role === "operator") return { label: "Operatör", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
   return { label: "Kullanıcı", cls: "bg-muted text-muted-foreground" };
+}
+
+function licenseBadge(licenses?: DriverLicenseEntry[]) {
+  const status = getOverallLicenseStatus(licenses);
+  if (status === "missing") return { label: "Ehliyet bilgisi yok", cls: "bg-muted/50 text-muted-foreground" };
+
+  const urgent = getMostUrgentEntry(licenses);
+  if (status === "expired" && urgent) {
+    return { label: `${urgent.class} süresi doldu (${new Date(urgent.expiryDate!).toLocaleDateString("tr-TR")})`, cls: "bg-red-500/10 text-red-600 dark:text-red-400" };
+  }
+  if (status === "expiring" && urgent) {
+    return { label: `${urgent.class} ${daysUntilDate(urgent.expiryDate!)} gün sonra doluyor`, cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
+  }
+  const classesLabel = (licenses ?? []).map((l) => l.class).join(", ");
+  return { label: `Ehliyet geçerli (${classesLabel})`, cls: "bg-green-500/10 text-green-600 dark:text-green-400" };
 }
 
 type DriverWithAssignment = Profile & { assignedVehicleIds: string[] };
@@ -400,6 +417,15 @@ export default function UsersPage() {
                     {member.department && (
                       <p className="text-xs text-muted-foreground mt-0.5">{member.department}</p>
                     )}
+
+                    {isUser && (() => {
+                      const badge = licenseBadge(member.licenses);
+                      return (
+                        <span className={`mt-1.5 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${badge.cls}`}>
+                          <IdCard className="h-3 w-3 shrink-0" /> {badge.label}
+                        </span>
+                      );
+                    })()}
 
                     {isUser && (
                       <div className="mt-2 space-y-1">

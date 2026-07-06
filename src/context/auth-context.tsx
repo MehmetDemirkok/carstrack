@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { clearCompanyCache } from "@/lib/db";
-import type { Profile, Company } from "@/lib/types";
+import type { Profile, Company, DriverLicenseEntry } from "@/lib/types";
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthContextType {
   company: Company | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   company: null,
   loading: true,
   signOut: async () => {},
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -28,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const initializedRef = useRef(false);
+  const loadProfileRef = useRef<(userId: string, metadataCompanyId?: string) => Promise<void>>(async () => {});
 
   useEffect(() => {
     const supabase = createClient();
@@ -43,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, telegram_chat_id, created_at, companies(id, name, created_at, invite_code)")
+          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, telegram_chat_id, created_at, license_number, licenses, companies(id, name, created_at, invite_code)")
           .eq("id", userId)
           .single();
 
@@ -69,6 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           notifyByEmail: data.notify_by_email !== false,
           telegramChatId: (data.telegram_chat_id as string) || undefined,
           createdAt: data.created_at,
+          licenseNumber: (data.license_number as string) || undefined,
+          licenses: (data.licenses as DriverLicenseEntry[]) || [],
         });
 
         if (comp?.id) {
@@ -93,6 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCompany(null);
       }
     }
+
+    loadProfileRef.current = loadProfile;
 
     const {
       data: { subscription },
@@ -180,8 +187,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    await loadProfileRef.current(user.id, user.user_metadata?.company_id as string | undefined);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, company, loading, signOut }}>
+    <AuthContext.Provider value={{ user, profile, company, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

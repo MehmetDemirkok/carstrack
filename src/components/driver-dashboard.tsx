@@ -5,13 +5,14 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import {
   Car, ClipboardList, Play, Route, CheckCircle2, Gauge,
-  ChevronRight, MapPin, Clock, StopCircle, Wrench, Send,
+  ChevronRight, MapPin, Clock, StopCircle, Wrench, Send, IdCard, AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getMyVehicles, getMyActiveTask, getTasks, getVehicleStatuses, getMyReports } from "@/lib/db";
 import type { Vehicle, VehicleTask, VehicleReport } from "@/lib/types";
 import { StatusBadge, CategoryIcon, STATUS_META } from "@/components/reports/report-badges";
 import { PWAInstallCard } from "@/components/pwa-install";
+import { getOverallLicenseStatus, getMostUrgentEntry, daysUntilDate } from "@/lib/license";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } };
 const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } } };
@@ -82,6 +83,8 @@ export function DriverDashboard() {
   }, []);
 
   const activeVehicle = activeTask ? vehicles.find((v) => v.id === activeTask.vehicleId) : null;
+  const licenseStatus = getOverallLicenseStatus(profile?.licenses);
+  const urgentLicense = getMostUrgentEntry(profile?.licenses);
 
   const todayStr = new Date().toDateString();
   const todayTrips = recent.filter((t) => new Date(t.startTime).toDateString() === todayStr);
@@ -144,6 +147,42 @@ export function DriverDashboard() {
         <motion.div variants={fadeUp}>
           <PWAInstallCard />
         </motion.div>
+
+        {/* ── Ehliyet Bilgisi Hatırlatması — zorlayıcı değil, sadece bilgilendirme ── */}
+        {licenseStatus !== "valid" && (
+          <motion.div variants={fadeUp}>
+            <Link href="/settings" className="block">
+              <div className={`glass rounded-3xl p-4 border flex items-center gap-4 transition-colors ${
+                licenseStatus === "expired" ? "border-red-500/30 hover:border-red-500/50"
+                : licenseStatus === "expiring" ? "border-amber-500/30 hover:border-amber-500/50"
+                : "border-border/40 hover:border-primary/40"
+              }`}>
+                <div className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                  licenseStatus === "expired" ? "bg-red-500/10"
+                  : licenseStatus === "expiring" ? "bg-amber-500/10"
+                  : "bg-primary/10"
+                }`}>
+                  {licenseStatus === "missing"
+                    ? <IdCard className="h-5 w-5 text-primary" />
+                    : <AlertTriangle className={`h-5 w-5 ${licenseStatus === "expired" ? "text-red-500" : "text-amber-500"}`} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm">
+                    {licenseStatus === "missing" && "Ehliyet bilgilerinizi eklemediniz"}
+                    {licenseStatus === "expired" && "Ehliyetinizin süresi doldu"}
+                    {licenseStatus === "expiring" && "Ehliyetinizin süresi yaklaşıyor"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {licenseStatus === "missing" && "Süre takibi yapabilmemiz için Ayarlar'dan eklemenizi rica ederiz"}
+                    {licenseStatus === "expired" && urgentLicense && `${urgentLicense.class} sınıfı ${Math.abs(daysUntilDate(urgentLicense.expiryDate!))} gün önce doldu — lütfen yenileyin ve bilgilerinizi güncelleyin`}
+                    {licenseStatus === "expiring" && urgentLicense && `${urgentLicense.class} sınıfının süresine ${daysUntilDate(urgentLicense.expiryDate!)} gün kaldı — yenilemeyi unutmayın`}
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+              </div>
+            </Link>
+          </motion.div>
+        )}
 
         {/* ── Aktif Seyahat / CTA ── */}
         {activeTask ? (

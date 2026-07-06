@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
+import { useAuth } from "@/context/auth-context";
 
 const item = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0 } };
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } } };
@@ -64,6 +65,7 @@ export default function RegisterClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setTheme } = useTheme();
+  const { user: activeUser } = useAuth();
 
   // ── E-posta daveti (?invite=<token>) ile gelindiyse formu davet moduna al ──
   const inviteToken = searchParams.get("invite");
@@ -371,10 +373,17 @@ export default function RegisterClient() {
                 ) : inviteError ? (
                   <p style={{ color: "#f87171", fontSize: "0.78rem" }}>{inviteError}</p>
                 ) : inviteInfo ? (
-                  <p style={{ color: "var(--foreground)", fontSize: "0.8rem" }}>
-                    <span style={{ fontWeight: 700 }}>{inviteInfo.companyName}</span> şirketine{" "}
-                    <span style={{ fontWeight: 700 }}>{ROLE_LABELS[inviteInfo.role] ?? inviteInfo.role}</span> rolüyle katılıyorsunuz.
-                  </p>
+                  <>
+                    <p style={{ color: "var(--foreground)", fontSize: "0.8rem" }}>
+                      <span style={{ fontWeight: 700 }}>{inviteInfo.companyName}</span> şirketine{" "}
+                      <span style={{ fontWeight: 700 }}>{ROLE_LABELS[inviteInfo.role] ?? inviteInfo.role}</span> rolüyle katılıyorsunuz.
+                    </p>
+                    {activeUser && activeUser.email?.toLowerCase() !== form.email.toLowerCase() && (
+                      <p style={{ color: "#fbbf24", fontSize: "0.74rem", marginTop: 8 }}>
+                        Bu cihazda <b>{activeUser.email}</b> hesabıyla oturum açık. Kaydı tamamladığınızda o hesaptan çıkış yapılıp bu yeni hesaba geçilecek.
+                      </p>
+                    )}
+                  </>
                 ) : null}
               </div>
             )}

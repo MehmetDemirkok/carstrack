@@ -117,8 +117,14 @@ export async function proxy(request: NextRequest) {
     return redirectResponse;
   }
 
+  // E-posta daveti (?invite=<token>) ile gelindiyse, cihazda başka bir
+  // hesabın oturumu açık olsa bile davet formunu bastırmayız — aynı bilgisayarı
+  // birden fazla kişi kullanıyor olabilir (ör. ortak ofis PC'si). Yeni üye
+  // formu kendi hesabıyla giriş yaparak eski oturumun yerini alır.
+  const isRegisterWithInvite = pathname.startsWith("/register") && request.nextUrl.searchParams.has("invite");
+
   // Authenticated on login/register or landing page → dashboard
-  if (user && (isAuthOnlyPath || pathname === "/")) {
+  if (user && (isAuthOnlyPath || pathname === "/") && !isRegisterWithInvite) {
     const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
     supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
       redirectResponse.cookies.set(
