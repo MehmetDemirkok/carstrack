@@ -69,7 +69,8 @@
       "Bash(curl *)",
       "mcp__supabase__get_advisors",
       "Bash(gh api *)",
-      "Bash(npx vercel *)"
+      "Bash(npx vercel *)",
+      "Bash(sort -u -t'\"' -k2,2)"
     ]
   }
 }
