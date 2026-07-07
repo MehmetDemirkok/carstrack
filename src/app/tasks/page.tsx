@@ -1173,11 +1173,27 @@ function ManagerView() {
 
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto rounded-3xl border border-border/40">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[1140px] text-sm table-fixed">
+              <colgroup>
+                <col className="w-[150px]" />
+                <col className="w-[150px]" />
+                <col className="w-[90px]" />
+                <col className="w-[90px]" />
+                <col className="w-[100px]" />
+                <col className="w-[90px]" />
+                <col className="w-[110px]" />
+                <col className="w-[130px]" />
+                <col className="w-[230px]" />
+              </colgroup>
               <thead className="bg-muted/30">
                 <tr>
                   {["Araç", "Personel", "Başl. KM", "Bitiş KM", "Mesafe", "Süre", "Durum", "Tarih", ""].map((h, i) => (
-                    <th key={i} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
+                    <th
+                      key={i}
+                      className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap"
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -1187,28 +1203,28 @@ function ManagerView() {
                   const isActive = task.status === "active";
                   return (
                     <tr key={task.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <p className="font-medium">{v?.plate ?? task.vehiclePlate ?? "—"}</p>
-                        <p className="text-xs text-muted-foreground">{v ? `${v.brand} ${v.model}` : (task.vehicleName ?? "")}</p>
+                      <td className="px-4 py-3 overflow-hidden">
+                        <p className="font-medium truncate">{v?.plate ?? task.vehiclePlate ?? "—"}</p>
+                        <p className="text-xs text-muted-foreground truncate">{v ? `${v.brand} ${v.model}` : (task.vehicleName ?? "")}</p>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <p className="font-medium">{task.driverName ?? "—"}</p>
-                        {task.driverDepartment && <p className="text-xs text-muted-foreground">{task.driverDepartment}</p>}
+                      <td className="px-4 py-3 overflow-hidden">
+                        <p className="font-medium truncate">{task.driverName ?? "—"}</p>
+                        {task.driverDepartment && <p className="text-xs text-muted-foreground truncate">{task.driverDepartment}</p>}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">{formatKm(task.startKm)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">{task.endKm != null ? formatKm(task.endKm) : "—"}</td>
-                      <td className="px-4 py-3 font-semibold whitespace-nowrap">{task.distance != null ? `${formatKm(task.distance)} km` : "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap truncate">{formatKm(task.startKm)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap truncate">{task.endKm != null ? formatKm(task.endKm) : "—"}</td>
+                      <td className="px-4 py-3 font-semibold whitespace-nowrap truncate">{task.distance != null ? `${formatKm(task.distance)} km` : "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap truncate">
                         {isActive ? formatDuration(task.startTime) : task.endTime ? formatDuration(task.startTime, task.endTime) : "—"}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 overflow-hidden">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${isActive ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
                           {isActive && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
                           {isActive ? "Aktif" : "Tamamlandı"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{formatDateTime(task.startTime)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap truncate">{formatDateTime(task.startTime)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           {isActive && (
                             <button
