@@ -450,8 +450,14 @@ export default function VehicleDetailPage() {
   };
 
   const handleAddRecord = async () => {
+    const recordMileage = recordForm.mileage ? parseKm(recordForm.mileage) : vehicle.mileage;
+    if (recordMileage > vehicle.mileage) {
+      toast.error("Geçersiz Kilometre", {
+        description: `Girdiğiniz kilometre (${recordMileage.toLocaleString("tr-TR")} km), aracın mevcut kilometresinden (${vehicle.mileage.toLocaleString("tr-TR")} km) yüksek olamaz. Lütfen aracın km bilgisini kontrol edip tekrar deneyin.`,
+      });
+      return;
+    }
     try {
-      const recordMileage = recordForm.mileage ? parseKm(recordForm.mileage) : vehicle.mileage;
       await addRecord({
         vehicleId: vehicle.id,
         date: recordForm.date,

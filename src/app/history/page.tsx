@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { addRecord, deleteRecord, updateRecord, updateVehicle, getServiceProviders, addServiceProvider, deleteServiceProvider } from "@/lib/db";
+import { toast } from "sonner";
 import { applyPeriodicService } from "@/lib/store";
 import { useData } from "@/context/data-context";
 import type { ServiceRecord, ServiceType, TireSeasonType, Vehicle, ServiceProvider } from "@/lib/types";
@@ -141,6 +142,12 @@ export default function HistoryPage() {
     if (!form.vehicleId || !form.title) return;
     const v = vehicles.find((x) => x.id === form.vehicleId);
     const recordMileage = parseInt(form.mileage) || (v?.mileage ?? 0);
+    if (v && recordMileage > v.mileage) {
+      toast.error("Geçersiz Kilometre", {
+        description: `Girdiğiniz kilometre (${recordMileage.toLocaleString("tr-TR")} km), aracın mevcut kilometresinden (${v.mileage.toLocaleString("tr-TR")} km) yüksek olamaz. Lütfen aracın km bilgisini kontrol edip tekrar deneyin.`,
+      });
+      return;
+    }
     try {
       await addRecord({
         vehicleId: form.vehicleId,
@@ -206,12 +213,20 @@ export default function HistoryPage() {
 
   const handleEdit = async () => {
     if (!editRecord || !editForm.title) return;
+    const editMileage = parseInt(editForm.mileage) || 0;
+    const v = vehicles.find((x) => x.id === editRecord.vehicleId);
+    if (v && editMileage > v.mileage) {
+      toast.error("Geçersiz Kilometre", {
+        description: `Girdiğiniz kilometre (${editMileage.toLocaleString("tr-TR")} km), aracın mevcut kilometresinden (${v.mileage.toLocaleString("tr-TR")} km) yüksek olamaz. Lütfen aracın km bilgisini kontrol edip tekrar deneyin.`,
+      });
+      return;
+    }
     try {
       await updateRecord(editRecord.id, {
         date: editForm.date,
         type: editForm.type,
         title: editForm.title,
-        mileage: parseInt(editForm.mileage) || 0,
+        mileage: editMileage,
         serviceCenter: editForm.serviceCenter,
         notes: editForm.notes,
       });
