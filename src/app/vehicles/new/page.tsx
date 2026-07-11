@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle, addVehicleDocument, uploadDocumentFile } from "@/lib/db";
 import type { FuelType, TransmissionType, TireSeasonType, OwnershipType, Vehicle } from "@/lib/types";
@@ -621,9 +622,12 @@ export default function NewVehiclePage() {
       {/* Header */}
       <div className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="flex items-center justify-between p-3 px-4 max-w-2xl mx-auto">
-          <Button variant="ghost" size="icon" onClick={step === 1 ? () => router.back() : () => setStep((s) => s - 1)} className="rounded-full h-9 w-9 hover:bg-primary/10">
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger render={<Button variant="ghost" size="icon" onClick={step === 1 ? () => router.back() : () => setStep((s) => s - 1)} className="rounded-full h-9 w-9 hover:bg-primary/10" />}>
+              <ChevronLeft className="h-5 w-5" />
+            </TooltipTrigger>
+            <TooltipContent>{step === 1 ? "Vazgeç" : "Önceki Adım"}</TooltipContent>
+          </Tooltip>
           <span className="font-outfit font-bold text-sm">Yeni Araç — Adım {step}/{steps.length}</span>
           <div className="w-9" />
         </div>
@@ -727,13 +731,20 @@ export default function NewVehiclePage() {
                                       onChange={(e) => handleDocFileSelect(key, e)}
                                     />
                                   </label>
-                                  <button
-                                    type="button"
-                                    onClick={() => setScanDocs(prev => ({ ...prev, [key]: { file: null, scanning: false, extracted: null } }))}
-                                    className="text-muted-foreground hover:text-destructive transition-colors"
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                  </button>
+                                  <Tooltip>
+                                    <TooltipTrigger
+                                      render={
+                                        <button
+                                          type="button"
+                                          onClick={() => setScanDocs(prev => ({ ...prev, [key]: { file: null, scanning: false, extracted: null } }))}
+                                          className="text-muted-foreground hover:text-destructive transition-colors"
+                                        />
+                                      }
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>Dosyayı Kaldır</TooltipContent>
+                                  </Tooltip>
                                 </div>
                               ) : (
                                 <label className="cursor-pointer shrink-0">
@@ -944,14 +955,21 @@ export default function NewVehiclePage() {
                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleExtraPhoto(field, e.target.files?.[0] ?? null)} />
                             </label>
                             {val && (
-                              <button
-                                type="button"
-                                onClick={() => set(field, "")}
-                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80 transition-colors"
-                                aria-label={`${label} fotoğrafını kaldır`}
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </button>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <button
+                                      type="button"
+                                      onClick={() => set(field, "")}
+                                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80 transition-colors"
+                                      aria-label={`${label} fotoğrafını kaldır`}
+                                    />
+                                  }
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </TooltipTrigger>
+                                <TooltipContent>{`${label} fotoğrafını kaldır`}</TooltipContent>
+                              </Tooltip>
                             )}
                           </div>
                         );

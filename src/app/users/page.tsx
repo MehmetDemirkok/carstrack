@@ -19,6 +19,7 @@ import {
 } from "@/lib/db";
 import type { Vehicle, VehicleTask, Profile, UserRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -318,21 +319,33 @@ export default function UsersPage() {
                   <p className="text-xs text-muted-foreground">{roleBadge(invite.role).label}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => sendInvite(invite.email, invite.role)}
-                    disabled={inviteSubmitting}
-                    title="Yeniden Gönder"
-                    className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => revokeInvite(invite.id)}
-                    title="İptal Et"
-                    className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          onClick={() => sendInvite(invite.email, invite.role)}
+                          disabled={inviteSubmitting}
+                          className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                        />
+                      }
+                    >
+                      <Send className="h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Daveti Yeniden Gönder</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          onClick={() => revokeInvite(invite.id)}
+                          className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        />
+                      }
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Daveti İptal Et</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             ))}
@@ -467,21 +480,33 @@ export default function UsersPage() {
                   {/* Aksiyon butonları */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     {isUser && (
-                      <button
-                        onClick={() => openAssign(member.id)}
-                        title="Araç Yönet"
-                        className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                      >
-                        <Car className="h-4 w-4" />
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              onClick={() => openAssign(member.id)}
+                              className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            />
+                          }
+                        >
+                          <Car className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>Araç Ata / Yönet</TooltipContent>
+                      </Tooltip>
                     )}
-                    <button
-                      onClick={() => openEdit(member)}
-                      title="Düzenle"
-                      className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            onClick={() => openEdit(member)}
+                            className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                          />
+                        }
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </TooltipTrigger>
+                      <TooltipContent>Kullanıcıyı Düzenle</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </motion.div>
@@ -625,13 +650,20 @@ export default function UsersPage() {
                           <p className="text-sm font-semibold">{v.plate}</p>
                           <p className="text-xs text-muted-foreground">{v.brand} {v.model}</p>
                         </div>
-                        <button
-                          onClick={() => handleRemoveVehicle(v.id)}
-                          disabled={assignSubmitting}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <button
+                                onClick={() => handleRemoveVehicle(v.id)}
+                                disabled={assignSubmitting}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                              />
+                            }
+                          >
+                            <X className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>Atamayı Kaldır</TooltipContent>
+                        </Tooltip>
                       </div>
                     ))}
                   </div>
@@ -655,13 +687,20 @@ export default function UsersPage() {
                         </option>
                       ))}
                     </select>
-                    <Button
-                      onClick={handleAddVehicle}
-                      disabled={!addVehicleId || assignSubmitting}
-                      className="h-11 px-4 rounded-2xl bg-mesh hover:opacity-95 text-white border-none shrink-0"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            onClick={handleAddVehicle}
+                            disabled={!addVehicleId || assignSubmitting}
+                            className="h-11 px-4 rounded-2xl bg-mesh hover:opacity-95 text-white border-none shrink-0"
+                          />
+                        }
+                      >
+                        <Plus className="h-4 w-4" />
+                      </TooltipTrigger>
+                      <TooltipContent>Araç Ata</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               )}

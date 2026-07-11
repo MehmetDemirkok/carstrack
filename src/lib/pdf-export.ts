@@ -25,6 +25,16 @@ function formatDate(val?: string): string {
   return d.toLocaleDateString("tr-TR");
 }
 
+/** "₺2.450 · Ödendi" / "₺2.450 · Ödenmedi (fatura bekleniyor)" / "—" — tek kolonda özet. */
+function paymentCell(r: ServiceRecord): string {
+  if (r.cost === undefined) return "—";
+  const amount = `₺${r.cost.toLocaleString("tr-TR")}`;
+  if (r.paymentStatus === "unpaid") {
+    return `${amount} · Ödenmedi${r.unpaidReason ? ` (${r.unpaidReason})` : ""}`;
+  }
+  return `${amount} · Ödendi`;
+}
+
 function daysUntil(dateStr?: string): number | null {
   if (!dateStr) return null;
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
@@ -287,13 +297,14 @@ export async function exportVehicleReportPDF(vehicle: Vehicle, records: ServiceR
 
     autoTable(doc, {
       startY: y,
-      head: [["Tarih", "Tür", "Başlık", "Kilometre", "Servis Noktası"]],
+      head: [["Tarih", "Tür", "Başlık", "Kilometre", "Servis Noktası", "Ödeme"]],
       body: records.map((r) => [
         formatDate(r.date),
         SERVICE_TYPE_LABELS[r.type] ?? r.type,
         r.title,
         r.mileage > 0 ? `${r.mileage.toLocaleString("tr-TR")} km` : "—",
         r.serviceCenter || "—",
+        paymentCell(r),
       ]),
       theme: "striped",
       ...baseTableStyles(),
@@ -323,7 +334,7 @@ export async function exportServiceHistoryPDF(records: ServiceRecord[], vehicles
 
   autoTable(doc, {
     startY: 46,
-    head: [["Tarih", "Araç", "Tür", "Başlık", "Kilometre", "Servis Noktası", "Notlar"]],
+    head: [["Tarih", "Araç", "Tür", "Başlık", "Kilometre", "Servis Noktası", "Ödeme", "Notlar"]],
     body: records.map((r) => [
       formatDate(r.date),
       plateMap[r.vehicleId] ?? "—",
@@ -331,6 +342,7 @@ export async function exportServiceHistoryPDF(records: ServiceRecord[], vehicles
       r.title,
       r.mileage > 0 ? `${r.mileage.toLocaleString("tr-TR")} km` : "—",
       r.serviceCenter || "—",
+      paymentCell(r),
       r.notes         || "",
     ]),
     theme: "striped",
@@ -338,12 +350,13 @@ export async function exportServiceHistoryPDF(records: ServiceRecord[], vehicles
     alternateRowStyles: { fillColor: [248, 248, 255] },
     styles: { cellPadding: 2.5, font: "Roboto", fontSize: 7.5, overflow: "linebreak" },
     columnStyles: {
-      0: { cellWidth: 20 },
-      1: { cellWidth: 38 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 35 },
-      4: { cellWidth: 22 },
-      5: { cellWidth: 28 },
+      0: { cellWidth: 18 },
+      1: { cellWidth: 32 },
+      2: { cellWidth: 18 },
+      3: { cellWidth: 28 },
+      4: { cellWidth: 18 },
+      5: { cellWidth: 22 },
+      6: { cellWidth: 30 },
     },
     margin: { left: 10, right: 10 },
   });

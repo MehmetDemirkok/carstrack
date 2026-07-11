@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import Link from "next/link";
 import Image from "next/image";
 import { calculateHealthScore, getFleetAlerts } from "@/lib/store";
@@ -35,6 +36,7 @@ import {
   X,
   History,
   FileWarning,
+  Wallet,
 } from "lucide-react";
 
 const stagger = {
@@ -70,6 +72,7 @@ export default function Dashboard() {
   const { user, profile } = useAuth();
   const { vehicles, records, loading: dataLoading } = useData();
   const [telegramBannerDismissed, setTelegramBannerDismissed] = useState(false);
+  const [showAlertsDialog, setShowAlertsDialog] = useState(false);
 
   const showTelegramBanner = !telegramBannerDismissed && !profile?.telegramChatId;
 
@@ -125,6 +128,9 @@ export default function Dashboard() {
   const recentRecords = [...filteredRecords]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 3);
+
+  const unpaidRecords = filteredRecords.filter((r) => r.paymentStatus === "unpaid");
+  const unpaidTotal = unpaidRecords.reduce((sum, r) => sum + (r.cost ?? 0), 0);
 
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
   const warningCount = alerts.filter((a) => a.severity === "warning").length;
@@ -280,14 +286,22 @@ export default function Dashboard() {
                         {heroStatus.label}
                       </span>
                       {criticalCount > 0 && (
-                        <span className="text-[10px] bg-red-500/25 text-red-100 px-2.5 py-1 rounded-full font-semibold self-center">
+                        <button
+                          type="button"
+                          onClick={() => setShowAlertsDialog(true)}
+                          className="text-[10px] bg-red-500/25 text-red-100 px-2.5 py-1 rounded-full font-semibold self-center hover:bg-red-500/40 transition-colors cursor-pointer"
+                        >
                           {criticalCount} kritik
-                        </span>
+                        </button>
                       )}
                       {warningCount > 0 && (
-                        <span className="text-[10px] bg-orange-500/25 text-orange-100 px-2.5 py-1 rounded-full font-semibold self-center">
+                        <button
+                          type="button"
+                          onClick={() => setShowAlertsDialog(true)}
+                          className="text-[10px] bg-orange-500/25 text-orange-100 px-2.5 py-1 rounded-full font-semibold self-center hover:bg-orange-500/40 transition-colors cursor-pointer"
+                        >
                           {warningCount} uyarı
-                        </span>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -311,11 +325,15 @@ export default function Dashboard() {
             </motion.div>
             <motion.div variants={fadeUp} className="lg:col-span-2 grid grid-cols-3 gap-3 md:gap-4">
               {[
-                { icon: Car, value: vehicles.length, label: "Araç", color: "text-primary", bg: "bg-primary/10", ring: "from-primary/40 to-primary/0" },
-                { icon: AlertTriangle, value: criticalCount + warningCount, label: "Uyarı", color: "text-orange-500", bg: "bg-orange-500/10", ring: "from-orange-500/40 to-orange-500/0" },
-                { icon: CheckCircle2, value: records.length, label: "Servis", color: "text-[var(--success)] dark:text-emerald-400", bg: "bg-[var(--success)]/10", ring: "from-emerald-500/40 to-emerald-500/0" },
+                { icon: Car, value: vehicles.length, label: "Araç", color: "text-primary", bg: "bg-primary/10", ring: "from-primary/40 to-primary/0", onClick: undefined },
+                { icon: AlertTriangle, value: criticalCount + warningCount, label: "Uyarı", color: "text-orange-500", bg: "bg-orange-500/10", ring: "from-orange-500/40 to-orange-500/0", onClick: criticalCount + warningCount > 0 ? () => setShowAlertsDialog(true) : undefined },
+                { icon: CheckCircle2, value: records.length, label: "Servis", color: "text-[var(--success)] dark:text-emerald-400", bg: "bg-[var(--success)]/10", ring: "from-emerald-500/40 to-emerald-500/0", onClick: undefined },
               ].map((stat, i) => (
-                <Card key={i} className="rounded-[1.5rem] border-border/40 shadow-sm hover-lift relative overflow-hidden group">
+                <Card
+                  key={i}
+                  onClick={stat.onClick}
+                  className={`rounded-[1.5rem] border-border/40 shadow-sm hover-lift relative overflow-hidden group ${stat.onClick ? "cursor-pointer" : ""}`}
+                >
                   <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${stat.ring} opacity-0 group-hover:opacity-100 transition-opacity`} />
                   <CardContent className="p-4 md:p-6 flex flex-col items-center justify-center text-center gap-1.5 h-full">
                     <div className={`p-2.5 md:p-3 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform`}>
@@ -477,6 +495,47 @@ export default function Dashboard() {
               </motion.div>
             )}
 
+            {/* Ödemeler — ödenmemiş servis masrafları */}
+            {unpaidRecords.length > 0 && (
+              <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-widest">Ödemeler</h3>
+                  <Link href="/history">
+                    <Button variant="ghost" size="sm" className="text-[11px] text-primary h-7 px-2 gap-1 hover:bg-primary/10">
+                      Tümü <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </Link>
+                </div>
+                <Card className="rounded-2xl border-destructive/20 shadow-sm bg-destructive/5">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-destructive/10 shrink-0">
+                        <Wallet className="h-4.5 w-4.5 text-destructive" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-lg font-bold font-outfit text-destructive leading-none">₺{unpaidTotal.toLocaleString("tr-TR")}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{unpaidRecords.length} ödenmemiş servis kaydı</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      {unpaidRecords.slice(0, 3).map((r) => {
+                        const v = vehicles.find((x) => x.id === r.vehicleId);
+                        return (
+                          <Link href={v ? `/vehicles/${v.id}` : "/history"} key={r.id} className="flex items-center justify-between gap-2 bg-card/60 rounded-xl px-3 py-2 hover:bg-card transition-colors">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold truncate">{r.title}{v ? ` • ${v.plate}` : ""}</p>
+                              {r.unpaidReason && <p className="text-[10px] text-muted-foreground truncate">{r.unpaidReason}</p>}
+                            </div>
+                            <span className="text-xs font-bold text-destructive shrink-0">₺{(r.cost ?? 0).toLocaleString("tr-TR")}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
             {/* Upcoming Maintenance */}
             {upcomingMaintenance.length > 0 && (
               <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-3">
@@ -565,6 +624,43 @@ export default function Dashboard() {
           </div>
         </div>
       </motion.div>
+
+      {/* Uyarı detayları — hero rozetleri ve "Uyarı" istatistik kartından açılır */}
+      <Dialog open={showAlertsDialog} onOpenChange={setShowAlertsDialog}>
+        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" /> Filo Uyarıları ({alerts.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 md:space-y-2.5 py-1">
+            {alerts.map((alert) => {
+              const Icon = categoryIcon[alert.category];
+              const accentBar = alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-orange-500" : "bg-primary";
+              return (
+                <Link href={`/vehicles/${alert.vehicleId}`} key={alert.id} onClick={() => setShowAlertsDialog(false)}>
+                  <div
+                    className={`relative p-3.5 pl-4 rounded-2xl border flex gap-3 items-start transition-all cursor-pointer overflow-hidden hover-lift ${severityStyle[alert.severity]}`}
+                  >
+                    <div className={`absolute left-0 top-2 bottom-2 w-1 rounded-r ${accentBar}`} />
+                    <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${severityIconStyle[alert.severity]}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="font-semibold text-xs">{alert.title}</h4>
+                        <span className="text-[9px] font-bold text-muted-foreground shrink-0">{alert.vehiclePlate}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{alert.description}</p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          <DialogClose render={<Button variant="outline" className="w-full rounded-xl" />}>Kapat</DialogClose>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Bell, Search, LogOut, Sun, Moon, MessageSquarePlus } from "lucide-react
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
@@ -80,59 +81,90 @@ export function TopBar() {
               ⌘K
             </kbd>
           </Button>
-          <Button variant="ghost" size="icon"
-            className="rounded-xl h-9 w-9 flex md:hidden text-muted-foreground hover:text-foreground hover:bg-muted/60"
-            onClick={() => openPalette(true)}
-            suppressHydrationWarning>
-            <Search className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button variant="ghost" size="icon"
+                  className="rounded-xl h-9 w-9 flex md:hidden text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  onClick={() => openPalette(true)}
+                  suppressHydrationWarning />
+              }
+            >
+              <Search className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>Ara</TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Right: actions + user */}
         <div className="flex items-center gap-1">
           {/* Geri Bildirim */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-xl h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-            onClick={() => setShowFeedback(true)}
-            title="Geri Bildirim"
-            suppressHydrationWarning
-          >
-            <MessageSquarePlus className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-xl h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  onClick={() => setShowFeedback(true)}
+                  suppressHydrationWarning
+                />
+              }
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>Geri Bildirim Gönder</TooltipContent>
+          </Tooltip>
 
-          {/* Theme Toggle — suppressHydrationWarning prevents title mismatch */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            title={mounted ? (theme === "dark" ? "Açık tema" : "Koyu tema") : undefined}
-            suppressHydrationWarning
-          >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          </Button>
+          {/* Theme Toggle */}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  suppressHydrationWarning
+                />
+              }
+            >
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </TooltipTrigger>
+            <TooltipContent>{mounted && theme === "dark" ? "Açık Temaya Geç" : "Koyu Temaya Geç"}</TooltipContent>
+          </Tooltip>
 
           {/* Logout — mobil; masaüstünde sidebar kartında */}
           {profile && (
-            <Button variant="ghost" size="icon"
-              className="rounded-xl h-9 w-9 flex md:hidden text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-              title="Çıkış Yap" onClick={signOut} suppressHydrationWarning>
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button variant="ghost" size="icon"
+                    className="rounded-xl h-9 w-9 flex md:hidden text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    onClick={signOut} suppressHydrationWarning />
+                }
+              >
+                <LogOut className="h-4 w-4" />
+              </TooltipTrigger>
+              <TooltipContent>Çıkış Yap</TooltipContent>
+            </Tooltip>
           )}
 
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`relative rounded-xl h-9 w-9 transition-colors ${showNotifications ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
-              suppressHydrationWarning
-              onClick={() => setShowNotifications((v) => !v)}
-            >
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`relative rounded-xl h-9 w-9 transition-colors ${showNotifications ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+                    suppressHydrationWarning
+                    onClick={() => setShowNotifications((v) => !v)}
+                  />
+                }
+              >
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
                 <>
@@ -150,7 +182,9 @@ export function TopBar() {
                   />
                 </>
               )}
-            </Button>
+            </TooltipTrigger>
+            <TooltipContent>Bildirimler</TooltipContent>
+            </Tooltip>
 
             <AnimatePresence>
               {showNotifications && (

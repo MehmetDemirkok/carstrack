@@ -3,20 +3,24 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { deleteVehicles, updateVehicle, updateVehicleOrder, getVehicleStatuses } from "@/lib/db";
+import { addVehicle, deleteVehicles, updateVehicle, updateVehicleOrder, getVehicleStatuses } from "@/lib/db";
 import { useData } from "@/context/data-context";
 import { calculateHealthScore, getMaintenanceStatusForItem } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import Link from "next/link";
 import {
   Car, ChevronRight, Plus, Gauge, Trash2,
   CheckCircle2, Circle, Fuel, Shield, Wrench, Calendar, Download, Move, Send,
-  AlertTriangle, GripVertical, ArrowUpDown, Settings2,
+  AlertTriangle, GripVertical, ArrowUpDown, Settings2, Search, X,
+  Upload, FileSpreadsheet, ChevronDown, AlertCircle,
 } from "lucide-react";
 import { exportVehiclesExcel } from "@/lib/export";
+import { exportVehicleImportTemplate, parseVehicleImportFile, type ParsedVehicleRow } from "@/lib/vehicle-import";
 import { DragSlider } from "@/components/ui/drag-slider";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
@@ -111,7 +115,17 @@ export default function VehiclesPage() {
   const [positionSaving, setPositionSaving] = useState(false);
   const [isSortMode, setIsSortMode] = useState(false);
   const [filter, setFilter] = useState<"all" | "available" | "onTask" | "alert">("all");
+  const [query, setQuery] = useState("");
   const saveOrderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Toplu araç içe aktarma (Excel)
+  const [showImport, setShowImport] = useState(false);
+  const [showImportGuide, setShowImportGuide] = useState(false);
+  const [importRows, setImportRows] = useState<ParsedVehicleRow[]>([]);
+  const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importParsing, setImportParsing] = useState(false);
+  const [importSubmitting, setImportSubmitting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement | null>(null);
 
   // 8px eşiği: kısa tıklama ile sürüklemeyi ayırır, kazara sıralamayı önler.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -136,10 +150,15 @@ export default function VehiclesPage() {
     { key: "onTask" as const, label: "Görevde", count: vehicles.filter((v) => activeVehicleMap.has(v.id)).length },
     { key: "alert" as const, label: "Uyarı", count: vehicles.filter((v) => getVehicleAlert(v) !== null).length },
   ];
+  const searchQuery = query.trim().toLocaleLowerCase("tr");
   const visibleVehicles = vehicles.filter((v) => {
-    if (filter === "available") return !activeVehicleMap.has(v.id);
-    if (filter === "onTask") return activeVehicleMap.has(v.id);
-    if (filter === "alert") return getVehicleAlert(v) !== null;
+    if (filter === "available" && activeVehicleMap.has(v.id)) return false;
+    if (filter === "onTask" && !activeVehicleMap.has(v.id)) return false;
+    if (filter === "alert" && getVehicleAlert(v) === null) return false;
+    if (searchQuery) {
+      const haystack = `${v.plate} ${v.brand} ${v.model}`.toLocaleLowerCase("tr");
+      if (!haystack.includes(searchQuery)) return false;
+    }
     return true;
   });
 
@@ -214,6 +233,59 @@ export default function VehiclesPage() {
     } catch (err) {
       toast.error("Hata", { description: "Araçlar silinirken hata oluştu." });
       refresh();
+    }
+  };
+
+  const resetImportState = () => {
+    setImportRows([]);
+    setImportFileName(null);
+    if (importFileRef.current) importFileRef.current.value = "";
+  };
+
+  const handleImportFile = async (file: File) => {
+    setImportFileName(file.name);
+    setImportParsing(true);
+    try {
+      const { rows } = await parseVehicleImportFile(file, vehicles);
+      setImportRows(rows);
+      if (rows.length === 0) {
+        toast.error("Satır bulunamadı", { description: "Dosyada doldurulmuş bir araç satırı bulunamadı." });
+      }
+    } catch (err) {
+      console.error("Import parse failed:", err instanceof Error ? err.message : err);
+      toast.error("Dosya okunamadı", { description: "Excel dosyasının bozuk olmadığından ve şablonla aynı sütunlara sahip olduğundan emin olun." });
+      setImportRows([]);
+    } finally {
+      setImportParsing(false);
+    }
+  };
+
+  const validImportRows = importRows.filter((r) => r.errors.length === 0);
+
+  const handleConfirmImport = async () => {
+    if (validImportRows.length === 0) return;
+    setImportSubmitting(true);
+    let success = 0;
+    let failed = 0;
+    for (const row of validImportRows) {
+      try {
+        await addVehicle(row.data);
+        success++;
+      } catch (err) {
+        console.error(`Import row ${row.row} failed:`, err instanceof Error ? err.message : err);
+        failed++;
+      }
+    }
+    setImportSubmitting(false);
+    setShowImport(false);
+    resetImportState();
+    await refresh();
+    if (success > 0) {
+      toast.success("İçe Aktarma Tamamlandı", {
+        description: failed > 0 ? `${success} araç eklendi, ${failed} kayıt eklenemedi.` : `${success} araç başarıyla eklendi.`,
+      });
+    } else {
+      toast.error("İçe Aktarılamadı", { description: "Hiçbir araç eklenemedi. Lütfen tekrar deneyin." });
     }
   };
 
@@ -321,13 +393,19 @@ export default function VehiclesPage() {
                 <span className="text-white/60 text-[8px] font-mono mt-0.5">SKOR</span>
               </div>
               {vehicle.image && !isDriver && (
-                <button
-                  onClick={(e) => startReposition(e, vehicle)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 backdrop-blur-sm border border-white/15 rounded-lg p-1.5 text-white/70 hover:text-white hover:bg-black/70"
-                  title="Görseli konumlandır"
-                >
-                  <Move className="h-3 w-3" />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={(e) => startReposition(e, vehicle)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 backdrop-blur-sm border border-white/15 rounded-lg p-1.5 text-white/70 hover:text-white hover:bg-black/70"
+                      />
+                    }
+                  >
+                    <Move className="h-3 w-3" />
+                  </TooltipTrigger>
+                  <TooltipContent>Görseli Konumlandır</TooltipContent>
+                </Tooltip>
               )}
             </div>
           )}
@@ -439,26 +517,46 @@ export default function VehiclesPage() {
           ) : (
             <>
               {vehicles.length > 0 && !isSelectionMode && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
-                  title="Excel'e Aktar"
-                  onClick={() => exportVehiclesExcel(vehicles)}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                        onClick={() => exportVehiclesExcel(vehicles)}
+                      />
+                    }
+                  >
+                    <Download className="h-4 w-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Excel&apos;e Aktar</TooltipContent>
+                </Tooltip>
+              )}
+              {!isDriver && !isSelectionMode && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                        onClick={() => setShowImport(true)}
+                      />
+                    }
+                  >
+                    <Upload className="h-4 w-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Excel&apos;den Toplu Araç Ekle</TooltipContent>
+                </Tooltip>
               )}
               {!isDriver && vehicles.length > 1 && !isSelectionMode && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
-                  title="Sırala"
-                  onClick={enterSortMode}
-                >
-                  <ArrowUpDown className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger render={<Button variant="outline" size="icon" className="rounded-full h-9 w-9 shadow-sm border-border/50" onClick={enterSortMode} />}>
+                    <ArrowUpDown className="h-4 w-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Araçları Sırala</TooltipContent>
+                </Tooltip>
               )}
               {!isDriver && vehicles.length > 0 && (
                 <Button
@@ -515,6 +613,28 @@ export default function VehiclesPage() {
             </div>
           </Link>
         </motion.div>
+      )}
+
+      {/* Arama */}
+      {!isSortMode && !isSelectionMode && vehicles.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Plaka, marka veya model ara..."
+            className="rounded-full h-10 pl-10 pr-9 bg-surface-2 border-border/40 text-sm"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              aria-label="Aramayı temizle"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       )}
 
       {/* Filtre çipleri */}
@@ -671,6 +791,124 @@ export default function VehiclesPage() {
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
             <DialogClose render={<Button variant="outline" className="w-full sm:w-auto rounded-xl" />}>İptal</DialogClose>
             <Button variant="destructive" onClick={handleDelete} className="w-full sm:w-auto rounded-xl">Evet, Sil</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Toplu araç içe aktarma */}
+      <Dialog open={showImport} onOpenChange={(o) => { setShowImport(o); if (!o) resetImportState(); }}>
+        <DialogContent className="max-w-[92vw] md:max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-primary" /> Excel&apos;den Toplu Araç Ekle
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            {/* Nasıl kullanılır? */}
+            <div className="rounded-2xl border border-border/40 bg-muted/20 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowImportGuide((s) => !s)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
+              >
+                Nasıl kullanılır?
+                <ChevronDown className={`h-4 w-4 transition-transform ${showImportGuide ? "rotate-180" : ""}`} />
+              </button>
+              {showImportGuide && (
+                <ol className="px-4 pb-4 space-y-1.5 text-xs text-muted-foreground list-decimal list-inside">
+                  <li>Aşağıdan <b>&quot;Şablonu İndir&quot;</b>e tıklayın, örnek satırlı bir Excel dosyası inecek.</li>
+                  <li>Dosyayı açın, her satıra bir araç yazın. <b>Plaka, Marka, Model ve Yıl zorunludur</b>; sigorta, muayene, lastik gibi diğer sütunlar boş bırakılabilir, sonradan araç detayından da doldurulabilir.</li>
+                  <li>Tarih sütunlarını <b>GG.AA.YYYY</b> biçiminde girin (örn. 15.03.2026).</li>
+                  <li>Doldurduğunuz dosyayı aşağıdan seçin.</li>
+                  <li>Önizlemede kırmızı işaretli satırları düzeltip dosyayı tekrar yükleyin, veya sadece geçerli (hatasız) satırları içe aktarın — hatalı satırlar atlanır.</li>
+                  <li>&quot;İçe Aktar&quot;a basın; araçlar listeye eklenir, istediğiniz zaman araç detayından düzenleyebilirsiniz.</li>
+                </ol>
+              )}
+            </div>
+
+            {/* Adım 1: Şablon */}
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/40 p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">1. Şablonu indirin</p>
+                <p className="text-xs text-muted-foreground">Doğru sütun başlıklarını içeren örnek Excel dosyası.</p>
+              </div>
+              <Button variant="outline" size="sm" className="rounded-xl gap-1.5 shrink-0" onClick={() => exportVehicleImportTemplate()}>
+                <Download className="h-3.5 w-3.5" /> İndir
+              </Button>
+            </div>
+
+            {/* Adım 2: Yükle */}
+            <div className="rounded-2xl border border-border/40 p-3 space-y-2">
+              <p className="text-sm font-semibold">2. Doldurduğunuz dosyayı yükleyin</p>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); }}
+              />
+              <button
+                type="button"
+                onClick={() => importFileRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 py-4 text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
+              >
+                <Upload className="h-4 w-4" />
+                {importFileName ? importFileName : "Excel dosyası seç (.xlsx)"}
+              </button>
+            </div>
+
+            {/* Adım 3: Önizleme */}
+            {importParsing && (
+              <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground justify-center">
+                <span className="h-4 w-4 rounded-full border-2 border-current border-r-transparent animate-spin" />
+                Dosya okunuyor...
+              </div>
+            )}
+            {!importParsing && importRows.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">
+                  3. Önizleme — <span className="text-emerald-600">{validImportRows.length} geçerli</span>
+                  {importRows.length - validImportRows.length > 0 && (
+                    <> • <span className="text-destructive">{importRows.length - validImportRows.length} hatalı</span></>
+                  )}
+                </p>
+                <div className="max-h-64 overflow-y-auto rounded-xl border border-border/40 divide-y divide-border/30">
+                  {importRows.map((r) => (
+                    <div key={r.row} className={`px-3 py-2 text-xs ${r.errors.length > 0 ? "bg-destructive/5" : ""}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold">
+                          Satır {r.row} — {r.data.plate || "(plaka yok)"} {r.data.brand} {r.data.model}
+                        </span>
+                        {r.errors.length === 0 ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                        ) : (
+                          <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        )}
+                      </div>
+                      {r.errors.map((e, i) => (
+                        <p key={i} className="text-destructive mt-0.5">• {e}</p>
+                      ))}
+                      {r.warnings.map((w, i) => (
+                        <p key={i} className="text-amber-600 mt-0.5">• {w}</p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <DialogClose render={<Button variant="outline" className="w-full sm:w-auto rounded-xl" />}>İptal</DialogClose>
+            <Button
+              onClick={handleConfirmImport}
+              disabled={validImportRows.length === 0 || importSubmitting}
+              className="w-full sm:w-auto rounded-xl gap-1.5"
+            >
+              {importSubmitting && <span className="h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin" />}
+              {validImportRows.length > 0 ? `${validImportRows.length} Aracı İçe Aktar` : "İçe Aktar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

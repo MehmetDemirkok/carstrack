@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
 import { LogoMark } from "@/components/brand/logo-mark";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 function getInitials(name: string): string {
   return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
@@ -147,13 +148,19 @@ export function Sidebar() {
                 </span>
               </div>
             </Link>
-            <button
-              onClick={signOut}
-              title="Çıkış Yap"
-              className="ml-auto shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    onClick={signOut}
+                    className="ml-auto shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                  />
+                }
+              >
+                <LogOut className="h-4 w-4" />
+              </TooltipTrigger>
+              <TooltipContent>Çıkış Yap</TooltipContent>
+            </Tooltip>
           </div>
         )}
       </div>

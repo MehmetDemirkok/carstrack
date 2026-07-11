@@ -228,6 +228,9 @@ function toRecord(row: Record<string, unknown>): ServiceRecord {
     mileage: row.mileage as number,
     serviceCenter: (row.service_center as string) || "",
     notes: (row.notes as string) || "",
+    cost: row.cost !== null && row.cost !== undefined ? Number(row.cost) : undefined,
+    paymentStatus: (row.payment_status as ServiceRecord["paymentStatus"]) || undefined,
+    unpaidReason: (row.unpaid_reason as string) || undefined,
     createdAt: row.created_at as string,
   };
 }
@@ -409,6 +412,9 @@ export async function addRecord(
       mileage: data.mileage,
       service_center: data.serviceCenter,
       notes: data.notes,
+      cost: data.cost ?? null,
+      payment_status: data.paymentStatus ?? null,
+      unpaid_reason: data.unpaidReason ?? null,
     })
     .select()
     .single();
@@ -434,6 +440,9 @@ export async function updateRecord(
   if (data.mileage !== undefined) patch.mileage = data.mileage;
   if (data.serviceCenter !== undefined) patch.service_center = data.serviceCenter;
   if (data.notes !== undefined) patch.notes = data.notes;
+  if (data.cost !== undefined) patch.cost = data.cost;
+  if (data.paymentStatus !== undefined) patch.payment_status = data.paymentStatus;
+  if (data.unpaidReason !== undefined) patch.unpaid_reason = data.unpaidReason;
   const { error } = await supabase
     .from("service_records")
     .update(patch)

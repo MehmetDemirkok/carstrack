@@ -104,6 +104,8 @@ export interface Vehicle {
   updatedAt: string;
 }
 
+export type PaymentStatus = "paid" | "unpaid";
+
 export interface ServiceRecord {
   id: string;
   vehicleId: string;
@@ -113,6 +115,12 @@ export interface ServiceRecord {
   mileage: number;
   serviceCenter: string;
   notes: string;
+  /** Servis masrafı (TRY) — opsiyonel. */
+  cost?: number;
+  /** cost girildiyse anlamlıdır: ödendi mi, ödenmedi mi. */
+  paymentStatus?: PaymentStatus;
+  /** paymentStatus === "unpaid" iken ödenmeme nedeni. */
+  unpaidReason?: string;
   createdAt: string;
 }
 

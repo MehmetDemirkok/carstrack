@@ -6,6 +6,7 @@ import { ShellWrapper } from "@/components/layout/shell-wrapper";
 import { LanguageProvider } from "@/context/language-context";
 import { AuthProvider } from "@/context/auth-context";
 import { DataProvider } from "@/context/data-context";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommandPaletteProvider } from "@/context/command-palette-context";
 import { CommandPalette } from "@/components/command-palette";
 import { ProfileCompletionNotice } from "@/components/profile-completion-notice";
@@ -144,6 +145,7 @@ export default function RootLayout({
           <LanguageProvider>
             <AuthProvider>
               <DataProvider>
+              <TooltipProvider delay={300}>
               <CommandPaletteProvider>
                 <div className="flex w-full min-h-[100dvh] relative">
                   <ShellWrapper>{children}</ShellWrapper>
@@ -152,6 +154,7 @@ export default function RootLayout({
                 <ProfileCompletionNotice />
                 <ServiceWorkerRegister />
               </CommandPaletteProvider>
+              </TooltipProvider>
               </DataProvider>
             </AuthProvider>
           </LanguageProvider>

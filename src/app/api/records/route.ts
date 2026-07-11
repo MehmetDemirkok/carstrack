@@ -48,6 +48,9 @@ export async function GET() {
       mileage: row.mileage,
       serviceCenter: (row.service_center as string) || "",
       notes: (row.notes as string) || "",
+      cost: row.cost !== null && row.cost !== undefined ? Number(row.cost) : undefined,
+      paymentStatus: (row.payment_status as string) || undefined,
+      unpaidReason: (row.unpaid_reason as string) || undefined,
       createdAt: row.created_at,
     }));
 

@@ -39,6 +39,7 @@ import {
 import { exportTasksExcel } from "@/lib/export";
 import type { Vehicle, VehicleTask, Profile } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -305,14 +306,20 @@ function StaffView() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                title="Yenile"
-                className="h-9 w-9 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted/70 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={handleRefresh}
+                      disabled={refreshing}
+                      className="h-9 w-9 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted/70 transition-colors disabled:opacity-50"
+                    />
+                  }
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                </TooltipTrigger>
+                <TooltipContent>Yenile</TooltipContent>
+              </Tooltip>
               <div className="h-12 w-12 rounded-2xl bg-mesh flex items-center justify-center shadow-lg shadow-primary/20">
                 <span className="text-white font-bold text-base">{initials}</span>
               </div>
@@ -1131,12 +1138,19 @@ function ManagerView() {
                         {isActive && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
                         {isActive ? "Aktif" : "Tamamlandı"}
                       </span>
-                      <button
-                        onClick={() => requestDelete(task)}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              onClick={() => requestDelete(task)}
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            />
+                          }
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </TooltipTrigger>
+                        <TooltipContent>Görevi Sil</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                   {isActive && (
@@ -1235,13 +1249,19 @@ function ManagerView() {
                               <Flag className="h-3.5 w-3.5" /> Görevi Bitir
                             </button>
                           )}
-                          <button
-                            onClick={() => requestDelete(task)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                            title="Görevi Sil"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <button
+                                  onClick={() => requestDelete(task)}
+                                  className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                />
+                              }
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </TooltipTrigger>
+                            <TooltipContent>Görevi Sil</TooltipContent>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>

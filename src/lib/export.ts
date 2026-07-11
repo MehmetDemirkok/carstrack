@@ -60,6 +60,9 @@ function recordRows(records: ServiceRecord[], vehicles: Vehicle[]) {
     "Başlık": r.title,
     "Kilometre": r.mileage,
     "Servis Noktası": r.serviceCenter,
+    "Tutar (₺)": r.cost ?? "",
+    "Ödeme Durumu": r.cost === undefined ? "" : r.paymentStatus === "unpaid" ? "Ödenmedi" : "Ödendi",
+    "Ödenmeme Nedeni": r.paymentStatus === "unpaid" ? (r.unpaidReason || "") : "",
     "Notlar": r.notes,
   }));
 }

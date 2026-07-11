@@ -16,6 +16,7 @@ import { isPushSupported, subscribeToPush, unsubscribeFromPush, getPushSubscribe
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -795,13 +796,20 @@ export default function SettingsPage() {
                                     <p className="text-[10px] font-semibold">{side === "front" ? "Ön Yüz" : "Arka Yüz"}</p>
                                     <p className="text-[9px] text-muted-foreground truncate">{file.name}</p>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => (side === "front" ? setLicenseScanFront(null) : setLicenseScanBack(null))}
-                                    className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                                  >
-                                    <XCircle className="h-3.5 w-3.5" />
-                                  </button>
+                                  <Tooltip>
+                                    <TooltipTrigger
+                                      render={
+                                        <button
+                                          type="button"
+                                          onClick={() => (side === "front" ? setLicenseScanFront(null) : setLicenseScanBack(null))}
+                                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                        />
+                                      }
+                                    >
+                                      <XCircle className="h-3.5 w-3.5" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>Dosyayı kaldır</TooltipContent>
+                                  </Tooltip>
                                 </>
                               ) : (
                                 <label className="flex items-center gap-2 cursor-pointer w-full">
@@ -885,13 +893,20 @@ export default function SettingsPage() {
                         <div key={entry.class} className="rounded-xl border border-border/40 p-3 space-y-2.5">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold">{entry.class} Sınıfı</span>
-                            <button
-                              type="button"
-                              onClick={() => toggleLicenseClass(entry.class)}
-                              className="text-muted-foreground hover:text-red-500 transition-colors"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleLicenseClass(entry.class)}
+                                    className="text-muted-foreground hover:text-red-500 transition-colors"
+                                  />
+                                }
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </TooltipTrigger>
+                              <TooltipContent>{entry.class} sınıfını kaldır</TooltipContent>
+                            </Tooltip>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
@@ -970,17 +985,24 @@ export default function SettingsPage() {
                           {inviteCode}
                         </span>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="rounded-xl h-12 w-12 shrink-0 border-border/50"
-                        onClick={() => {
-                          navigator.clipboard.writeText(inviteCode);
-                          toast.success("Kopyalandı", { description: "Davet kodu panoya kopyalandı." });
-                        }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="rounded-xl h-12 w-12 shrink-0 border-border/50"
+                              onClick={() => {
+                                navigator.clipboard.writeText(inviteCode);
+                                toast.success("Kopyalandı", { description: "Davet kodu panoya kopyalandı." });
+                              }}
+                            />
+                          }
+                        >
+                          <Copy className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>Davet kodunu kopyala</TooltipContent>
+                      </Tooltip>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-[11px] text-muted-foreground">

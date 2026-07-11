@@ -18,7 +18,7 @@ import {
   calculateHealthScore, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES, applyPeriodicService,
 } from "@/lib/store";
-import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType } from "@/lib/types";
+import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType, PaymentStatus } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -29,12 +29,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
   ChevronLeft, Settings, Trash2, Car, Fuel, Gauge, MapPin, Disc3,
   Sun, Snowflake, Layers, BatteryCharging, ShieldCheck, CalendarDays,
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
   Shield, Download, Upload, ClipboardCheck, CalendarPlus, ExternalLink,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -335,6 +337,9 @@ export default function VehicleDetailPage() {
     mileage: "",
     serviceCenter: "",
     notes: "",
+    cost: "",
+    paymentStatus: "paid" as PaymentStatus,
+    unpaidReason: "",
   });
   const [recordMaintIds, setRecordMaintIds] = useState<string[]>([]);
   const [tireForm, setTireForm] = useState<{ season: TireSeasonType; brand: string; size: string; qty: string }>({
@@ -457,6 +462,11 @@ export default function VehicleDetailPage() {
       });
       return;
     }
+    const hasCost = recordForm.cost.trim() !== "";
+    if (hasCost && recordForm.paymentStatus === "unpaid" && !recordForm.unpaidReason.trim()) {
+      toast.error("Ödenmeme nedeni gerekli", { description: "Ödenmedi olarak işaretlediğiniz kayıt için lütfen nedenini yazın." });
+      return;
+    }
     try {
       await addRecord({
         vehicleId: vehicle.id,
@@ -466,6 +476,9 @@ export default function VehicleDetailPage() {
         mileage: recordMileage,
         serviceCenter: recordForm.serviceCenter,
         notes: recordForm.notes,
+        cost: hasCost ? parseFloat(recordForm.cost) : undefined,
+        paymentStatus: hasCost ? recordForm.paymentStatus : undefined,
+        unpaidReason: hasCost && recordForm.paymentStatus === "unpaid" ? recordForm.unpaidReason.trim() : undefined,
       });
       if (recordForm.type === "tire") {
         await updateVehicle(vehicle.id, {
@@ -481,7 +494,7 @@ export default function VehicleDetailPage() {
         await updateVehicle(vehicle.id, update);
       }
       setShowAddRecord(false);
-      setRecordForm({ date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
+      setRecordForm({ date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "", cost: "", paymentStatus: "paid", unpaidReason: "" });
       setRecordMaintIds([]);
       setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" });
       reload();
@@ -649,23 +662,35 @@ export default function VehicleDetailPage() {
       {/* Mobile sticky header */}
       <div className="sticky top-0 z-50 glass border-b border-border/30 md:hidden">
         <div className="flex items-center justify-between p-3 px-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full h-9 w-9 hover:bg-primary/10">
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger render={<Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full h-9 w-9 hover:bg-primary/10" />}>
+              <ChevronLeft className="h-5 w-5" />
+            </TooltipTrigger>
+            <TooltipContent>Geri</TooltipContent>
+          </Tooltip>
           <span className="font-outfit font-bold text-sm">{vehicle.plate}</span>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-primary/10" onClick={() => exportVehicleReportPDF(vehicle, records)}>
-              <FileDown className="h-4 w-4 text-muted-foreground" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger render={<Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-primary/10" onClick={() => exportVehicleReportPDF(vehicle, records)} />}>
+                <FileDown className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>PDF Raporu İndir</TooltipContent>
+            </Tooltip>
             {!isDriver && (
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => setShowDelete(true)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger render={<Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => setShowDelete(true)} />}>
+                  <Trash2 className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent>Aracı Sil</TooltipContent>
+              </Tooltip>
             )}
             {!isDriver && (
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-primary/10" onClick={openEdit}>
-                <Settings className="h-4 w-4 text-muted-foreground" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger render={<Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-primary/10" onClick={openEdit} />}>
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>Araç Bilgilerini Düzenle</TooltipContent>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -675,9 +700,12 @@ export default function VehicleDetailPage() {
         {/* Desktop header */}
         <div className="hidden md:flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => router.back()} className="rounded-full h-10 w-10 shadow-sm">
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger render={<Button variant="outline" size="icon" onClick={() => router.back()} className="rounded-full h-10 w-10 shadow-sm" />}>
+                <ChevronLeft className="h-5 w-5" />
+              </TooltipTrigger>
+              <TooltipContent>Geri</TooltipContent>
+            </Tooltip>
             <div>
               <h1 className="text-2xl font-bold font-outfit">{vehicle.plate}</h1>
               <p className="text-sm text-muted-foreground">{vehicle.brand} {vehicle.model} • {vehicle.year}</p>
@@ -1173,16 +1201,25 @@ export default function VehicleDetailPage() {
                                 </p>
                               </div>
                               <div className="flex items-center gap-0.5 shrink-0">
-                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleViewDoc(doc)} title="Görüntüle">
-                                  <FileText className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleDownloadDoc(doc)} title="İndir">
-                                  <Download className="h-3.5 w-3.5" />
-                                </Button>
+                                <Tooltip>
+                                  <TooltipTrigger render={<Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleViewDoc(doc)} />}>
+                                    <FileText className="h-3.5 w-3.5" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Görüntüle</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger render={<Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleDownloadDoc(doc)} />}>
+                                    <Download className="h-3.5 w-3.5" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>İndir</TooltipContent>
+                                </Tooltip>
                                 {!isDriver && (
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => { setDocToDelete(doc); setShowDeleteDoc(true); }} title="Sil">
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
+                                  <Tooltip>
+                                    <TooltipTrigger render={<Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => { setDocToDelete(doc); setShowDeleteDoc(true); }} />}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>Sil</TooltipContent>
+                                  </Tooltip>
                                 )}
                               </div>
                             </div>
@@ -1271,26 +1308,40 @@ export default function VehicleDetailPage() {
                               </Button>
                               {!isDriver && (
                                 <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
-                                    onClick={() => {
-                                      setDocToEdit(doc);
-                                      setEditDocForm({ type: doc.type, title: doc.title, issueDate: doc.issueDate || "", expiryDate: doc.expiryDate || "", notes: doc.notes });
-                                      setShowEditDoc(true);
-                                    }}
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                    onClick={() => { setDocToDelete(doc); setShowDeleteDoc(true); }}
+                                  <Tooltip>
+                                    <TooltipTrigger
+                                      render={
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                          onClick={() => {
+                                            setDocToEdit(doc);
+                                            setEditDocForm({ type: doc.type, title: doc.title, issueDate: doc.issueDate || "", expiryDate: doc.expiryDate || "", notes: doc.notes });
+                                            setShowEditDoc(true);
+                                          }}
+                                        />
+                                      }
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>Belgeyi Düzenle</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => { setDocToDelete(doc); setShowDeleteDoc(true); }}
+                                      />
+                                    }
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Belgeyi Sil</TooltipContent>
+                                  </Tooltip>
                                 </>
                               )}
                             </div>
@@ -1306,7 +1357,15 @@ export default function VehicleDetailPage() {
                 {!isDriver && (
                 <TabsContent value="history" className="outline-none">
                   <div className="flex justify-between items-center mb-3">
-                    <p className="text-xs text-muted-foreground">{records.length} servis kaydı</p>
+                    <p className="text-xs text-muted-foreground">
+                      {records.length} servis kaydı
+                      {records.some((r) => r.cost !== undefined) && (
+                        <> • Toplam <span className="font-semibold text-foreground">₺{records.reduce((sum, r) => sum + (r.cost ?? 0), 0).toLocaleString("tr-TR")}</span></>
+                      )}
+                      {records.some((r) => r.paymentStatus === "unpaid") && (
+                        <> • <span className="font-semibold text-destructive">₺{records.reduce((sum, r) => sum + (r.paymentStatus === "unpaid" ? (r.cost ?? 0) : 0), 0).toLocaleString("tr-TR")} ödenmedi</span></>
+                      )}
+                    </p>
                     <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={() => { setRecordMaintIds(vehicle.maintenanceItems.some((i) => i.id === "oil") ? ["oil"] : []); setShowAddRecord(true); }}>
                       <Plus className="h-3.5 w-3.5" /> Kayıt Ekle
                     </Button>
@@ -1337,17 +1396,34 @@ export default function VehicleDetailPage() {
                                 <p className="text-[10px] text-muted-foreground">{record.date.split("-").reverse().join(".")} • {record.serviceCenter}</p>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
+                                {record.cost !== undefined && (
+                                  <span className={`text-[11px] font-bold ${record.paymentStatus === "unpaid" ? "text-destructive" : "text-primary"}`}>
+                                    ₺{record.cost.toLocaleString("tr-TR")}{record.paymentStatus === "unpaid" ? " (ödenmedi)" : ""}
+                                  </span>
+                                )}
                                 <span className="text-[11px] font-bold">{record.mileage.toLocaleString("tr-TR")} km</span>
                                 {!isDriver && (
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={() => {
-                                    setRecordToDelete(record.id);
-                                    setShowDeleteRecord(true);
-                                  }}>
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
+                                  <Tooltip>
+                                    <TooltipTrigger
+                                      render={
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={() => {
+                                          setRecordToDelete(record.id);
+                                          setShowDeleteRecord(true);
+                                        }} />
+                                      }
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>Kaydı Sil</TooltipContent>
+                                  </Tooltip>
                                 )}
                               </div>
                             </div>
+                            {record.paymentStatus === "unpaid" && record.unpaidReason && (
+                              <div className="bg-destructive/5 border border-destructive/15 rounded-xl p-2.5 text-[11px] text-destructive/90 leading-relaxed mt-2">
+                                <b>Ödenmeme nedeni:</b> {record.unpaidReason}
+                              </div>
+                            )}
                             {record.notes && (
                               <div className="bg-muted/40 rounded-xl p-2.5 text-[11px] text-muted-foreground leading-relaxed mt-2">
                                 {record.notes}
@@ -1493,14 +1569,21 @@ export default function VehicleDetailPage() {
                         }} />
                       </label>
                       {val && (
-                        <button
-                          type="button"
-                          onClick={() => setEditData((d) => ({ ...d, [field]: "" }))}
-                          className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80 transition-colors"
-                          aria-label={`${label} fotoğrafını kaldır`}
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <button
+                                type="button"
+                                onClick={() => setEditData((d) => ({ ...d, [field]: "" }))}
+                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80 transition-colors"
+                                aria-label={`${label} fotoğrafını kaldır`}
+                              />
+                            }
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>{`${label} fotoğrafını kaldır`}</TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   );
@@ -1590,9 +1673,12 @@ export default function VehicleDetailPage() {
                     <div className="flex items-center gap-1.5">
                       <div className="flex-1"><DatePicker value={editData.kaskoExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, kaskoExpiry: v }))} /></div>
                       {editData.kaskoExpiry && (
-                        <button type="button" onClick={() => setEditData((d) => ({ ...d, kaskoExpiry: "" }))} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0" title="Tarihi kaldır">
-                          <XCircle className="h-4 w-4" />
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger render={<button type="button" onClick={() => setEditData((d) => ({ ...d, kaskoExpiry: "" }))} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0" />}>
+                            <XCircle className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>Tarihi Kaldır</TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   </div>
@@ -1602,9 +1688,12 @@ export default function VehicleDetailPage() {
                   <div className="flex items-center gap-1.5">
                     <div className="flex-1"><DatePicker value={editData.greenCardExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, greenCardExpiry: v }))} /></div>
                     {editData.greenCardExpiry && (
-                      <button type="button" onClick={() => setEditData((d) => ({ ...d, greenCardExpiry: "" }))} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0" title="Tarihi kaldır">
-                        <XCircle className="h-4 w-4" />
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger render={<button type="button" onClick={() => setEditData((d) => ({ ...d, greenCardExpiry: "" }))} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0" />}>
+                          <XCircle className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>Tarihi Kaldır</TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 </div>
@@ -1718,6 +1807,37 @@ export default function VehicleDetailPage() {
               <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="text" inputMode="numeric" placeholder={String(vehicle.mileage)} value={recordForm.mileage} onChange={(e) => setRecordForm((f) => ({ ...f, mileage: e.target.value }))} /></div>
               <div className="space-y-1"><Label className={iLabel}>Servis Noktası</Label><Input className={iCls} list="service-providers-list" placeholder="Yetkili servis..." value={recordForm.serviceCenter} onChange={(e) => setRecordForm((f) => ({ ...f, serviceCenter: e.target.value }))} /></div>
             </div>
+            <div className="space-y-1"><Label className={iLabel}>Tutar (₺, ops.)</Label><Input className={iCls} type="number" inputMode="decimal" placeholder="0" value={recordForm.cost} onChange={(e) => setRecordForm((f) => ({ ...f, cost: e.target.value }))} /></div>
+            {recordForm.cost.trim() !== "" && (
+              <div className="rounded-2xl border border-border/40 bg-muted/20 p-3 space-y-2">
+                <Label className={iLabel}>Ödeme Durumu</Label>
+                <div className="flex gap-2">
+                  {(["paid", "unpaid"] as PaymentStatus[]).map((s) => (
+                    <button
+                      type="button"
+                      key={s}
+                      onClick={() => setRecordForm((f) => ({ ...f, paymentStatus: s }))}
+                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-medium transition-colors ${
+                        recordForm.paymentStatus === s
+                          ? s === "paid" ? "border-[var(--success)]/50 bg-[var(--success)]/10 text-[var(--success)] dark:text-emerald-400" : "border-destructive/50 bg-destructive/10 text-destructive"
+                          : "border-border/40 bg-card"
+                      }`}
+                    >
+                      {s === "paid" ? <Wallet className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                      {s === "paid" ? "Ödendi" : "Ödenmedi"}
+                    </button>
+                  ))}
+                </div>
+                {recordForm.paymentStatus === "unpaid" && (
+                  <Input
+                    className={iCls}
+                    placeholder="Ödenmeme nedeni (örn. fatura bekleniyor, garanti kapsamında itiraz...)"
+                    value={recordForm.unpaidReason}
+                    onChange={(e) => setRecordForm((f) => ({ ...f, unpaidReason: e.target.value }))}
+                  />
+                )}
+              </div>
+            )}
             <div className="space-y-1">
               <Label className={iLabel}>Notlar</Label>
               <textarea className="w-full rounded-xl bg-muted/30 border border-border/40 text-sm p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" placeholder="Yapılan işlemler..." value={recordForm.notes} onChange={(e) => setRecordForm((f) => ({ ...f, notes: e.target.value }))} />
@@ -1802,9 +1922,12 @@ export default function VehicleDetailPage() {
                         <p className="text-[10px] text-muted-foreground">{formatBytes(docForm.file.size)}</p>
                       </div>
                     </div>
-                    <button type="button" onClick={() => setDocForm((f) => ({ ...f, file: null }))} className="text-muted-foreground hover:text-destructive shrink-0">
-                      <XCircle className="h-4 w-4" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger render={<button type="button" onClick={() => setDocForm((f) => ({ ...f, file: null }))} className="text-muted-foreground hover:text-destructive shrink-0" />}>
+                        <XCircle className="h-4 w-4" />
+                      </TooltipTrigger>
+                      <TooltipContent>Dosyayı Kaldır</TooltipContent>
+                    </Tooltip>
                   </div>
                 ) : (
                   <label className="block cursor-pointer">

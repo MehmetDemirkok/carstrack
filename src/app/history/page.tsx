@@ -6,18 +6,19 @@ import { addRecord, deleteRecord, updateRecord, updateVehicle, getServiceProvide
 import { toast } from "sonner";
 import { applyPeriodicService } from "@/lib/store";
 import { useData } from "@/context/data-context";
-import type { ServiceRecord, ServiceType, TireSeasonType, Vehicle, ServiceProvider } from "@/lib/types";
+import type { ServiceRecord, ServiceType, TireSeasonType, Vehicle, ServiceProvider, PaymentStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import Link from "next/link";
 import {
   Wrench, CheckCircle2, AlertTriangle, Disc3, Car, Plus,
   Filter, Trash2, BatteryCharging, ClipboardList, Download, FileDown,
-  Sun, Snowflake, Layers, Pencil, Check,
+  Sun, Snowflake, Layers, Pencil, Check, Wallet, XCircle,
 } from "lucide-react";
 import { exportServiceHistoryExcel } from "@/lib/export";
 import { exportServiceHistoryPDF } from "@/lib/pdf-export";
@@ -112,6 +113,9 @@ export default function HistoryPage() {
     mileage: "",
     serviceCenter: "",
     notes: "",
+    cost: "",
+    paymentStatus: "paid" as PaymentStatus,
+    unpaidReason: "",
   });
   const [form, setForm] = useState({
     vehicleId: "",
@@ -121,6 +125,9 @@ export default function HistoryPage() {
     mileage: "",
     serviceCenter: "",
     notes: "",
+    cost: "",
+    paymentStatus: "paid" as PaymentStatus,
+    unpaidReason: "",
   });
   const [tireForm, setTireForm] = useState<{ season: TireSeasonType; brand: string; size: string; qty: string }>({
     season: "Yazlık",
@@ -137,6 +144,8 @@ export default function HistoryPage() {
     if (vehicleFilter !== "all" && r.vehicleId !== vehicleFilter) return false;
     return true;
   });
+  const totalCost = filtered.reduce((sum, r) => sum + (r.cost ?? 0), 0);
+  const unpaidTotal = filtered.reduce((sum, r) => sum + (r.paymentStatus === "unpaid" ? (r.cost ?? 0) : 0), 0);
 
   const handleAdd = async () => {
     if (!form.vehicleId || !form.title) return;
@@ -148,6 +157,11 @@ export default function HistoryPage() {
       });
       return;
     }
+    const hasCost = form.cost.trim() !== "";
+    if (hasCost && form.paymentStatus === "unpaid" && !form.unpaidReason.trim()) {
+      toast.error("Ödenmeme nedeni gerekli", { description: "Ödenmedi olarak işaretlediğiniz kayıt için lütfen nedenini yazın." });
+      return;
+    }
     try {
       await addRecord({
         vehicleId: form.vehicleId,
@@ -157,6 +171,9 @@ export default function HistoryPage() {
         mileage: recordMileage,
         serviceCenter: form.serviceCenter,
         notes: form.notes,
+        cost: hasCost ? parseFloat(form.cost) : undefined,
+        paymentStatus: hasCost ? form.paymentStatus : undefined,
+        unpaidReason: hasCost && form.paymentStatus === "unpaid" ? form.unpaidReason.trim() : undefined,
       });
       if (form.type === "tire" && form.vehicleId) {
         await updateVehicle(form.vehicleId, {
@@ -172,7 +189,7 @@ export default function HistoryPage() {
         await updateVehicle(v.id, update);
       }
       setShowAdd(false);
-      setForm({ vehicleId: "", date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "" });
+      setForm({ vehicleId: "", date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "", cost: "", paymentStatus: "paid", unpaidReason: "" });
       setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" });
       setRecordMaintIds([]);
       await reload();
@@ -207,6 +224,9 @@ export default function HistoryPage() {
       mileage: record.mileage > 0 ? String(record.mileage) : "",
       serviceCenter: record.serviceCenter,
       notes: record.notes,
+      cost: record.cost !== undefined ? String(record.cost) : "",
+      paymentStatus: record.paymentStatus ?? "paid",
+      unpaidReason: record.unpaidReason ?? "",
     });
     setShowEdit(true);
   };
@@ -221,6 +241,11 @@ export default function HistoryPage() {
       });
       return;
     }
+    const editHasCost = editForm.cost.trim() !== "";
+    if (editHasCost && editForm.paymentStatus === "unpaid" && !editForm.unpaidReason.trim()) {
+      toast.error("Ödenmeme nedeni gerekli", { description: "Ödenmedi olarak işaretlediğiniz kayıt için lütfen nedenini yazın." });
+      return;
+    }
     try {
       await updateRecord(editRecord.id, {
         date: editForm.date,
@@ -229,6 +254,9 @@ export default function HistoryPage() {
         mileage: editMileage,
         serviceCenter: editForm.serviceCenter,
         notes: editForm.notes,
+        cost: editHasCost ? parseFloat(editForm.cost) : undefined,
+        paymentStatus: editHasCost ? editForm.paymentStatus : undefined,
+        unpaidReason: editHasCost && editForm.paymentStatus === "unpaid" ? editForm.unpaidReason.trim() : undefined,
       });
       setShowEdit(false);
       setEditRecord(null);
@@ -249,44 +277,72 @@ export default function HistoryPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-outfit font-bold tracking-tight">Servis Geçmişi</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} kayıt</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {filtered.length} kayıt
+            {totalCost > 0 && <> • Toplam <span className="font-semibold text-foreground">₺{totalCost.toLocaleString("tr-TR")}</span></>}
+            {unpaidTotal > 0 && <> • <span className="font-semibold text-destructive">₺{unpaidTotal.toLocaleString("tr-TR")} ödenmedi</span></>}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-full h-9 w-9 shadow-sm border-border/50"
-            title="PDF'e Aktar"
-            disabled={filtered.length === 0}
-            onClick={() => exportServiceHistoryPDF(filtered, vehicles)}
-          >
-            <FileDown className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-full h-9 w-9 shadow-sm border-border/50"
-            title="Excel'e Aktar"
-            disabled={filtered.length === 0}
-            onClick={() => exportServiceHistoryExcel(filtered, vehicles)}
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-full h-9 w-9 shadow-sm border-border/50"
-            title="Servis Sağlayıcılar"
-            onClick={() => setShowProviders(true)}
-          >
-            <Wrench className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="rounded-full h-9 w-9 shadow-sm border-border/50" onClick={() => setShowFilters((s) => !s)}>
-            <Filter className={`h-4 w-4 ${showFilters ? "text-primary" : ""}`} />
-          </Button>
-          <Button size="icon" className="rounded-full h-9 w-9 shadow-md" onClick={() => { setRecordMaintIds(["oil"]); setShowAdd(true); }}>
-            <Plus className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                  disabled={filtered.length === 0}
+                  onClick={() => exportServiceHistoryPDF(filtered, vehicles)}
+                />
+              }
+            >
+              <FileDown className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>PDF&apos;e Aktar</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                  disabled={filtered.length === 0}
+                  onClick={() => exportServiceHistoryExcel(filtered, vehicles)}
+                />
+              }
+            >
+              <Download className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>Excel&apos;e Aktar</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                  onClick={() => setShowProviders(true)}
+                />
+              }
+            >
+              <Wrench className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>Servis Sağlayıcılar</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger render={<Button variant="outline" size="icon" className="rounded-full h-9 w-9 shadow-sm border-border/50" onClick={() => setShowFilters((s) => !s)} />}>
+              <Filter className={`h-4 w-4 ${showFilters ? "text-primary" : ""}`} />
+            </TooltipTrigger>
+            <TooltipContent>Araç Filtresi</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger render={<Button size="icon" className="rounded-full h-9 w-9 shadow-md" onClick={() => { setRecordMaintIds(["oil"]); setShowAdd(true); }} />}>
+              <Plus className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>Servis Kaydı Ekle</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -395,12 +451,18 @@ export default function HistoryPage() {
                         <p className="text-[11px] text-muted-foreground">{record.date ? record.date.split("-").reverse().join(".") : "—"}</p>
                       </div>
                       <div className="flex items-center gap-0.5 shrink-0 -mt-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary" onClick={() => openEditDialog(record)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={() => openDeleteDialog(record.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger render={<Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary" onClick={() => openEditDialog(record)} />}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </TooltipTrigger>
+                          <TooltipContent>Düzenle</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger render={<Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive" onClick={() => openDeleteDialog(record.id)} />}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </TooltipTrigger>
+                          <TooltipContent>Kaydı Sil</TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
 
@@ -413,7 +475,26 @@ export default function HistoryPage() {
                       )}
                       {record.serviceCenter && <><span>•</span><span>{record.serviceCenter}</span></>}
                       {record.mileage > 0 && <><span>•</span><span>{record.mileage.toLocaleString("tr-TR")} km</span></>}
+                      {record.cost !== undefined && (
+                        <>
+                          <span>•</span>
+                          <span className="font-semibold text-foreground">₺{record.cost.toLocaleString("tr-TR")}</span>
+                          <Badge
+                            variant="secondary"
+                            className={`text-[9px] h-4 px-1.5 rounded-md font-bold border-none gap-1 ${record.paymentStatus === "unpaid" ? "bg-destructive/10 text-destructive" : "bg-[var(--success)]/10 text-[var(--success)] dark:text-emerald-400"}`}
+                          >
+                            {record.paymentStatus === "unpaid" ? <XCircle className="h-2.5 w-2.5" /> : <Wallet className="h-2.5 w-2.5" />}
+                            {record.paymentStatus === "unpaid" ? "Ödenmedi" : "Ödendi"}
+                          </Badge>
+                        </>
+                      )}
                     </div>
+
+                    {record.paymentStatus === "unpaid" && record.unpaidReason && (
+                      <div className="bg-destructive/5 border border-destructive/15 rounded-xl p-2.5 text-[11px] text-destructive/90 leading-relaxed mb-2">
+                        <b>Ödenmeme nedeni:</b> {record.unpaidReason}
+                      </div>
+                    )}
 
                     {record.notes && (
                       <div className="bg-muted/40 rounded-xl p-3 text-[11px] text-muted-foreground leading-relaxed border border-border/20 whitespace-pre-wrap break-words">
@@ -557,6 +638,37 @@ export default function HistoryPage() {
               <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="number" value={form.mileage} onChange={(e) => setForm((f) => ({ ...f, mileage: e.target.value }))} /></div>
               <div className="space-y-1"><Label className={iLabel}>Servis Noktası</Label><Input className={iCls} list="service-providers-list" placeholder="Yetkili servis..." value={form.serviceCenter} onChange={(e) => setForm((f) => ({ ...f, serviceCenter: e.target.value }))} /></div>
             </div>
+            <div className="space-y-1"><Label className={iLabel}>Tutar (₺, ops.)</Label><Input className={iCls} type="number" inputMode="decimal" placeholder="0" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} /></div>
+            {form.cost.trim() !== "" && (
+              <div className="rounded-2xl border border-border/40 bg-muted/20 p-3 space-y-2">
+                <Label className={iLabel}>Ödeme Durumu</Label>
+                <div className="flex gap-2">
+                  {(["paid", "unpaid"] as PaymentStatus[]).map((s) => (
+                    <button
+                      type="button"
+                      key={s}
+                      onClick={() => setForm((f) => ({ ...f, paymentStatus: s }))}
+                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-medium transition-colors ${
+                        form.paymentStatus === s
+                          ? s === "paid" ? "border-[var(--success)]/50 bg-[var(--success)]/10 text-[var(--success)] dark:text-emerald-400" : "border-destructive/50 bg-destructive/10 text-destructive"
+                          : "border-border/40 bg-card"
+                      }`}
+                    >
+                      {s === "paid" ? <Wallet className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                      {s === "paid" ? "Ödendi" : "Ödenmedi"}
+                    </button>
+                  ))}
+                </div>
+                {form.paymentStatus === "unpaid" && (
+                  <Input
+                    className={iCls}
+                    placeholder="Ödenmeme nedeni (örn. fatura bekleniyor, garanti kapsamında itiraz...)"
+                    value={form.unpaidReason}
+                    onChange={(e) => setForm((f) => ({ ...f, unpaidReason: e.target.value }))}
+                  />
+                )}
+              </div>
+            )}
             <div className="space-y-1">
               <Label className={iLabel}>Notlar</Label>
               <textarea className="w-full rounded-xl bg-muted/30 border border-border/40 text-sm p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" placeholder="Yapılan işlemler..." value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
@@ -606,6 +718,40 @@ export default function HistoryPage() {
                 <Input className={iCls} list="service-providers-list" placeholder="Yetkili servis..." value={editForm.serviceCenter} onChange={(e) => setEditForm((f) => ({ ...f, serviceCenter: e.target.value }))} />
               </div>
             </div>
+            <div className="space-y-1">
+              <Label className={iLabel}>Tutar (₺, ops.)</Label>
+              <Input className={iCls} type="number" inputMode="decimal" placeholder="0" value={editForm.cost} onChange={(e) => setEditForm((f) => ({ ...f, cost: e.target.value }))} />
+            </div>
+            {editForm.cost.trim() !== "" && (
+              <div className="rounded-2xl border border-border/40 bg-muted/20 p-3 space-y-2">
+                <Label className={iLabel}>Ödeme Durumu</Label>
+                <div className="flex gap-2">
+                  {(["paid", "unpaid"] as PaymentStatus[]).map((s) => (
+                    <button
+                      type="button"
+                      key={s}
+                      onClick={() => setEditForm((f) => ({ ...f, paymentStatus: s }))}
+                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-medium transition-colors ${
+                        editForm.paymentStatus === s
+                          ? s === "paid" ? "border-[var(--success)]/50 bg-[var(--success)]/10 text-[var(--success)] dark:text-emerald-400" : "border-destructive/50 bg-destructive/10 text-destructive"
+                          : "border-border/40 bg-card"
+                      }`}
+                    >
+                      {s === "paid" ? <Wallet className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                      {s === "paid" ? "Ödendi" : "Ödenmedi"}
+                    </button>
+                  ))}
+                </div>
+                {editForm.paymentStatus === "unpaid" && (
+                  <Input
+                    className={iCls}
+                    placeholder="Ödenmeme nedeni (örn. fatura bekleniyor, garanti kapsamında itiraz...)"
+                    value={editForm.unpaidReason}
+                    onChange={(e) => setEditForm((f) => ({ ...f, unpaidReason: e.target.value }))}
+                  />
+                )}
+              </div>
+            )}
             <div className="space-y-1">
               <Label className={iLabel}>Notlar</Label>
               <textarea
@@ -664,16 +810,23 @@ export default function HistoryPage() {
                 placeholder="Telefon (ops.)"
                 className="w-32 h-10 rounded-xl border border-border bg-muted/40 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
-              <Button
-                size="icon"
-                className="h-10 w-10 rounded-xl shrink-0"
-                onClick={handleAddProvider}
-                disabled={providerSubmitting || !newProviderName.trim()}
-              >
-                {providerSubmitting
-                  ? <span className="h-4 w-4 rounded-full border-2 border-white border-r-transparent animate-spin" />
-                  : <Check className="h-4 w-4" />}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon"
+                      className="h-10 w-10 rounded-xl shrink-0"
+                      onClick={handleAddProvider}
+                      disabled={providerSubmitting || !newProviderName.trim()}
+                    />
+                  }
+                >
+                  {providerSubmitting
+                    ? <span className="h-4 w-4 rounded-full border-2 border-white border-r-transparent animate-spin" />
+                    : <Check className="h-4 w-4" />}
+                </TooltipTrigger>
+                <TooltipContent>Servis Sağlayıcı Ekle</TooltipContent>
+              </Tooltip>
             </div>
 
             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -691,12 +844,19 @@ export default function HistoryPage() {
                       <p className="text-sm font-medium truncate">{p.name}</p>
                       {p.phone && <p className="text-xs text-muted-foreground">{p.phone}</p>}
                     </div>
-                    <button
-                      onClick={() => handleDeleteProvider(p.id)}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                    <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          onClick={() => handleDeleteProvider(p.id)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                        />
+                      }
                     >
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Servis Sağlayıcıyı Sil</TooltipContent>
+                    </Tooltip>
                   </div>
                 ))
               )}

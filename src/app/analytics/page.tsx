@@ -17,6 +17,7 @@ import {
 import { exportFleetStatusPDF } from "@/lib/pdf-export";
 import { Button } from "@/components/ui/button";
 import { DocumentAutomation } from "@/components/document-automation";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
@@ -97,15 +98,21 @@ export default function FleetStatusPage() {
                 <CheckCircle2 className="h-3 w-3" /> Filo sağlıklı
               </span>
             )}
-            <Button
-              variant="outline"
-              size="icon"
-              className="rounded-full h-9 w-9 shadow-sm border-border/50 shrink-0"
-              title="PDF Raporu İndir"
-              onClick={() => exportFleetStatusPDF(vehicles)}
-            >
-              <FileDown className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full h-9 w-9 shadow-sm border-border/50 shrink-0"
+                    onClick={() => exportFleetStatusPDF(vehicles)}
+                  />
+                }
+              >
+                <FileDown className="h-4 w-4" />
+              </TooltipTrigger>
+              <TooltipContent>PDF Raporu İndir</TooltipContent>
+            </Tooltip>
           </div>
         )}
       </div>
