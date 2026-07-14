@@ -70,7 +70,10 @@
       "mcp__supabase__get_advisors",
       "Bash(gh api *)",
       "Bash(npx vercel *)",
-      "Bash(sort -u -t'\"' -k2,2)"
+      "Bash(sort -u -t'\"' -k2,2)",
+      "Skill(dataviz)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(lsof -ti:3000)"
     ]
   }
 }
