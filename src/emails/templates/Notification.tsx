@@ -11,7 +11,7 @@ import {
 
 /**
  * Genel bildirim/olay e-postası (görev başladı/bitti, yeni arıza, filo uyarısı
- * vb.). Telegram/push ile aynı kitleye, aynı olaylarda gönderilir. `severity`
+ * vb.). Push ile aynı kitleye, aynı olaylarda gönderilir. `severity`
  * vurgu rengini, `rows` etiket→değer detaylarını belirler.
  */
 export function NotificationEmail({

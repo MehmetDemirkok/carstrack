@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchToManagers } from "@/lib/notify";
 
 /**
- * Filoya yeni araç eklenince şirketteki yönetici + operatörlere 4 kanaldan
+ * Filoya yeni araç eklenince şirketteki yönetici + operatörlere 3 kanaldan
  * bilgi verir. Fire-and-forget.
  *
  *   POST /api/vehicles/notify-new  { vehicleId }
@@ -54,17 +54,11 @@ export async function POST(req: NextRequest) {
     const year = vehicle.year ? String(vehicle.year) : "";
     const vehicleName = `${brand} ${model}`.trim() || "Araç";
 
-    const telegramMsg =
-      `🚙 <b>Yeni Araç Eklendi</b>\n\n` +
-      `🚗 <b>${vehicleName}</b>${year ? ` (${year})` : ""}\n` +
-      `🔢 Plaka: <b>${plate}</b>`;
-
     const result = await dispatchToManagers(admin, companyId, {
       type: "vehicle_new",
       severity: "info",
       title: "🚙 Yeni Araç Eklendi",
       body: `${vehicleName}${year ? ` (${year})` : ""} — ${plate} filoya eklendi.`,
-      telegram: telegramMsg,
       url: `/vehicles/${vehicle.id}`,
       tag: `vehicle-new-${vehicle.id}`,
       vehicleId: vehicle.id as string,

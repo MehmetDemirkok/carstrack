@@ -24,7 +24,6 @@ export interface Profile {
   department: string;
   avatarUrl?: string;
   notifyByEmail: boolean;
-  telegramChatId?: string;
   createdAt: string;
   /** Sürücü (role="user") ehliyet bilgileri — hiçbiri zorunlu değildir. */
   licenseNumber?: string;

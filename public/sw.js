@@ -27,8 +27,7 @@ self.addEventListener("activate", (event) => {
 
 // ── Web Push ────────────────────────────────────────────────────────────
 // Sunucu, web-push ile şifreli bir payload gönderir. Burada onu çözüp
-// telefonun bildirim alanında gösteririz. Telegram'a giden mesajların
-// telefona da düşmesini sağlayan kısım budur.
+// telefonun bildirim alanında gösteririz.
 self.addEventListener("push", (event) => {
   let payload = {};
   try {

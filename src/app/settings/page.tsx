@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Car,
-  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Lock, Send, BellRing,
+  Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Lock, BellRing,
   RefreshCw, Activity,
 } from "lucide-react";
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, getPushSubscribed } from "@/lib/push-client";
@@ -398,7 +398,7 @@ export default function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
   const [notifEnabled, setNotifEnabled] = useState(false);
 
-  // Telefon (Web Push) bildirimleri — Telegram'a giden uyarılar telefona da düşer
+  // Telefon (Web Push) bildirimleri — filo uyarıları telefona düşer
   const [pushSupported, setPushSupported] = useState(false);
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
@@ -449,76 +449,6 @@ export default function SettingsPage() {
       toast.error("Kaydedilemedi");
     } finally {
       setEmailNotifSaving(false);
-    }
-  };
-
-  // Telegram
-  const [telegramChatId, setTelegramChatId] = useState<string | undefined>(undefined);
-  const [telegramDisconnecting, setTelegramDisconnecting] = useState(false);
-
-  useEffect(() => {
-    setTelegramChatId(profile?.telegramChatId);
-  }, [profile?.telegramChatId]);
-
-  // GÜVENLİK: Telegram bağlama artık tahmin edilebilir user.id yerine sunucuda
-  // üretilen tek-kullanımlık koda dayanır (C-3). Butona basınca kod alınıp
-  // Telegram derin bağlantısı açılır.
-  const [telegramConnecting, setTelegramConnecting] = useState(false);
-  const handleTelegramConnect = async () => {
-    // Popup engelleyiciye takılmamak için sekmeyi senkron aç, sonra adres ver.
-    const tab = window.open("", "_blank");
-    setTelegramConnecting(true);
-    try {
-      const res = await fetch("/api/telegram/link-code", { method: "POST" });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && json?.url) {
-        if (tab) tab.location.href = json.url as string;
-        else window.location.href = json.url as string;
-      } else {
-        tab?.close();
-        toast.error("Bağlantı oluşturulamadı", { description: json?.error || "Tekrar deneyin." });
-      }
-    } catch {
-      tab?.close();
-      toast.error("Bağlantı hatası");
-    } finally {
-      setTelegramConnecting(false);
-    }
-  };
-
-  const [telegramTesting, setTelegramTesting] = useState(false);
-  const handleTelegramTest = async () => {
-    setTelegramTesting(true);
-    try {
-      const res = await fetch("/api/telegram/test", { method: "POST" });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok) {
-        toast.success("Test mesajı gönderildi", { description: "Telegram'ı kontrol edin." });
-      } else {
-        toast.error("Test başarısız", { description: json?.error || "Mesaj gönderilemedi." });
-      }
-    } catch {
-      toast.error("Test başarısız", { description: "Bağlantı hatası." });
-    } finally {
-      setTelegramTesting(false);
-    }
-  };
-
-  const handleTelegramDisconnect = async () => {
-    setTelegramDisconnecting(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("profiles")
-        .update({ telegram_chat_id: null })
-        .eq("id", user!.id);
-      if (error) throw error;
-      setTelegramChatId(undefined);
-      toast.success("Telegram bağlantısı kesildi");
-    } catch {
-      toast.error("Kaydedilemedi");
-    } finally {
-      setTelegramDisconnecting(false);
     }
   };
 
@@ -1099,7 +1029,7 @@ export default function SettingsPage() {
                 trailing={<Toggle on={emailNotif} onToggle={handleEmailNotifToggle} />}
                 onClick={handleEmailNotifToggle}
               />
-              {/* Telefon (Web Push) bildirimleri — yönetici/operatör, Telegram ile aynı kitle */}
+              {/* Telefon (Web Push) bildirimleri — yönetici/operatör */}
               {profile?.role !== "user" && (
                 <SettingItem
                   icon={BellRing}
@@ -1113,7 +1043,7 @@ export default function SettingsPage() {
                           : "Bu cihaz push bildirimini desteklemiyor")
                       : pushSubscribed
                         ? "Açık — uyarılar bu telefona gönderiliyor"
-                        : "Telegram uyarılarını telefonunuza da alın"
+                        : "Filo uyarılarını telefonunuza alın"
                   }
                   trailing={
                     !pushSupported ? (
@@ -1125,59 +1055,6 @@ export default function SettingsPage() {
                     )
                   }
                   onClick={pushSupported && !pushBusy ? handlePushToggle : undefined}
-                />
-              )}
-              {/* Telegram bildirimleri yalnızca yönetici/operatör içindir — sürücü rolünde gizlenir */}
-              {profile?.role === "user" ? null : telegramChatId ? (
-                <SettingItem
-                  icon={Send}
-                  iconBg="bg-sky-500/10"
-                  iconColor="text-sky-500"
-                  label="Telegram Bildirimleri"
-                  description="Bağlı — uyarılar Telegram'a gönderiliyor"
-                  trailing={
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleTelegramTest(); }}
-                        disabled={telegramTesting}
-                        className="text-[11px] text-sky-600/80 hover:text-sky-600 border border-sky-500/20 rounded-lg px-2.5 py-1 transition-colors disabled:opacity-40"
-                      >
-                        {telegramTesting ? "..." : "Test Et"}
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleTelegramDisconnect(); }}
-                        disabled={telegramDisconnecting}
-                        className="text-[11px] text-destructive/70 hover:text-destructive border border-destructive/20 rounded-lg px-2.5 py-1 transition-colors disabled:opacity-40"
-                      >
-                        {telegramDisconnecting ? "..." : "Bağlantıyı Kes"}
-                      </button>
-                    </div>
-                  }
-                />
-              ) : user?.id ? (
-                <button
-                  type="button"
-                  onClick={handleTelegramConnect}
-                  disabled={telegramConnecting}
-                  className="block w-full text-left disabled:opacity-60"
-                >
-                  <SettingItem
-                    icon={Send}
-                    iconBg="bg-sky-500/10"
-                    iconColor="text-sky-500"
-                    label="Telegram'ı Bağla"
-                    description={telegramConnecting ? "Bağlantı oluşturuluyor…" : "Filo uyarılarını Telegram'dan al"}
-                    trailing={<ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
-                  />
-                </button>
-              ) : (
-                <SettingItem
-                  icon={Send}
-                  iconBg="bg-sky-500/10"
-                  iconColor="text-sky-500"
-                  label="Telegram'ı Bağla"
-                  description="Filo uyarılarını Telegram'dan al"
-                  trailing={<ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />}
                 />
               )}
               <SettingItem

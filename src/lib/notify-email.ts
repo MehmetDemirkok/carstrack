@@ -25,7 +25,7 @@ export interface EmailRecipient {
 
 /**
  * Verilen alıcı listesine (e-posta tercihi açık olanlara) tek olay e-postası
- * gönderir. Telegram/push ile aynı kitleye gönderim için ortak giriş noktası.
+ * gönderir. Push ile aynı kitleye gönderim için ortak giriş noktası.
  * RESEND yapılandırılmamışsa veya alıcı yoksa sessizce 0 döner; akışı kesmez.
  */
 export async function sendEventEmailToUsers(
@@ -73,7 +73,7 @@ export async function sendEventEmailToUsers(
 
 /**
  * Bir şirketteki yönetici + operatör rolündeki, e-posta bildirimi açık olan
- * kullanıcılara tek olay e-postası gönderir (Telegram/push ile aynı kitle).
+ * kullanıcılara tek olay e-postası gönderir (push ile aynı kitle).
  */
 export async function sendEventEmailToManagers(
   admin: SupabaseClient,

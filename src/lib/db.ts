@@ -754,7 +754,7 @@ export async function unassignDriver(driverId: string): Promise<void> {
 // ─── Bildirim tetikleyicisi ───────────────────────────────────
 
 // Bir olay bildirimi route'unu fire-and-forget tetikler. Sunucu tarafında
-// dispatchToManagers ile 4 kanala (zil + telegram + push + e-posta) dağıtılır.
+// dispatchToManagers ile 3 kanala (zil + push + e-posta) dağıtılır.
 // Başarısız olsa bile çağıran akışı etkilemez.
 function notifyEvent(path: string, body: Record<string, unknown>): void {
   try {
@@ -771,7 +771,7 @@ function notifyEvent(path: string, body: Record<string, unknown>): void {
 
 // ─── Vehicle Tasks ────────────────────────────────────────────
 
-// Görev başladığında yöneticilere Telegram bilgi mesajı gönderir (fire-and-forget).
+// Görev başladığında yöneticilere bildirim gönderir (fire-and-forget).
 // Başarısız olsa bile görev akışını etkilemez.
 function notifyTaskStart(taskId: string): void {
   try {
@@ -786,7 +786,7 @@ function notifyTaskStart(taskId: string): void {
   }
 }
 
-// Görev tamamlandığında yöneticilere Telegram bilgi mesajı gönderir
+// Görev tamamlandığında yöneticilere bildirim gönderir
 // (fire-and-forget). Başarısız olsa bile görev akışını etkilemez.
 function notifyTaskEnd(taskId: string): void {
   try {
@@ -1209,7 +1209,7 @@ export async function uploadDocumentFile(
 
 // ─── Vehicle Reports (Arıza / Durum Bildirimleri) ─────────────
 
-// Yeni arıza bildirimi oluşunca yöneticilere Telegram bilgi mesajı gönderir
+// Yeni arıza bildirimi oluşunca yöneticilere bildirim gönderir
 // (fire-and-forget). Başarısız olsa bile bildirim akışını etkilemez.
 function notifyReportCreate(reportId: string): void {
   try {
@@ -1400,7 +1400,7 @@ export async function createReport(data: {
     note: data.title,
   });
 
-  // Yöneticilere Telegram bildirimi (fire-and-forget)
+  // Yöneticilere bildirim (fire-and-forget)
   notifyReportCreate(report.id);
 
   return report;

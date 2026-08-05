@@ -4,9 +4,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchToManagers } from "@/lib/notify";
 
 /**
- * Bir görev tamamlandığında (araç görevden döndüğünde) şirketteki Telegram'a
- * bağlı yönetici ve operatörlere bilgi mesajı gönderir. Görev başlangıcındaki
- * (notify-start) bildirimin eşdeğeridir.
+ * Bir görev tamamlandığında (araç görevden döndüğünde) şirketteki yönetici ve
+ * operatörlere bilgi mesajı gönderir. Görev başlangıcındaki (notify-start)
+ * bildirimin eşdeğeridir.
  *
  * UI tarafında görev tamamlandıktan SONRA fire-and-forget olarak çağrılır;
  * başarısız olsa bile görev akışını etkilemez.
@@ -75,21 +75,11 @@ export async function POST(req: NextRequest) {
     const distance = task.distance != null ? (task.distance as number).toLocaleString("tr-TR") : "—";
     const desc = (task.description as string)?.trim();
 
-    const telegramMsg =
-      `🔴 <b>Görev Tamamlandı</b>\n\n` +
-      `👤 <b>${driverName}</b>, <b>${vehicleName}</b> (${plate}) ile görevini tamamladı.\n` +
-      `🕒 ${when}\n` +
-      `📍 Başlangıç KM: <b>${startKm}</b>\n` +
-      `🏁 Bitiş KM: <b>${endKm}</b>\n` +
-      `🛣️ Gidilen Mesafe: <b>${distance} km</b>` +
-      (desc ? `\n📝 ${desc}` : "");
-
     const result = await dispatchToManagers(admin, companyId, {
       type: "task_end",
       severity: "info",
       title: "🔴 Görev Tamamlandı",
       body: `${driverName}, ${vehicleName} (${plate}) görevini tamamladı. Mesafe: ${distance} km`,
-      telegram: telegramMsg,
       url: "/dashboard",
       tag: `task-end-${task.id}`,
       vehicleId: (task.vehicle_id as string) || undefined,

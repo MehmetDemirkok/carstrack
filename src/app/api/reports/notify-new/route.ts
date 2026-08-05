@@ -10,13 +10,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 const SEVERITY_LABELS: Record<string, string> = {
   low: "Düşük", medium: "Orta", high: "Yüksek", critical: "Kritik",
 };
-const SEVERITY_ICONS: Record<string, string> = {
-  low: "⚪", medium: "🟡", high: "🟠", critical: "🔴",
-};
 
 /**
- * Bir sürücü yeni arıza/durum bildirimi oluşturduğunda şirketteki Telegram'a
- * bağlı yönetici ve operatörlere bilgi mesajı gönderir.
+ * Bir sürücü yeni arıza/durum bildirimi oluşturduğunda şirketteki yönetici ve
+ * operatörlere bilgi mesajı gönderir.
  *
  * UI tarafında bildirim oluşturulduktan SONRA fire-and-forget olarak çağrılır;
  * başarısız olsa bile bildirim akışını etkilemez.
@@ -82,27 +79,15 @@ export async function POST(req: NextRequest) {
 
     const category = CATEGORY_LABELS[report.category as string] || "Diğer";
     const severity = SEVERITY_LABELS[report.severity as string] || "Orta";
-    const sevIcon = SEVERITY_ICONS[report.severity as string] || "🟡";
     const title = (report.title as string)?.trim() || "Arıza bildirimi";
     const desc = (report.description as string)?.trim();
     const photoCount = Array.isArray(report.photo_paths) ? (report.photo_paths as unknown[]).length : 0;
-
-    const telegramMsg =
-      `🔧 <b>Yeni Arıza Bildirimi</b>\n\n` +
-      `👤 <b>${reporterName}</b>, <b>${vehicleName}</b> (${plate}) için bir arıza bildirdi.\n` +
-      `📌 <b>${title}</b>\n` +
-      `🏷️ Kategori: <b>${category}</b>\n` +
-      `${sevIcon} Önem: <b>${severity}</b>\n` +
-      `🕒 ${when}` +
-      (desc ? `\n📝 ${desc}` : "") +
-      (photoCount > 0 ? `\n📷 ${photoCount} fotoğraf eklendi (uygulamada görüntüleyin)` : "");
 
     const result = await dispatchToManagers(admin, companyId, {
       type: "report_new",
       severity: report.severity === "critical" ? "critical" : "warning",
       title: "🔧 Yeni Arıza Bildirimi",
       body: `${reporterName}, ${vehicleName} (${plate}) için arıza bildirdi: ${title} (${severity})`,
-      telegram: telegramMsg,
       url: "/reports",
       tag: `report-${report.id}`,
       vehicleId: (report.vehicle_id as string) || undefined,

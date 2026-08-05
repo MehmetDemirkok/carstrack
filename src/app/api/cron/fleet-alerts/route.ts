@@ -5,7 +5,6 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendFleetAlertDigest } from "@/lib/email/sendEmail";
-import { sendTelegramMessage } from "@/lib/telegram";
 import { sendPushToManagers } from "@/lib/push";
 import { getFleetAlerts } from "@/lib/store";
 import { toVehicleFromRow } from "@/lib/vehicle-mapper";
@@ -23,48 +22,6 @@ function getAppUrl(req: Request): string {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   const origin = new URL(req.url).origin;
   return origin;
-}
-
-// Yönetici/operatöre gönderilen günlük Telegram filo raporu metnini üretir.
-// Uyarı olsa da olmasa da (durum ne olursa olsun) gönderilir.
-function buildTelegramDigest(opts: {
-  name: string;
-  date: string;
-  vehicleCount: number;
-  alerts: FleetAlert[];
-  appUrl: string;
-}): string {
-  const { name, date, vehicleCount, alerts, appUrl } = opts;
-  const header =
-    `🚗 <b>CarsTrack Günlük Filo Raporu</b>\n${date}\n\n` +
-    `Merhaba ${name},\n📊 Filonuzda <b>${vehicleCount}</b> araç kayıtlı.`;
-
-  if (alerts.length === 0) {
-    return (
-      `${header}\n\n✅ <b>Her şey yolunda!</b>\n` +
-      `Tüm araçların sigorta, muayene ve bakım durumu güncel — aktif uyarı yok.\n\n` +
-      `<a href="${appUrl}/vehicles">Filoyu görüntüle →</a>`
-    );
-  }
-
-  const sevEmoji: Record<string, string> = { critical: "🔴", warning: "🟡", info: "🔵" };
-  const counts = { critical: 0, warning: 0, info: 0 } as Record<string, number>;
-  for (const a of alerts) counts[a.severity] = (counts[a.severity] ?? 0) + 1;
-
-  const summary = `🔴 Kritik: <b>${counts.critical}</b>   🟡 Uyarı: <b>${counts.warning}</b>   🔵 Bilgi: <b>${counts.info}</b>`;
-
-  const lines = alerts.slice(0, 40).map((a) => {
-    let s = `${sevEmoji[a.severity] ?? "⚪"} <b>${a.vehiclePlate}</b> — ${a.title}`;
-    if (a.description) s += `\n    <i>${a.description}</i>`;
-    return s;
-  });
-  const more = alerts.length > 40 ? `\n\n… ve ${alerts.length - 40} uyarı daha.` : "";
-
-  return (
-    `${header}\n${summary}\n\n` +
-    `<b>Aktif Uyarılar (${alerts.length}):</b>\n${lines.join("\n")}${more}\n\n` +
-    `<a href="${appUrl}/vehicles">Tüm araçları görüntüle →</a>`
-  );
 }
 
 export async function GET(req: Request) {
@@ -98,7 +55,7 @@ export async function GET(req: Request) {
   // ── 3. Tüm profiller (rol + company_id + ad soyad + bildirim tercihi) ──
   const { data: profiles, error: profilesErr } = await admin
     .from("profiles")
-    .select("id, company_id, role, full_name, notify_by_email, telegram_chat_id");
+    .select("id, company_id, role, full_name, notify_by_email");
   if (profilesErr) {
     console.error("[cron/fleet-alerts] profiles error:", profilesErr);
     return NextResponse.json({ error: "Failed to load profiles" }, { status: 500 });
@@ -146,8 +103,6 @@ export async function GET(req: Request) {
 
   // ── 8. Her kullanıcıyı işle ──────────────────────────────────────
   const results: { userId: string; status: string; alertCount?: number }[] = [];
-  let telegramSent = 0;
-  let telegramError = 0;
 
   for (const profile of profiles ?? []) {
     const userId = profile.id as string;
@@ -155,7 +110,6 @@ export async function GET(req: Request) {
     const role = profile.role as string;
 
     const email = userEmailMap.get(userId);
-    const telegramChatId = profile.telegram_chat_id as string | null;
     const notifyByEmail = profile.notify_by_email !== false;
 
     // Rol bazlı uyarı belirleme
@@ -168,31 +122,10 @@ export async function GET(req: Request) {
       userAlerts = vehicleIds.flatMap((vId) => alertsByVehicle.get(vId) ?? []);
     }
 
-    // ── TELEGRAM: yalnızca yönetici + operatör, HER GÜN, baskılamasız ──
-    // Durum ne olursa olsun (uyarı var/yok) günlük rapor gönderilir.
-    // Sürücü rolü Telegram bildirimi ALMAZ.
-    if (telegramChatId && (role === "manager" || role === "operator")) {
-      const vehicleCount = (vehiclesByCompany.get(companyId) ?? []).length;
-      const msg = buildTelegramDigest({
-        name: (profile.full_name as string) || "Yönetici",
-        date: turkishDate,
-        vehicleCount,
-        alerts: userAlerts,
-        appUrl,
-      });
-      try {
-        await sendTelegramMessage(telegramChatId, msg);
-        telegramSent++;
-      } catch (err) {
-        telegramError++;
-        console.error(`[cron/fleet-alerts] telegram send failed for user ${userId}:`, err);
-      }
-    }
-
-    // ── E-POSTA: mevcut davranış (tüm roller, uyarı varsa + baskılama) ──
+    // ── E-POSTA: tüm roller, uyarı varsa + baskılama ──
     const sendEmail = notifyByEmail && !!email;
     if (!sendEmail) {
-      results.push({ userId, status: telegramChatId ? "telegram_only" : "skipped_no_channel" });
+      results.push({ userId, status: "skipped_no_channel" });
       continue;
     }
 
@@ -261,7 +194,7 @@ export async function GET(req: Request) {
   }
 
   // ── 8b. TELEFON (Web Push): şirket başına tek günlük özet ─────────
-  // Yönetici + operatörlerin tüm cihazlarına gider (Telegram ile aynı kitle).
+  // Yönetici + operatörlerin tüm cihazlarına gider.
   let pushSent = 0;
   for (const [companyId, alerts] of alertsByCompany) {
     const counts = { critical: 0, warning: 0, info: 0 } as Record<string, number>;
@@ -287,6 +220,6 @@ export async function GET(req: Request) {
   const errors  = results.filter((r) => r.status === "error").length;
   const skipped = results.filter((r) => r.status.startsWith("skipped")).length;
 
-  console.log(`[cron/fleet-alerts] done — email_sent:${sent} email_errors:${errors} skipped:${skipped} | telegram_sent:${telegramSent} telegram_errors:${telegramError} | push_sent:${pushSent}`);
-  return NextResponse.json({ ok: true, emailSent: sent, emailErrors: errors, skipped, telegramSent, telegramError, pushSent, total: results.length });
+  console.log(`[cron/fleet-alerts] done — email_sent:${sent} email_errors:${errors} skipped:${skipped} | push_sent:${pushSent}`);
+  return NextResponse.json({ ok: true, emailSent: sent, emailErrors: errors, skipped, pushSent, total: results.length });
 }

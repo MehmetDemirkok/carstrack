@@ -12,7 +12,7 @@ const STATUS_ICONS: Record<string, string> = {
 
 /**
  * Bir arıza bildiriminin durumu değişince (örn. çözüldü) şirketteki yönetici +
- * operatörlere 4 kanaldan bilgi verir. Fire-and-forget.
+ * operatörlere 3 kanaldan bilgi verir. Fire-and-forget.
  *
  *   POST /api/reports/notify-status  { reportId, fromStatus, toStatus, note }
  */
@@ -69,19 +69,11 @@ export async function POST(req: NextRequest) {
     const icon = STATUS_ICONS[toStatus] || "🔄";
     const isResolved = toStatus === "resolved";
 
-    const telegramMsg =
-      `${icon} <b>Arıza Durumu ${isResolved ? "Çözüldü" : "Güncellendi"}</b>\n\n` +
-      `🚗 <b>${vehicleName}</b> (${plate})\n` +
-      `📌 <b>${title}</b>\n` +
-      `🔄 Durum: ${fromLabel ? `<b>${fromLabel}</b> → ` : ""}<b>${toLabel}</b>` +
-      (note ? `\n📝 ${note}` : "");
-
     const result = await dispatchToManagers(admin, companyId, {
       type: "report_status",
       severity: isResolved ? "info" : "warning",
       title: `${icon} Arıza ${isResolved ? "Çözüldü" : "Durumu Güncellendi"}`,
       body: `${vehicleName} (${plate}) — "${title}" durumu: ${toLabel}.`,
-      telegram: telegramMsg,
       url: "/reports",
       tag: `report-status-${report.id}`,
       vehicleId: (report.vehicle_id as string) || undefined,
@@ -105,7 +97,7 @@ export async function POST(req: NextRequest) {
       },
     }, {
       // Arızayı açan kullanıcı (şoför/kullanıcı rolü) kendi bildiriminin
-      // gelişmelerinden 4 kanaldan haberdar olsun.
+      // gelişmelerinden haberdar olsun.
       extraUserIds: [report.reporter_id as string].filter(Boolean),
     });
 

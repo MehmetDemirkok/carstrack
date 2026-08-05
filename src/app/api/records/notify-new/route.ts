@@ -10,7 +10,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 /**
  * Bir araca servis/bakım kaydı eklenince şirketteki yönetici + operatörlere
- * 4 kanaldan (zil + telegram + push + e-posta) bilgi verir. Fire-and-forget.
+ * 3 kanaldan (zil + push + e-posta) bilgi verir. Fire-and-forget.
  *
  *   POST /api/records/notify-new  { recordId }
  */
@@ -64,21 +64,11 @@ export async function POST(req: NextRequest) {
       ? new Date(record.date as string).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" })
       : "—";
 
-    const telegramMsg =
-      `🛠️ <b>Servis Kaydı Eklendi</b>\n\n` +
-      `🚗 <b>${vehicleName}</b> (${plate})\n` +
-      `📌 <b>${title}</b>\n` +
-      `🏷️ Tür: <b>${typeLabel}</b>\n` +
-      `📍 KM: <b>${mileage}</b>\n` +
-      `🗓️ ${dateStr}` +
-      (serviceCenter ? `\n🔧 ${serviceCenter}` : "");
-
     const result = await dispatchToManagers(admin, companyId, {
       type: "record_new",
       severity: "info",
       title: "🛠️ Servis Kaydı Eklendi",
       body: `${vehicleName} (${plate}) için "${title}" (${typeLabel}) servis kaydı eklendi. KM: ${mileage}`,
-      telegram: telegramMsg,
       url: `/vehicles/${record.vehicle_id}`,
       tag: `record-${record.id}`,
       vehicleId: (record.vehicle_id as string) || undefined,

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,8 +31,6 @@ import {
   Sparkles,
   BatteryCharging,
   CheckCircle2,
-  Send,
-  X,
   History,
   FileWarning,
   Wallet,
@@ -69,36 +66,9 @@ const categoryIcon = {
 };
 
 export default function Dashboard() {
-  const { user, profile } = useAuth();
+  const { profile } = useAuth();
   const { vehicles, records, loading: dataLoading } = useData();
-  const [telegramBannerDismissed, setTelegramBannerDismissed] = useState(false);
   const [showAlertsDialog, setShowAlertsDialog] = useState(false);
-
-  const showTelegramBanner = !telegramBannerDismissed && !profile?.telegramChatId;
-
-  // GÜVENLİK: Telegram bağlama, tahmin edilebilir user.id yerine sunucuda
-  // üretilen tek-kullanımlık koda dayanır (C-3).
-  const [telegramConnecting, setTelegramConnecting] = useState(false);
-  const handleTelegramConnect = async () => {
-    const tab = window.open("", "_blank");
-    setTelegramConnecting(true);
-    try {
-      const res = await fetch("/api/telegram/link-code", { method: "POST" });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && json?.url) {
-        if (tab) tab.location.href = json.url as string;
-        else window.location.href = json.url as string;
-      } else {
-        tab?.close();
-        toast.error("Bağlantı oluşturulamadı", { description: json?.error || "Tekrar deneyin." });
-      }
-    } catch {
-      tab?.close();
-      toast.error("Bağlantı hatası");
-    } finally {
-      setTelegramConnecting(false);
-    }
-  };
 
   const vehicleIds = new Set(vehicles.map((x) => x.id));
   const alerts: FleetAlert[] = getFleetAlerts(vehicles);
@@ -135,7 +105,7 @@ export default function Dashboard() {
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
   const warningCount = alerts.filter((a) => a.severity === "warning").length;
 
-  // Sürücü rolü kısıtlı kendi panelini görür (bakım/servis/telegram/filo skoru yok)
+  // Sürücü rolü kısıtlı kendi panelini görür (bakım/servis/filo skoru yok)
   if (profile?.role === "user") return <DriverDashboard />;
 
   if (dataLoading) return (
@@ -180,41 +150,6 @@ export default function Dashboard() {
         <motion.div variants={fadeUp}>
           <PWAInstallCard />
         </motion.div>
-
-        {/* Telegram bağlantı banner */}
-        {showTelegramBanner && (
-          <motion.div variants={fadeUp}>
-            <div className="flex items-center gap-3 bg-sky-500/10 border border-sky-500/20 rounded-2xl px-4 py-3">
-              <div className="p-2 bg-sky-500/15 rounded-xl shrink-0">
-                <Send className="h-4 w-4 text-sky-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Telegram Bildirimlerini Aç</p>
-                <p className="text-[11px] text-muted-foreground">Filo uyarılarını anında Telegram&apos;dan al</p>
-              </div>
-              {user?.id ? (
-                <button
-                  type="button"
-                  onClick={handleTelegramConnect}
-                  disabled={telegramConnecting}
-                  className="shrink-0 text-xs font-semibold text-sky-500 border border-sky-500/30 rounded-xl px-3 py-1.5 hover:bg-sky-500/10 transition-colors disabled:opacity-50"
-                >
-                  {telegramConnecting ? "..." : "Bağla"}
-                </button>
-              ) : (
-                <span className="shrink-0 text-xs font-semibold text-sky-500/40 border border-sky-500/15 rounded-xl px-3 py-1.5 cursor-not-allowed">
-                  Bağla
-                </span>
-              )}
-              <button
-                onClick={() => setTelegramBannerDismissed(true)}
-                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </motion.div>
-        )}
 
         {/* ── Hızlı Eylemler ──────────────────────────────────────────── */}
         <motion.div variants={fadeUp} className="grid grid-cols-4 gap-2 md:gap-3">

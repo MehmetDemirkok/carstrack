@@ -88,13 +88,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Profil oluşturulurken hata oluştu." }, { status: 500 });
       }
 
-      // Yöneticilere "yeni sürücü katıldı" bildirimi — 4 kanaldan (akışı kesmez)
+      // Yöneticilere "yeni sürücü katıldı" bildirimi — 3 kanaldan (akışı kesmez)
       await dispatchToManagers(supabaseAdmin, company.id as string, {
         type: "driver_new",
         severity: "info",
         title: "👋 Yeni Sürücü Katıldı",
         body: `${fullName} ekibe katıldı.`,
-        telegram: `👋 <b>Yeni Sürücü Katıldı</b>\n\n👤 <b>${fullName}</b> ekibe katıldı.`,
         url: "/users",
         tag: `driver-new-${userId}`,
         meta: { driverId: userId },
@@ -180,13 +179,12 @@ export async function POST(req: Request) {
 
       const invitedCompany = invite.companies as { name?: string } | null;
 
-      // Yöneticilere "yeni üye katıldı" bildirimi — 4 kanaldan (akışı kesmez)
+      // Yöneticilere "yeni üye katıldı" bildirimi — 3 kanaldan (akışı kesmez)
       await dispatchToManagers(supabaseAdmin, companyId, {
         type: "driver_new",
         severity: "info",
         title: "👋 Yeni Ekip Üyesi Katıldı",
         body: `${fullName} davetle ekibe katıldı.`,
-        telegram: `👋 <b>Yeni Ekip Üyesi Katıldı</b>\n\n👤 <b>${fullName}</b> davetle ekibe katıldı.`,
         url: "/users",
         tag: `driver-new-${userId}`,
         meta: { driverId: userId },

@@ -4,8 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchToManagers } from "@/lib/notify";
 
 /**
- * Bir görev başladığında (araç göreve çıktığında) şirketteki Telegram'a bağlı
- * yönetici ve operatörlere bilgi mesajı gönderir.
+ * Bir görev başladığında (araç göreve çıktığında) şirketteki yönetici ve
+ * operatörlere bilgi mesajı gönderir.
  *
  * UI tarafında görev oluşturulduktan SONRA fire-and-forget olarak çağrılır;
  * başarısız olsa bile görev akışını etkilemez.
@@ -72,19 +72,11 @@ export async function POST(req: NextRequest) {
     const startKm = (task.start_km as number)?.toLocaleString("tr-TR") ?? "—";
     const desc = (task.description as string)?.trim();
 
-    const telegramMsg =
-      `🟢 <b>Görev Başladı</b>\n\n` +
-      `👤 <b>${driverName}</b>, <b>${vehicleName}</b> (${plate}) ile göreve çıktı.\n` +
-      `🕒 ${when}\n` +
-      `📍 Başlangıç KM: <b>${startKm}</b>` +
-      (desc ? `\n📝 ${desc}` : "");
-
     const result = await dispatchToManagers(admin, companyId, {
       type: "task_start",
       severity: "info",
       title: "🟢 Görev Başladı",
       body: `${driverName}, ${vehicleName} (${plate}) ile göreve çıktı. Başlangıç KM: ${startKm}`,
-      telegram: telegramMsg,
       url: "/dashboard",
       tag: `task-start-${task.id}`,
       vehicleId: (task.vehicle_id as string) || undefined,

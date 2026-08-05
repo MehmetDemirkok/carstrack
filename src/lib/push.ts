@@ -40,7 +40,7 @@ interface SubscriptionRow {
 /**
  * Verilen aboneliklere push gönderir. Artık geçersiz olan (404/410) abonelikleri
  * veritabanından temizler — böylece tablo bayat endpoint'lerle şişmez.
- * Telegram'daki sendTelegramMessage'ın eşdeğeridir; başarısızlık akışı kesmez.
+ * Başarısızlık akışı kesmez.
  */
 async function sendToSubscriptions(
   admin: SupabaseClient,
@@ -85,7 +85,7 @@ async function sendToSubscriptions(
 
 /**
  * Verilen kullanıcı id'lerinin tüm cihazlarına push gönderir.
- * Telegram/e-posta ile aynı kitleye gönderim için ortak giriş noktası.
+ * E-posta ile aynı kitleye gönderim için ortak giriş noktası.
  */
 export async function sendPushToUsers(
   admin: SupabaseClient,
@@ -104,7 +104,7 @@ export async function sendPushToUsers(
 
 /**
  * Bir şirketteki yönetici + operatör rolündeki kullanıcıların tüm cihazlarına
- * push bildirimi gönderir (Telegram bildirimleriyle aynı hedef kitle).
+ * push bildirimi gönderir.
  * Admin (service role) client RLS'i bypass eder.
  */
 export async function sendPushToManagers(
