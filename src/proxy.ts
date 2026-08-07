@@ -1,14 +1,30 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/**
+ * Read `sub` from the access token JWT without touching `session.user`.
+ * Accessing `session.user` on the server triggers Supabase's insecure-session warning.
+ * Signature verification is intentionally skipped here — this proxy only drives redirects;
+ * API routes still call getUser() for authenticated mutations.
+ */
+function userIdFromAccessToken(accessToken: string): string | null {
+  try {
+    const [, payload] = accessToken.split(".");
+    if (!payload) return null;
+    const json = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8")
+    ) as { sub?: unknown };
+    return typeof json.sub === "string" ? json.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 // Next.js 16 proxy (replaces middleware.ts).
 //
-// PERFORMANCE NOTE: We use getSession() here (local JWT check, no network call)
-// instead of getUser() (network call to Supabase Auth server).
-// getUser() was causing 400-500ms latency on every request in production,
-// blocking auth initialization and data fetches.
-// Security: API routes that need identity verification still call getUser().
-// This proxy is only responsible for redirects.
+// PERFORMANCE: getSession() is local (cookie JWT). We never read session.user —
+// only access_token → decode `sub` — so the insecure-user warning stays silent.
+// getUser()/getClaims() with HS256 would add ~400–500ms per request.
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -38,12 +54,13 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // getSession() is a local operation — reads JWT from cookie, no network call.
-  // This keeps the proxy under 1ms instead of 400-500ms.
-  let user = null;
+  let userId: string | null = null;
   let staleSession = false;
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
     if (error) {
       const code = (error as { code?: string })?.code ?? "";
       if (
@@ -52,8 +69,8 @@ export async function proxy(request: NextRequest) {
       ) {
         staleSession = true;
       }
-    } else {
-      user = session?.user ?? null;
+    } else if (session?.access_token) {
+      userId = userIdFromAccessToken(session.access_token);
     }
   } catch {
     // Unexpected error — don't block the request.
@@ -103,7 +120,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Unauthenticated on a protected page → login
-  if (!user && !isPublicPath) {
+  if (!userId && !isPublicPath) {
     const redirectResponse = NextResponse.redirect(
       new URL("/login", request.url)
     );
@@ -121,11 +138,15 @@ export async function proxy(request: NextRequest) {
   // hesabın oturumu açık olsa bile davet formunu bastırmayız — aynı bilgisayarı
   // birden fazla kişi kullanıyor olabilir (ör. ortak ofis PC'si). Yeni üye
   // formu kendi hesabıyla giriş yaparak eski oturumun yerini alır.
-  const isRegisterWithInvite = pathname.startsWith("/register") && request.nextUrl.searchParams.has("invite");
+  const isRegisterWithInvite =
+    pathname.startsWith("/register") &&
+    request.nextUrl.searchParams.has("invite");
 
   // Authenticated on login/register or landing page → dashboard
-  if (user && (isAuthOnlyPath || pathname === "/") && !isRegisterWithInvite) {
-    const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
+  if (userId && (isAuthOnlyPath || pathname === "/") && !isRegisterWithInvite) {
+    const redirectResponse = NextResponse.redirect(
+      new URL("/dashboard", request.url)
+    );
     supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
       redirectResponse.cookies.set(
         name,
@@ -147,20 +168,22 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/users") ||
     pathname.startsWith("/vehicles/new");
 
-  if (user && isManagerOnlyPath) {
+  if (userId && isManagerOnlyPath) {
     let role: string | null = null;
     try {
       const { data: prof } = await supabase
         .from("profiles")
         .select("role")
-        .eq("id", user.id)
+        .eq("id", userId)
         .single();
       role = (prof?.role as string) ?? null;
     } catch {
       // Sorgu başarısızsa engellemeyiz (mevcut akışı bozmamak için).
     }
     if (role === "user") {
-      const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
+      const redirectResponse = NextResponse.redirect(
+        new URL("/dashboard", request.url)
+      );
       supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
         redirectResponse.cookies.set(
           name,

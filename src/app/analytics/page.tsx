@@ -1,54 +1,76 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
-import {
-  BarChart3, Wallet, TrendingDown, TrendingUp, Route, Car,
-  FileDown, ChevronRight, AlertCircle, Gauge,
-} from "lucide-react";
+import { BarChart3, ChevronRight, FileDown } from "lucide-react";
 import { useData } from "@/context/data-context";
 import { getTasks } from "@/lib/db";
 import type { VehicleTask } from "@/lib/types";
 import {
-  type AnalyticsRange, RANGE_LABELS, formatTRY, formatKm,
-  filterRecordsByRange, filterTasksByRange, monthlyCostSeries, costByType,
-  costByVehicle, distanceByVehicle, computeSummary, getRenewals,
+  type AnalyticsRange,
+  RANGE_LABELS,
+  filterRecordsByRange,
+  filterTasksByRange,
+  monthlyCostSeries,
+  costByType,
+  costByVehicle,
+  distanceByVehicle,
+  computeSummary,
+  getRenewals,
 } from "@/lib/analytics";
+import { calculateHealthScore, getFleetAlerts } from "@/lib/store";
 import { exportFleetStatusPDF } from "@/lib/pdf-export";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { DocumentAutomation } from "@/components/document-automation";
-import { FleetRiskOverview } from "@/components/fleet-risk-overview";
-import { FleetComposition } from "@/components/fleet-composition";
-import { CostTrendChart } from "@/components/analytics/cost-trend-chart";
-import { CostTypeDonut } from "@/components/analytics/cost-type-donut";
-import { CostByVehicle } from "@/components/analytics/cost-by-vehicle";
-import { DistanceChart } from "@/components/analytics/distance-chart";
-import { RenewalTimeline } from "@/components/analytics/renewal-timeline";
-
-const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
-const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
+import { FleetCommand } from "@/components/analytics/fleet-command";
+import { AttentionRail, type AttentionItem } from "@/components/analytics/attention-rail";
+import { SpendCanvas } from "@/components/analytics/spend-canvas";
+import { CostBreakdown } from "@/components/analytics/cost-breakdown";
+import { CostLeaders } from "@/components/analytics/cost-leaders";
+import { FleetPulse } from "@/components/analytics/fleet-pulse";
+import { DocUrgency } from "@/components/analytics/doc-urgency";
+import { AnalyticsSkeleton } from "@/components/analytics/analytics-skeleton";
+import { cn } from "@/lib/utils";
 
 const RANGES: AnalyticsRange[] = ["3m", "6m", "12m", "all"];
 
 export default function AnalyticsPage() {
-  const { vehicles, records } = useData();
+  const { vehicles, records, loading } = useData();
   const [range, setRange] = useState<AnalyticsRange>("6m");
   const [tasks, setTasks] = useState<VehicleTask[]>([]);
+  const [tasksReady, setTasksReady] = useState(false);
+  const reduce = useReducedMotion();
 
-  // Görevleri (mesafe verisi) bir kez çek — hata olursa mesafe bölümleri gizlenir
   useEffect(() => {
     let cancelled = false;
     getTasks({ status: "completed" })
-      .then((t) => { if (!cancelled) setTasks(t); })
-      .catch(() => { if (!cancelled) setTasks([]); });
-    return () => { cancelled = true; };
+      .then((t) => {
+        if (!cancelled) setTasks(t);
+      })
+      .catch(() => {
+        if (!cancelled) setTasks([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTasksReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const a = useMemo(() => {
     const recordsInRange = filterRecordsByRange(records, range);
     const tasksInRange = filterTasksByRange(tasks, range);
+    const scores = vehicles.map((v) => ({
+      vehicle: v,
+      score: calculateHealthScore(v),
+    }));
+    const fleetScore =
+      scores.length > 0
+        ? Math.round(scores.reduce((s, x) => s + x.score, 0) / scores.length)
+        : 100;
+
     return {
       recordsInRange,
       tasksInRange,
@@ -58,32 +80,133 @@ export default function AnalyticsPage() {
       distances: distanceByVehicle(tasksInRange, vehicles),
       summary: computeSummary(recordsInRange, vehicles, tasksInRange, records, range),
       renewals: getRenewals(vehicles),
+      fleetScore,
+      goodCount: scores.filter((s) => s.score >= 85).length,
+      fairCount: scores.filter((s) => s.score >= 65 && s.score < 85).length,
+      poorCount: scores.filter((s) => s.score < 65).length,
+      lowHealth: scores.filter((s) => s.score < 85).sort((a, b) => a.score - b.score),
     };
   }, [records, tasks, vehicles, range]);
 
-  const s = a.summary;
+  const attentionItems = useMemo((): AttentionItem[] => {
+    const items: AttentionItem[] = [];
+    const seenVehicles = new Set<string>();
+
+    for (const doc of a.renewals.filter((r) => r.days <= 30)) {
+      items.push({
+        id: `doc-${doc.vehicleId}-${doc.kind}`,
+        href: `/vehicles/${doc.vehicleId}`,
+        plate: doc.plate,
+        title: doc.days < 0 ? `${doc.label} süresi doldu` : `${doc.label} bitiyor`,
+        detail:
+          doc.days < 0
+            ? `${Math.abs(doc.days)} gün gecikmiş`
+            : `${doc.days} gün kaldı${doc.company ? ` · ${doc.company}` : ""}`,
+        severity: doc.days <= 14 ? "critical" : "warning",
+        kind: "document",
+      });
+      seenVehicles.add(doc.vehicleId);
+    }
+
+    for (const alert of getFleetAlerts(vehicles)) {
+      if (
+        alert.category === "insurance" ||
+        alert.category === "inspection" ||
+        alert.category === "green-card"
+      ) {
+        continue;
+      }
+      items.push({
+        id: `alert-${alert.id}`,
+        href: `/vehicles/${alert.vehicleId}`,
+        plate: alert.vehiclePlate,
+        title: alert.title,
+        detail: alert.description.slice(0, 90),
+        severity:
+          alert.severity === "critical"
+            ? "critical"
+            : alert.severity === "warning"
+              ? "warning"
+              : "info",
+        kind: "maintenance",
+      });
+      seenVehicles.add(alert.vehicleId);
+    }
+
+    for (const { vehicle, score } of a.lowHealth) {
+      if (seenVehicles.has(vehicle.id) && score >= 65) continue;
+      if (items.some((i) => i.id === `health-${vehicle.id}`)) continue;
+      items.push({
+        id: `health-${vehicle.id}`,
+        href: `/vehicles/${vehicle.id}`,
+        plate: vehicle.plate,
+        title: `Sağlık skoru ${score}`,
+        detail: `${vehicle.brand} ${vehicle.model}`.trim(),
+        severity: score < 65 ? "critical" : "warning",
+        kind: "health",
+      });
+    }
+
+    const rank = { critical: 0, warning: 1, info: 2 };
+    return items.sort((x, y) => rank[x.severity] - rank[y.severity]).slice(0, 8);
+  }, [a.renewals, a.lowHealth, vehicles]);
+
   const hasVehicles = vehicles.length > 0;
+  const showSkeleton = loading || !tasksReady;
+
+  const stagger = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: reduce ? 0 : 0.06 },
+    },
+  };
+  const fadeUp = {
+    hidden: { opacity: 0, y: reduce ? 0 : 14 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reduce ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] as const },
+    },
+  };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 space-y-5 pb-28">
-      {/* ── Başlık + kontroller ── */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-outfit font-bold tracking-tight">Filo Analitiği</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Maliyet, mesafe ve belge içgörüleri</p>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-28 space-y-8">
+      {/* ── Page chrome ── */}
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
+            Analitik
+          </p>
+          <h1 className="font-outfit text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+            Filo Analitiği
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
+            Sağlık, maliyet ve belgeler — filonuzun durumunu tek bakışta görün.
+          </p>
         </div>
+
         {hasVehicles && (
           <div className="flex items-center gap-2 shrink-0">
-            {/* Zaman aralığı seçici */}
-            <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-muted/60 border border-border/40">
+            <div
+              role="tablist"
+              aria-label="Zaman aralığı"
+              className="inline-flex items-center gap-0.5 p-1 rounded-2xl bg-muted/70 ring-1 ring-border/50"
+            >
               {RANGES.map((r) => (
                 <button
                   key={r}
                   type="button"
+                  role="tab"
+                  aria-selected={range === r}
                   onClick={() => setRange(r)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
-                    range === r ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    range === r
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                 >
                   {RANGE_LABELS[r]}
                 </button>
@@ -95,8 +218,9 @@ export default function AnalyticsPage() {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="rounded-full h-9 w-9 shadow-sm border-border/50 shrink-0"
+                    className="rounded-2xl h-10 w-10 shadow-sm border-border/50 shrink-0"
                     onClick={() => exportFleetStatusPDF(vehicles)}
+                    aria-label="PDF raporu indir"
                   />
                 }
               >
@@ -106,111 +230,54 @@ export default function AnalyticsPage() {
             </Tooltip>
           </div>
         )}
-      </div>
+      </header>
 
-      {!hasVehicles ? (
-        <div className="text-center py-16 flex flex-col items-center gap-4">
-          <div className="p-5 bg-mesh rounded-3xl shadow-lg shadow-primary/20">
-            <BarChart3 className="h-10 w-10 text-primary-foreground/80" />
-          </div>
-          <div className="space-y-1">
-            <p className="text-base font-bold">Henüz Araç Yok</p>
-            <p className="text-sm text-muted-foreground max-w-xs">Analitik veriler için önce araçlarınızı ekleyin.</p>
-          </div>
-          <Link href="/vehicles/new">
-            <span className="text-sm text-primary font-semibold hover:underline flex items-center gap-1">
-              Araç ekle <ChevronRight className="h-3.5 w-3.5" />
-            </span>
-          </Link>
-        </div>
+      {showSkeleton ? (
+        <AnalyticsSkeleton />
+      ) : !hasVehicles ? (
+        <EmptyFleet />
       ) : (
-        <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4">
-          {/* ── KPI kartları ── */}
-          <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiTile
-              icon={Wallet}
-              label="Toplam Harcama"
-              value={formatTRY(s.totalCost)}
-              accent="text-primary"
-              bg="bg-primary/10"
-              trend={s.costTrendPct}
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-12 gap-4 sm:gap-5"
+        >
+          <motion.div variants={fadeUp} className="col-span-12 lg:col-span-8 min-h-0">
+            <FleetCommand
+              fleetScore={a.fleetScore}
+              vehicleCount={vehicles.length}
+              goodCount={a.goodCount}
+              fairCount={a.fairCount}
+              poorCount={a.poorCount}
+              summary={a.summary}
+              rangeLabel={RANGE_LABELS[range]}
             />
-            <KpiTile
-              icon={AlertCircle}
-              label="Ödenmemiş"
-              value={formatTRY(s.unpaidCost)}
-              sub={`${s.unpaidCount} kayıt`}
-              accent="text-red-500"
-              bg="bg-red-500/10"
-            />
-            <KpiTile
-              icon={Car}
-              label="Araç Başı Ort."
-              value={formatTRY(s.avgCostPerVehicle)}
-              sub={`${vehicles.length} araç · ${s.recordCount} servis`}
-              accent="text-violet-500"
-              bg="bg-violet-500/10"
-            />
-            {s.totalDistance > 0 ? (
-              <KpiTile
-                icon={Route}
-                label="Toplam Mesafe"
-                value={formatKm(s.totalDistance)}
-                sub={s.costPerKm !== null ? `₺${s.costPerKm.toFixed(2)}/km` : undefined}
-                subIcon={s.costPerKm !== null ? Gauge : undefined}
-                accent="text-emerald-500"
-                bg="bg-emerald-500/10"
-              />
-            ) : (
-              <KpiTile
-                icon={Route}
-                label="Toplam Mesafe"
-                value="—"
-                sub="görev kaydı yok"
-                accent="text-emerald-500"
-                bg="bg-emerald-500/10"
-              />
-            )}
+          </motion.div>
+          <motion.div variants={fadeUp} className="col-span-12 lg:col-span-4 min-h-0">
+            <AttentionRail items={attentionItems} urgentDocs={a.renewals} />
           </motion.div>
 
-          {/* ── Harcama trendi + dağılım ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <motion.div variants={fadeUp} className="lg:col-span-3">
-              <CostTrendChart data={a.monthly} rangeLabel={RANGE_LABELS[range]} />
-            </motion.div>
-            <motion.div variants={fadeUp} className="lg:col-span-2">
-              <CostTypeDonut slices={a.types} />
-            </motion.div>
-          </div>
-
-          {/* ── Araç maliyeti + mesafe ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <motion.div variants={fadeUp}>
-              <CostByVehicle rows={a.vehicleCosts} />
-            </motion.div>
-            <motion.div variants={fadeUp}>
-              <DistanceChart rows={a.distances} totalDistance={s.totalDistance} />
-            </motion.div>
-          </div>
-
-          {/* ── Belge takvimi + filo sağlık dağılımı ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <motion.div variants={fadeUp}>
-              <RenewalTimeline items={a.renewals} />
-            </motion.div>
-            <motion.div variants={fadeUp}>
-              <FleetRiskOverview vehicles={vehicles} />
-            </motion.div>
-          </div>
-
-          {/* ── Filo kompozisyonu ── */}
-          <motion.div variants={fadeUp}>
-            <FleetComposition vehicles={vehicles} />
+          <motion.div variants={fadeUp} className="col-span-12 lg:col-span-8">
+            <SpendCanvas data={a.monthly} rangeLabel={RANGE_LABELS[range]} />
+          </motion.div>
+          <motion.div variants={fadeUp} className="col-span-12 lg:col-span-4">
+            <CostBreakdown slices={a.types} />
           </motion.div>
 
-          {/* ── Belge otomasyonu ── */}
-          <motion.div variants={fadeUp}>
-            <DocumentAutomation vehicles={vehicles} />
+          <motion.div variants={fadeUp} className="col-span-12 lg:col-span-7">
+            <CostLeaders rows={a.vehicleCosts} />
+          </motion.div>
+          <motion.div variants={fadeUp} className="col-span-12 lg:col-span-5">
+            <FleetPulse
+              distances={a.distances}
+              totalDistance={a.summary.totalDistance}
+              vehicles={vehicles}
+            />
+          </motion.div>
+
+          <motion.div variants={fadeUp} className="col-span-12">
+            <DocUrgency items={a.renewals} />
           </motion.div>
         </motion.div>
       )}
@@ -218,47 +285,27 @@ export default function AnalyticsPage() {
   );
 }
 
-// ─── KPI kartı ────────────────────────────────────────────────
-interface KpiProps {
-  icon: typeof Wallet;
-  label: string;
-  value: string;
-  sub?: string;
-  subIcon?: typeof Gauge;
-  accent: string;
-  bg: string;
-  trend?: number | null;
-}
-
-function KpiTile({ icon: Icon, label, value, sub, subIcon: SubIcon, accent, bg, trend }: KpiProps) {
+function EmptyFleet() {
   return (
-    <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 flex flex-col gap-2 overflow-hidden">
-      <div className="flex items-center justify-between">
-        <div className={`p-1.5 rounded-lg ${bg}`}>
-          <Icon className={`h-4 w-4 ${accent}`} />
+    <div className="relative overflow-hidden rounded-[24px] bg-card ring-1 ring-black/[0.04] dark:ring-white/[0.06] shadow-sm">
+      <div className="absolute inset-0 bg-mesh-soft opacity-80" aria-hidden />
+      <div className="relative flex flex-col items-center text-center gap-5 px-6 py-20">
+        <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-mesh shadow-lg shadow-primary/25">
+          <BarChart3 className="h-8 w-8 text-primary-foreground/90" />
         </div>
-        {trend !== undefined && trend !== null && (
-          <span
-            className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-              trend > 0
-                ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            }`}
-          >
-            {trend > 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-            {Math.abs(Math.round(trend))}%
-          </span>
-        )}
-      </div>
-      <div>
-        <p className="text-lg font-bold font-outfit tracking-tight leading-none truncate">{value}</p>
-        <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mt-1">{label}</p>
-        {sub && (
-          <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-            {SubIcon && <SubIcon className="h-2.5 w-2.5" />}
-            {sub}
+        <div className="space-y-2 max-w-sm">
+          <p className="font-outfit text-xl font-bold tracking-tight">Filo henüz boş</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Analitik görünümü araç ve servis kayıtlarınızla dolacak. İlk aracınızı ekleyerek başlayın.
           </p>
-        )}
+        </div>
+        <Link
+          href="/vehicles/new"
+          className="inline-flex items-center gap-1.5 rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Araç ekle
+          <ChevronRight className="h-4 w-4" />
+        </Link>
       </div>
     </div>
   );
