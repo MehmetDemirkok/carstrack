@@ -245,6 +245,38 @@ export interface FleetAlert {
   category: "insurance" | "green-card" | "inspection" | "maintenance" | "tire";
 }
 
+/** Haftalık kilometre takip kaydı (kilometer_logs). */
+export interface KilometerLog {
+  id: string;
+  companyId: string;
+  vehicleId: string;
+  userId: string;
+  kilometerValue: number;
+  previousKilometer?: number;
+  photoUrl?: string;
+  createdAt: string;
+  vehiclePlate?: string;
+  userName?: string;
+}
+
+/** Atanan araç özeti — magic link formunda plaka seçimi için. */
+export interface KilometerLogVehicleOption {
+  vehicleId: string;
+  vehiclePlate: string;
+  vehicleName: string;
+  previousKilometer: number;
+  /** Bu token döneminde bu araç için km girilmiş mi. */
+  alreadySubmitted?: boolean;
+}
+
+/** Magic link token bağlamı — form sayfasında gösterilir. */
+export interface KilometerLogTokenContext {
+  token: string;
+  expiresAt: string;
+  /** Atanan araçlar (1+). Birden fazlaysa formda plaka seçilir. */
+  vehicles: KilometerLogVehicleOption[];
+}
+
 export type DocumentType = "ruhsat" | "trafik_sigortasi" | "kasko" | "muayene" | "egzoz" | "teslim" | "diger";
 
 export interface VehicleDocument {

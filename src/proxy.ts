@@ -106,7 +106,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/sss") ||
     pathname.startsWith("/ozellikler") ||
-    pathname.startsWith("/arac-bakim-takip");
+    pathname.startsWith("/arac-bakim-takip") ||
+    pathname.startsWith("/km-guncelle");
 
   // Stale/expired session → wipe sb- cookies, redirect to login
   if (staleSession) {

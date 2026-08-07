@@ -14,6 +14,7 @@ const AUTH_PATHS = [
   "/sss",
   "/ozellikler",
   "/arac-bakim-takip",
+  "/km-guncelle",
 ];
 
 export function ShellWrapper({ children }: { children: React.ReactNode }) {

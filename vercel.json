@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/license-alerts",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/kilometer-reminder",
+      "schedule": "30 13 * * 5"
     }
   ]
 }
