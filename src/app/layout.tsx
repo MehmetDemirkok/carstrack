@@ -11,8 +11,17 @@ import { CommandPaletteProvider } from "@/context/command-palette-context";
 import { CommandPalette } from "@/components/command-palette";
 import { ProfileCompletionNotice } from "@/components/profile-completion-notice";
 import { ServiceWorkerRegister } from "@/components/sw-register";
+import { JsonLd } from "@/components/seo/json-ld";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
+import {
+  APP_URL,
+  DEFAULT_DESCRIPTION,
+  PRIMARY_KEYWORDS,
+  indexRobots,
+  websiteJsonLd,
+  organizationJsonLd,
+} from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 // Hanken Grotesk drives all heading/display text (exposed as --font-outfit so every
@@ -34,39 +43,28 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "600"],
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
-
-// Paste your Google Search Console verification code here after adding the property
+// Google Search Console meta verification (Search Console → Ayarlar → Doğrulama)
 const GOOGLE_SITE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ?? "";
 
 export const metadata: Metadata = {
   title: {
-    default: "CarsTrack — Araç Bakım Takip",
+    default: "CarsTrack — Araç Bakım Takip ve Filo Yönetim Sistemi",
     template: "%s | CarsTrack",
   },
-  description:
-    "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin. Vehicle maintenance tracking, service history and car expense management.",
+  description: DEFAULT_DESCRIPTION,
   applicationName: "CarsTrack",
-  keywords: [
-    "araç bakım takip",
-    "vehicle maintenance tracking",
-    "service history tracking",
-    "car expense tracking",
-    "araç masraf takip",
-    "sigorta takip",
-    "muayene takip",
-    "fleet management",
-    "araç yönetim sistemi",
-    "carstrack",
-  ],
+  keywords: [...PRIMARY_KEYWORDS, "carstrack", "araç yönetim sistemi"],
   authors: [{ name: "CarsTrack", url: APP_URL }],
   creator: "CarsTrack",
   publisher: "CarsTrack",
+  category: "business",
   metadataBase: new URL(APP_URL),
   alternates: {
     canonical: "/",
+    languages: { "tr-TR": "/", tr: "/" },
   },
   manifest: "/manifest.json",
+  robots: indexRobots,
   ...(GOOGLE_SITE_VERIFICATION && {
     verification: { google: GOOGLE_SITE_VERIFICATION },
   }),
@@ -82,42 +80,32 @@ export const metadata: Metadata = {
     type: "website",
     url: APP_URL,
     siteName: "CarsTrack",
-    title: "CarsTrack — Araç Bakım Takip",
-    description:
-      "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin.",
-    images: [{ url: `${APP_URL}/og-image.png`, width: 1200, height: 630, alt: "CarsTrack" }],
+    title: "CarsTrack — Araç Bakım Takip ve Filo Yönetim Sistemi",
+    description: DEFAULT_DESCRIPTION,
+    images: [{ url: `${APP_URL}/og-image.png`, width: 1200, height: 630, alt: "CarsTrack Araç Bakım Takip" }],
     locale: "tr_TR",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CarsTrack — Araç Bakım Takip",
-    description:
-      "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin.",
+    title: "CarsTrack — Araç Bakım Takip ve Filo Yönetim Sistemi",
+    description: DEFAULT_DESCRIPTION,
     images: [`${APP_URL}/og-image.png`],
+  },
+  other: {
+    "geo.region": "TR",
+    "geo.placename": "Turkey",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09090b",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8f7fc" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-};
-
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  name: "CarsTrack",
-  url: APP_URL,
-  description:
-    "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin.",
-  inLanguage: "tr-TR",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: `${APP_URL}/vehicles?q={search_term_string}`,
-    "query-input": "required name=search_term_string",
-  },
+  // Allow pinch-zoom for accessibility / mobile usability (GSC)
+  maximumScale: 5,
 };
 
 export default function RootLayout({
@@ -128,10 +116,8 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <JsonLd data={websiteJsonLd()} />
+        <JsonLd data={organizationJsonLd()} />
       </head>
       <body
         className={`${inter.variable} ${hankenGrotesk.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} font-sans antialiased bg-background text-foreground min-h-[100dvh] flex flex-col`}

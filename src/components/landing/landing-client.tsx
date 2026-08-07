@@ -519,9 +519,8 @@ export default function LandingClient() {
               className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.05]"
               style={{ fontFamily: "var(--font-outfit), sans-serif" }}
             >
-              Araç Filonuzu{" "}
-              <span style={textGradient}>Akıllıca</span>{" "}
-              Yönetin
+              Araç Bakım Takibi ve{" "}
+              <span style={textGradient}>Filo Yönetimi</span>
             </motion.h1>
 
             <motion.p
@@ -749,8 +748,11 @@ export default function LandingClient() {
               © {new Date().getFullYear()} Tüm hakları saklıdır.
             </span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <Link href="/privacy" className="hover:text-foreground transition-colors">Gizlilik Politikası</Link>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap justify-center">
+            <Link href="/arac-bakim-takip" className="hover:text-foreground transition-colors">Araç Bakım Takip</Link>
+            <Link href="/ozellikler" className="hover:text-foreground transition-colors">Özellikler</Link>
+            <Link href="/sss" className="hover:text-foreground transition-colors">SSS</Link>
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Gizlilik</Link>
             <Link href="/login" className="hover:text-foreground transition-colors">Giriş Yap</Link>
             <Link href="/register" className="hover:text-foreground transition-colors">Kayıt Ol</Link>
           </div>

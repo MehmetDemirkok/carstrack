@@ -1,0 +1,22 @@
+# CarsTrack
+
+> Türkçe araç bakım takip ve filo yönetim sistemi. Bakım planı, sigorta/muayene hatırlatıcı, servis geçmişi, filo analitiği ve ekip yönetimi.
+
+## Site
+
+- Ana sayfa: https://carstrack.app/
+- Araç bakım takip rehberi: https://carstrack.app/arac-bakim-takip
+- Özellikler: https://carstrack.app/ozellikler
+- SSS: https://carstrack.app/sss
+- Kayıt: https://carstrack.app/register
+- Giriş: https://carstrack.app/login
+- Gizlilik: https://carstrack.app/privacy
+- Sitemap: https://carstrack.app/sitemap.xml
+
+## Ürün özeti
+
+CarsTrack; bireysel ve kurumsal kullanıcılar için ücretsiz başlayan bir filo yönetim / araç bakım takip uygulamasıdır. Progressive Web App olarak mobil ve masaüstünde çalışır.
+
+## Anahtar kelimeler
+
+araç bakım takip, filo yönetim sistemi, sigorta muayene takip, periyodik bakım hatırlatıcı, servis geçmişi, araç masraf yönetimi

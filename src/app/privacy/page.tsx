@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/privacy",
   },
+  robots: { index: true, follow: true },
   openGraph: {
     title: "Gizlilik Politikası | CarsTrack",
     description: "CarsTrack kullanıcı verilerinin güvenliği ve gizliliği politikası.",

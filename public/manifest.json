@@ -1,7 +1,7 @@
 {
-  "name": "CarsTrack — Araç Bakım Takip",
+  "name": "CarsTrack — Araç Bakım Takip ve Filo Yönetimi",
   "short_name": "CarsTrack",
-  "description": "Araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini ve masraflarını tek yerden takip edin.",
+  "description": "Araç bakım takibi, sigorta/muayene hatırlatıcı, servis geçmişi ve filo analitiği. Ücretsiz filo yönetim sistemi.",
   "id": "/",
   "start_url": "/",
   "display": "standalone",
