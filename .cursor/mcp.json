@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "supabase-carstrack": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=qkldtqasgicelriarkrr",
+      "headers": {
+        "Authorization": "Bearer ${SUPABASE_PAT_CARSTRACK}"
+      }
+    },
+    "supabase-ofisnow": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=fsksmdubigkzlsdmrebt",
+      "headers": {
+        "Authorization": "Bearer ${SUPABASE_PAT_OFISNOW}"
+      }
+    }
+  }
+}
