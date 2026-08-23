@@ -9,6 +9,12 @@ import { sendPushToManagers } from "@/lib/push";
 import { getFleetAlerts } from "@/lib/store";
 import { toVehicleFromRow } from "@/lib/vehicle-mapper";
 import type { FleetAlert } from "@/lib/types";
+import {
+  DIGEST_LOCAL_HOUR,
+  formatLocalDate,
+  isLocalHour,
+  resolveTimeZone,
+} from "@/lib/timezone";
 
 // Kritik uyarılar 3, warning uyarılar 7 günde bir yeniden gönderilir.
 const SUPPRESSION_DAYS: Record<string, number> = {
@@ -34,16 +40,52 @@ export async function GET(req: Request) {
   const admin = createAdminClient();
   const now = new Date();
   const appUrl = getAppUrl(req);
+  const forceAll = new URL(req.url).searchParams.get("force") === "1";
 
-  const turkishDate = now.toLocaleDateString("tr-TR", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "Europe/Istanbul",
-  });
+  // ── 2. Şirketler: yalnızca yerel saat 09:00 olanlar işlenir ─────
+  let companies: { id: string; timezone?: string }[] | null = null;
+  const { data: companiesWithTz, error: companiesErr } = await admin
+    .from("companies")
+    .select("id, timezone");
+  if (companiesErr) {
+    const { data: companiesFallback, error: fallbackErr } = await admin
+      .from("companies")
+      .select("id");
+    if (fallbackErr) {
+      console.error("[cron/fleet-alerts] companies error:", companiesErr);
+      return NextResponse.json({ error: "Failed to load companies" }, { status: 500 });
+    }
+    console.warn("[cron/fleet-alerts] timezone kolonu yok — Europe/Istanbul varsayılıyor");
+    companies = companiesFallback as { id: string }[];
+  } else {
+    companies = companiesWithTz as { id: string; timezone?: string }[];
+  }
 
-  // ── 2. Tüm auth kullanıcıları (e-posta adresleri) ────────────────
+  const timezoneByCompany = new Map<string, string>();
+  const digestCompanyIds: string[] = [];
+  for (const row of companies ?? []) {
+    const companyId = row.id as string;
+    const timeZone = resolveTimeZone(row.timezone);
+    timezoneByCompany.set(companyId, timeZone);
+    if (forceAll || isLocalHour(now, timeZone, DIGEST_LOCAL_HOUR)) {
+      digestCompanyIds.push(companyId);
+    }
+  }
+
+  if (digestCompanyIds.length === 0) {
+    console.log("[cron/fleet-alerts] skipped — no company in local digest hour");
+    return NextResponse.json({
+      ok: true,
+      skippedReason: "outside_digest_hour",
+      emailSent: 0,
+      emailErrors: 0,
+      skipped: 0,
+      pushSent: 0,
+      total: 0,
+    });
+  }
+
+  // ── 3. Auth kullanıcıları (e-posta adresleri) ───────────────────
   // Not: 1000+ kullanıcı için sayfalama gerekir; filo uygulaması için yeterli.
   const { data: usersData, error: usersErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
   if (usersErr) {
@@ -52,10 +94,11 @@ export async function GET(req: Request) {
   }
   const userEmailMap = new Map(usersData.users.map((u) => [u.id, u.email ?? ""]));
 
-  // ── 3. Tüm profiller (rol + company_id + ad soyad + bildirim tercihi) ──
+  // ── 4. Digest saatindeki şirketlerin profilleri ────────────────
   const { data: profiles, error: profilesErr } = await admin
     .from("profiles")
-    .select("id, company_id, role, full_name, notify_by_email");
+    .select("id, company_id, role, full_name, notify_by_email")
+    .in("company_id", digestCompanyIds);
   if (profilesErr) {
     console.error("[cron/fleet-alerts] profiles error:", profilesErr);
     return NextResponse.json({ error: "Failed to load profiles" }, { status: 500 });
@@ -72,8 +115,11 @@ export async function GET(req: Request) {
     driverVehicleMap.set(a.driver_id, ids);
   }
 
-  // ── 6. Tüm araçlar (tek sorgu, RLS bypass) ──────────────────────
-  const { data: rawVehicles, error: vehiclesErr } = await admin.from("vehicles").select("*");
+  // ── 6. Digest saatindeki şirketlerin araçları ──────────────────
+  const { data: rawVehicles, error: vehiclesErr } = await admin
+    .from("vehicles")
+    .select("*")
+    .in("company_id", digestCompanyIds);
   if (vehiclesErr) {
     console.error("[cron/fleet-alerts] vehicles error:", vehiclesErr);
     return NextResponse.json({ error: "Failed to load vehicles" }, { status: 500 });
@@ -169,7 +215,7 @@ export async function GET(req: Request) {
         recipientName: (profile.full_name as string) || email!,
         alerts: alertsToSend,
         appUrl,
-        date: turkishDate,
+        date: formatLocalDate(now, timezoneByCompany.get(companyId) ?? ""),
       });
 
       // Gönderim başarısızsa (veya atlandıysa) "sent" olarak loglama.
@@ -220,6 +266,6 @@ export async function GET(req: Request) {
   const errors  = results.filter((r) => r.status === "error").length;
   const skipped = results.filter((r) => r.status.startsWith("skipped")).length;
 
-  console.log(`[cron/fleet-alerts] done — email_sent:${sent} email_errors:${errors} skipped:${skipped} | push_sent:${pushSent}`);
+  console.log(`[cron/fleet-alerts] done — companies:${digestCompanyIds.length} email_sent:${sent} email_errors:${errors} skipped:${skipped} | push_sent:${pushSent}`);
   return NextResponse.json({ ok: true, emailSent: sent, emailErrors: errors, skipped, pushSent, total: results.length });
 }

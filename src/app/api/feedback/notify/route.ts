@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     const inbox =
       process.env.FEEDBACK_INBOX_EMAIL ||
       process.env.EMAIL_SUPPORT_ADDRESS ||
+      process.env.RESEND_REPLY_TO ||
       "mehmetdemirkok@gmail.com";
 
     const profile = fb.profiles as { full_name?: string } | null;

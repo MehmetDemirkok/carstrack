@@ -70,7 +70,8 @@ export function EmailLayout({
               </Link>
             </Text>
             <Text style={footerMuted}>
-              Bu e-posta otomatik olarak gönderilmiştir, lütfen yanıtlamayın.
+              Bu e-posta otomatik gönderilmiştir. Yanıtlayabilirsiniz — cevaplarınız
+              destek ekibimize ulaşır.
             </Text>
             {showUnsubscribe && (
               <Text style={footerMuted}>

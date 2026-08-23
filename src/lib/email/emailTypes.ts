@@ -27,10 +27,22 @@ export const BRAND = {
   tagline: "Filo Yönetim Sistemi",
   /** Gönderen adresi — doğrulanmış alan adı production'da env ile verilmeli. */
   fromAddress: process.env.RESEND_FROM_EMAIL ?? "CarsTrack <onboarding@resend.dev>",
-  /** Yanıtların gideceği gerçek adres (Reply-To header'ı). */
-  replyTo: process.env.RESEND_REPLY_TO ?? process.env.EMAIL_SUPPORT_ADDRESS ?? "destek@carstrack.app",
+  /**
+   * Yanıtların gideceği gerçek adres (Reply-To header'ı).
+   * Öncelik: RESEND_REPLY_TO → FEEDBACK_INBOX_EMAIL → EMAIL_SUPPORT_ADDRESS.
+   * destek@ kutusu henüz inbound almadığı için varsayılan çalışan Gmail.
+   */
+  replyTo:
+    process.env.RESEND_REPLY_TO ??
+    process.env.FEEDBACK_INBOX_EMAIL ??
+    process.env.EMAIL_SUPPORT_ADDRESS ??
+    "mehmetdemirkok@gmail.com",
   /** Footer'da ve "yardım" bağlantılarında gösterilen destek adresi. */
-  supportAddress: process.env.EMAIL_SUPPORT_ADDRESS ?? "destek@carstrack.app",
+  supportAddress:
+    process.env.EMAIL_SUPPORT_ADDRESS ??
+    process.env.FEEDBACK_INBOX_EMAIL ??
+    process.env.RESEND_REPLY_TO ??
+    "mehmetdemirkok@gmail.com",
 } as const;
 
 /**

@@ -117,6 +117,7 @@ export default function RegisterClient() {
       body: JSON.stringify({
         mode, companyName: form.companyName, inviteCode: form.inviteCode, inviteToken,
         fullName: form.fullName, email: form.email, password: form.password,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
     });
     const data = await res.json();

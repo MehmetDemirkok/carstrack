@@ -10,7 +10,7 @@ import {
   Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Car,
   Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Lock, BellRing,
-  RefreshCw, Activity,
+  RefreshCw, Activity, Clock,
 } from "lucide-react";
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, getPushSubscribed } from "@/lib/push-client";
 import { useTheme } from "next-themes";
@@ -29,6 +29,7 @@ import { daysUntilDate, getOverallLicenseStatus, LICENSE_CLASSES } from "@/lib/l
 import { IdCard, Sparkles, Upload, XCircle, CheckCircle2 } from "lucide-react";
 import type { DriverLicenseEntry } from "@/lib/types";
 import { fileToBase64, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS, SCAN_MAX_FILE_SIZE } from "@/lib/file-utils";
+import { DEFAULT_TIMEZONE, TIMEZONES, TIMEZONES_BY_REGION, getTimezoneLabel, resolveTimeZone } from "@/lib/timezone";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -317,6 +318,10 @@ export default function SettingsPage() {
   const [inviteCodeExpiresAt, setInviteCodeExpiresAt] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [savedTimezone, setSavedTimezone] = useState(DEFAULT_TIMEZONE);
+  const [timezoneSaving, setTimezoneSaving] = useState(false);
+  const [showTimezone, setShowTimezone] = useState(false);
+  const companyTimezone = resolveTimeZone(company?.timezone ?? savedTimezone);
 
   useEffect(() => {
     if (profile?.role !== "manager" && profile?.role !== "operator") return;
@@ -332,7 +337,46 @@ export default function SettingsPage() {
         setInviteCodeExpiresAt(data?.invite_code_expires_at ?? null);
         setInviteLoading(false);
       });
+    supabase
+      .from("companies")
+      .select("timezone")
+      .eq("id", profile.companyId)
+      .single()
+      .then(({ data }: { data: { timezone?: string } | null }) => {
+        if (data?.timezone) setSavedTimezone(resolveTimeZone(data.timezone));
+      });
   }, [profile]);
+
+  const handleTimezoneChange = async (next: string) => {
+    const timezone = resolveTimeZone(next);
+    if (timezone === companyTimezone) {
+      setShowTimezone(false);
+      return;
+    }
+    setTimezoneSaving(true);
+    try {
+      const res = await fetch("/api/companies/timezone", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ timezone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Saat dilimi kaydedilemedi");
+        return;
+      }
+      setSavedTimezone(data.timezone ?? timezone);
+      setShowTimezone(false);
+      toast.success(t("timezone_saved"), {
+        description: `${getTimezoneLabel(data.timezone ?? timezone)} — ${t("settings_timezone_desc")}`,
+      });
+      await refreshProfile();
+    } catch {
+      toast.error("Saat dilimi kaydedilemedi");
+    } finally {
+      setTimezoneSaving(false);
+    }
+  };
 
   const handleRegenerateInviteCode = async () => {
     setRegenerating(true);
@@ -979,6 +1023,19 @@ export default function SettingsPage() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">Yönetim</h3>
             <Card className="rounded-2xl border-border/40 shadow-sm">
               <CardContent className="p-2">
+                <SettingItem
+                  icon={Clock}
+                  iconBg="bg-sky-500/10"
+                  iconColor="text-sky-500"
+                  label={t("settings_timezone")}
+                  description={`${getTimezoneLabel(companyTimezone)} — ${t("settings_timezone_desc")}`}
+                  trailing={
+                    timezoneSaving
+                      ? <span className="h-4 w-4 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" />
+                      : <Badge variant="secondary" className="text-[10px] font-bold border-none">09:00</Badge>
+                  }
+                  onClick={() => setShowTimezone(true)}
+                />
                 <Link href="/activity" className="block">
                   <SettingItem
                     icon={Activity}
@@ -1170,6 +1227,50 @@ export default function SettingsPage() {
                 </div>
                 {locale === l && <Check className="h-4 w-4 text-primary" />}
               </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Timezone Dialog ── */}
+      <Dialog open={showTimezone} onOpenChange={setShowTimezone}>
+        <DialogContent className="rounded-3xl max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <Clock className="h-5 w-5 text-sky-500" /> {t("timezone_title")}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-1">{t("settings_timezone_desc")}</p>
+          <div className="py-1 max-h-[360px] overflow-y-auto space-y-3 pr-1">
+            {!TIMEZONES.some((z) => z.id === companyTimezone) && (
+              <button
+                type="button"
+                disabled={timezoneSaving}
+                onClick={() => { void handleTimezoneChange(companyTimezone); }}
+                className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl border border-primary bg-primary/5 text-left"
+              >
+                <span className="font-medium text-sm">{getTimezoneLabel(companyTimezone)}</span>
+                <Check className="h-4 w-4 text-primary shrink-0" />
+              </button>
+            )}
+            {Object.entries(TIMEZONES_BY_REGION).map(([region, zones]) => (
+              <div key={region} className="space-y-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-1">{region}</p>
+                {zones.map((tz) => (
+                  <button
+                    key={tz.id}
+                    type="button"
+                    disabled={timezoneSaving}
+                    onClick={() => { void handleTimezoneChange(tz.id); }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl border transition-all text-left disabled:opacity-50 ${
+                      companyTimezone === tz.id ? "border-primary bg-primary/5" : "border-border/40 hover:bg-muted/50"
+                    }`}
+                  >
+                    <span className="font-medium text-sm">{tz.label}</span>
+                    {companyTimezone === tz.id && <Check className="h-4 w-4 text-primary shrink-0" />}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </DialogContent>

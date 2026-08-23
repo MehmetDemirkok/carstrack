@@ -232,7 +232,8 @@ export function getFleetAlertsHtml({ recipientName, alerts, appUrl, date }: Para
             <td style="padding:20px 40px 28px;">
               <p style="margin:0;font-size:11px;color:#52525b;text-align:center;line-height:1.6;">
                 &copy; ${year} CarsTrack. Tüm hakları saklıdır.<br/>
-                Bu e-posta filo uyarıları için otomatik olarak gönderilmiştir.<br/>
+                Bu e-posta filo uyarıları için otomatik gönderilmiştir.
+                Yanıtlayabilirsiniz — cevaplarınız destek ekibimize ulaşır.<br/>
                 E-posta bildirimlerini durdurmak için
                 <a href="${appUrl}/settings" style="color:#7c3aed;text-decoration:none;">ayarlar</a>
                 sayfasını ziyaret edin.

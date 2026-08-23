@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, license_number, licenses, companies(id, name, created_at, invite_code)")
+          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, license_number, licenses, companies(*)")
           .eq("id", userId)
           .single();
 
@@ -82,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             createdAt: comp.created_at,
             inviteCode: comp.invite_code,
             plan: "free",
+            timezone: comp.timezone,
           } as import("@/lib/types").Company);
           // Back-fill company_id into user metadata for faster loads next time
           if (!metadataCompanyId) {

@@ -15,6 +15,7 @@ export async function GET(req: Request) {
   }
 
   const cronUrl = new URL("/api/cron/fleet-alerts", new URL(req.url).origin);
+  cronUrl.searchParams.set("force", "1");
   const response = await fetch(cronUrl.toString(), {
     headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` },
   });

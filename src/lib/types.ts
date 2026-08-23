@@ -7,6 +7,8 @@ export interface Company {
   createdAt: string;
   inviteCode?: string;
   plan: PlanType;
+  /** IANA saat dilimi — günlük filo özeti bu dilimde yerel 09:00'da gider. */
+  timezone?: string;
 }
 
 /** Sürücünün sahip olduğu bir ehliyet sınıfı — her sınıfın kendi veriliş/geçerlilik tarihi vardır. */

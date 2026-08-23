@@ -4,6 +4,7 @@ import { dispatchToManagers } from "@/lib/notify";
 import { sendWelcomeEmail } from "@/lib/email/sendEmail";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { generateInviteCode } from "@/lib/invite-code";
+import { resolveTimeZone } from "@/lib/timezone";
 
 export async function POST(req: Request) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { mode, fullName, email, password, companyName, inviteCode, inviteToken } = body;
+    const { mode, fullName, email, password, companyName, inviteCode, inviteToken, timezone } = body;
 
     if (!fullName || !email || !password) {
       return NextResponse.json({ error: "Lütfen tüm alanları doldurun." }, { status: 400 });
@@ -218,11 +219,26 @@ export async function POST(req: Request) {
     }
 
     // 1. Create company first to get ID
-    const { data: companyData, error: companyError } = await supabaseAdmin
+    const inviteCodeValue = generateInviteCode();
+    const companyPayload = {
+      name: companyName,
+      invite_code: inviteCodeValue,
+      timezone: resolveTimeZone(timezone),
+    };
+    let { data: companyData, error: companyError } = await supabaseAdmin
       .from("companies")
-      .insert({ name: companyName, invite_code: generateInviteCode() })
+      .insert(companyPayload)
       .select("id")
       .single();
+    if (companyError && /timezone|schema cache|column/i.test(companyError.message ?? "")) {
+      const retry = await supabaseAdmin
+        .from("companies")
+        .insert({ name: companyName, invite_code: inviteCodeValue })
+        .select("id")
+        .single();
+      companyData = retry.data;
+      companyError = retry.error;
+    }
 
     if (companyError) {
       return NextResponse.json({ error: "Şirket oluşturulurken hata oluştu." }, { status: 500 });

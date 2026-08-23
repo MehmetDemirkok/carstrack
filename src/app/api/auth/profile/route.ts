@@ -58,6 +58,7 @@ export async function GET() {
             name: comp.name,
             createdAt: comp.created_at,
             inviteCode: comp.invite_code,
+            timezone: comp.timezone,
           }
         : null,
     });
