@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { clearCompanyCache } from "@/lib/db";
+import { isPushSupported, getPushSubscribed, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import type { Profile, Company, DriverLicenseEntry, NotificationPrefs } from "@/lib/types";
 import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/types";
 
@@ -136,6 +137,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             loadProfile(u.id, metaCompanyId).catch((err) =>
               console.error("Auth profile load failed:", err)
             );
+            // Bu cihazda önceki bir hesaptan kalma push aboneliği varsa şimdiki
+            // kullanıcıya yeniden ilişkilendir — aksi halde önceki hesabın
+            // bildirimleri bu cihaza gelmeye devam eder (endpoint sunucuda hâlâ
+            // eski user_id'ye kayıtlı olur).
+            if (isPushSupported()) {
+              getPushSubscribed()
+                .then((subscribed) => { if (subscribed) return subscribeToPush(); })
+                .catch(() => {});
+            }
           } else {
             setProfile(null);
             setCompany(null);
@@ -171,6 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      // Push aboneliğini önce (oturum hâlâ geçerliyken) kaldır — aksi halde bu
+      // hesabın bildirimleri cihazda kalan aboneliğe gelmeye devam eder ve
+      // sonraki kullanıcı yanlış hesabın bildirimlerini görür.
+      await unsubscribeFromPush().catch(() => {});
       // Client-side first: clears in-memory session and removes cookies via browser client
       const supabase = createClient();
       await supabase.auth.signOut();
