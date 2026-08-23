@@ -810,21 +810,21 @@ export default function HistoryPage() {
               <Wrench className="h-5 w-5 text-orange-500" /> Servis Sağlayıcılar
             </DialogTitle>
           </DialogHeader>
-          <div className="py-2 space-y-4">
+          <div className="py-2 space-y-4 overflow-hidden">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={newProviderName}
                 onChange={(e) => setNewProviderName(e.target.value)}
                 placeholder="Servis adı"
-                className="flex-1 h-10 rounded-xl border border-border bg-muted/40 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="flex-1 min-w-0 h-10 rounded-xl border border-border bg-muted/40 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <input
                 type="text"
                 value={newProviderPhone}
                 onChange={(e) => setNewProviderPhone(e.target.value)}
-                placeholder="Telefon (ops.)"
-                className="w-32 h-10 rounded-xl border border-border bg-muted/40 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="Telefon"
+                className="w-24 min-w-0 shrink-0 h-10 rounded-xl border border-border bg-muted/40 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <Tooltip>
                 <TooltipTrigger

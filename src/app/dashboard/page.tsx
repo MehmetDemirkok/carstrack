@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import Link from "next/link";
 import Image from "next/image";
-import { calculateHealthScore, getFleetAlerts, getTrafficFineAlerts } from "@/lib/store";
+import { calculateHealthScore, getFleetAlerts, getTrafficFineAlerts, TUVTURK_RANDEVU_URL } from "@/lib/store";
 import type { FleetAlert } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
@@ -35,6 +35,7 @@ import {
   FileWarning,
   Wallet,
   Gavel,
+  CalendarPlus,
 } from "lucide-react";
 
 const stagger = {
@@ -156,14 +157,20 @@ export default function Dashboard() {
         </motion.div>
 
         {/* ── Hızlı Eylemler ──────────────────────────────────────────── */}
-        <motion.div variants={fadeUp} className="grid grid-cols-4 gap-2 md:gap-3">
+        <motion.div variants={fadeUp} className="grid grid-cols-5 gap-2 md:gap-3">
           {[
             { icon: Plus, label: "Araç Ekle", href: "/vehicles/new", gradient: "from-blue-400 via-blue-500 to-indigo-600", shadow: "shadow-blue-500/30" },
             { icon: Car, label: "Filo", href: "/vehicles", gradient: "from-cyan-300 via-teal-500 to-emerald-600", shadow: "shadow-teal-500/30" },
             { icon: History, label: "Servis", href: "/history", gradient: "from-amber-300 via-amber-500 to-orange-600", shadow: "shadow-amber-500/30" },
             { icon: FileWarning, label: "Arıza Bildir", href: "/reports", gradient: "from-rose-400 via-red-500 to-red-600", shadow: "shadow-red-500/30" },
+            { icon: CalendarPlus, label: "Muayene", href: TUVTURK_RANDEVU_URL, gradient: "from-violet-400 via-indigo-500 to-indigo-700", shadow: "shadow-indigo-500/30", external: true },
           ].map((action) => (
-            <Link href={action.href} key={action.href} className="tap-highlight-transparent">
+            <Link
+              href={action.href}
+              key={action.href}
+              className="tap-highlight-transparent"
+              {...(action.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            >
               <motion.div whileTap={{ scale: 0.96 }}>
                 <Card className="rounded-2xl border-border/40 shadow-sm hover-lift group cursor-pointer">
                   <CardContent className="p-3 md:p-4 flex flex-col items-center justify-center text-center gap-1.5 md:gap-2.5">
