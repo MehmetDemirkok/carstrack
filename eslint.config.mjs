@@ -12,9 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Kök dizindeki tek seferlik bakım/teşhis scriptleri (CommonJS, uygulama dışı).
-    "check-users.js",
-    "get-policies.js",
   ]),
   {
     // `react-hooks/set-state-in-effect`: bir bağımlılık (örn. user/profile)
