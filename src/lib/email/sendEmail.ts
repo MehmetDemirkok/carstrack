@@ -65,7 +65,7 @@ function toErrorMessage(err: unknown): string {
  * Asla throw etmez; her zaman bir `SendEmailResult` döner.
  */
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
-  const { to, subject, html, text, replyTo, template, listUnsubscribe, tags } = params;
+  const { to, subject, html, text, replyTo, template, listUnsubscribe, tags, attachments } = params;
 
   if (!isEmailConfigured()) {
     console.warn(`[email:${template}] RESEND_API_KEY yok — gönderim atlandı (to=${recipientLabel(to)})`);
@@ -106,6 +106,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
         replyTo: replyTo ?? BRAND.replyTo,
         headers: Object.keys(headers).length ? headers : undefined,
         tags,
+        attachments,
       });
 
       if (error) throw error;
@@ -219,6 +220,7 @@ export async function sendNotificationEmail(
   to: string | string[],
   subject: string,
   props: NotificationEmailProps,
+  attachments?: SendEmailParams["attachments"],
 ): Promise<SendEmailResult> {
   const appUrl = props.appUrl ?? getAppUrl();
   const html = await render(NotificationEmail({ ...props, appUrl }));
@@ -230,6 +232,7 @@ export async function sendNotificationEmail(
     text,
     template: EmailTemplate.Notification,
     listUnsubscribe: unsubscribeHeader(),
+    attachments,
   });
 }
 

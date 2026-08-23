@@ -189,6 +189,8 @@ export interface SendEmailParams {
   listUnsubscribe?: string;
   /** Resend etiketleri (analitik/filtreleme). */
   tags?: { name: string; value: string }[];
+  /** Ek dosyalar (örn. yedekleme cron'unun gzip dökümü). */
+  attachments?: { filename: string; content: Buffer | string }[];
 }
 
 /** sendEmail() ve tüm named-sender'ların döndüğü tip. Asla throw etmez. */
