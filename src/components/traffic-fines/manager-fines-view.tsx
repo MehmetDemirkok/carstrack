@@ -446,7 +446,7 @@ export function ManagerFinesView() {
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !submitting && setShowForm(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="relative bg-card rounded-3xl border border-border/50 shadow-2xl w-full max-w-lg p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto"
+              className="relative bg-card rounded-3xl border border-border/50 shadow-2xl w-full max-w-lg p-5 space-y-3 my-4 max-h-[94vh] overflow-y-auto"
             >
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 rounded-xl"><Gavel className="h-5 w-5 text-primary" /></div>
@@ -454,7 +454,7 @@ export function ManagerFinesView() {
               </div>
 
               {/* Tebligat fotoğrafı + AI */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Tebligat Fotoğrafı <span className="normal-case font-normal">(isteğe bağlı)</span>
                 </label>
@@ -462,14 +462,14 @@ export function ManagerFinesView() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button" onClick={() => fileInputRef.current?.click()}
-                    className="flex-1 h-11 rounded-2xl border-2 border-dashed border-border/50 bg-muted/20 flex items-center justify-center gap-2 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors text-xs font-semibold"
+                    className="flex-1 h-10 rounded-2xl border-2 border-dashed border-border/50 bg-muted/20 flex items-center justify-center gap-2 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors text-xs font-semibold"
                   >
                     <ImagePlus className="h-4 w-4" /> {photo ? photo.name : "Fotoğraf / PDF Seç"}
                   </button>
                   {photo && (
                     <Button
                       type="button" onClick={handleAiFill} disabled={scanning}
-                      className="h-11 rounded-2xl bg-mesh hover:opacity-95 text-white border-none text-xs font-semibold px-3 gap-1.5 shrink-0"
+                      className="h-10 rounded-2xl bg-mesh hover:opacity-95 text-white border-none text-xs font-semibold px-3 gap-1.5 shrink-0"
                     >
                       <Sparkles className="h-3.5 w-3.5" /> {scanning ? "Okunuyor..." : "AI ile Doldur"}
                     </Button>
@@ -477,43 +477,43 @@ export function ManagerFinesView() {
                 </div>
               </div>
 
-              {/* Araç */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Araç</label>
-                <select value={form.vehicleId} onChange={(e) => set("vehicleId", e.target.value)} className={inputCls}>
-                  <option value="">Araç seçin</option>
-                  {vehicles.map((v) => <option key={v.id} value={v.id}>{v.plate} — {v.brand} {v.model}</option>)}
-                </select>
-              </div>
-
-              {/* Sürücü */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Sürücüye Yansıt <span className="normal-case font-normal">(isteğe bağlı)</span>
-                </label>
-                <select value={form.driverId} onChange={(e) => set("driverId", e.target.value)} className={inputCls}>
-                  <option value="">Atanmadı</option>
-                  {drivers.map((d) => <option key={d.id} value={d.id}>{d.fullName}</option>)}
-                </select>
+              {/* Araç + Sürücü */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Araç</label>
+                  <select value={form.vehicleId} onChange={(e) => set("vehicleId", e.target.value)} className={inputCls}>
+                    <option value="">Araç seçin</option>
+                    {vehicles.map((v) => <option key={v.id} value={v.id}>{v.plate} — {v.brand} {v.model}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Sürücüye Yansıt <span className="normal-case font-normal">(isteğe bağlı)</span>
+                  </label>
+                  <select value={form.driverId} onChange={(e) => set("driverId", e.target.value)} className={inputCls}>
+                    <option value="">Atanmadı</option>
+                    {drivers.map((d) => <option key={d.id} value={d.id}>{d.fullName}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">İhlal Türü</label>
                   <input value={form.violationType} onChange={(e) => set("violationType", e.target.value)} placeholder="Örn: Hız İhlali" className={inputCls} />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tebligat No</label>
                   <input value={form.fineNumber} onChange={(e) => set("fineNumber", e.target.value)} className={inputCls} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tutar (₺)</label>
                   <input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => handleAmountChange(e.target.value)} className={inputCls} />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">İndirimli Tutar (₺)</label>
                     {discountedTouched && form.amount && (
@@ -523,32 +523,32 @@ export function ManagerFinesView() {
                     )}
                   </div>
                   <input type="number" min="0" step="0.01" value={form.discountedAmount} onChange={(e) => handleDiscountedChange(e.target.value)} className={inputCls} />
-                  <p className="text-[10px] text-muted-foreground">
-                    {discountedTouched ? "Elle girildi" : "1/4 indirimli — tutara göre otomatik hesaplandı, isterseniz değiştirebilirsiniz"}
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    {discountedTouched ? "Elle girildi" : "1/4 indirimli — otomatik hesaplandı"}
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ceza Tarihi</label>
                   <input type="date" value={form.fineDate} onChange={(e) => set("fineDate", e.target.value)} className={inputCls} />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Son Ödeme Tarihi</label>
                   <input type="date" value={form.dueDate} onChange={(e) => set("dueDate", e.target.value)} className={inputCls} />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Konum <span className="normal-case font-normal">(isteğe bağlı)</span></label>
-                <input value={form.location} onChange={(e) => set("location", e.target.value)} className={inputCls} />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Not <span className="normal-case font-normal">(isteğe bağlı)</span></label>
-                <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2}
-                  className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Konum <span className="normal-case font-normal">(isteğe bağlı)</span></label>
+                  <input value={form.location} onChange={(e) => set("location", e.target.value)} className={inputCls} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Not <span className="normal-case font-normal">(isteğe bağlı)</span></label>
+                  <input value={form.notes} onChange={(e) => set("notes", e.target.value)} className={inputCls} />
+                </div>
               </div>
 
               <div className="flex gap-2 pt-1">
