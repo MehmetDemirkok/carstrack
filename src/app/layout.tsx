@@ -14,6 +14,7 @@ import { ServiceWorkerRegister } from "@/components/sw-register";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import {
   APP_URL,
   DEFAULT_DESCRIPTION,
@@ -147,6 +148,7 @@ export default function RootLayout({
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
