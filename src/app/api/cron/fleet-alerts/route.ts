@@ -6,8 +6,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendFleetAlertDigest } from "@/lib/email/sendEmail";
 import { sendPushToManagers } from "@/lib/push";
-import { getFleetAlerts } from "@/lib/store";
-import { toVehicleFromRow } from "@/lib/vehicle-mapper";
+import { getFleetAlerts, getTrafficFineAlerts } from "@/lib/store";
+import { toVehicleFromRow, toTrafficFineFromRow } from "@/lib/vehicle-mapper";
 import type { FleetAlert } from "@/lib/types";
 import {
   DIGEST_LOCAL_HOUR,
@@ -133,9 +133,28 @@ export async function GET(req: Request) {
     vehiclesByCompany.get(companyId)!.push(toVehicleFromRow(row as Record<string, unknown>));
   }
 
+  // ── 7b. Digest saatindeki şirketlerin ödenmemiş trafik cezaları ────────
+  const { data: rawFines, error: finesErr } = await admin
+    .from("traffic_fines")
+    .select("*, vehicles(plate, brand, model)")
+    .in("company_id", digestCompanyIds)
+    .eq("status", "unpaid");
+  if (finesErr) {
+    console.error("[cron/fleet-alerts] traffic_fines error (non-fatal):", finesErr);
+  }
+
+  const finesByCompany = new Map<string, ReturnType<typeof toTrafficFineFromRow>[]>();
+  for (const row of rawFines ?? []) {
+    const companyId = row.company_id as string;
+    if (!finesByCompany.has(companyId)) finesByCompany.set(companyId, []);
+    finesByCompany.get(companyId)!.push(toTrafficFineFromRow(row as Record<string, unknown>));
+  }
+
   const alertsByCompany = new Map<string, FleetAlert[]>();
   for (const [companyId, vehicles] of vehiclesByCompany) {
-    alertsByCompany.set(companyId, getFleetAlerts(vehicles));
+    const vehicleAlerts = getFleetAlerts(vehicles);
+    const fineAlerts = getTrafficFineAlerts(finesByCompany.get(companyId) ?? []);
+    alertsByCompany.set(companyId, [...vehicleAlerts, ...fineAlerts]);
   }
 
   // Araç başına uyarı haritası (sürücü filtrelemesi için)

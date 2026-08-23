@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut } from "lucide-react";
+import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut, Gavel } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
@@ -25,6 +25,7 @@ export function Sidebar() {
         { icon: LayoutDashboard, label: "Panelim", href: "/dashboard" },
         { icon: ClipboardList, label: "Seyahatlerim", href: "/tasks" },
         { icon: Wrench, label: "Arıza Bildir", href: "/reports" },
+        { icon: Gavel, label: "Cezalarım", href: "/traffic-fines" },
         { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
         { icon: Settings, label: t("nav_settings"), href: "/settings" },
       ]
@@ -33,6 +34,7 @@ export function Sidebar() {
         { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
         { icon: ClipboardList, label: t("nav_tasks"), href: "/tasks" },
         { icon: Wrench, label: "Arızalar", href: "/reports" },
+        { icon: Gavel, label: "Trafik Cezaları", href: "/traffic-fines" },
         { icon: Users, label: "Ekip", href: "/users" },
         { icon: History, label: t("nav_history"), href: "/history" },
         { icon: Activity, label: t("nav_analytics"), href: "/analytics" },

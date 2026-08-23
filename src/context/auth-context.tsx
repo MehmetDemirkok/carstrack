@@ -4,7 +4,8 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { clearCompanyCache } from "@/lib/db";
-import type { Profile, Company, DriverLicenseEntry } from "@/lib/types";
+import type { Profile, Company, DriverLicenseEntry, NotificationPrefs } from "@/lib/types";
+import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/types";
 
 interface AuthContextType {
   user: User | null;
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, license_number, licenses, companies(*)")
+          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, license_number, licenses, notification_prefs, companies(*)")
           .eq("id", userId)
           .single();
 
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: data.created_at,
           licenseNumber: (data.license_number as string) || undefined,
           licenses: (data.licenses as DriverLicenseEntry[]) || [],
+          notificationPrefs: (data.notification_prefs as NotificationPrefs) || DEFAULT_NOTIFICATION_PREFS,
         });
 
         if (comp?.id) {

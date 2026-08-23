@@ -12,13 +12,14 @@ import {
   getVehicleRecords, addRecord, deleteRecord,
   getVehicleDocuments, addVehicleDocument, updateVehicleDocument,
   deleteVehicleDocument, getDocumentSignedUrl, uploadDocumentFile,
-  getVehicleStatuses, getServiceProviders,
+  getVehicleStatuses, getServiceProviders, getTrafficFines,
 } from "@/lib/db";
 import {
   calculateHealthScore, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES, applyPeriodicService,
 } from "@/lib/store";
-import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType, PaymentStatus } from "@/lib/types";
+import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType, PaymentStatus, TrafficFine } from "@/lib/types";
+import { FineStatusBadge } from "@/components/traffic-fines/fine-badges";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,7 @@ import {
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
   Shield, Download, Upload, ClipboardCheck, CalendarPlus, ExternalLink,
-  Wallet,
+  Wallet, Gavel,
   type LucideIcon,
 } from "lucide-react";
 
@@ -372,6 +373,16 @@ export default function VehicleDetailPage() {
   const [docViewLoading, setDocViewLoading] = useState(false);
   const [docViewError, setDocViewError] = useState(false);
 
+  // Trafik cezaları (salt-okunur özet — yönetim /traffic-fines sayfasında)
+  const [fines, setFines] = useState<TrafficFine[]>([]);
+  const reloadFines = useCallback(async () => {
+    try {
+      setFines(await getTrafficFines({ vehicleId: id }));
+    } catch (err) {
+      console.error("Failed to load traffic fines:", err);
+    }
+  }, [id]);
+
   const reload = useCallback(async () => {
     try {
       const v = await getVehicle(id);
@@ -410,8 +421,9 @@ export default function VehicleDetailPage() {
       reload();
       reloadDocs();
       reloadStatus();
+      reloadFines();
     }
-  }, [authLoading, company, reload, reloadDocs, reloadStatus]);
+  }, [authLoading, company, reload, reloadDocs, reloadStatus, reloadFines]);
 
   if (!vehicle) return null;
 
@@ -854,6 +866,7 @@ export default function VehicleDetailPage() {
                       { value: "technical", label: "Teknik" },
                       { value: "tires", label: "Lastik" },
                       { value: "docs", label: "Belgeler" },
+                      { value: "fines", label: "Cezalar" },
                       { value: "history", label: "Geçmiş" },
                     ];
                 return (
@@ -1348,6 +1361,53 @@ export default function VehicleDetailPage() {
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+                </TabsContent>
+                )}
+
+                {/* ── CEZALAR ── (sürücü göremez) */}
+                {!isDriver && (
+                <TabsContent value="fines" className="outline-none">
+                  <div className="flex justify-between items-center mb-3">
+                    <p className="text-xs text-muted-foreground">
+                      {fines.length} ceza kaydı
+                      {fines.some((f) => f.status === "unpaid") && (
+                        <> • <span className="font-semibold text-destructive">₺{fines.reduce((sum, f) => sum + (f.status === "unpaid" ? f.amount : 0), 0).toLocaleString("tr-TR")} ödenmedi</span></>
+                      )}
+                    </p>
+                    <Link href="/traffic-fines" className={cn(buttonVariants({ size: "sm" }), "rounded-full h-8 px-3 gap-1.5 text-xs")}>
+                      <Plus className="h-3.5 w-3.5" /> Ceza Ekle
+                    </Link>
+                  </div>
+
+                  {fines.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground">
+                      <Gavel className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">Bu araca kayıtlı ceza yok.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {fines.map((f) => (
+                        <div key={f.id} className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm">
+                          <div className="flex justify-between items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                <h3 className="font-bold text-sm">{f.violationType || "Trafik cezası"}</h3>
+                                <FineStatusBadge status={f.status} />
+                              </div>
+                              <p className="text-[10px] text-muted-foreground">
+                                {f.fineDate?.split("-").reverse().join(".")}
+                                {f.driverName ? ` • ${f.driverName}` : ""}
+                                {f.dueDate ? ` • Son ödeme: ${f.dueDate.split("-").reverse().join(".")}` : ""}
+                              </p>
+                            </div>
+                            <span className={`text-[11px] font-bold shrink-0 ${f.status === "unpaid" ? "text-destructive" : "text-primary"}`}>
+                              ₺{f.amount.toLocaleString("tr-TR")}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </TabsContent>

@@ -11,8 +11,49 @@ import type { EventEmailContent } from "@/lib/notify-email";
  *
  * Tüm bildirim içerikleri bu tek yapıdan üretilir; böylece "tek noktada" toplanır.
  */
+/**
+ * Olay türünü kategori tercihine eşler — yalnızca push/e-posta kanallarını
+ * filtreler, uygulama içi zil her zaman gelir (kaçırılan bir olay olmasın).
+ * Eşlemede olmayan (ör. güvenlik/kurtarma) türler her zaman gönderilir.
+ *
+ *  - operational: günlük aktivite (yeni araç/kayıt/arıza/görev/ekip/geri bildirim)
+ *  - reminders:   kişiye özel hatırlatmalar (km, ehliyet, trafik cezası)
+ */
+export const EVENT_CATEGORY: Record<string, "operational" | "reminders"> = {
+  vehicle_new: "operational",
+  record_new: "operational",
+  report_new: "operational",
+  report_status: "operational",
+  task_start: "operational",
+  task_end: "operational",
+  driver_new: "operational",
+  vehicle_assigned: "operational",
+  feedback_status: "operational",
+  license_expiry_team: "operational",
+  fine_assigned: "reminders",
+  fine_status: "reminders",
+  kilometer_reminder: "reminders",
+  license_expiry: "reminders",
+};
+
+/**
+ * Kısa pencerede tekrarlanan aynı tür olaylar için push/e-posta "soğuma"
+ * süresi (dk). Bir kullanıcı bu süre içinde aynı türden zaten bir push/e-posta
+ * aldıysa sonraki tekrarlar yalnızca zile yazılır (kaybolmaz, sadece telefonu/
+ * e-postayı meşgul etmez) — art arda birden çok arıza/görev/kayıt bildirimi
+ * art arda gelen zil-dışı gürültüyü önler. Eşlemede olmayan türler için soğuma
+ * uygulanmaz.
+ */
+export const EVENT_COOLDOWN_MINUTES: Record<string, number> = {
+  report_new: 3,
+  record_new: 3,
+  task_start: 3,
+  task_end: 3,
+  vehicle_new: 3,
+};
+
 export interface NotifyEvent {
-  /** Olay anahtarı: task_start, task_end, report_new, report_status, record_new, vehicle_new, driver_new */
+  /** Olay anahtarı: task_start, task_end, report_new, report_status, record_new, vehicle_new, driver_new... (bkz. EVENT_CATEGORY) */
   type: string;
   severity?: "info" | "warning" | "critical";
   /** Zil + push başlığı (emoji içerebilir). */
@@ -41,6 +82,15 @@ interface ManagerProfile {
   id: string;
   full_name: string | null;
   notify_by_email: boolean | null;
+  notification_prefs: Record<string, boolean> | null;
+}
+
+/** Bir alıcının bu olay kategorisi için push/e-posta almayı kabul edip etmediği. */
+function isCategoryAllowed(profile: ManagerProfile, category: "operational" | "reminders" | undefined): boolean {
+  if (!category) return true;
+  const prefs = profile.notification_prefs;
+  if (!prefs || prefs[category] === undefined) return true; // varsayılan: açık
+  return prefs[category] !== false;
 }
 
 /** dispatchToManagers ek seçenekleri. */
@@ -75,8 +125,31 @@ async function dispatchToProfiles(
   if (managers.length === 0) return result;
   result.recipients = managers.length;
 
-  const userIds = managers.map((m) => m.id);
   const severity = event.severity ?? "info";
+  const category = EVENT_CATEGORY[event.type];
+  // Push/e-posta yalnızca bu kategoriyi kapatmamış alıcılara gider; zil
+  // (aşağıda) her zaman TÜM alıcılara yazılır — hiçbir olay tamamen kaybolmaz.
+  let interruptEligible = managers.filter((m) => isCategoryAllowed(m, category));
+
+  // Kısa pencerede tekrar eden aynı türden olaylarda, bu süre içinde zaten
+  // push/e-posta almış alıcılar bir kez daha rahatsız edilmez (zil hepsine
+  // yazılmaya devam eder — bkz. aşağıdaki adım 1).
+  const cooldownMinutes = EVENT_COOLDOWN_MINUTES[event.type];
+  if (cooldownMinutes && interruptEligible.length > 0) {
+    const cutoff = new Date(Date.now() - cooldownMinutes * 60_000).toISOString();
+    const { data: recent } = await admin
+      .from("notifications")
+      .select("user_id")
+      .eq("type", event.type)
+      .in("user_id", interruptEligible.map((m) => m.id))
+      .gte("created_at", cutoff);
+    const coolingDownIds = new Set((recent ?? []).map((r) => r.user_id as string));
+    if (coolingDownIds.size > 0) {
+      interruptEligible = interruptEligible.filter((m) => !coolingDownIds.has(m.id));
+    }
+  }
+
+  const userIds = interruptEligible.map((m) => m.id);
 
   // 1) Uygulama içi zil — alıcı başına bir satır.
   try {
@@ -115,8 +188,8 @@ async function dispatchToProfiles(
     return 0;
   });
 
-  // 3) E-posta — e-posta tercihi açık olanlara.
-  const emailRecipients: EmailRecipient[] = managers.map((m) => ({
+  // 3) E-posta — e-posta tercihi açık VE bu kategoriyi kapatmamış olanlara.
+  const emailRecipients: EmailRecipient[] = interruptEligible.map((m) => ({
     id: m.id,
     full_name: m.full_name,
     notify_by_email: m.notify_by_email,
@@ -145,7 +218,7 @@ export async function dispatchToManagers(
   // Alıcı kitle: yönetici + operatör — bir kez çekilir.
   const { data: profiles } = await admin
     .from("profiles")
-    .select("id, full_name, notify_by_email")
+    .select("id, full_name, notify_by_email, notification_prefs")
     .eq("company_id", companyId)
     .in("role", ["manager", "operator"]);
 
@@ -158,7 +231,7 @@ export async function dispatchToManagers(
   if (extraIds.length > 0) {
     const { data: extraProfiles } = await admin
       .from("profiles")
-      .select("id, full_name, notify_by_email")
+      .select("id, full_name, notify_by_email, notification_prefs")
       .eq("company_id", companyId)
       .in("id", extraIds);
     for (const p of (extraProfiles ?? []) as ManagerProfile[]) {
@@ -182,7 +255,7 @@ export async function dispatchToUser(
 ): Promise<DispatchResult> {
   const { data: profile } = await admin
     .from("profiles")
-    .select("id, full_name, notify_by_email")
+    .select("id, full_name, notify_by_email, notification_prefs")
     .eq("id", userId)
     .single();
 

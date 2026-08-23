@@ -4,7 +4,9 @@ import type {
   Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask, VehicleDocument,
   VehicleReport, VehicleReportLog, ReportStatus, ReportSeverity, ReportCategory,
   Feedback, FeedbackType, ServiceProvider, AuditLog, DriverLicenseEntry,
+  TrafficFine, TrafficFineStatus, NotificationPrefs,
 } from "./types";
+import { DEFAULT_NOTIFICATION_PREFS } from "./types";
 
 // ─── TTL data cache ───────────────────────────────────────────
 // Keeps data in memory for 60 seconds so navigating between pages is instant.
@@ -662,6 +664,21 @@ export async function getMyVehicles(): Promise<Vehicle[]> {
   }
 }
 
+// Araç atama/kaldırma olduğunda ilgili sürücüye bildirim gönderir
+// (fire-and-forget). Başarısız olsa bile atama akışını etkilemez.
+function notifyVehicleAssignment(vehicleId: string, driverId: string, action: "assigned" | "unassigned"): void {
+  try {
+    void fetch("/api/vehicles/notify-assigned", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ vehicleId, driverId, action }),
+    }).catch(() => {});
+  } catch {
+    /* yoksay */
+  }
+}
+
 export async function assignVehicle(vehicleId: string, driverId: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase
@@ -670,6 +687,7 @@ export async function assignVehicle(vehicleId: string, driverId: string): Promis
   if (error && error.code !== "23505") throw error; // ignore duplicate (same vehicle already assigned)
   bustCache("drivers:");
   bustCache(`myvehicles:${driverId}`);
+  if (!error) notifyVehicleAssignment(vehicleId, driverId, "assigned");
 }
 
 export async function unassignVehicle(vehicleId: string, driverId: string): Promise<void> {
@@ -682,6 +700,7 @@ export async function unassignVehicle(vehicleId: string, driverId: string): Prom
   if (error) throw error;
   bustCache("drivers:");
   bustCache(`myvehicles:${driverId}`);
+  notifyVehicleAssignment(vehicleId, driverId, "unassigned");
 }
 
 export async function getMembers(): Promise<Profile[]> {
@@ -720,6 +739,36 @@ export async function updateMemberProfile(
   const { error } = await supabase.from("profiles").update(patch).eq("id", memberId);
   if (error) throw error;
   bustCache("members:");
+}
+
+/**
+ * Mevcut kullanıcının kategori bazlı bildirim tercihini günceller (yalnızca
+ * push/e-posta kanallarını etkiler — bkz. src/lib/notify.ts EVENT_CATEGORY).
+ * Kısmi günceller: verilmeyen anahtarlar mevcut değerinde kalır.
+ */
+export async function updateNotificationPrefs(prefs: Partial<NotificationPrefs>): Promise<void> {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Oturum bulunamadı.");
+
+  const { data: current } = await supabase
+    .from("profiles")
+    .select("notification_prefs")
+    .eq("id", userId)
+    .single();
+
+  const merged: NotificationPrefs = {
+    ...DEFAULT_NOTIFICATION_PREFS,
+    ...(current?.notification_prefs as Partial<NotificationPrefs> | undefined),
+    ...prefs,
+  };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ notification_prefs: merged })
+    .eq("id", userId);
+  if (error) throw error;
 }
 
 export async function updateMemberRole(
@@ -1553,13 +1602,20 @@ function toNotification(row: Record<string, unknown>): AppNotification {
 }
 
 /** Kullanıcının kendi olay bildirimleri (RLS ile sınırlı), en yeniden eskiye. */
-export async function getNotifications(limit = 30): Promise<AppNotification[]> {
+/**
+ * Kullanıcının olay bildirimlerini en yeniden eskiye döndürür.
+ * `before` verilirse yalnızca o tarihten eski kayıtlar getirilir ("daha fazla
+ * yükle" sayfalaması için — bkz. src/app/notifications/page.tsx).
+ */
+export async function getNotifications(limit = 30, before?: string): Promise<AppNotification[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("notifications")
     .select("id, type, title, body, url, severity, vehicle_id, vehicle_plate, read_at, created_at")
     .order("created_at", { ascending: false })
     .limit(limit);
+  if (before) query = query.lt("created_at", before);
+  const { data, error } = await query;
   if (error) {
     console.error("getNotifications error:", error);
     return [];
@@ -1671,4 +1727,324 @@ export async function getMyFeedback(): Promise<Feedback[]> {
 
   if (error) throw error;
   return (data ?? []).map((r) => toFeedback(r as Record<string, unknown>));
+}
+
+// ─── Trafik Cezaları (Traffic Fines) ───────────────────────────
+
+// Bir cezaya sürücü atanınca (oluşturulurken veya sonradan) o sürücüye
+// bildirim gönderir (fire-and-forget). Başarısız olsa bile akışı etkilemez.
+function notifyFineAssigned(fineId: string): void {
+  try {
+    void fetch("/api/traffic-fines/notify-new", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ fineId }),
+    }).catch(() => {});
+  } catch {
+    /* yoksay */
+  }
+}
+
+// Bir cezanın ödeme durumu değişince atanmış sürücüye bildirim gönderir
+// (fire-and-forget). Başarısız olsa bile akışı etkilemez.
+function notifyFineStatus(fineId: string, toStatus: TrafficFineStatus): void {
+  try {
+    void fetch("/api/traffic-fines/notify-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ fineId, toStatus }),
+    }).catch(() => {});
+  } catch {
+    /* yoksay */
+  }
+}
+
+function toTrafficFine(row: Record<string, unknown>): TrafficFine {
+  const vehicleData = row.vehicles as { plate?: string; brand?: string; model?: string } | null;
+  const driver = row.profiles as { full_name?: string } | null;
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    vehicleId: row.vehicle_id as string,
+    driverId: (row.driver_id as string) || undefined,
+    fineNumber: (row.fine_number as string) || "",
+    violationType: (row.violation_type as string) || "",
+    amount: Number(row.amount) || 0,
+    discountedAmount: row.discounted_amount !== null && row.discounted_amount !== undefined
+      ? Number(row.discounted_amount) : undefined,
+    fineDate: row.fine_date as string,
+    dueDate: (row.due_date as string) || undefined,
+    location: (row.location as string) || undefined,
+    status: (row.status as TrafficFineStatus) || "unpaid",
+    paidAt: (row.paid_at as string) || undefined,
+    photoPath: (row.photo_path as string) || undefined,
+    notes: (row.notes as string) || "",
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+    vehiclePlate: vehicleData?.plate ?? undefined,
+    vehicleName: vehicleData
+      ? `${vehicleData.brand ?? ""} ${vehicleData.model ?? ""}`.trim() || undefined
+      : undefined,
+    driverName: driver?.full_name ?? undefined,
+  };
+}
+
+const TRAFFIC_FINE_SELECT =
+  "*, vehicles(plate, brand, model), profiles!traffic_fines_driver_id_fkey(full_name)";
+
+/**
+ * Cezaları döndürür. RLS gereği yöneticiler/operatörler tüm şirket cezalarını,
+ * sürücüler yalnızca kendine yansıtılan cezaları görür.
+ */
+export async function getTrafficFines(filters?: {
+  vehicleId?: string;
+  driverId?: string;
+  status?: TrafficFineStatus;
+}): Promise<TrafficFine[]> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  let query = supabase
+    .from("traffic_fines")
+    .select(TRAFFIC_FINE_SELECT)
+    .eq("company_id", companyId)
+    .order("fine_date", { ascending: false });
+
+  if (filters?.vehicleId) query = query.eq("vehicle_id", filters.vehicleId);
+  if (filters?.driverId)  query = query.eq("driver_id", filters.driverId);
+  if (filters?.status)    query = query.eq("status", filters.status);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((r) => toTrafficFine(r as Record<string, unknown>));
+}
+
+/** Sürücünün kendisine yansıtılan cezaları (driver_id = current user). */
+export async function getMyTrafficFines(): Promise<TrafficFine[]> {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) return [];
+
+  const { data, error } = await supabase
+    .from("traffic_fines")
+    .select(TRAFFIC_FINE_SELECT)
+    .eq("driver_id", userId)
+    .order("fine_date", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => toTrafficFine(r as Record<string, unknown>));
+}
+
+// Tebligat fotoğrafları için tek dosya yeterli (belge tek sayfa/karar tutanağı).
+/**
+ * Ceza tebligatı fotoğrafını `traffic-fine-photos` bucket'ına yükler ve dosya
+ * yolunu döndürür. Yol deseni storage RLS ile uyumludur:
+ * <company_id>/<vehicle_id>/<uuid>.<ext>
+ */
+export async function uploadFinePhoto(vehicleId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const photoId = crypto.randomUUID();
+  const filePath = `${companyId}/${vehicleId}/${photoId}.${ext}`;
+  const { error } = await supabase.storage
+    .from("traffic-fine-photos")
+    .upload(filePath, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return filePath;
+}
+
+/** Verilen ceza fotoğrafı yolu için imzalı (geçici) görüntüleme URL'i üretir. */
+export async function getFinePhotoSignedUrl(path: string): Promise<string> {
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from("traffic-fine-photos")
+    .createSignedUrl(path, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+/** Yönetici/operatör yeni bir ceza kaydı oluşturur; sürücü atanmışsa bildirim gider. */
+export async function createTrafficFine(data: {
+  vehicleId: string;
+  driverId?: string;
+  fineNumber: string;
+  violationType: string;
+  amount: number;
+  discountedAmount?: number;
+  fineDate: string;
+  dueDate?: string;
+  location?: string;
+  photoPath?: string;
+  notes?: string;
+}): Promise<TrafficFine> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Oturum bulunamadı.");
+
+  const { data: inserted, error } = await supabase
+    .from("traffic_fines")
+    .insert({
+      company_id: companyId,
+      vehicle_id: data.vehicleId,
+      driver_id: data.driverId || null,
+      created_by: userId,
+      fine_number: data.fineNumber,
+      violation_type: data.violationType,
+      amount: data.amount,
+      discounted_amount: data.discountedAmount ?? null,
+      fine_date: data.fineDate,
+      due_date: data.dueDate || null,
+      location: data.location || null,
+      photo_path: data.photoPath || null,
+      notes: data.notes ?? "",
+      status: "unpaid",
+    })
+    .select(TRAFFIC_FINE_SELECT)
+    .single();
+  if (error) throw error;
+
+  const fine = toTrafficFine(inserted as Record<string, unknown>);
+  bustCache(`fines:${companyId}`);
+
+  void logActivity("fine_created", "traffic_fine", {
+    entityId: fine.id,
+    entityLabel: fine.vehiclePlate || undefined,
+    meta: { amount: fine.amount, driverId: fine.driverId },
+  });
+
+  if (fine.driverId) notifyFineAssigned(fine.id);
+
+  return fine;
+}
+
+/** Yönetici/operatör ceza bilgilerini düzenler. */
+export async function updateTrafficFine(
+  id: string,
+  updates: Partial<{
+    driverId: string | null;
+    fineNumber: string;
+    violationType: string;
+    amount: number;
+    discountedAmount: number | null;
+    fineDate: string;
+    dueDate: string | null;
+    location: string | null;
+    photoPath: string | null;
+    notes: string;
+  }>,
+): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+
+  const { data: before } = await supabase
+    .from("traffic_fines")
+    .select("driver_id")
+    .eq("id", id)
+    .single();
+  const previousDriverId = (before?.driver_id as string | null) ?? null;
+
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.driverId !== undefined) patch.driver_id = updates.driverId;
+  if (updates.fineNumber !== undefined) patch.fine_number = updates.fineNumber;
+  if (updates.violationType !== undefined) patch.violation_type = updates.violationType;
+  if (updates.amount !== undefined) patch.amount = updates.amount;
+  if (updates.discountedAmount !== undefined) patch.discounted_amount = updates.discountedAmount;
+  if (updates.fineDate !== undefined) patch.fine_date = updates.fineDate;
+  if (updates.dueDate !== undefined) patch.due_date = updates.dueDate;
+  if (updates.location !== undefined) patch.location = updates.location;
+  if (updates.photoPath !== undefined) patch.photo_path = updates.photoPath;
+  if (updates.notes !== undefined) patch.notes = updates.notes;
+
+  const { error } = await supabase
+    .from("traffic_fines")
+    .update(patch)
+    .eq("id", id)
+    .eq("company_id", companyId);
+  if (error) throw error;
+  bustCache(`fines:${companyId}`);
+
+  // Sürücü gerçekten değiştiyse (yeni atandı ya da başka bir sürücüyle
+  // değiştirildi) bildirim gönder — aynı sürücüyle tekrar kaydedilmesi
+  // gereksiz bildirim üretmesin.
+  if (updates.driverId && updates.driverId !== previousDriverId) {
+    notifyFineAssigned(id);
+  }
+}
+
+/**
+ * Ceza ödeme durumunu ilerletir. "paid" durumunda paid_at otomatik damgalanır,
+ * başka bir duruma dönülürse temizlenir.
+ */
+export async function markTrafficFineStatus(id: string, status: TrafficFineStatus): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data: existing } = await supabase
+    .from("traffic_fines")
+    .select("status, vehicles(plate)")
+    .eq("id", id)
+    .single();
+  const previousStatus = existing?.status as TrafficFineStatus | undefined;
+
+  const patch: Record<string, unknown> = {
+    status,
+    updated_at: new Date().toISOString(),
+    paid_at: status === "paid" ? new Date().toISOString() : null,
+  };
+
+  const { error } = await supabase
+    .from("traffic_fines")
+    .update(patch)
+    .eq("id", id)
+    .eq("company_id", companyId);
+  if (error) throw error;
+  bustCache(`fines:${companyId}`);
+
+  const plate = (existing?.vehicles as { plate?: string } | null)?.plate;
+  void logActivity("fine_status_changed", "traffic_fine", {
+    entityId: id,
+    entityLabel: plate || undefined,
+    meta: { status },
+  });
+
+  // Durum gerçekten değiştiyse sürücüye bildirim (fire-and-forget) — 3 kanaldan.
+  if (previousStatus !== status) {
+    notifyFineStatus(id, status);
+  }
+}
+
+/** Yönetici/operatör bir ceza kaydını kalıcı olarak siler (fotoğrafı varsa storage'dan da). */
+export async function deleteTrafficFine(id: string): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+
+  const { data: existing } = await supabase
+    .from("traffic_fines")
+    .select("photo_path, vehicles(plate)")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  const photoPath = existing?.photo_path as string | null;
+  if (photoPath) {
+    const { error: storageErr } = await supabase.storage.from("traffic-fine-photos").remove([photoPath]);
+    if (storageErr) console.error("Fine photo storage delete (non-fatal):", storageErr);
+  }
+
+  const { error } = await supabase
+    .from("traffic_fines")
+    .delete()
+    .eq("id", id)
+    .eq("company_id", companyId);
+  if (error) throw error;
+  bustCache(`fines:${companyId}`);
+
+  const plate = (existing?.vehicles as { plate?: string } | null)?.plate;
+  void logActivity("fine_deleted", "traffic_fine", {
+    entityId: id,
+    entityLabel: plate || undefined,
+  });
 }

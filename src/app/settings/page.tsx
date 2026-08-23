@@ -30,6 +30,7 @@ import { IdCard, Sparkles, Upload, XCircle, CheckCircle2 } from "lucide-react";
 import type { DriverLicenseEntry } from "@/lib/types";
 import { fileToBase64, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS, SCAN_MAX_FILE_SIZE } from "@/lib/file-utils";
 import { DEFAULT_TIMEZONE, TIMEZONES, TIMEZONES_BY_REGION, getTimezoneLabel, resolveTimeZone } from "@/lib/timezone";
+import { updateNotificationPrefs } from "@/lib/db";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -493,6 +494,36 @@ export default function SettingsPage() {
       toast.error("Kaydedilemedi");
     } finally {
       setEmailNotifSaving(false);
+    }
+  };
+
+  // Kategori bazlı bildirim tercihleri (push + e-posta) — uygulama içi zil
+  // bu tercihten bağımsız her zaman gelir.
+  const [operationalNotif, setOperationalNotif] = useState(true);
+  const [remindersNotif, setRemindersNotif] = useState(true);
+  const [categoryPrefSaving, setCategoryPrefSaving] = useState<"operational" | "reminders" | null>(null);
+
+  useEffect(() => {
+    if (profile?.notificationPrefs) {
+      setOperationalNotif(profile.notificationPrefs.operational);
+      setRemindersNotif(profile.notificationPrefs.reminders);
+    }
+  }, [profile?.notificationPrefs]);
+
+  const handleCategoryToggle = async (category: "operational" | "reminders") => {
+    const current = category === "operational" ? operationalNotif : remindersNotif;
+    const next = !current;
+    const setter = category === "operational" ? setOperationalNotif : setRemindersNotif;
+    setter(next);
+    setCategoryPrefSaving(category);
+    try {
+      await updateNotificationPrefs({ [category]: next });
+      toast.success(next ? "Bildirimler açıldı" : "Bildirimler kapatıldı");
+    } catch {
+      setter(!next);
+      toast.error("Kaydedilemedi");
+    } finally {
+      setCategoryPrefSaving(null);
     }
   };
 
@@ -1086,34 +1117,51 @@ export default function SettingsPage() {
                 trailing={<Toggle on={emailNotif} onToggle={handleEmailNotifToggle} />}
                 onClick={handleEmailNotifToggle}
               />
-              {/* Telefon (Web Push) bildirimleri — yönetici/operatör */}
-              {profile?.role !== "user" && (
-                <SettingItem
-                  icon={BellRing}
-                  iconBg="bg-orange-500/10"
-                  iconColor="text-orange-500"
-                  label="Telefon Bildirimleri"
-                  description={
-                    !pushSupported
-                      ? (isIOS && !isInstalled
-                          ? "Önce uygulamayı ana ekrana ekleyin (iOS gereği)"
-                          : "Bu cihaz push bildirimini desteklemiyor")
-                      : pushSubscribed
-                        ? "Açık — uyarılar bu telefona gönderiliyor"
-                        : "Filo uyarılarını telefonunuza alın"
-                  }
-                  trailing={
-                    !pushSupported ? (
-                      <Badge variant="secondary" className="text-[10px] border-none">–</Badge>
-                    ) : pushBusy ? (
-                      <span className="h-5 w-5 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" />
-                    ) : (
-                      <Toggle on={pushSubscribed} onToggle={handlePushToggle} />
-                    )
-                  }
-                  onClick={pushSupported && !pushBusy ? handlePushToggle : undefined}
-                />
-              )}
+              {/* Telefon (Web Push) bildirimleri — tüm roller (sürücüler de görev/km/ehliyet/ceza push'u alıyor) */}
+              <SettingItem
+                icon={BellRing}
+                iconBg="bg-orange-500/10"
+                iconColor="text-orange-500"
+                label="Telefon Bildirimleri"
+                description={
+                  !pushSupported
+                    ? (isIOS && !isInstalled
+                        ? "Önce uygulamayı ana ekrana ekleyin (iOS gereği)"
+                        : "Bu cihaz push bildirimini desteklemiyor")
+                    : pushSubscribed
+                      ? "Açık — uyarılar bu telefona gönderiliyor"
+                      : "Filo uyarılarını telefonunuza alın"
+                }
+                trailing={
+                  !pushSupported ? (
+                    <Badge variant="secondary" className="text-[10px] border-none">–</Badge>
+                  ) : pushBusy ? (
+                    <span className="h-5 w-5 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" />
+                  ) : (
+                    <Toggle on={pushSubscribed} onToggle={handlePushToggle} />
+                  )
+                }
+                onClick={pushSupported && !pushBusy ? handlePushToggle : undefined}
+              />
+              {/* Kategori bazlı bildirim tercihleri — yalnızca push/e-posta'yı filtreler, zil her zaman gelir */}
+              <SettingItem
+                icon={Activity}
+                iconBg="bg-sky-500/10"
+                iconColor="text-sky-500"
+                label={categoryPrefSaving === "operational" ? "Kaydediliyor…" : "Günlük Aktivite Bildirimleri"}
+                description="Yeni araç, servis kaydı, arıza, görev, ekip ve geri bildirim güncellemeleri"
+                trailing={<Toggle on={operationalNotif} onToggle={() => handleCategoryToggle("operational")} />}
+                onClick={() => handleCategoryToggle("operational")}
+              />
+              <SettingItem
+                icon={Clock}
+                iconBg="bg-amber-500/10"
+                iconColor="text-amber-500"
+                label={categoryPrefSaving === "reminders" ? "Kaydediliyor…" : "Hatırlatıcılar"}
+                description="Haftalık kilometre, ehliyet süresi ve trafik cezası bildirimleri"
+                trailing={<Toggle on={remindersNotif} onToggle={() => handleCategoryToggle("reminders")} />}
+                onClick={() => handleCategoryToggle("reminders")}
+              />
               <SettingItem
                 icon={Languages}
                 iconBg="bg-violet-500/10"

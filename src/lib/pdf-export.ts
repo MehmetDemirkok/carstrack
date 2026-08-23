@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { Vehicle, ServiceRecord, FleetAlert } from "@/lib/types";
-import { calculateHealthScore, getMaintenanceStatusForItem, getFleetAlerts } from "@/lib/store";
+import type { Vehicle, ServiceRecord, FleetAlert, TrafficFine } from "@/lib/types";
+import { calculateHealthScore, getMaintenanceStatusForItem, getFleetAlerts, getTrafficFineAlerts } from "@/lib/store";
 
 const SERVICE_TYPE_LABELS: Record<string, string> = {
   routine:    "Periyodik Bakım",
@@ -367,11 +367,11 @@ export async function exportServiceHistoryPDF(records: ServiceRecord[], vehicles
 
 // ─── Fleet Status Report ───────────────────────────────────────────────────
 
-export async function exportFleetStatusPDF(vehicles: Vehicle[]): Promise<void> {
+export async function exportFleetStatusPDF(vehicles: Vehicle[], fines: TrafficFine[] = []): Promise<void> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   await embedFonts(doc);
 
-  const alerts = getFleetAlerts(vehicles);
+  const alerts = [...getFleetAlerts(vehicles), ...getTrafficFineAlerts(fines)];
 
   addHeader(
     doc,

@@ -6,7 +6,10 @@ export type AuditAction =
   | "task_deleted"
   | "invite_sent"
   | "invite_revoked"
-  | "invite_code_regenerated";
+  | "invite_code_regenerated"
+  | "fine_created"
+  | "fine_status_changed"
+  | "fine_deleted";
 
 interface LogActivityOptions {
   entityId?: string;

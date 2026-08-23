@@ -1,4 +1,4 @@
-import type { Vehicle, FleetAlert, MaintenanceItem } from "./types";
+import type { Vehicle, FleetAlert, MaintenanceItem, TrafficFine } from "./types";
 
 // ─── Maintenance Templates ────────────────────────────────────
 
@@ -220,6 +220,62 @@ export function getFleetAlerts(vehicles: Vehicle[]): FleetAlert[] {
       } else if (status === "warning") {
         alerts.push({ id: `${v.id}-${item.id}`, vehicleId: v.id, vehiclePlate: v.plate, vehicleName: name, title: `${item.name} — Yaklaşıyor`, description: `${v.plate} aracında ${item.name} zamanı yaklaşıyor. Servis randevusu planlamanız önerilir.`, severity: "warning", category: "maintenance" });
       }
+    }
+  }
+
+  return alerts.sort((a, b) => {
+    const order = { critical: 0, warning: 1, info: 2 };
+    return order[a.severity] - order[b.severity];
+  });
+}
+
+// ─── Traffic Fine Alerts ──────────────────────────────────────
+
+function formatTRYAmount(n: number): string {
+  return `₺${Math.round(n).toLocaleString("tr-TR")}`;
+}
+
+/**
+ * Ödenmemiş cezalardan filo uyarısı üretir: son ödeme tarihi geçmişse
+ * kritik, 5 gün içindeyse uyarı. getFleetAlerts ile aynı FleetAlert şeklini
+ * paylaşır — böylece mevcut tüm gösterim/dağıtım kodu (dashboard, analytics,
+ * PDF export, e-posta özeti, bildirim zili) değişmeden bu kategoriyi de alır.
+ */
+export function getTrafficFineAlerts(fines: TrafficFine[]): FleetAlert[] {
+  const alerts: FleetAlert[] = [];
+  const today = new Date();
+
+  for (const f of fines) {
+    if (f.status !== "unpaid" || !f.dueDate) continue;
+
+    const daysLeft = daysBetween(today, new Date(f.dueDate));
+    const name = f.vehicleName || "";
+    const plate = f.vehiclePlate || "";
+    const violation = f.violationType || "Trafik cezası";
+    const amount = formatTRYAmount(f.amount);
+
+    if (daysLeft < 0) {
+      alerts.push({
+        id: `${f.id}-fine`,
+        vehicleId: f.vehicleId,
+        vehiclePlate: plate,
+        vehicleName: name,
+        title: "Trafik Cezası — Son Ödeme Tarihi Geçti",
+        description: `${plate} aracının ${violation} cezası (${amount}) için son ödeme tarihi ${formatDate(f.dueDate)} tarihinde geçti.`,
+        severity: "critical",
+        category: "traffic-fine",
+      });
+    } else if (daysLeft <= 5) {
+      alerts.push({
+        id: `${f.id}-fine`,
+        vehicleId: f.vehicleId,
+        vehiclePlate: plate,
+        vehicleName: name,
+        title: "Trafik Cezası — Son Ödeme Tarihi Yaklaşıyor",
+        description: `${plate} aracının ${violation} cezası (${amount}) için son ödeme tarihi ${formatDate(f.dueDate)} — ${daysLeft} gün kaldı.`,
+        severity: "warning",
+        category: "traffic-fine",
+      });
     }
   }
 

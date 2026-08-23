@@ -240,7 +240,7 @@ export async function POST(req: Request) {
       companyError = retry.error;
     }
 
-    if (companyError) {
+    if (companyError || !companyData) {
       return NextResponse.json({ error: "Şirket oluşturulurken hata oluştu." }, { status: 500 });
     }
 

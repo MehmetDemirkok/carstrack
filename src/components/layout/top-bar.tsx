@@ -246,15 +246,20 @@ export function TopBar() {
                     )}
                   </div>
 
-                  {notifications.length > 0 && (
-                    <div className="px-4 py-2.5 text-center border-t border-border/40 bg-muted/20">
+                  <div className="px-4 py-2.5 flex items-center justify-between border-t border-border/40 bg-muted/20">
+                    <Link href="/notifications" onClick={() => setShowNotifications(false)}
+                      className="text-xs font-medium cursor-pointer hover:text-foreground transition-colors text-muted-foreground"
+                      style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
+                      Tüm bildirimler
+                    </Link>
+                    {notifications.length > 0 && (
                       <button onClick={markAllRead}
                         className="text-xs font-medium cursor-pointer hover:text-foreground transition-colors"
                         style={{ color: "var(--primary)", background: "none", border: "none", fontFamily: "var(--font-ibm-mono), monospace" }}>
                         Tümünü okundu işaretle
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

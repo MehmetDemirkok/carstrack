@@ -51,6 +51,9 @@ export async function GET() {
         avatarUrl: (data.avatar_url as string) || undefined,
         notifyByEmail: data.notify_by_email !== false,
         createdAt: data.created_at,
+        licenseNumber: (data.license_number as string) || undefined,
+        licenses: data.licenses || [],
+        notificationPrefs: data.notification_prefs || { operational: true, reminders: true },
       },
       company: comp
         ? {

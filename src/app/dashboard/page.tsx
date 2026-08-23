@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import Link from "next/link";
 import Image from "next/image";
-import { calculateHealthScore, getFleetAlerts } from "@/lib/store";
+import { calculateHealthScore, getFleetAlerts, getTrafficFineAlerts } from "@/lib/store";
 import type { FleetAlert } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
@@ -34,6 +34,7 @@ import {
   History,
   FileWarning,
   Wallet,
+  Gavel,
 } from "lucide-react";
 
 const stagger = {
@@ -63,15 +64,18 @@ const categoryIcon = {
   inspection: Calendar,
   maintenance: Wrench,
   tire: Disc3,
+  "traffic-fine": Gavel,
 };
 
 export default function Dashboard() {
   const { profile } = useAuth();
-  const { vehicles, records, loading: dataLoading } = useData();
+  const { vehicles, records, fines, loading: dataLoading } = useData();
   const [showAlertsDialog, setShowAlertsDialog] = useState(false);
 
   const vehicleIds = new Set(vehicles.map((x) => x.id));
-  const alerts: FleetAlert[] = getFleetAlerts(vehicles);
+  const severityOrder = { critical: 0, warning: 1, info: 2 };
+  const alerts: FleetAlert[] = [...getFleetAlerts(vehicles), ...getTrafficFineAlerts(fines)]
+    .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
   const filteredRecords = records.filter((rec) => vehicleIds.has(rec.vehicleId));
 
   const scores = vehicles.map((v) => calculateHealthScore(v));

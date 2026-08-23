@@ -1,4 +1,4 @@
-import type { Vehicle } from "./types";
+import type { Vehicle, TrafficFine, TrafficFineStatus } from "./types";
 
 // Saf mapper — DB snake_case satırını TypeScript Vehicle tipine dönüştürür.
 // db.ts'deki toVehicle ile birebir aynı mantık; cron context'inde (session yok)
@@ -49,5 +49,35 @@ export function toVehicleFromRow(row: Record<string, unknown>): Vehicle {
     notes: (row.notes as string) || "",
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+  };
+}
+
+// Saf mapper — db.ts'deki toTrafficFine ile birebir aynı mantık; cron
+// context'inde (session yok) kullanılabilmesi için buraya taşındı.
+export function toTrafficFineFromRow(row: Record<string, unknown>): TrafficFine {
+  const vehicleData = row.vehicles as { plate?: string; brand?: string; model?: string } | null;
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    vehicleId: row.vehicle_id as string,
+    driverId: (row.driver_id as string) || undefined,
+    fineNumber: (row.fine_number as string) || "",
+    violationType: (row.violation_type as string) || "",
+    amount: Number(row.amount) || 0,
+    discountedAmount: row.discounted_amount !== null && row.discounted_amount !== undefined
+      ? Number(row.discounted_amount) : undefined,
+    fineDate: row.fine_date as string,
+    dueDate: (row.due_date as string) || undefined,
+    location: (row.location as string) || undefined,
+    status: (row.status as TrafficFineStatus) || "unpaid",
+    paidAt: (row.paid_at as string) || undefined,
+    photoPath: (row.photo_path as string) || undefined,
+    notes: (row.notes as string) || "",
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+    vehiclePlate: vehicleData?.plate ?? undefined,
+    vehicleName: vehicleData
+      ? `${vehicleData.brand ?? ""} ${vehicleData.model ?? ""}`.trim() || undefined
+      : undefined,
   };
 }

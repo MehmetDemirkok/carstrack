@@ -19,7 +19,7 @@ import {
   computeSummary,
   getRenewals,
 } from "@/lib/analytics";
-import { calculateHealthScore, getFleetAlerts } from "@/lib/store";
+import { calculateHealthScore, getFleetAlerts, getTrafficFineAlerts } from "@/lib/store";
 import { exportFleetStatusPDF } from "@/lib/pdf-export";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 const RANGES: AnalyticsRange[] = ["3m", "6m", "12m", "all"];
 
 export default function AnalyticsPage() {
-  const { vehicles, records, loading } = useData();
+  const { vehicles, records, fines, loading } = useData();
   const [range, setRange] = useState<AnalyticsRange>("6m");
   const [tasks, setTasks] = useState<VehicleTask[]>([]);
   const [tasksReady, setTasksReady] = useState(false);
@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
       seenVehicles.add(doc.vehicleId);
     }
 
-    for (const alert of getFleetAlerts(vehicles)) {
+    for (const alert of [...getFleetAlerts(vehicles), ...getTrafficFineAlerts(fines)]) {
       if (
         alert.category === "insurance" ||
         alert.category === "inspection" ||
@@ -219,7 +219,7 @@ export default function AnalyticsPage() {
                     variant="outline"
                     size="icon"
                     className="rounded-2xl h-10 w-10 shadow-sm border-border/50 shrink-0"
-                    onClick={() => exportFleetStatusPDF(vehicles)}
+                    onClick={() => exportFleetStatusPDF(vehicles, fines)}
                     aria-label="PDF raporu indir"
                   />
                 }

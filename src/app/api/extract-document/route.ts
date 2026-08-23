@@ -29,6 +29,23 @@ Belgeden bulabildiğin bilgileri çıkar ve YALNIZCA geçerli bir JSON nesnesi d
 
 Belgede bulunamayan alanları null yap. Sadece JSON döndür.`;
 
+const PROMPT_FINE = `Aşağıdaki Türkçe trafik cezası tebligatını/idari para cezası karar tutanağını analiz et.
+
+Belgeden bulabildiğin bilgileri çıkar ve YALNIZCA geçerli bir JSON nesnesi döndür (başka hiçbir metin ekleme):
+
+{
+  "plate": "cezaya konu aracın plakası büyük harfle (örn: 34ABC123)",
+  "fineNumber": "tebligat/karar/seri numarası",
+  "violationType": "ihlal türünün kısa açıklaması (örn: Hız İhlali, Kırmızı Işık İhlali, Park İhlali, Emniyet Kemeri, Trafik Sigortası Yok)",
+  "amount": "ceza tutarı sadece sayı string olarak, ondalık ayraç nokta (örn: 3241.00)",
+  "discountedAmount": "peşin/erken ödeme indirimli tutar varsa sadece sayı string olarak (genelde 1/4 indirimli), yoksa null",
+  "fineDate": "ihlalin/tebligatın tarihi YYYY-MM-DD formatında",
+  "dueDate": "son ödeme tarihi YYYY-MM-DD formatında (belirtilmemişse ve tebliğ tarihi varsa tebliğden 15 gün sonrası olarak hesaplama, sadece belgede açıkça yazılıysa doldur, yoksa null)",
+  "location": "ihlalin gerçekleştiği yer/adres bilgisi"
+}
+
+Belgede bulunamayan alanları null yap. Sadece JSON döndür.`;
+
 const PROMPT_LICENSE = `Aşağıdaki Türkiye Cumhuriyeti sürücü belgesi (ehliyet) görsellerini analiz et. Görseller belgenin ön ve/veya arka yüzü olabilir, hepsini birlikte değerlendir.
 
 ÇOK ÖNEMLİ — YAYGIN HATA: Türk ehliyetlerinin arka yüzünde ${LICENSE_CLASSES.length} olası sınıfın hepsini (${LICENSE_CLASSES.join(", ")}) listeleyen SABİT, BASILI bir tablo bulunur. Bu satırların HEPSİ belgede basılıdır ve HERKESTE aynı şekilde görünür — bu bir ŞABLONDUR, kişinin sahip olduğu sınıfları GÖSTERMEZ. Kişinin GERÇEKTEN sahip olduğu sınıflar SADECE o satırın "veriliş tarihi" ve/veya "geçerlilik tarihi" hücresinde ELLE/MATBU şekilde rakamlar yazılı olan satırlardır.
@@ -94,12 +111,15 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json() as {
-      documentType?: "vehicle" | "license";
+      documentType?: "vehicle" | "license" | "fine";
       fileData?: string;
       mimeType?: string;
       images?: ExtractImage[];
     };
-    const documentType = body.documentType === "license" ? "license" : "vehicle";
+    const documentType =
+      body.documentType === "license" ? "license"
+      : body.documentType === "fine" ? "fine"
+      : "vehicle";
 
     const rawImages: ExtractImage[] =
       body.images && body.images.length > 0
@@ -136,7 +156,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const prompt = documentType === "license" ? PROMPT_LICENSE : PROMPT_VEHICLE;
+    const prompt =
+      documentType === "license" ? PROMPT_LICENSE
+      : documentType === "fine" ? PROMPT_FINE
+      : PROMPT_VEHICLE;
     const result = await model.generateContent([
       prompt,
       ...normalizedImages.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.fileData } })),

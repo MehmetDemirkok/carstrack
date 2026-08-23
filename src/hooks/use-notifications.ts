@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getVehicles, getNotifications, markAllNotificationsRead, markNotificationsRead, type AppNotification } from "@/lib/db";
 import { useAuth } from "@/context/auth-context";
 import { getOverallLicenseStatus, getMostUrgentEntry, daysUntilDate } from "@/lib/license";
@@ -42,16 +42,14 @@ export function useNotifications() {
     }
   });
 
-  useEffect(() => {
-    if (!profile?.companyId) {
-      setNotifications([]);
-      setLoading(false);
-      return;
-    }
+  const licensesKey = JSON.stringify(profile?.licenses ?? []);
 
-    let cancelled = false;
-
-    const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
+      if (!profile?.companyId) {
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
       try {
         const [vehicles, dbNotifs] = await Promise.all([
           getVehicles(),
@@ -250,18 +248,33 @@ export function useNotifications() {
           read: n.readAt != null,
         }));
 
-        if (!cancelled) setNotifications([...dbItems, ...notifs]);
+        setNotifications([...dbItems, ...notifs]);
       } catch (error) {
         console.error("Bildirimler yüklenemedi:", error);
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
-    };
-
-    loadNotifications();
-    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.companyId, profile?.role, JSON.stringify(profile?.licenses ?? [])]);
+    }, [profile?.companyId, profile?.role, licensesKey]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  // Canlı yenileme — sekme görünürken her 20 sn'de bir sessizce tazele.
+  // Güncel loadNotifications closure'ını ref ile çağır ki taze profil/filtre
+  // kullanılsın (tasks/page.tsx'teki aynı desen).
+  const loadRef = useRef(loadNotifications);
+  useEffect(() => {
+    loadRef.current = loadNotifications;
+  }, [loadNotifications]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      loadRef.current();
+    }, 20000);
+    return () => clearInterval(id);
+  }, []);
 
   const markAllRead = useCallback(() => {
     // Türetilenler: localStorage; DB olayları: read_at güncelle + optimistik işaretle

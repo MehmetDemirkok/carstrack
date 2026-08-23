@@ -18,6 +18,16 @@ export interface DriverLicenseEntry {
   expiryDate?: string;
 }
 
+/** Kategori bazlı bildirim tercihi — yalnızca push/e-posta kanallarını etkiler, uygulama içi zil her zaman gelir. */
+export interface NotificationPrefs {
+  /** Günlük aktivite: yeni araç/servis kaydı/arıza/görev/ekip üyesi/geri bildirim durumu. */
+  operational: boolean;
+  /** Doğrudan kişiye yönelik hatırlatmalar: haftalık km, ehliyet süresi, trafik cezası. */
+  reminders: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = { operational: true, reminders: true };
+
 export interface Profile {
   id: string;
   companyId: string;
@@ -30,6 +40,7 @@ export interface Profile {
   /** Sürücü (role="user") ehliyet bilgileri — hiçbiri zorunlu değildir. */
   licenseNumber?: string;
   licenses?: DriverLicenseEntry[];
+  notificationPrefs?: NotificationPrefs;
 }
 
 export interface VehicleAssignment {
@@ -244,7 +255,7 @@ export interface FleetAlert {
   title: string;
   description: string;
   severity: AlertSeverity;
-  category: "insurance" | "green-card" | "inspection" | "maintenance" | "tire";
+  category: "insurance" | "green-card" | "inspection" | "maintenance" | "tire" | "traffic-fine";
 }
 
 /** Haftalık kilometre takip kaydı (kilometer_logs). */
@@ -277,6 +288,37 @@ export interface KilometerLogTokenContext {
   expiresAt: string;
   /** Atanan araçlar (1+). Birden fazlaysa formda plaka seçilir. */
   vehicles: KilometerLogVehicleOption[];
+}
+
+// ─── Trafik Cezaları ───────────────────────────────────────────
+export type TrafficFineStatus = "unpaid" | "paid" | "objected" | "cancelled";
+
+export interface TrafficFine {
+  id: string;
+  companyId: string;
+  vehicleId: string;
+  /** Cezanın yansıtıldığı sürücü — atanmamışsa undefined. */
+  driverId?: string;
+  fineNumber: string;
+  violationType: string;
+  amount: number;
+  /** Peşin/erken ödeme indirimli tutar — opsiyonel. */
+  discountedAmount?: number;
+  fineDate: string;
+  /** Son ödeme tarihi — geçmişse/yaklaşıyorsa filo uyarılarında görünür. */
+  dueDate?: string;
+  location?: string;
+  status: TrafficFineStatus;
+  paidAt?: string;
+  /** Tebligat fotoğrafı (traffic-fine-photos bucket) dosya yolu. */
+  photoPath?: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  // join'lerden gelen (opsiyonel)
+  vehiclePlate?: string;
+  vehicleName?: string;
+  driverName?: string;
 }
 
 export type DocumentType = "ruhsat" | "trafik_sigortasi" | "kasko" | "muayene" | "egzoz" | "teslim" | "diger";
