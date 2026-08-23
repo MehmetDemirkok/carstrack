@@ -163,7 +163,7 @@ export default function Dashboard() {
             { icon: Car, label: "Filo", href: "/vehicles", gradient: "from-cyan-300 via-teal-500 to-emerald-600", shadow: "shadow-teal-500/30" },
             { icon: History, label: "Servis", href: "/history", gradient: "from-amber-300 via-amber-500 to-orange-600", shadow: "shadow-amber-500/30" },
             { icon: FileWarning, label: "Arıza Bildir", href: "/reports", gradient: "from-rose-400 via-red-500 to-red-600", shadow: "shadow-red-500/30" },
-            { icon: CalendarPlus, label: "Muayene", href: TUVTURK_RANDEVU_URL, gradient: "from-violet-400 via-indigo-500 to-indigo-700", shadow: "shadow-indigo-500/30", external: true },
+            { icon: CalendarPlus, label: "Muayene Randevusu Al", href: TUVTURK_RANDEVU_URL, gradient: "from-violet-400 via-indigo-500 to-indigo-700", shadow: "shadow-indigo-500/30", external: true },
           ].map((action) => (
             <Link
               href={action.href}
