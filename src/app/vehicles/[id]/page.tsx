@@ -17,6 +17,7 @@ import {
 import {
   calculateHealthScore, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES, applyPeriodicService,
+  TUVTURK_RANDEVU_URL,
 } from "@/lib/store";
 import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType, PaymentStatus, TrafficFine } from "@/lib/types";
 import { FineStatusBadge } from "@/components/traffic-fines/fine-badges";
@@ -41,8 +42,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-/** TÜVTÜRK online araç muayene randevusu alma sayfası (yalnızca Türkiye). */
-const TUVTURK_RANDEVU_URL = "https://www.tuvturk.com.tr/hizmetlerimiz/hizli-islemler/arac-muayene-randevusu-alma";
 /** Muayene randevusu butonunun aktifleşeceği eşik — bitişe 1 ay (30 gün) kala. */
 const MUAYENE_RANDEVU_ESIK_GUN = 30;
 import { exportVehicleReportPDF } from "@/lib/pdf-export";

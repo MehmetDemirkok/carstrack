@@ -18,10 +18,11 @@ import Link from "next/link";
 import {
   Wrench, CheckCircle2, AlertTriangle, Disc3, Car, Plus,
   Filter, Trash2, BatteryCharging, ClipboardList, Download, FileDown,
-  Sun, Snowflake, Layers, Pencil, Check, Wallet, XCircle,
+  Sun, Snowflake, Layers, Pencil, Check, Wallet, XCircle, CalendarPlus,
 } from "lucide-react";
 import { exportServiceHistoryExcel } from "@/lib/export";
 import { exportServiceHistoryPDF } from "@/lib/pdf-export";
+import { TUVTURK_RANDEVU_URL } from "@/lib/store";
 
 const typeConfig: Record<ServiceType, { icon: React.ElementType; color: string; dot: string; label: string }> = {
   routine: { icon: CheckCircle2, color: "bg-violet-500/10 text-violet-500", dot: "bg-violet-500", label: "Periyodik" },
@@ -336,6 +337,21 @@ export default function HistoryPage() {
               <Filter className={`h-4 w-4 ${showFilters ? "text-primary" : ""}`} />
             </TooltipTrigger>
             <TooltipContent>Araç Filtresi</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <a
+                  href={TUVTURK_RANDEVU_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-full h-9 w-9 shadow-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                />
+              }
+            >
+              <CalendarPlus className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>Muayene Randevusu Al (TÜVTÜRK)</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger render={<Button size="icon" className="rounded-full h-9 w-9 shadow-md" onClick={() => { setRecordMaintIds(["oil"]); setShowAdd(true); }} />}>

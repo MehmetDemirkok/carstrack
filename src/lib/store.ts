@@ -1,5 +1,8 @@
 import type { Vehicle, FleetAlert, MaintenanceItem, TrafficFine } from "./types";
 
+/** TÜVTÜRK online araç muayene randevusu alma sayfası (yalnızca Türkiye). */
+export const TUVTURK_RANDEVU_URL = "https://www.tuvturk.com.tr/hizmetlerimiz/hizli-islemler/arac-muayene-randevusu-alma";
+
 // ─── Maintenance Templates ────────────────────────────────────
 
 export const MAINTENANCE_TEMPLATES: Omit<MaintenanceItem, "lastDoneDate" | "lastDoneMileage">[] = [
