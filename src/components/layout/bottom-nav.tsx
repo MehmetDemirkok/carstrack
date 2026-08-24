@@ -29,6 +29,7 @@ export function BottomNav() {
         { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
         { href: "/tasks", icon: ClipboardList, label: t("nav_tasks") },
         { href: "/reports", icon: Wrench, label: "Arıza" },
+        { href: "/traffic-fines", icon: Gavel, label: "Cezalar" },
         { href: "/users", icon: Users, label: "Ekip" },
         { href: "/history", icon: History, label: "Servis" },
         { href: "/analytics", icon: Activity, label: t("nav_analytics").split(" ")[0] },
@@ -44,35 +45,35 @@ export function BottomNav() {
           <div className="absolute inset-x-0 top-0 h-px"
             style={{ background: "linear-gradient(90deg, transparent, color-mix(in oklab, var(--primary) 35%, transparent), transparent)" }} />
 
-          <div className="flex justify-around items-center h-16 px-1">
+          <div className="flex items-center h-16 px-1 overflow-x-auto no-scrollbar snap-x snap-mandatory">
             {!loading && navItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
               return (
                 <Link key={item.href} href={item.href}
-                  className="relative flex flex-col items-center justify-center flex-1 h-full gap-1 tap-highlight-transparent">
+                  className="relative flex flex-col items-center justify-center flex-1 shrink-0 basis-0 min-w-[44px] h-full gap-0.5 tap-highlight-transparent snap-start">
                   {isActive && (
                     <motion.div
                       layoutId="navPill"
-                      className="absolute inset-y-2 inset-x-1 rounded-2xl"
+                      className="absolute inset-y-2 inset-x-0.5 rounded-2xl"
                       style={{ background: "color-mix(in oklab, var(--primary) 12%, transparent)", border: "1px solid color-mix(in oklab, var(--primary) 22%, transparent)" }}
                       transition={{ type: "spring", stiffness: 400, damping: 32 }}
                     />
                   )}
                   <div className="relative z-10">
                     <item.icon
-                      className={cn("w-5 h-5 transition-all duration-300")}
+                      className={cn("w-[18px] h-[18px] transition-all duration-300")}
                       style={{ color: isActive ? "var(--primary)" : undefined }}
                     />
-                    {!isActive && <item.icon className="w-5 h-5 hidden" />}
+                    {!isActive && <item.icon className="w-[18px] h-[18px] hidden" />}
                     {item.href === "/settings" && needsProfileCompletion && !isActive && (
                       <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background" />
                     )}
                   </div>
                   <span
-                    className={cn("text-[9px] font-semibold transition-colors duration-300 relative z-10",
+                    className={cn("text-[8px] leading-tight font-semibold transition-colors duration-300 relative z-10 whitespace-nowrap",
                       isActive ? "text-primary" : "text-muted-foreground"
                     )}
-                    style={isActive ? { fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.04em" } : undefined}
+                    style={isActive ? { fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.02em" } : undefined}
                   >
                     {item.label}
                   </span>
