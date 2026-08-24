@@ -163,24 +163,24 @@ export default function Dashboard() {
             { icon: Car, label: "Filo", href: "/vehicles", gradient: "from-cyan-300 via-teal-500 to-emerald-600", shadow: "shadow-teal-500/30" },
             { icon: History, label: "Servis", href: "/history", gradient: "from-amber-300 via-amber-500 to-orange-600", shadow: "shadow-amber-500/30" },
             { icon: FileWarning, label: "Arıza Bildir", href: "/reports", gradient: "from-rose-400 via-red-500 to-red-600", shadow: "shadow-red-500/30" },
-            { icon: CalendarPlus, label: "Muayene Randevusu Al", href: TUVTURK_RANDEVU_URL, gradient: "from-violet-400 via-indigo-500 to-indigo-700", shadow: "shadow-indigo-500/30", external: true },
+            { icon: CalendarPlus, label: "Muayene Al", href: TUVTURK_RANDEVU_URL, gradient: "from-violet-400 via-indigo-500 to-indigo-700", shadow: "shadow-indigo-500/30", external: true },
           ].map((action) => (
             <Link
               href={action.href}
               key={action.href}
-              className="tap-highlight-transparent"
+              className="tap-highlight-transparent block h-full"
               {...(action.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
             >
-              <motion.div whileTap={{ scale: 0.96 }}>
-                <Card className="rounded-2xl border-border/40 shadow-sm hover-lift group cursor-pointer">
-                  <CardContent className="p-3 md:p-4 flex flex-col items-center justify-center text-center gap-1.5 md:gap-2.5">
+              <motion.div whileTap={{ scale: 0.96 }} className="h-full">
+                <Card className="h-full rounded-2xl border-border/40 shadow-sm hover-lift group cursor-pointer">
+                  <CardContent className="h-full p-3 md:p-4 flex flex-col items-center justify-center text-center gap-1.5 md:gap-2.5">
                     <div
                       className={`relative overflow-hidden w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br ${action.gradient} shadow-lg ${action.shadow} ring-1 ring-white/15 flex items-center justify-center group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300`}
                     >
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.45),transparent_60%)]" />
                       <action.icon className="h-5 w-5 md:h-6 md:w-6 text-white relative z-10 drop-shadow-sm" strokeWidth={2.25} />
                     </div>
-                    <span className="text-[10px] md:text-xs font-semibold leading-tight">{action.label}</span>
+                    <span className="text-[10px] md:text-xs font-semibold leading-tight line-clamp-2">{action.label}</span>
                   </CardContent>
                 </Card>
               </motion.div>
