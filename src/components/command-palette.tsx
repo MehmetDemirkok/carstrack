@@ -27,7 +27,7 @@ const MANAGER_NAV_ITEMS: NavItem[] = [
   { label: "Görev Takibi", href: "/tasks", Icon: ClipboardList, keywords: ["görev", "seyahat", "tasks"] },
   { label: "Arıza Bildirimleri", href: "/reports", Icon: Wrench, keywords: ["arıza", "bildirim", "reports", "durum"] },
   { label: "Ekip", href: "/users", Icon: Users, keywords: ["ekip", "personel", "sürücü", "users"] },
-  { label: "Servis Geçmişi", href: "/history", Icon: History, keywords: ["servis", "geçmiş", "history", "bakım"] },
+  { label: "Servis Kayıtları", href: "/history", Icon: History, keywords: ["servis", "kayıt", "geçmiş", "history", "bakım"] },
   { label: "Filo Durumu", href: "/analytics", Icon: Activity, keywords: ["analiz", "filo", "analytics", "durum"] },
   { label: "Ayarlar", href: "/settings", Icon: Settings, keywords: ["ayarlar", "settings", "profil"] },
   { label: "Yeni Araç Ekle", href: "/vehicles/new", Icon: Plus, keywords: ["yeni", "ekle", "add", "araç ekle"] },

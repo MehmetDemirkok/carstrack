@@ -5,7 +5,7 @@ export const translations = {
     // Navigation
     nav_dashboard: "Dashboard",
     nav_vehicles: "Araçlarım",
-    nav_history: "Servis Geçmişi",
+    nav_history: "Servis Kayıtları",
     nav_analytics: "Filo Analitiği",
     nav_settings: "Ayarlar",
     nav_add_vehicle: "Yeni Araç Ekle",
@@ -143,7 +143,7 @@ export const translations = {
     // Navigation
     nav_dashboard: "Dashboard",
     nav_vehicles: "My Vehicles",
-    nav_history: "Service History",
+    nav_history: "Service Records",
     nav_analytics: "Fleet Analytics",
     nav_settings: "Settings",
     nav_add_vehicle: "Add New Vehicle",

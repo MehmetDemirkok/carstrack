@@ -15,7 +15,7 @@ import {
   getVehicleStatuses, getServiceProviders, getTrafficFines,
 } from "@/lib/db";
 import {
-  calculateHealthScore, getMaintenanceStatusForItem,
+  calculateHealthScore, calculateHealthScoreBreakdown, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES, applyPeriodicService,
   TUVTURK_RANDEVU_URL,
 } from "@/lib/store";
@@ -32,13 +32,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   ChevronLeft, Settings, Trash2, Car, Fuel, Gauge, MapPin, Disc3,
   Sun, Snowflake, Layers, BatteryCharging, ShieldCheck, CalendarDays,
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
   Shield, Download, Upload, ClipboardCheck, CalendarPlus, ExternalLink,
-  Wallet, Gavel,
+  Wallet, Gavel, Copy, CheckCheck, X as XIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -307,6 +308,49 @@ function daysBadgeText(days: number): string {
   return `${days} gün`;
 }
 
+function VehicleDetailSkeleton() {
+  return (
+    <div className="bg-background min-h-screen animate-pulse">
+      <div className="sticky top-0 z-50 glass border-b border-border/30 md:hidden">
+        <div className="flex items-center justify-between p-3 px-4">
+          <div className="h-9 w-9 rounded-full bg-muted/70" />
+          <div className="h-4 w-24 rounded bg-muted/70" />
+          <div className="h-9 w-9 rounded-full bg-muted/70" />
+        </div>
+      </div>
+      <div className="max-w-3xl mx-auto md:p-6">
+        <div className="hidden md:flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-muted" />
+            <div className="space-y-2">
+              <div className="h-6 w-32 rounded bg-muted" />
+              <div className="h-4 w-40 rounded bg-muted" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="h-10 w-24 rounded-xl bg-muted" />
+            <div className="h-10 w-24 rounded-xl bg-muted" />
+          </div>
+        </div>
+        <div className="h-56 md:h-80 w-full bg-muted md:rounded-3xl" />
+        <div className="p-4 md:p-0 space-y-5 md:space-y-6 mt-4">
+          <div className="grid grid-cols-3 gap-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-16 rounded-2xl bg-muted/60" />
+            ))}
+          </div>
+          <div className="h-11 rounded-2xl bg-muted/60" />
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-20 rounded-2xl bg-muted/40" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function VehicleDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -318,6 +362,7 @@ export default function VehicleDetailPage() {
   const isDriver = profile?.role === "user";
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [plateCopied, setPlateCopied] = useState(false);
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [providerNames, setProviderNames] = useState<string[]>([]);
   useEffect(() => {
@@ -424,13 +469,14 @@ export default function VehicleDetailPage() {
     }
   }, [authLoading, company, reload, reloadDocs, reloadStatus, reloadFines]);
 
-  if (!vehicle) return null;
+  if (!vehicle) return <VehicleDetailSkeleton />;
 
   // Belgeleri ikiye ayır: "Diğer Evrak" (araç teslim formu vb.) ve standart araç belgeleri
   const otherDocs = documents.filter((d) => d.type === OTHER_DOC_TYPE);
   const mainDocs = documents.filter((d) => d.type !== OTHER_DOC_TYPE);
 
   const score = calculateHealthScore(vehicle);
+  const scoreBreakdown = calculateHealthScoreBreakdown(vehicle);
   const hasAnyMaintenanceData = vehicle.maintenanceItems.some(
     (item) => item.lastDoneDate !== undefined || item.lastDoneMileage !== undefined
   ) || !!vehicle.lastServiceDate;
@@ -438,6 +484,17 @@ export default function VehicleDetailPage() {
   const openEdit = () => {
     setEditData({ ...vehicle });
     setShowEdit(true);
+  };
+
+  const handleCopyPlate = async () => {
+    try {
+      await navigator.clipboard.writeText(vehicle.plate);
+      setPlateCopied(true);
+      toast.success("Kopyalandı", { description: `${vehicle.plate} panoya kopyalandı.` });
+      setTimeout(() => setPlateCopied(false), 1500);
+    } catch {
+      toast.error("Hata", { description: "Plaka kopyalanamadı." });
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -679,7 +736,14 @@ export default function VehicleDetailPage() {
             </TooltipTrigger>
             <TooltipContent>Geri</TooltipContent>
           </Tooltip>
-          <span className="font-outfit font-bold text-sm">{vehicle.plate}</span>
+          <button
+            type="button"
+            onClick={handleCopyPlate}
+            className="flex items-center gap-1.5 font-outfit font-bold text-sm rounded-full px-2 py-1 -mx-2 active:bg-muted/60 transition-colors"
+          >
+            {vehicle.plate}
+            {plateCopied ? <CheckCheck className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-muted-foreground/60" />}
+          </button>
           <div className="flex gap-1">
             <Tooltip>
               <TooltipTrigger render={<Button variant="ghost" size="icon" className="rounded-full h-9 w-9 hover:bg-primary/10" onClick={() => exportVehicleReportPDF(vehicle, records)} />}>
@@ -718,7 +782,25 @@ export default function VehicleDetailPage() {
               <TooltipContent>Geri</TooltipContent>
             </Tooltip>
             <div>
-              <h1 className="text-2xl font-bold font-outfit">{vehicle.plate}</h1>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={handleCopyPlate}
+                      className="group flex items-center gap-2 rounded-lg -mx-1.5 px-1.5 hover:bg-muted/60 transition-colors"
+                    />
+                  }
+                >
+                  <h1 className="text-2xl font-bold font-outfit">{vehicle.plate}</h1>
+                  {plateCopied ? (
+                    <CheckCheck className="h-4 w-4 text-emerald-500" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>Plakayı kopyala</TooltipContent>
+              </Tooltip>
               <p className="text-sm text-muted-foreground">{vehicle.brand} {vehicle.model} • {vehicle.year}</p>
             </div>
           </div>
@@ -792,23 +874,35 @@ export default function VehicleDetailPage() {
             </div>
             {/* Sağlık skoru bakım durumundan hesaplanır — sürücü rolünde gizlenir */}
             {!isDriver && (
-              <div className="bg-card/80 backdrop-blur-md rounded-2xl p-2.5 border border-border/50 shadow-lg">
-                <div className="relative">
-                  <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                    <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
-                    <circle cx="28" cy="28" r="22" fill="none"
-                      stroke={score >= 85 ? "#22c55e" : score >= 65 ? "#f59e0b" : "#ef4444"}
-                      strokeWidth="4"
-                      strokeDasharray={`${score * 1.382} ${138.2 - score * 1.382}`}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-lg font-black font-outfit leading-none">{score}</span>
-                    <span className="text-[8px] text-muted-foreground font-medium">Sağlık</span>
+              <Popover>
+                <PopoverTrigger
+                  render={<button type="button" className="bg-card/80 backdrop-blur-md rounded-2xl p-2.5 border border-border/50 shadow-lg" />}
+                >
+                  <div className="relative">
+                    <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                      <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
+                      <circle cx="28" cy="28" r="22" fill="none"
+                        stroke={score >= 85 ? "#22c55e" : score >= 65 ? "#f59e0b" : "#ef4444"}
+                        strokeWidth="4"
+                        strokeDasharray={`${score * 1.382} ${138.2 - score * 1.382}`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-lg font-black font-outfit leading-none">{score}</span>
+                      <span className="text-[8px] text-muted-foreground font-medium">Sağlık</span>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-56">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">Sağlık Skoru Kırılımı</p>
+                  <div className="space-y-1.5 text-xs">
+                    <p className="flex justify-between gap-4"><span className="text-muted-foreground">Bakım (%70 ağırlık)</span> <span className="font-semibold">{scoreBreakdown.maintenance}</span></p>
+                    <p className="flex justify-between gap-4"><span className="text-muted-foreground">Sigorta (%15 ağırlık)</span> <span className="font-semibold">{scoreBreakdown.insurance}</span></p>
+                    <p className="flex justify-between gap-4"><span className="text-muted-foreground">Muayene (%15 ağırlık)</span> <span className="font-semibold">{scoreBreakdown.inspection}</span></p>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
           </div>
         </div>
@@ -855,27 +949,45 @@ export default function VehicleDetailPage() {
               {(() => {
                 // Sürücü rolü yalnızca aracın teknik özellikleri ve lastik/akü durumunu görür.
                 // Bakım bilgileri, servis geçmişi ve hassas belgeler (sigorta/şasi/finansal) gizlenir.
+                // Dikkat gerektiren sekmelerde küçük bir uyarı noktası göster — kullanıcı her sekmeyi
+                // tek tek açmadan nerede aksiyon beklediğini görsün.
+                const needsMaintenanceAttention = hasAnyMaintenanceData && vehicle.maintenanceItems.some(
+                  (item) => getMaintenanceStatusForItem(item, vehicle.mileage) === "overdue"
+                );
+                const needsDocAttention = [vehicle.insuranceExpiry, vehicle.kaskoExpiry, vehicle.inspectionExpiry]
+                  .some((d) => !!d && daysUntil(d) <= 30)
+                  || documents.some((d) => !!d.expiryDate && daysUntil(d.expiryDate) <= 30);
+                const needsFineAttention = fines.some((f) => f.status === "unpaid");
+
                 const tabItems = isDriver
                   ? [
-                      { value: "technical", label: "Teknik" },
-                      { value: "tires", label: "Lastik" },
+                      { value: "technical", label: "Teknik", icon: Settings },
+                      { value: "tires", label: "Lastik", icon: Disc3 },
                     ]
                   : [
-                      { value: "maintenance", label: "Bakım" },
-                      { value: "technical", label: "Teknik" },
-                      { value: "tires", label: "Lastik" },
-                      { value: "docs", label: "Belgeler" },
-                      { value: "fines", label: "Cezalar" },
-                      { value: "history", label: "Geçmiş" },
+                      { value: "maintenance", label: "Bakım", icon: Wrench, alert: needsMaintenanceAttention },
+                      { value: "technical", label: "Teknik", icon: Settings },
+                      { value: "tires", label: "Lastik", icon: Disc3 },
+                      { value: "docs", label: "Belgeler", icon: FileText, alert: needsDocAttention },
+                      { value: "fines", label: "Cezalar", icon: Gavel, alert: needsFineAttention },
+                      { value: "history", label: "Geçmiş", icon: Clock },
                     ];
                 return (
-                  <TabsList
-                    className="grid w-full rounded-2xl h-11 bg-muted/50 p-1"
-                    style={{ gridTemplateColumns: `repeat(${tabItems.length}, minmax(0, 1fr))` }}
-                  >
+                  // Sabit eşit-genişlik grid yerine kaydırılabilir çip satırı: 6 sekme artık
+                  // sıkışıp 11px'e küçülmek zorunda kalmıyor, her biri ikonuyla kendi doğal
+                  // genişliğinde okunaklı kalıyor. Uygulamadaki filtre çipleriyle aynı dil.
+                  <TabsList className="flex w-full items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
                     {tabItems.map((t) => (
-                      <TabsTrigger key={t.value} value={t.value} className="rounded-xl text-[11px] data-[state=active]:bg-background data-[state=active]:shadow-sm font-medium">
+                      <TabsTrigger
+                        key={t.value}
+                        value={t.value}
+                        className="relative flex-none inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap transition-colors bg-surface-2 text-muted-foreground hover:bg-accent hover:text-foreground data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm data-active:shadow-primary/25 data-active:hover:bg-primary"
+                      >
+                        <t.icon className="h-3.5 w-3.5" />
                         {t.label}
+                        {t.alert && (
+                          <span className="absolute top-1 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-background" />
+                        )}
                       </TabsTrigger>
                     ))}
                   </TabsList>
@@ -2141,8 +2253,12 @@ export default function VehicleDetailPage() {
 
       {/* ── PHOTO LIGHTBOX ── */}
       <Dialog open={!!photoView} onOpenChange={(o) => { if (!o) setPhotoView(null); }}>
-        <DialogContent className="rounded-3xl max-w-3xl w-[95vw] p-0 overflow-hidden bg-black/90 border-none">
+        <DialogContent showCloseButton={false} className="rounded-3xl max-w-3xl w-[95vw] p-0 overflow-hidden bg-black/90 border-none">
           <DialogTitle className="sr-only">Araç Fotoğrafı</DialogTitle>
+          <DialogClose className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors">
+            <XIcon className="h-5 w-5" />
+            <span className="sr-only">Kapat</span>
+          </DialogClose>
           <div className="flex items-center justify-center min-h-[40vh] p-2">
             {photoView && (
               // eslint-disable-next-line @next/next/no-img-element
