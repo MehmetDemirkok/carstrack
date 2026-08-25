@@ -277,7 +277,7 @@ export default function HistoryPage() {
       </datalist>
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-outfit font-bold tracking-tight">Servis Geçmişi</h1>
+          <h1 className="text-2xl font-outfit font-bold tracking-tight">Servis Kayıtları</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {filtered.length} kayıt
             {totalCost > 0 && <> • Toplam <span className="font-semibold text-foreground">₺{totalCost.toLocaleString("tr-TR")}</span></>}
@@ -422,7 +422,7 @@ export default function HistoryPage() {
             <ClipboardList className="h-10 w-10 text-primary/60" />
           </div>
           <div className="space-y-1">
-            <p className="text-base font-bold">Servis Geçmişi Boş</p>
+            <p className="text-base font-bold">Servis Kayıtları Boş</p>
             <p className="text-sm text-muted-foreground max-w-xs">
               {records.length > 0
                 ? "Seçili filtreler için kayıt bulunamadı."
