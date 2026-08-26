@@ -38,10 +38,6 @@ const BACKUP_TABLES = [
 const BUCKET = "db-backups";
 const PAGE_SIZE = 1000;
 const RETENTION_DAYS = 30;
-// `vehicles` tablosunda araç fotoğrafları base64 olarak saklandığından yedek
-// hızla büyüyebilir. E-posta eki yalnızca küçük yedeklerde eklenir (spam/teslimat
-// sorunlarından kaçınmak için); büyük yedekler yine de Supabase depolamada durur.
-const MAX_EMAIL_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -143,7 +139,10 @@ export async function GET(req: Request) {
     `[cron/db-backup] ok — tarih:${dateStamp} tablo:${BACKUP_TABLES.length} satır:${totalRows} boyut:${gzipped.byteLength}b silinen:${deleted}`,
   );
 
-  const attachToEmail = gzipped.byteLength <= MAX_EMAIL_ATTACHMENT_BYTES;
+  const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/^https:\/\/([^.]+)\.supabase\.co/)?.[1];
+  const storageUrl = projectRef
+    ? `https://supabase.com/dashboard/project/${projectRef}/storage/buckets/${BUCKET}`
+    : undefined;
 
   await sendNotificationEmail(
     notifyRecipient,
@@ -151,19 +150,16 @@ export async function GET(req: Request) {
     {
       title: "Veritabanı Yedeği Alındı",
       emoji: "✅",
-      intro: `Günlük otomatik yedekleme başarıyla tamamlandı. Yedek Supabase depolama alanında (${BUCKET}/${path}) saklanıyor.`,
+      intro: `Günlük otomatik yedekleme başarıyla tamamlandı. Bu e-postaya dosya eklenmez; yedek yalnızca Supabase depolama alanında (${BUCKET}/${path}) saklanır.`,
       rows: [
         { label: "Tablo Sayısı", value: String(BACKUP_TABLES.length) },
         { label: "Toplam Satır", value: String(totalRows) },
         { label: "Dosya Boyutu", value: `${(gzipped.byteLength / 1024).toFixed(1)} KB` },
         { label: "Silinen Eski Yedek", value: String(deleted) },
       ],
-      note: attachToEmail
-        ? undefined
-        : "Yedek dosyası e-postaya sığmayacak kadar büyüdü, bu yüzden bu sefer eklenmedi — tam kopya Supabase depolama alanında duruyor.",
       severity: "success",
+      ...(storageUrl ? { ctaUrl: storageUrl, ctaLabel: "Supabase Depolamada Görüntüle" } : {}),
     },
-    attachToEmail ? [{ filename: `carstrack-backup-${dateStamp}.json.gz`, content: gzipped }] : undefined,
   ).catch((e) => console.error("[cron/db-backup] success email gönderilemedi:", e));
 
   return NextResponse.json({
