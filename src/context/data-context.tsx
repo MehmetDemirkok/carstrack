@@ -37,10 +37,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // şirketi, sürücü yalnızca kendine yansıtılanları görür — rol dallanması
   // gerekmez. Cezalar isteğe bağlı bir modül olduğu için hata olursa akışı
   // etkilemez.
-  const fetchFines = () => getTrafficFines().catch((err) => {
-    console.error("[DataProvider] fines fetch failed:", err);
-    return [] as TrafficFine[];
-  });
+  const fetchFines = async (): Promise<TrafficFine[]> => {
+    try {
+      return await getTrafficFines();
+    } catch (err) {
+      // PGRST303 ("JWT issued at future") Supabase Auth/PostgREST arasındaki
+      // geçici saat sapmasından kaynaklanır — birkaç yüz ms içinde kendiliğinden
+      // düzelir, bu yüzden tek seferlik bir yeniden deneme neredeyse her zaman yeterli.
+      if ((err as { code?: string })?.code === "PGRST303") {
+        await new Promise((r) => setTimeout(r, 400));
+        try {
+          return await getTrafficFines();
+        } catch (retryErr) {
+          console.error("[DataProvider] fines fetch failed after retry:", retryErr);
+          return [];
+        }
+      }
+      console.error("[DataProvider] fines fetch failed:", err);
+      return [];
+    }
+  };
 
   const load = useCallback(async () => {
     if (loadingRef.current) return;

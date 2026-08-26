@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommandPaletteProvider } from "@/context/command-palette-context";
 import { CommandPalette } from "@/components/command-palette";
 import { ProfileCompletionNotice } from "@/components/profile-completion-notice";
+import { PushPermissionPrompt } from "@/components/push-permission-prompt";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Toaster } from "sonner";
@@ -139,6 +140,7 @@ export default function RootLayout({
                 </div>
                 <CommandPalette />
                 <ProfileCompletionNotice />
+                <PushPermissionPrompt />
                 <ServiceWorkerRegister />
               </CommandPaletteProvider>
               </TooltipProvider>

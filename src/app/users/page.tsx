@@ -266,10 +266,25 @@ export default function UsersPage() {
   const inputCls =
     "w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
 
-  const ROLE_OPTIONS: { value: UserRole; label: string; activeClass: string }[] = [
-    { value: "user",     label: "Kullanıcı",       activeClass: "bg-muted border-primary text-primary" },
-    { value: "operator", label: "Operatör",         activeClass: "bg-amber-500/10 border-amber-500 text-amber-600 dark:text-amber-400" },
-    { value: "manager",  label: "Şirket Yetkilisi", activeClass: "bg-primary/10 border-primary text-primary" },
+  const ROLE_OPTIONS: { value: UserRole; label: string; activeClass: string; description: string }[] = [
+    {
+      value: "user",
+      label: "Kullanıcı",
+      activeClass: "bg-muted border-primary text-primary",
+      description: "Şoförler için uygun roldür. Yalnızca kendisine atanan araçları görür, kilometre/görev günceller. Ekip veya araç ekleyemez, şirket ayarlarına erişemez.",
+    },
+    {
+      value: "operator",
+      label: "Operatör",
+      activeClass: "bg-amber-500/10 border-amber-500 text-amber-600 dark:text-amber-400",
+      description: "Tüm araçları, görevleri ve cezaları yönetir. Ekip davet edemez, rol değiştiremez, etkinlik geçmişini göremez.",
+    },
+    {
+      value: "manager",
+      label: "Şirket Yetkilisi",
+      activeClass: "bg-primary/10 border-primary text-primary",
+      description: "Tam yetkilidir: ekip davet eder, rol değiştirir, şirket ayarlarını yönetir ve etkinlik geçmişini görür.",
+    },
   ];
 
   return (
@@ -570,6 +585,9 @@ export default function UsersPage() {
                         );
                       })}
                     </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      {ROLE_OPTIONS.find((r) => r.value === editRole)?.description}
+                    </p>
                     {editRole !== editMember.role && (
                       <p className="text-[11px] text-amber-500 dark:text-amber-400">
                         {editRole === "manager"
@@ -770,6 +788,9 @@ export default function UsersPage() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed pt-0.5">
+                  {ROLE_OPTIONS.find((r) => r.value === inviteRole)?.description}
+                </p>
               </div>
             </div>
 
