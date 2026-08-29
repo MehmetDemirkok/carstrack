@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
-import type { Vehicle, ServiceRecord, VehicleTask } from "@/lib/types";
+import type { Vehicle, ServiceRecord, VehicleTask, TrafficFine, VehicleReport, Feedback, DriverLicenseEntry } from "@/lib/types";
+import { STATUS_META as FINE_STATUS_META } from "@/components/traffic-fines/fine-badges";
 
 const SERVICE_TYPE_LABELS: Record<string, string> = {
   routine: "Periyodik Bakım",
@@ -173,4 +174,120 @@ export function exportFullReportExcel(vehicles: Vehicle[], records: ServiceRecor
   XLSX.utils.book_append_sheet(wb, wsRecords, "Servis Geçmişi");
 
   download(wb, `carstrack_tam_rapor_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+// ─── Kişisel veri indirme ("Verilerimi İndir") ─────────────────────────────
+
+const ROLE_LABELS: Record<string, string> = { manager: "Yönetici", operator: "Operatör", user: "Sürücü" };
+const REPORT_CATEGORY_LABELS: Record<string, string> = {
+  engine: "Motor", brake: "Fren", tire: "Lastik", electrical: "Elektrik",
+  fluid: "Sıvı / Yağ", warning_light: "Uyarı Işığı", body: "Kaporta", other: "Diğer",
+};
+const REPORT_SEVERITY_LABELS: Record<string, string> = { low: "Düşük", medium: "Orta", high: "Yüksek", critical: "Kritik" };
+const REPORT_STATUS_LABELS: Record<string, string> = {
+  open: "Açık", acknowledged: "Görüldü", in_progress: "İşlemde", resolved: "Çözüldü",
+};
+const FEEDBACK_TYPE_LABELS: Record<string, string> = { bug: "Hata Bildirimi", suggestion: "Öneri", other: "Genel Geri Bildirim" };
+
+interface MyProfileExport {
+  fullName?: string;
+  email?: string;
+  role?: string;
+  department?: string;
+  company?: string;
+  licenseNumber?: string;
+  licenses?: DriverLicenseEntry[];
+}
+
+function profileRows(p: MyProfileExport) {
+  const rows = [
+    { "Alan": "Ad Soyad", "Değer": p.fullName ?? "" },
+    { "Alan": "E-posta", "Değer": p.email ?? "" },
+    { "Alan": "Rol", "Değer": (p.role && ROLE_LABELS[p.role]) ?? p.role ?? "" },
+    { "Alan": "Departman", "Değer": p.department ?? "" },
+    { "Alan": "Şirket", "Değer": p.company ?? "" },
+    { "Alan": "Ehliyet No", "Değer": p.licenseNumber ?? "" },
+  ];
+  for (const l of p.licenses ?? []) {
+    rows.push({ "Alan": `Ehliyet Sınıfı — ${l.class}`, "Değer": `Veriliş: ${formatDate(l.issueDate) || "—"} · Geçerlilik: ${formatDate(l.expiryDate) || "—"}` });
+  }
+  return rows;
+}
+
+function myFineRows(fines: TrafficFine[]) {
+  return fines.map((f) => ({
+    "Plaka": f.vehiclePlate ?? "",
+    "İhlal": f.violationType,
+    "Tutar (₺)": f.amount,
+    "İndirimli Tutar (₺)": f.discountedAmount ?? "",
+    "Ceza Tarihi": formatDate(f.fineDate),
+    "Son Ödeme": formatDate(f.dueDate),
+    "Durum": FINE_STATUS_META[f.status]?.label ?? f.status,
+    "Notlar": f.notes,
+  }));
+}
+
+function myReportRows(reports: VehicleReport[]) {
+  return reports.map((r) => ({
+    "Araç": r.vehiclePlate ?? r.vehicleName ?? "",
+    "Başlık": r.title,
+    "Açıklama": r.description,
+    "Kategori": REPORT_CATEGORY_LABELS[r.category] ?? r.category,
+    "Önem": REPORT_SEVERITY_LABELS[r.severity] ?? r.severity,
+    "Durum": REPORT_STATUS_LABELS[r.status] ?? r.status,
+    "Tarih": formatDate(r.createdAt),
+  }));
+}
+
+function myFeedbackRows(feedback: Feedback[]) {
+  return feedback.map((f) => ({
+    "Tür": FEEDBACK_TYPE_LABELS[f.type] ?? f.type,
+    "Mesaj": f.message,
+    "Tarih": formatDate(f.createdAt),
+  }));
+}
+
+/**
+ * "Verilerimi İndir" — kullanıcının kendi profil, araç, ceza, arıza bildirimi
+ * ve geri bildirim kayıtlarını okunabilir tek bir Excel dosyası olarak indirir.
+ * (Ham JSON yerine — sürücü/yönetici olmayan kullanıcılar için anlamsız olurdu.)
+ */
+export function exportMyDataExcel(data: {
+  profile: MyProfileExport;
+  vehicles: Vehicle[];
+  trafficFines: TrafficFine[];
+  reports: VehicleReport[];
+  feedback: Feedback[];
+}) {
+  const wb = XLSX.utils.book_new();
+
+  const wsProfile = XLSX.utils.json_to_sheet(profileRows(data.profile));
+  autoWidth(wsProfile);
+  XLSX.utils.book_append_sheet(wb, wsProfile, "Profilim");
+
+  const wsVehicles = XLSX.utils.json_to_sheet(
+    data.vehicles.length > 0 ? vehicleRows(data.vehicles) : [{ "Plaka": "", "Marka": "", "Model": "" }]
+  );
+  autoWidth(wsVehicles);
+  XLSX.utils.book_append_sheet(wb, wsVehicles, "Araçlarım");
+
+  const wsFines = XLSX.utils.json_to_sheet(
+    data.trafficFines.length > 0 ? myFineRows(data.trafficFines) : [{ "Plaka": "", "İhlal": "", "Tutar (₺)": "" }]
+  );
+  autoWidth(wsFines);
+  XLSX.utils.book_append_sheet(wb, wsFines, "Trafik Cezalarım");
+
+  const wsReports = XLSX.utils.json_to_sheet(
+    data.reports.length > 0 ? myReportRows(data.reports) : [{ "Araç": "", "Başlık": "", "Durum": "" }]
+  );
+  autoWidth(wsReports);
+  XLSX.utils.book_append_sheet(wb, wsReports, "Arıza Bildirimlerim");
+
+  const wsFeedback = XLSX.utils.json_to_sheet(
+    data.feedback.length > 0 ? myFeedbackRows(data.feedback) : [{ "Tür": "", "Mesaj": "" }]
+  );
+  autoWidth(wsFeedback);
+  XLSX.utils.book_append_sheet(wb, wsFeedback, "Geri Bildirimlerim");
+
+  download(wb, `carstrack_verilerim_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }

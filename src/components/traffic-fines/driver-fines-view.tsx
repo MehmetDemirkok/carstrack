@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { getMyTrafficFines, getFinePhotoSignedUrl } from "@/lib/db";
 import type { TrafficFine } from "@/lib/types";
 import { FineStatusBadge } from "./fine-badges";
+import { GovFineQueryLink } from "./gov-fine-query-link";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } } };
@@ -115,6 +116,9 @@ export function DriverFinesView() {
           </motion.div>
         ))}
       </motion.div>
+
+      {/* Resmi e-Devlet sorgulama */}
+      <GovFineQueryLink />
 
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-1">

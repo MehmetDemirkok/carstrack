@@ -15,6 +15,7 @@ import type { Vehicle, Profile, TrafficFine, TrafficFineStatus } from "@/lib/typ
 import { Button } from "@/components/ui/button";
 import { FineStatusBadge, STATUS_META, STATUS_ORDER } from "./fine-badges";
 import { FineFormDialog } from "./fine-form-dialog";
+import { GovFineQueryLink } from "./gov-fine-query-link";
 
 function formatDate(iso?: string): string {
   if (!iso) return "—";
@@ -129,6 +130,9 @@ export function ManagerFinesView() {
           </div>
         ))}
       </div>
+
+      {/* Resmi e-Devlet sorgulama */}
+      <GovFineQueryLink />
 
       {/* Yeni ceza CTA */}
       <button onClick={openCreate} className="w-full text-left">
