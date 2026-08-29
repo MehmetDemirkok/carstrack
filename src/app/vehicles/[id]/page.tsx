@@ -965,10 +965,10 @@ export default function VehicleDetailPage() {
                       { value: "tires", label: "Lastik", icon: Disc3 },
                     ]
                   : [
-                      { value: "maintenance", label: "Bakım", icon: Wrench, alert: needsMaintenanceAttention },
+                      { value: "docs", label: "Belgeler", icon: FileText, alert: needsDocAttention },
                       { value: "technical", label: "Teknik", icon: Settings },
                       { value: "tires", label: "Lastik", icon: Disc3 },
-                      { value: "docs", label: "Belgeler", icon: FileText, alert: needsDocAttention },
+                      { value: "maintenance", label: "Bakım", icon: Wrench, alert: needsMaintenanceAttention },
                       { value: "fines", label: "Cezalar", icon: Gavel, alert: needsFineAttention },
                       { value: "history", label: "Geçmiş", icon: Clock },
                     ];
