@@ -385,6 +385,21 @@ export default function NewVehiclePage() {
   const [scanDocs, setScanDocs] = useState<Record<DocKey, DocSlot>>(initDocSlots);
   const [mergedExtracted, setMergedExtracted] = useState<ExtractedDocData | null>(null);
   const [docsApplied, setDocsApplied] = useState(false);
+  // Bu oturumda yarım kalmış bir taslak geri yüklendi mi? (kullanıcıya "sıfırdan başla" seçeneği sunmak için)
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+
+  // Taslağı ve tüm form durumunu temizleyip sıfırdan başlar
+  const startFresh = () => {
+    clearDraft();
+    setForm({ ...defaultForm, ...readRememberedDefaults() });
+    setFactoryNew(false);
+    setScanDocs(initDocSlots());
+    setMergedExtracted(null);
+    setDocsApplied(false);
+    setStep(1);
+    setRestoredFromDraft(false);
+    toast.success("Taslak temizlendi", { description: "Sıfırdan başlıyorsunuz." });
+  };
 
   // Sayfa açılışında: önce yarım kalmış taslağı, yoksa filo genelinde hatırlanan
   // varsayılanları (sigorta şirketi, lastik/akü markası vb.) geri yükle.
@@ -395,7 +410,12 @@ export default function NewVehiclePage() {
       setForm((prev) => ({ ...prev, ...draftForm }));
       if (draftStep) setStep(draftStep);
       if (draftFactoryNew) setFactoryNew(draftFactoryNew);
-      toast.info("Yarım kalan taslak geri yüklendi", { description: "Kaydedilmemiş girdiğiniz bilgiler bulundu." });
+      setRestoredFromDraft(true);
+      toast.info("Yarım kalan taslak geri yüklendi", {
+        description: "Kaydedilmemiş girdiğiniz bilgiler bulundu.",
+        action: { label: "Sıfırdan Başla", onClick: () => startFresh() },
+        duration: 10000,
+      });
     } else {
       const remembered = readRememberedDefaults();
       if (Object.keys(remembered).length > 0) {
@@ -788,6 +808,23 @@ export default function NewVehiclePage() {
             {/* ── STEP 1: BELGELER ── */}
             {step === 1 && (
               <>
+              {/* Yarım kalmış taslak geri yüklendiyse, sıfırdan başlama seçeneği */}
+              {restoredFromDraft && (
+                <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/8 px-3.5 py-2.5 text-xs">
+                  <Info className="h-4 w-4 text-amber-500 shrink-0" />
+                  <span className="flex-1 text-muted-foreground">
+                    Yarım kalan taslağınız geri yüklendi.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={startFresh}
+                    className="text-amber-600 dark:text-amber-400 font-semibold shrink-0 hover:underline"
+                  >
+                    Sıfırdan Başla
+                  </button>
+                </div>
+              )}
+
               {/* Çok sayıda araç ekleyenler için toplu içe aktarma kısayolu */}
               <Link
                 href="/vehicles?import=1"
