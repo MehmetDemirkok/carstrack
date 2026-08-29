@@ -127,6 +127,15 @@ export default function VehiclesPage() {
   const [importSubmitting, setImportSubmitting] = useState(false);
   const importFileRef = useRef<HTMLInputElement | null>(null);
 
+  // /vehicles/new sayfasındaki "Toplu içe aktar" linki ?import=1 ile buraya yönlendirir
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("import") === "1") {
+      setShowImport(true);
+      router.replace("/vehicles", { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 8px eşiği: kısa tıklama ile sürüklemeyi ayırır, kazara sıralamayı önler.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 

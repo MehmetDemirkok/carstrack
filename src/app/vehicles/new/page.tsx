@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle, addVehicleDocument, uploadDocumentFile } from "@/lib/db";
 import type { FuelType, TransmissionType, TireSeasonType, OwnershipType, Vehicle } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileText, XCircle, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileText, XCircle, Upload, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -249,6 +250,7 @@ interface FormData {
   brand: string;
   model: string;
   year: string;
+  chassisNo: string;
   color: string;
   mileage: string;
   engineVolume: string;
@@ -277,6 +279,7 @@ interface FormData {
 const defaultForm: FormData = {
   ownershipType: "ozmal", rentCompany: "", ruhsatSahibi: "",
   image: "", image2: "", image3: "", image4: "", imagePosition: 50, imagePositionX: 50, imageZoom: 100, plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
+  chassisNo: "",
   color: "Beyaz", mileage: "", engineVolume: "",
   fuelType: "Benzin", transmission: "Otomatik",
   tireStatus: "Yazlık", tireBrand: "", tireSize: "", tireInstallDate: "", tireMileage: "0",
@@ -284,6 +287,70 @@ const defaultForm: FormData = {
   insuranceCompany: "", insuranceExpiry: "", kaskoCompany: "", kaskoExpiry: "", greenCardCompany: "", greenCardExpiry: "", inspectionExpiry: "",
   lastServiceDate: "", lastServiceMileage: "0", notes: "",
 };
+
+// ── Taslak & hatırlanan varsayılanlar (localStorage) ───────────
+
+const DRAFT_KEY = "carstrack:vehicle-new-draft:v1";
+const REMEMBERED_DEFAULTS_KEY = "carstrack:vehicle-new-defaults:v1";
+// Görseller base64 olarak çok yer kapladığı için taslağa dahil edilmiyor
+const DRAFT_EXCLUDED_KEYS = new Set<keyof FormData>(["image", "image2", "image3", "image4"]);
+// Filo genelinde tekrar eden alanlar — bir sonraki araca varsayılan olarak taşınır
+const REMEMBERABLE_KEYS: (keyof FormData)[] = ["insuranceCompany", "kaskoCompany", "tireBrand", "batteryBrand", "ruhsatSahibi"];
+
+type DraftShape = Omit<FormData, "image" | "image2" | "image3" | "image4"> & { step?: number; factoryNew?: boolean };
+
+function readDraft(): DraftShape | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DraftShape;
+    // Anlamlı bir şey girilmemişse taslak sayma
+    const hasContent = [parsed.plate, parsed.brand, parsed.model, parsed.notes, parsed.mileage, parsed.insuranceCompany].some((v) => !!v);
+    return hasContent ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(form: FormData, step: number, factoryNew: boolean) {
+  try {
+    const toSave: Partial<FormData> = {};
+    (Object.keys(form) as (keyof FormData)[]).forEach((k) => {
+      if (!DRAFT_EXCLUDED_KEYS.has(k)) (toSave as Record<string, unknown>)[k] = form[k];
+    });
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...toSave, step, factoryNew }));
+  } catch {
+    // localStorage kullanılamıyorsa (gizli sekme vb.) sessizce yok say
+  }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+}
+
+function readRememberedDefaults(): Partial<FormData> {
+  try {
+    const raw = localStorage.getItem(REMEMBERED_DEFAULTS_KEY);
+    return raw ? (JSON.parse(raw) as Partial<FormData>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveRememberedDefaults(values: Partial<FormData>) {
+  try {
+    const merged = { ...readRememberedDefaults() };
+    REMEMBERABLE_KEYS.forEach((k) => {
+      const v = values[k];
+      if (v) (merged as Record<string, unknown>)[k] = v;
+    });
+    localStorage.setItem(REMEMBERED_DEFAULTS_KEY, JSON.stringify(merged));
+  } catch {
+    // yok say
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -299,12 +366,13 @@ function Field({ label, required, children }: { label: string; required?: boolea
 export default function NewVehiclePage() {
   const router = useRouter();
   const { company, profile } = useAuth();
-  const { refresh } = useData();
+  const { refresh, vehicles } = useData();
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
   // Sıfır (fabrikasyon) araç: işaretlenince bakım/lastik/akü baseline'ları teslime göre otomatik dolar
   const [factoryNew, setFactoryNew] = useState(false);
 
@@ -317,6 +385,56 @@ export default function NewVehiclePage() {
   const [scanDocs, setScanDocs] = useState<Record<DocKey, DocSlot>>(initDocSlots);
   const [mergedExtracted, setMergedExtracted] = useState<ExtractedDocData | null>(null);
   const [docsApplied, setDocsApplied] = useState(false);
+  // Bu oturumda yarım kalmış bir taslak geri yüklendi mi? (kullanıcıya "sıfırdan başla" seçeneği sunmak için)
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+
+  // Taslağı ve tüm form durumunu temizleyip sıfırdan başlar
+  const startFresh = () => {
+    clearDraft();
+    setForm({ ...defaultForm, ...readRememberedDefaults() });
+    setFactoryNew(false);
+    setScanDocs(initDocSlots());
+    setMergedExtracted(null);
+    setDocsApplied(false);
+    setStep(1);
+    setRestoredFromDraft(false);
+    toast.success("Taslak temizlendi", { description: "Sıfırdan başlıyorsunuz." });
+  };
+
+  // Sayfa açılışında: önce yarım kalmış taslağı, yoksa filo genelinde hatırlanan
+  // varsayılanları (sigorta şirketi, lastik/akü markası vb.) geri yükle.
+  useEffect(() => {
+    const draft = readDraft();
+    if (draft) {
+      const { step: draftStep, factoryNew: draftFactoryNew, ...draftForm } = draft;
+      setForm((prev) => ({ ...prev, ...draftForm }));
+      if (draftStep) setStep(draftStep);
+      if (draftFactoryNew) setFactoryNew(draftFactoryNew);
+      setRestoredFromDraft(true);
+      toast.info("Yarım kalan taslak geri yüklendi", {
+        description: "Kaydedilmemiş girdiğiniz bilgiler bulundu.",
+        action: { label: "Sıfırdan Başla", onClick: () => startFresh() },
+        duration: 10000,
+      });
+    } else {
+      const remembered = readRememberedDefaults();
+      if (Object.keys(remembered).length > 0) {
+        setForm((prev) => ({ ...prev, ...remembered }));
+      }
+    }
+    setDraftRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Form değiştikçe (görseller hariç) taslağı debounce ile localStorage'a yaz
+  const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!draftRestored || done) return;
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    draftSaveTimer.current = setTimeout(() => writeDraft(form, step, factoryNew), 600);
+    return () => { if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, step, factoryNew, draftRestored, done]);
 
   const set = (key: keyof FormData, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -453,6 +571,7 @@ export default function NewVehiclePage() {
     if (mergedExtracted.brand) updates.brand = mergedExtracted.brand;
     if (mergedExtracted.model) updates.model = mergedExtracted.model;
     if (mergedExtracted.year) updates.year = mergedExtracted.year;
+    if (mergedExtracted.chassisNo) updates.chassisNo = mergedExtracted.chassisNo;
     if (mergedExtracted.color) updates.color = mergedExtracted.color;
     if (mergedExtracted.fuelType && FUEL_TYPES.includes(mergedExtracted.fuelType as FuelType))
       updates.fuelType = mergedExtracted.fuelType as FuelType;
@@ -477,7 +596,9 @@ export default function NewVehiclePage() {
     setStep(2);
   };
 
-  const handleSubmit = async () => {
+  // andNew: true ise kayıt sonrası yönlendirmeden formu sıfırlayıp aynı sayfada kalır
+  // (art arda birden fazla araç eklerken "Yeni Araç"a her seferinde geri dönmemek için).
+  const handleSubmit = async (andNew: boolean = false) => {
     setSaving(true);
     setError("");
     const mileage = parseKm(form.mileage);
@@ -508,7 +629,7 @@ export default function NewVehiclePage() {
       power: "",
       fuelType: form.fuelType,
       transmission: form.transmission,
-      chassisNo: "",
+      chassisNo: form.chassisNo,
       tireStatus: form.tireStatus,
       tireBrand: form.tireBrand,
       tireSize: form.tireSize,
@@ -568,10 +689,26 @@ export default function NewVehiclePage() {
       // (addVehicle db önbelleğini temizlediğinden taze veri çekilir).
       await refresh();
 
-      setSaving(false);
-      setDone(true);
-      toast.success("Araç Eklendi", { description: "Araç başarıyla eklendi, yönlendiriliyorsunuz." });
-      setTimeout(() => router.push("/vehicles"), 1400);
+      // Sigorta şirketi, lastik/akü markası gibi filo genelinde tekrar eden alanları
+      // bir sonraki araç için varsayılan olarak hatırla.
+      saveRememberedDefaults(form);
+      clearDraft();
+
+      if (andNew) {
+        setSaving(false);
+        setForm({ ...defaultForm, ...readRememberedDefaults() });
+        setFactoryNew(false);
+        setScanDocs(initDocSlots());
+        setMergedExtracted(null);
+        setDocsApplied(false);
+        setStep(1);
+        toast.success("Araç Eklendi", { description: "Yeni bir araç daha ekleyebilirsiniz." });
+      } else {
+        setSaving(false);
+        setDone(true);
+        toast.success("Araç Eklendi", { description: "Araç başarıyla eklendi, yönlendiriliyorsunuz." });
+        setTimeout(() => router.push("/vehicles"), 1400);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? "Araç eklenirken bir hata oluştu.";
       console.error("Vehicle add error:", err);
@@ -582,6 +719,14 @@ export default function NewVehiclePage() {
   };
 
   const cls = "rounded-xl h-11 bg-muted/30 border-border/40 text-sm focus-visible:ring-primary/30";
+
+  // Aynı plakanın filoda zaten kayıtlı olup olmadığını anlık kontrol et
+  // (toplu Excel içe aktarmada zaten var olan kontrolün tekli ekleme akışına taşınmış hali).
+  const normalizedPlate = form.plate.trim().toUpperCase().replace(/\s+/g, "");
+  const isDuplicatePlate = normalizedPlate.length > 0 && vehicles.some(
+    (v) => v.plate.trim().toUpperCase().replace(/\s+/g, "") === normalizedPlate
+  );
+  const identityValid = !!form.plate && !!form.brand && !!form.model && !isDuplicatePlate;
 
   if (profile?.role === "user") {
     return (
@@ -663,6 +808,35 @@ export default function NewVehiclePage() {
             {/* ── STEP 1: BELGELER ── */}
             {step === 1 && (
               <>
+              {/* Yarım kalmış taslak geri yüklendiyse, sıfırdan başlama seçeneği */}
+              {restoredFromDraft && (
+                <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/8 px-3.5 py-2.5 text-xs">
+                  <Info className="h-4 w-4 text-amber-500 shrink-0" />
+                  <span className="flex-1 text-muted-foreground">
+                    Yarım kalan taslağınız geri yüklendi.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={startFresh}
+                    className="text-amber-600 dark:text-amber-400 font-semibold shrink-0 hover:underline"
+                  >
+                    Sıfırdan Başla
+                  </button>
+                </div>
+              )}
+
+              {/* Çok sayıda araç ekleyenler için toplu içe aktarma kısayolu */}
+              <Link
+                href="/vehicles?import=1"
+                className="flex items-center gap-2.5 rounded-xl border border-border/40 bg-muted/20 px-3.5 py-2.5 text-xs hover:bg-muted/40 transition-colors"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
+                <span className="flex-1 text-muted-foreground">
+                  Çok sayıda araç mı ekliyorsunuz? <span className="text-foreground font-semibold">Excel ile toplu içe aktarın</span>
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              </Link>
+
               {/* AI belge tarayıcı */}
               <Card className="rounded-2xl border-primary/20 bg-primary/5">
                 <CardContent className="p-4 space-y-3">
@@ -1014,6 +1188,9 @@ export default function NewVehiclePage() {
                   <CardContent className="p-4 space-y-4">
                     <Field label="Plaka" required>
                       <Input className={cls} placeholder="34 ABC 123" value={form.plate} onChange={(e) => set("plate", e.target.value.toUpperCase())} />
+                      {isDuplicatePlate && (
+                        <p className="text-[11px] text-destructive font-medium">Bu plaka filoda zaten kayıtlı.</p>
+                      )}
                     </Field>
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Marka" required>
@@ -1051,6 +1228,9 @@ export default function NewVehiclePage() {
                         />
                       </Field>
                     </div>
+                    <Field label="Şasi No (VIN)">
+                      <Input className={cls} placeholder="WVWZZZ1JZXW000000" value={form.chassisNo} onChange={(e) => set("chassisNo", e.target.value.toUpperCase())} />
+                    </Field>
                   </CardContent>
                 </Card>
               </>
@@ -1184,25 +1364,52 @@ export default function NewVehiclePage() {
             </div>
           )}
           {step < steps.length ? (
-            <Button
-              className="w-full h-12 rounded-2xl font-semibold shadow-lg shadow-primary/20 gap-2"
-              onClick={() => setStep((s) => s + 1)}
-              disabled={step === 2 && (!form.plate || !form.brand || !form.model)}
-            >
-              Devam <ChevronRight className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              className="w-full h-12 rounded-2xl font-semibold shadow-lg shadow-primary/20 gap-2"
-              onClick={handleSubmit}
-              disabled={saving}
-            >
-              {saving ? (
-                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} className="h-5 w-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full" />
-              ) : (
-                <><CheckCircle2 className="h-4 w-4" /> Aracı Kaydet</>
+            <>
+              <Button
+                className="w-full h-12 rounded-2xl font-semibold shadow-lg shadow-primary/20 gap-2"
+                onClick={() => setStep((s) => s + 1)}
+                disabled={step === 2 && !identityValid}
+              >
+                Devam <ChevronRight className="h-4 w-4" />
+              </Button>
+              {/* Teknik / Lastik & Akü adımları opsiyonel — kimlik bilgisi tamamsa doğrudan kaydedilebilir */}
+              {step >= 2 && (
+                <button
+                  type="button"
+                  onClick={() => handleSubmit(false)}
+                  disabled={saving || !identityValid}
+                  className="w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1 disabled:opacity-40"
+                >
+                  {saving ? "Kaydediliyor…" : "Kalan adımları atla, aracı şimdi kaydet"}
+                </button>
               )}
-            </Button>
+            </>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-12 rounded-2xl font-semibold gap-2"
+                onClick={() => handleSubmit(true)}
+                disabled={saving}
+              >
+                {saving ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} className="h-5 w-5 border-2 border-foreground/30 border-t-foreground rounded-full" />
+                ) : (
+                  "Kaydet ve Yeni Ekle"
+                )}
+              </Button>
+              <Button
+                className="flex-1 h-12 rounded-2xl font-semibold shadow-lg shadow-primary/20 gap-2"
+                onClick={() => handleSubmit(false)}
+                disabled={saving}
+              >
+                {saving ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} className="h-5 w-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full" />
+                ) : (
+                  <><CheckCircle2 className="h-4 w-4" /> Aracı Kaydet</>
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </div>
