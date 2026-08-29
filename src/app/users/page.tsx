@@ -18,6 +18,7 @@ import {
   updateMemberRole,
 } from "@/lib/db";
 import type { Vehicle, VehicleTask, Profile, UserRole } from "@/lib/types";
+import { isDriverRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -49,6 +50,7 @@ function avatarColor(name: string): string {
 function roleBadge(role: UserRole) {
   if (role === "manager") return { label: "Şirket Yetkilisi", cls: "bg-primary/10 text-primary" };
   if (role === "operator") return { label: "Operatör", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
+  if (role === "sofor") return { label: "Şoför", cls: "bg-muted text-muted-foreground" };
   return { label: "Kullanıcı", cls: "bg-muted text-muted-foreground" };
 }
 
@@ -182,12 +184,12 @@ export default function UsersPage() {
     if (user) loadAll();
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sadece "user" rolündekiler /tasks'a yönlendirilir; manager ve operator erişebilir
+  // Sadece sürücü rolündekiler ("user"/"sofor") /tasks'a yönlendirilir; manager ve operator erişebilir
   useEffect(() => {
-    if (profile && profile.role === "user") router.replace("/tasks");
+    if (profile && isDriverRole(profile.role)) router.replace("/tasks");
   }, [profile, router]);
 
-  if (profile && profile.role === "user") return null;
+  if (profile && isDriverRole(profile.role)) return null;
 
   const isManager = profile?.role === "manager";
 
@@ -195,7 +197,7 @@ export default function UsersPage() {
   const assignmentMap = new Map(drivers.map((d) => [d.id, d.assignedVehicleIds]));
   const activeTaskMap = new Map(activeTasks.map((t) => [t.driverId, t]));
 
-  const userCount = members.filter((m) => m.role === "user").length;
+  const userCount = members.filter((m) => isDriverRole(m.role)).length;
   const activeCount = activeTasks.length;
   const managerCount = members.filter((m) => m.role === "manager").length;
 
@@ -271,7 +273,13 @@ export default function UsersPage() {
       value: "user",
       label: "Kullanıcı",
       activeClass: "bg-muted border-primary text-primary",
-      description: "Şoförler için uygun roldür. Yalnızca kendisine atanan araçları görür, kilometre/görev günceller. Ekip veya araç ekleyemez, şirket ayarlarına erişemez.",
+      description: "Genel personel rolüdür. Yalnızca kendisine atanan araçları görür, kilometre/görev günceller. Ekip veya araç ekleyemez, şirket ayarlarına erişemez.",
+    },
+    {
+      value: "sofor",
+      label: "Şoför",
+      activeClass: "bg-muted border-primary text-primary",
+      description: "Şoförler için uygun roldür — yetkileri Kullanıcı rolüyle birebir aynıdır. Yalnızca kendisine atanan araçları görür, kilometre/görev günceller. Ekip veya araç ekleyemez, şirket ayarlarına erişemez.",
     },
     {
       value: "operator",
@@ -378,7 +386,7 @@ export default function UsersPage() {
         {[
           { label: "Toplam Üye", value: members.length, Icon: Users, accent: false },
           { label: "Aktif Seyahat", value: activeCount, Icon: Route, accent: activeCount > 0 },
-          { label: "Kullanıcı", value: userCount, Icon: Car, accent: false },
+          { label: "Sürücü", value: userCount, Icon: Car, accent: false },
         ].map(({ label, value, Icon, accent }) => (
           <div
             key={label}
@@ -412,7 +420,7 @@ export default function UsersPage() {
           className="space-y-3"
         >
           {members.map((member) => {
-            const isUser = member.role === "user";
+            const isUser = isDriverRole(member.role);
             const assignedIds = assignmentMap.get(member.id) ?? [];
             const assignedVehicles = assignedIds
               .map((id) => vehicles.find((v) => v.id === id))

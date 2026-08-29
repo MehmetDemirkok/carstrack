@@ -28,6 +28,7 @@ import { HelpDialog } from "@/components/help-dialog";
 import { daysUntilDate, getOverallLicenseStatus, LICENSE_CLASSES } from "@/lib/license";
 import { IdCard, Sparkles, Upload, XCircle, CheckCircle2 } from "lucide-react";
 import type { DriverLicenseEntry } from "@/lib/types";
+import { isDriverRole } from "@/lib/types";
 import { fileToBase64, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS, SCAN_MAX_FILE_SIZE } from "@/lib/file-utils";
 import { DEFAULT_TIMEZONE, TIMEZONES, TIMEZONES_BY_REGION, getTimezoneLabel, resolveTimeZone } from "@/lib/timezone";
 import {
@@ -768,7 +769,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground truncate">{user?.email ?? "—"}</p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <Badge variant="secondary" className="text-[10px] font-bold bg-primary/10 text-primary border-none">
-                      {profile?.role === "manager" ? t("role_manager") : profile?.role === "operator" ? t("role_operator") : t("role_user")}
+                      {profile?.role === "manager" ? t("role_manager") : profile?.role === "operator" ? t("role_operator") : profile?.role === "sofor" ? t("role_sofor") : t("role_user")}
                     </Badge>
                     {company?.name && (
                       <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -834,7 +835,7 @@ export default function SettingsPage() {
         </motion.div>
 
         {/* Ehliyet Bilgileri — yalnızca sürücü rolü */}
-        {profile?.role === "user" && (
+        {isDriverRole(profile?.role) && (
           <motion.div variants={fadeUp} className="space-y-1">
             <Card className="rounded-2xl border-border/40 shadow-sm overflow-hidden">
               <button

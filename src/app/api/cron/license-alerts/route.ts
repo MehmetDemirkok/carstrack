@@ -61,7 +61,7 @@ export async function GET(req: Request) {
   const { data: drivers, error } = await admin
     .from("profiles")
     .select("id, company_id, full_name, licenses")
-    .eq("role", "user");
+    .in("role", ["user", "sofor"]);
 
   if (error) {
     console.error("[cron/license-alerts] profiles error:", error);

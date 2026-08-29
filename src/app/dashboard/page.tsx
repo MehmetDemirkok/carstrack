@@ -9,6 +9,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { calculateHealthScore, getFleetAlerts, getTrafficFineAlerts, TUVTURK_RANDEVU_URL } from "@/lib/store";
 import type { FleetAlert } from "@/lib/types";
+import { isDriverRole } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
 import { HealthScoreBreakdown } from "@/components/health-score-breakdown";
@@ -111,7 +112,7 @@ export default function Dashboard() {
   const warningCount = alerts.filter((a) => a.severity === "warning").length;
 
   // Sürücü rolü kısıtlı kendi panelini görür (bakım/servis/filo skoru yok)
-  if (profile?.role === "user") return <DriverDashboard />;
+  if (isDriverRole(profile?.role)) return <DriverDashboard />;
 
   if (dataLoading) return (
     <div className="p-4 md:p-8 space-y-6">

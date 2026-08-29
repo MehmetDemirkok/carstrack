@@ -80,6 +80,7 @@ export const translations = {
     role_manager: "Şirket Yetkilisi",
     role_operator: "Operatör",
     role_user: "Kullanıcı",
+    role_sofor: "Şoför",
 
     // Privacy page
     privacy_title: "Gizlilik & Güvenlik",
@@ -218,6 +219,7 @@ export const translations = {
     role_manager: "Manager",
     role_operator: "Operator",
     role_user: "User",
+    role_sofor: "Driver",
 
     // Privacy page
     privacy_title: "Privacy & Security",

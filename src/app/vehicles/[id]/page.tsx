@@ -19,6 +19,7 @@ import {
   TUVTURK_RANDEVU_URL,
 } from "@/lib/store";
 import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType, PaymentStatus, TrafficFine, Profile } from "@/lib/types";
+import { isDriverRole } from "@/lib/types";
 import { FineStatusBadge } from "@/components/traffic-fines/fine-badges";
 import { FineFormDialog } from "@/components/traffic-fines/fine-form-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -390,7 +391,7 @@ export default function VehicleDetailPage() {
   // Paylaşılan veri context'i — detay sayfasındaki değişikliklerin dashboard,
   // /history, /vehicles ve /analytics'e yenileme gerektirmeden yansıması için.
   const { refresh: refreshShared } = useData();
-  const isDriver = profile?.role === "user";
+  const isDriver = isDriverRole(profile?.role);
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [plateCopied, setPlateCopied] = useState(false);

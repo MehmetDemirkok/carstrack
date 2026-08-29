@@ -1,5 +1,10 @@
-export type UserRole = "manager" | "operator" | "user";
+export type UserRole = "manager" | "operator" | "user" | "sofor";
 export type PlanType = "free" | "pro" | "fleet";
+
+/** "user" (Kullanıcı) ve "sofor" (Şoför) yetki bakımından birebir aynıdır — yalnızca ekip listesinde ayrı etiketle gösterilirler. */
+export function isDriverRole(role?: UserRole | string | null): boolean {
+  return role === "user" || role === "sofor";
+}
 
 export interface Company {
   id: string;

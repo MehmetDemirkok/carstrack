@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { getVehicles, getNotifications, markAllNotificationsRead, markNotificationsRead, type AppNotification } from "@/lib/db";
 import { useAuth } from "@/context/auth-context";
 import { getOverallLicenseStatus, getMostUrgentEntry, daysUntilDate } from "@/lib/license";
+import { isDriverRole } from "@/lib/types";
 
 const STORAGE_KEY = "carstrack_read_notif_ids";
 
@@ -59,7 +60,7 @@ export function useNotifications() {
         const today = new Date();
 
         // --- Ehliyet Kontrolü (yalnızca sürücü rolü, kendi profili) ---
-        if (profile?.role === "user") {
+        if (isDriverRole(profile?.role)) {
           const status = getOverallLicenseStatus(profile.licenses);
           const urgent = getMostUrgentEntry(profile.licenses);
           if (status === "missing") {

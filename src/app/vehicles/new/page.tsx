@@ -14,6 +14,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle, addVehicleDocument, uploadDocumentFile } from "@/lib/db";
 import type { FuelType, TransmissionType, TireSeasonType, OwnershipType, Vehicle } from "@/lib/types";
+import { isDriverRole } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, CheckCircle2, Camera, Info, ChevronDown, Sparkles, FileText, XCircle, Upload, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
@@ -728,7 +729,7 @@ export default function NewVehiclePage() {
   );
   const identityValid = !!form.plate && !!form.brand && !!form.model && !isDuplicatePlate;
 
-  if (profile?.role === "user") {
+  if (isDriverRole(profile?.role)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }} className="mb-6">

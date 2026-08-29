@@ -18,7 +18,7 @@ export async function GET() {
       .eq("id", user.id)
       .single();
 
-    if (!profile || profile.role !== "user") {
+    if (!profile || (profile.role !== "user" && profile.role !== "sofor")) {
       return NextResponse.json({ vehicles: [] });
     }
 

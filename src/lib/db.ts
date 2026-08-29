@@ -6,7 +6,7 @@ import type {
   Feedback, FeedbackType, ServiceProvider, AuditLog, DriverLicenseEntry,
   TrafficFine, TrafficFineStatus, NotificationPrefs,
 } from "./types";
-import { DEFAULT_NOTIFICATION_PREFS } from "./types";
+import { DEFAULT_NOTIFICATION_PREFS, isDriverRole } from "./types";
 
 // ─── TTL data cache ───────────────────────────────────────────
 // Keeps data in memory for 60 seconds so navigating between pages is instant.
@@ -583,7 +583,7 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: str
     .from("profiles")
     .select("*, vehicle_assignments(vehicle_id)")
     .eq("company_id", companyId)
-    .eq("role", "user")
+    .in("role", ["user", "sofor"])
     .order("full_name");
   if (error) throw error;
 
@@ -652,7 +652,7 @@ export async function getMyVehicles(): Promise<Vehicle[]> {
     .eq("id", userId)
     .single();
 
-  if (profile?.role !== "user") return getVehicles();
+  if (!isDriverRole(profile?.role)) return getVehicles();
 
   try {
     const res = await fetch("/api/my-vehicles");
@@ -773,7 +773,7 @@ export async function updateNotificationPrefs(prefs: Partial<NotificationPrefs>)
 
 export async function updateMemberRole(
   memberId: string,
-  role: "manager" | "operator" | "user"
+  role: "manager" | "operator" | "user" | "sofor"
 ): Promise<void> {
   const supabase = createClient();
   const { data: before } = await supabase

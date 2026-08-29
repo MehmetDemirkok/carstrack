@@ -12,6 +12,7 @@ import { getVehicles, getMyVehicles } from "@/lib/db";
 import { useAuth } from "@/context/auth-context";
 import { calculateHealthScore } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
+import { isDriverRole } from "@/lib/types";
 
 interface NavItem {
   label: string;
@@ -46,7 +47,7 @@ export function CommandPalette() {
   const { open, setOpen } = useCommandPalette();
   const router = useRouter();
   const { profile } = useAuth();
-  const isDriver = profile?.role === "user";
+  const isDriver = isDriverRole(profile?.role);
   const navItems = isDriver ? DRIVER_NAV_ITEMS : MANAGER_NAV_ITEMS;
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");

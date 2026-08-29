@@ -7,6 +7,7 @@ import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
+import { isDriverRole } from "@/lib/types";
 import { LogoMark } from "@/components/brand/logo-mark";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
@@ -18,7 +19,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { profile, company, loading, signOut } = useAuth();
-  const isDriver = profile?.role === "user";
+  const isDriver = isDriverRole(profile?.role);
 
   const navItems = isDriver
     ? [
@@ -146,7 +147,7 @@ export function Sidebar() {
                 <span className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{profile.fullName || "Kullanıcı"}</span>
                 <span className="text-muted-foreground truncate mt-1"
                   style={{ fontSize: "0.58rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.04em" }}>
-                  {[company?.name, profile.role === "manager" ? "ADMIN" : profile.role === "operator" ? "OPERATÖR" : "KULLANICI"].filter(Boolean).join(" · ")}
+                  {[company?.name, profile.role === "manager" ? "ADMIN" : profile.role === "operator" ? "OPERATÖR" : profile.role === "sofor" ? "ŞOFÖR" : "KULLANICI"].filter(Boolean).join(" · ")}
                 </span>
               </div>
             </Link>

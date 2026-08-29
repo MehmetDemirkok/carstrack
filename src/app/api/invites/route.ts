@@ -9,6 +9,7 @@ const ROLE_LABELS: Record<string, string> = {
   manager: "Şirket Yetkilisi",
   operator: "Operatör",
   user: "Kullanıcı",
+  sofor: "Şoför",
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Geçerli bir e-posta adresi girin." }, { status: 400 });
   }
-  if (!["manager", "operator", "user"].includes(role)) {
+  if (!["manager", "operator", "user", "sofor"].includes(role)) {
     return NextResponse.json({ error: "Geçersiz rol." }, { status: 400 });
   }
 

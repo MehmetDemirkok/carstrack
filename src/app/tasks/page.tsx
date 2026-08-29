@@ -38,6 +38,7 @@ import {
 } from "@/lib/db";
 import { exportTasksExcel } from "@/lib/export";
 import type { Vehicle, VehicleTask, Profile } from "@/lib/types";
+import { isDriverRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -91,7 +92,7 @@ export default function TasksPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">
-            {profile?.role === "user" ? "Seyahatlerim" : "Görev Takibi"}
+            {isDriverRole(profile?.role) ? "Seyahatlerim" : "Görev Takibi"}
           </h1>
           <p className="text-sm text-muted-foreground">
             {profile?.role === "manager" || profile?.role === "operator"

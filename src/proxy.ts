@@ -184,7 +184,7 @@ export async function proxy(request: NextRequest) {
     } catch {
       // Sorgu başarısızsa engellemeyiz (mevcut akışı bozmamak için).
     }
-    if (role === "user") {
+    if (role === "user" || role === "sofor") {
       const redirectResponse = NextResponse.redirect(
         new URL("/dashboard", request.url)
       );

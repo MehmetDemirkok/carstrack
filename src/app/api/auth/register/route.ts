@@ -145,7 +145,7 @@ export async function POST(req: Request) {
       }
 
       const companyId = invite.company_id as string;
-      const role = invite.role as "manager" | "operator" | "user";
+      const role = invite.role as "manager" | "operator" | "user" | "sofor";
 
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email,

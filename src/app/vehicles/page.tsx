@@ -7,6 +7,7 @@ import { addVehicle, deleteVehicles, updateVehicle, updateVehicleOrder, getVehic
 import { useData } from "@/context/data-context";
 import { calculateHealthScore, getMaintenanceStatusForItem } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
+import { isDriverRole } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,7 +105,7 @@ export default function VehiclesPage() {
   const router = useRouter();
   const { profile } = useAuth();
   const { vehicles, loading, refresh, setVehicles } = useData();
-  const isDriver = profile?.role === "user";
+  const isDriver = isDriverRole(profile?.role);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);

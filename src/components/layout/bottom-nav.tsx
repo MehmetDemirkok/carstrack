@@ -7,13 +7,14 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
+import { isDriverRole } from "@/lib/types";
 
 export function BottomNav() {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { profile, loading } = useAuth();
   const needsProfileCompletion = !!profile && !profile.department;
-  const isDriver = profile?.role === "user";
+  const isDriver = isDriverRole(profile?.role);
 
   const navItems = isDriver
     ? [
