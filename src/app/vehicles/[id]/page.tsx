@@ -6,21 +6,21 @@ import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
-import Link from "next/link";
 import {
   getVehicles, updateVehicle, deleteVehicle, getVehicle,
   getVehicleRecords, addRecord, deleteRecord,
   getVehicleDocuments, addVehicleDocument, updateVehicleDocument,
   deleteVehicleDocument, getDocumentSignedUrl, uploadDocumentFile,
-  getVehicleStatuses, getServiceProviders, getTrafficFines,
+  getVehicleStatuses, getServiceProviders, getTrafficFines, getDrivers,
 } from "@/lib/db";
 import {
   calculateHealthScore, calculateHealthScoreBreakdown, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES, applyPeriodicService,
   TUVTURK_RANDEVU_URL,
 } from "@/lib/store";
-import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType, PaymentStatus, TrafficFine } from "@/lib/types";
+import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType, PaymentStatus, TrafficFine, Profile } from "@/lib/types";
 import { FineStatusBadge } from "@/components/traffic-fines/fine-badges";
+import { FineFormDialog } from "@/components/traffic-fines/fine-form-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,7 @@ import {
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
   Shield, Download, Upload, ClipboardCheck, CalendarPlus, ExternalLink,
-  Wallet, Gavel, Copy, CheckCheck, X as XIcon,
+  Wallet, Gavel, Copy, CheckCheck, X as XIcon, Maximize2, Star,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,7 +47,6 @@ import {
 const MUAYENE_RANDEVU_ESIK_GUN = 30;
 import { exportVehicleReportPDF } from "@/lib/pdf-export";
 import { DatePicker } from "@/components/ui/date-picker";
-import { DragSlider } from "@/components/ui/drag-slider";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
 const fadeUp = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
@@ -308,6 +307,38 @@ function daysBadgeText(days: number): string {
   return `${days} gün`;
 }
 
+/** Belgeler sekmesindeki gruplar için açılır/kapanır bölüm — uzun listeyi toparlar. */
+function CollapsibleSection({
+  icon: Icon, title, subtitle, defaultOpen = true, children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between gap-3 p-4 text-left"
+      >
+        <div className="flex items-center gap-2.5">
+          <Icon className="h-4 w-4 text-primary shrink-0" />
+          <div>
+            <p className="text-sm font-semibold">{title}</p>
+            {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
+          </div>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="px-4 pb-4 space-y-3">{children}</div>}
+    </div>
+  );
+}
+
 function VehicleDetailSkeleton() {
   return (
     <div className="bg-background min-h-screen animate-pulse">
@@ -417,8 +448,10 @@ export default function VehicleDetailPage() {
   const [docViewLoading, setDocViewLoading] = useState(false);
   const [docViewError, setDocViewError] = useState(false);
 
-  // Trafik cezaları (salt-okunur özet — yönetim /traffic-fines sayfasında)
+  // Trafik cezaları — özet burada, ekleme de bu sayfadan (Ceza Ekle dialogu) yapılabilir.
   const [fines, setFines] = useState<TrafficFine[]>([]);
+  const [drivers, setDrivers] = useState<Profile[]>([]);
+  const [showAddFine, setShowAddFine] = useState(false);
   const reloadFines = useCallback(async () => {
     try {
       setFines(await getTrafficFines({ vehicleId: id }));
@@ -469,6 +502,12 @@ export default function VehicleDetailPage() {
     }
   }, [authLoading, company, reload, reloadDocs, reloadStatus, reloadFines]);
 
+  // Sürücü listesi yalnızca "Ceza Ekle" dialogu açıldığında, ihtiyaç anında yüklenir.
+  useEffect(() => {
+    if (isDriver || !showAddFine || drivers.length > 0) return;
+    getDrivers().then(setDrivers).catch((err) => console.error("Failed to load drivers:", err));
+  }, [isDriver, showAddFine, drivers.length]);
+
   if (!vehicle) return <VehicleDetailSkeleton />;
 
   // Belgeleri ikiye ayır: "Diğer Evrak" (araç teslim formu vb.) ve standart araç belgeleri
@@ -481,9 +520,50 @@ export default function VehicleDetailPage() {
     (item) => item.lastDoneDate !== undefined || item.lastDoneMileage !== undefined
   ) || !!vehicle.lastServiceDate;
 
+  // Dikkat gerektiren durumların özeti — sekmelere girmeden üstte tek bakışta gösterilir.
+  const overdueMaintenanceCount = hasAnyMaintenanceData
+    ? vehicle.maintenanceItems.filter((item) => getMaintenanceStatusForItem(item, vehicle.mileage) === "overdue").length
+    : 0;
+  const expiringVehicleDocsCount = [vehicle.insuranceExpiry, vehicle.kaskoExpiry, vehicle.inspectionExpiry]
+    .filter((d) => !!d && daysUntil(d) <= 30).length;
+  const expiringUploadedDocsCount = documents.filter((d) => !!d.expiryDate && daysUntil(d.expiryDate) <= 30).length;
+  const expiringDocsCount = expiringVehicleDocsCount + expiringUploadedDocsCount;
+  const unpaidFines = fines.filter((f) => f.status === "unpaid");
+  const unpaidFinesTotal = unpaidFines.reduce((sum, f) => sum + f.amount, 0);
+
+  const needsMaintenanceAttention = overdueMaintenanceCount > 0;
+  const needsDocAttention = expiringDocsCount > 0;
+  const needsFineAttention = unpaidFines.length > 0;
+
+  const attentionItems: { icon: LucideIcon; text: string }[] = [];
+  if (needsMaintenanceAttention) {
+    attentionItems.push({ icon: Wrench, text: `${overdueMaintenanceCount} bakım gecikti` });
+  }
+  if (needsDocAttention) {
+    attentionItems.push({ icon: ShieldCheck, text: `${expiringDocsCount} belge yakında bitiyor` });
+  }
+  if (needsFineAttention) {
+    attentionItems.push({ icon: Gavel, text: `${unpaidFines.length} ödenmemiş ceza • ₺${unpaidFinesTotal.toLocaleString("tr-TR")}` });
+  }
+
   const openEdit = () => {
     setEditData({ ...vehicle });
     setShowEdit(true);
+  };
+
+  // Seçilen fotoğrafı kapak (hero) yapar — diğer fotoğraflar sırasını koruyarak kayar.
+  // Kırpma odağı (imagePosition) eski kapağa özel olduğundan yeni kapak için ortaya sıfırlanır.
+  const handleSetCoverPhoto = async (url: string) => {
+    if (!url || url === vehicle.image) return;
+    const others = [vehicle.image, vehicle.image2, vehicle.image3, vehicle.image4].filter((p) => !!p && p !== url);
+    const [image = "", image2 = "", image3 = "", image4 = ""] = [url, ...others];
+    try {
+      await updateVehicle(vehicle.id, { image, image2, image3, image4, imagePosition: 50, imagePositionX: 50 });
+      toast.success("Kapak fotoğrafı güncellendi");
+      reload();
+    } catch {
+      toast.error("Hata", { description: "Kapak fotoğrafı güncellenemedi." });
+    }
   };
 
   const handleCopyPlate = async () => {
@@ -821,35 +901,40 @@ export default function VehicleDetailPage() {
           </div>
         </div>
 
-        {/* Hero image */}
+        {/* Hero image — tam kare (cover) gösterilir; imagePosition kırpma odağını belirler. */}
         <div className="relative h-56 md:h-80 w-full bg-muted md:rounded-3xl overflow-hidden shadow-md">
           {vehicle.image ? (
             <>
               <div
-                className="absolute inset-0 scale-110"
-                style={{
-                  backgroundImage: `url(${vehicle.image})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: `center ${vehicle.imagePosition ?? 50}%`,
-                  filter: "blur(18px) brightness(0.55) saturate(1.4)",
-                }}
-              />
-              <div
                 className="absolute inset-0"
                 style={{
                   backgroundImage: `url(${vehicle.image})`,
-                  backgroundSize: "contain",
-                  backgroundPosition: `center ${vehicle.imagePosition ?? 50}%`,
-                  backgroundRepeat: "no-repeat",
+                  backgroundSize: "cover",
+                  backgroundPosition: `${vehicle.imagePositionX ?? 50}% ${vehicle.imagePosition ?? 50}%`,
                 }}
               />
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => setPhotoView(vehicle.image!)}
+                      className="absolute top-3 right-3 md:top-4 md:right-4 h-8 w-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                      aria-label="Fotoğrafı büyüt"
+                    />
+                  }
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Fotoğrafı Büyüt</TooltipContent>
+              </Tooltip>
             </>
           ) : (
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 to-primary/10 flex items-center justify-center">
               <Car className="h-24 w-24 text-primary/30" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent pointer-events-none" />
           <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
             <div>
               <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-outfit font-black text-foreground drop-shadow-lg">
@@ -924,41 +1009,70 @@ export default function VehicleDetailPage() {
             ))}
           </motion.div>
 
+          {/* Dikkat gerekenler özeti — sekmelere girmeden tek bakışta aksiyon gereken şeyler */}
+          {!isDriver && attentionItems.length > 0 && (
+            <motion.div variants={fadeUp} className="bg-red-500/8 border border-red-500/20 rounded-2xl px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              {attentionItems.map((item, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 dark:text-red-400">
+                  <item.icon className="h-3.5 w-3.5 shrink-0" /> {item.text}
+                </span>
+              ))}
+            </motion.div>
+          )}
+
           {/* Fotoğraf galerisi — birden fazla fotoğraf varsa göster */}
           {(() => {
             const photos = [vehicle.image, vehicle.image2, vehicle.image3, vehicle.image4].filter((p): p is string => !!p);
             if (photos.length < 2) return null;
             return (
               <motion.div variants={fadeUp} className="grid grid-cols-4 gap-2">
-                {photos.map((p, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setPhotoView(p)}
-                    className="relative aspect-square rounded-xl overflow-hidden border border-border/40 bg-muted/30 hover:ring-2 hover:ring-primary/50 transition-shadow"
-                  >
-                    <div className="absolute inset-0" style={{ backgroundImage: `url(${p})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-                  </button>
-                ))}
+                {photos.map((p, i) => {
+                  const isCover = p === vehicle.image;
+                  return (
+                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-border/40 bg-muted/30">
+                      <button
+                        type="button"
+                        onClick={() => setPhotoView(p)}
+                        className="absolute inset-0 hover:ring-2 hover:ring-primary/50 transition-shadow rounded-xl"
+                      >
+                        <div className="absolute inset-0" style={{ backgroundImage: `url(${p})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                      </button>
+                      {isCover ? (
+                        <span className="absolute top-1 left-1 inline-flex items-center gap-0.5 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow">
+                          <Star className="h-2.5 w-2.5 fill-current" /> Kapak
+                        </span>
+                      ) : (
+                        !isDriver && (
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleSetCoverPhoto(p); }}
+                                  className="absolute top-1 left-1 h-6 w-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white opacity-70 hover:opacity-100 active:opacity-100 transition-opacity"
+                                />
+                              }
+                            >
+                              <Star className="h-3 w-3" />
+                            </TooltipTrigger>
+                            <TooltipContent>Kapak Fotoğrafı Yap</TooltipContent>
+                          </Tooltip>
+                        )
+                      )}
+                    </div>
+                  );
+                })}
               </motion.div>
             );
           })()}
 
           <motion.div variants={fadeUp}>
-            <Tabs key={isDriver ? "driver-tabs" : "full-tabs"} defaultValue={isDriver ? "technical" : "maintenance"} className="w-full">
+            <Tabs key={isDriver ? "driver-tabs" : "full-tabs"} defaultValue={isDriver ? "technical" : "docs"} className="w-full">
               {(() => {
                 // Sürücü rolü yalnızca aracın teknik özellikleri ve lastik/akü durumunu görür.
                 // Bakım bilgileri, servis geçmişi ve hassas belgeler (sigorta/şasi/finansal) gizlenir.
                 // Dikkat gerektiren sekmelerde küçük bir uyarı noktası göster — kullanıcı her sekmeyi
-                // tek tek açmadan nerede aksiyon beklediğini görsün.
-                const needsMaintenanceAttention = hasAnyMaintenanceData && vehicle.maintenanceItems.some(
-                  (item) => getMaintenanceStatusForItem(item, vehicle.mileage) === "overdue"
-                );
-                const needsDocAttention = [vehicle.insuranceExpiry, vehicle.kaskoExpiry, vehicle.inspectionExpiry]
-                  .some((d) => !!d && daysUntil(d) <= 30)
-                  || documents.some((d) => !!d.expiryDate && daysUntil(d.expiryDate) <= 30);
-                const needsFineAttention = fines.some((f) => f.status === "unpaid");
-
+                // tek tek açmadan nerede aksiyon beklediğini görsün (özet değerler yukarıda hesaplandı).
                 const tabItems = isDriver
                   ? [
                       { value: "technical", label: "Teknik", icon: Settings },
@@ -1111,8 +1225,7 @@ export default function VehicleDetailPage() {
                       vehicle.power ? { icon: Zap, label: "Motor Gücü", value: `${vehicle.power} HP` } : null,
                       vehicle.engineType ? { icon: Hash, label: "Motor Kodu", value: vehicle.engineType } : null,
                       { icon: MapPin, label: "Kilometre", value: `${vehicle.mileage.toLocaleString("tr-TR")} km` },
-                      // Şasi no hassas bilgidir — sürücü rolünde gizlenir
-                      (!isDriver && vehicle.chassisNo) ? { icon: FileText, label: "Şasi No", value: vehicle.chassisNo } : null,
+                      // Şasi no burada tekrar edilmiyor — Belgeler sekmesinde tek yerde gösteriliyor.
                     ].filter((r): r is NonNullable<typeof r> => r !== null).map((row, i) => (
                       <div key={i} className="flex items-center gap-3 px-4 py-3">
                         <row.icon className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -1208,11 +1321,14 @@ export default function VehicleDetailPage() {
                 {/* ── BELGELER ── (sürücü göremez) */}
                 {!isDriver && (
                 <TabsContent value="docs" className="space-y-3 outline-none">
-                  <div className="bg-card rounded-2xl p-5 border border-border/40 shadow-sm space-y-4">
+                  <CollapsibleSection
+                    icon={ShieldCheck}
+                    title="Sigorta & Muayene"
+                    subtitle={expiringVehicleDocsCount > 0 ? `${expiringVehicleDocsCount} tanesi yakında bitiyor` : undefined}
+                  >
                     {[
                       { icon: ShieldCheck, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "Zorunlu Trafik Sigortası", sub: vehicle.insuranceCompany || "—", date: vehicle.insuranceExpiry, inspection: false },
                       { icon: ShieldCheck, iconBg: "bg-sky-500/10", iconColor: "text-sky-500", label: "Kasko Poliçesi", sub: vehicle.kaskoCompany || "—", date: vehicle.kaskoExpiry, inspection: false },
-                      { icon: ShieldCheck, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500", label: "Yurtdışı Sigortası (Yeşil Kart)", sub: vehicle.greenCardCompany || "—", date: vehicle.greenCardExpiry, inspection: false },
                       { icon: CalendarDays, iconBg: "bg-violet-500/10", iconColor: "text-violet-500", label: "TÜVTÜRK Muayene", sub: "", date: vehicle.inspectionExpiry, inspection: true },
                     ].map((doc, i) => {
                       const days = daysUntil(doc.date);
@@ -1221,7 +1337,7 @@ export default function VehicleDetailPage() {
                       return (
                         <div key={i}>
                           {i > 0 && <Separator />}
-                          <div className={`flex justify-between items-center ${i > 0 ? "pt-4" : ""}`}>
+                          <div className={`flex justify-between items-center ${i > 0 ? "pt-3" : ""}`}>
                             <div className="flex items-center gap-3">
                               <div className={`p-2 ${doc.iconBg} rounded-xl`}>
                                 <doc.icon className={`h-4 w-4 ${doc.iconColor}`} />
@@ -1261,18 +1377,23 @@ export default function VehicleDetailPage() {
                         </div>
                       );
                     })}
-                  </div>
 
-                  <a
-                    href={`/api/vehicles/${vehicle.id}/calendar`}
-                    download
-                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full gap-1.5 rounded-xl text-xs font-semibold")}
+                    <a
+                      href={`/api/vehicles/${vehicle.id}/calendar`}
+                      download
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full gap-1.5 rounded-xl text-xs font-semibold")}
+                    >
+                      <CalendarPlus className="h-3.5 w-3.5" /> Belge Tarihlerini Takvime Ekle (.ics)
+                    </a>
+                  </CollapsibleSection>
+
+                  <CollapsibleSection
+                    icon={Upload}
+                    title="Yüklenen Belgeler"
+                    subtitle={`${mainDocs.length + otherDocs.length} belge${expiringUploadedDocsCount > 0 ? ` • ${expiringUploadedDocsCount} tanesi yakında bitiyor` : ""}`}
                   >
-                    <CalendarPlus className="h-3.5 w-3.5" /> Belge Tarihlerini Takvime Ekle (.ics)
-                  </a>
-
                   {vehicle.chassisNo && (
-                    <div className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm">
+                    <div className="rounded-xl border border-border/30 bg-muted/20 p-3">
                       <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                         <Hash className="h-3.5 w-3.5" /> Şasi Numarası
                       </p>
@@ -1283,7 +1404,7 @@ export default function VehicleDetailPage() {
                   )}
 
                   {/* Diğer Evraklar — araç teslim formu vb. (en fazla 2) */}
-                  <div className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm space-y-3">
+                  <div className="rounded-xl border border-border/30 bg-muted/20 p-3 space-y-3">
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="text-sm font-semibold flex items-center gap-2">
@@ -1314,7 +1435,7 @@ export default function VehicleDetailPage() {
                           const meta = DOC_TYPE_META[doc.type] ?? DOC_TYPE_META.diger;
                           const { Icon: DocIcon } = meta;
                           return (
-                            <div key={doc.id} className="flex items-center gap-3 rounded-xl border border-border/40 bg-muted/20 p-3">
+                            <div key={doc.id} className="flex items-center gap-3 rounded-xl border border-border/40 bg-card p-3">
                               <div className={`p-2 ${meta.bg} rounded-xl shrink-0`}>
                                 <DocIcon className={`h-4 w-4 ${meta.color}`} />
                               </div>
@@ -1474,6 +1595,7 @@ export default function VehicleDetailPage() {
                       })}
                     </div>
                   )}
+                  </CollapsibleSection>
                 </TabsContent>
                 )}
 
@@ -1487,9 +1609,9 @@ export default function VehicleDetailPage() {
                         <> • <span className="font-semibold text-destructive">₺{fines.reduce((sum, f) => sum + (f.status === "unpaid" ? f.amount : 0), 0).toLocaleString("tr-TR")} ödenmedi</span></>
                       )}
                     </p>
-                    <Link href="/traffic-fines" className={cn(buttonVariants({ size: "sm" }), "rounded-full h-8 px-3 gap-1.5 text-xs")}>
+                    <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={() => setShowAddFine(true)}>
                       <Plus className="h-3.5 w-3.5" /> Ceza Ekle
-                    </Link>
+                    </Button>
                   </div>
 
                   {fines.length === 0 ? (
@@ -1613,6 +1735,20 @@ export default function VehicleDetailPage() {
         </motion.div>
       </div>
 
+      {/* ── CEZA EKLE DIALOG ── */}
+      {!isDriver && (
+        <FineFormDialog
+          open={showAddFine}
+          onOpenChange={setShowAddFine}
+          editing={null}
+          vehicles={[vehicle]}
+          drivers={drivers}
+          defaultVehicleId={vehicle.id}
+          lockVehicle
+          onSaved={reloadFines}
+        />
+      )}
+
       {/* ── DELETE DIALOG ── */}
       <Dialog open={showDelete} onOpenChange={setShowDelete}>
         <DialogContent className="rounded-3xl max-w-[340px]">
@@ -1638,30 +1774,18 @@ export default function VehicleDetailPage() {
             <DialogTitle className="font-outfit">Araç Düzenle</DialogTitle>
           </DialogHeader>
           <div className="py-3 space-y-5">
-            {/* Fotoğraf */}
+            {/* Fotoğraf — konumlandırma yalnızca Araçlarım sayfasındaki kart üzerinden yapılır */}
             <div className="space-y-2">
               <Label className={iLabel}>Araç Fotoğrafı</Label>
-              <div className="relative h-36 rounded-2xl overflow-hidden border-2 border-dashed border-border/50 bg-muted/30">
+              <div className="relative h-48 rounded-2xl overflow-hidden border-2 border-dashed border-border/50 bg-muted/30">
                 {editData.image ? (
                   <>
-                    {/* Blurred backdrop */}
-                    <div
-                      className="absolute inset-0 scale-110"
-                      style={{
-                        backgroundImage: `url(${editData.image})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: `center ${editData.imagePosition ?? 50}%`,
-                        filter: "blur(14px) brightness(0.55) saturate(1.4)",
-                      }}
-                    />
-                    {/* Full image */}
                     <div
                       className="absolute inset-0"
                       style={{
                         backgroundImage: `url(${editData.image})`,
-                        backgroundSize: "contain",
-                        backgroundPosition: `center ${editData.imagePosition ?? 50}%`,
-                        backgroundRepeat: "no-repeat",
+                        backgroundSize: "cover",
+                        backgroundPosition: `${editData.imagePositionX ?? 50}% ${editData.imagePosition ?? 50}%`,
                       }}
                     />
                     {/* Always-visible action bar at bottom */}
@@ -1672,7 +1796,7 @@ export default function VehicleDetailPage() {
                           const file = e.target.files?.[0];
                           if (!file) return;
                           const compressed = await compressImage(file);
-                          setEditData((d) => ({ ...d, image: compressed }));
+                          setEditData((d) => ({ ...d, image: compressed, imagePosition: 50, imagePositionX: 50 }));
                           warnIfPortrait(compressed, toast);
                           e.target.value = "";
                         }} />
@@ -1695,22 +1819,13 @@ export default function VehicleDetailPage() {
                       const file = e.target.files?.[0];
                       if (!file) return;
                       const compressed = await compressImage(file);
-                      setEditData((d) => ({ ...d, image: compressed }));
+                      setEditData((d) => ({ ...d, image: compressed, imagePosition: 50, imagePositionX: 50 }));
                       warnIfPortrait(compressed, toast);
                       e.target.value = "";
                     }} />
                   </label>
                 )}
               </div>
-              {editData.image && (
-                <DragSlider
-                  value={editData.imagePosition ?? 50}
-                  onChange={(v) => setEditData((d) => ({ ...d, imagePosition: v }))}
-                  label="Üst"
-                  labelEnd="Alt"
-                  trackClassName="bg-muted"
-                />
-              )}
 
               {/* Ek fotoğraflar — toplamda 4 (ana + 3 ek) */}
               <p className="text-[11px] text-muted-foreground">Ek fotoğraflar — arka, yan vb.</p>
@@ -1852,20 +1967,6 @@ export default function VehicleDetailPage() {
                         </Tooltip>
                       )}
                     </div>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className={iLabel}>Yeşil Kart Bitiş</Label>
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex-1"><DatePicker value={editData.greenCardExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, greenCardExpiry: v }))} /></div>
-                    {editData.greenCardExpiry && (
-                      <Tooltip>
-                        <TooltipTrigger render={<button type="button" onClick={() => setEditData((d) => ({ ...d, greenCardExpiry: "" }))} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0" />}>
-                          <XCircle className="h-4 w-4" />
-                        </TooltipTrigger>
-                        <TooltipContent>Tarihi Kaldır</TooltipContent>
-                      </Tooltip>
-                    )}
                   </div>
                 </div>
                 <div className="space-y-1"><Label className={iLabel}>Muayene Bitiş</Label><DatePicker value={editData.inspectionExpiry || ""} onChange={(v) => setEditData((d) => ({ ...d, inspectionExpiry: v }))} /></div>

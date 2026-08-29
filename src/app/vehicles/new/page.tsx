@@ -17,6 +17,7 @@ import { ChevronLeft, ChevronRight, Car, Fuel, Disc3, Shield, ShieldCheck, Check
 import { useAuth } from "@/context/auth-context";
 import { useData } from "@/context/data-context";
 import { DatePicker } from "@/components/ui/date-picker";
+import { ImagePositioner } from "@/components/ui/image-positioner";
 import { fileToBase64, SCAN_MAX_FILE_SIZE, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS } from "@/lib/file-utils";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
@@ -242,6 +243,7 @@ interface FormData {
   image3: string;
   image4: string;
   imagePosition: number;
+  imagePositionX: number;
   imageZoom: number;
   plate: string;
   brand: string;
@@ -274,7 +276,7 @@ interface FormData {
 
 const defaultForm: FormData = {
   ownershipType: "ozmal", rentCompany: "", ruhsatSahibi: "",
-  image: "", image2: "", image3: "", image4: "", imagePosition: 50, imageZoom: 100, plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
+  image: "", image2: "", image3: "", image4: "", imagePosition: 50, imagePositionX: 50, imageZoom: 100, plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
   color: "Beyaz", mileage: "", engineVolume: "",
   fuelType: "Benzin", transmission: "Otomatik",
   tireStatus: "Yazlık", tireBrand: "", tireSize: "", tireInstallDate: "", tireMileage: "0",
@@ -343,6 +345,7 @@ export default function NewVehiclePage() {
     if (!file) return;
     const compressed = await compressImage(file);
     set("image", compressed);
+    setForm((prev) => ({ ...prev, imagePosition: 50, imagePositionX: 50 }));
     // Dik çekilen fotoğraf uyarısı
     const img = new Image();
     img.onload = () => {
@@ -492,6 +495,7 @@ export default function NewVehiclePage() {
       image3: form.image3,
       image4: form.image4,
       imagePosition: form.imagePosition,
+      imagePositionX: form.imagePositionX,
       imageZoom: form.imageZoom,
       plate: form.plate.toUpperCase(),
       brand: form.brand,
@@ -849,14 +853,6 @@ export default function NewVehiclePage() {
                     <DatePicker value={form.kaskoExpiry} onChange={(v) => set("kaskoExpiry", v)} />
                   </Field>
                   <div className="h-px bg-border/40" />
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Yurtdışı Sigortası (Yeşil Kart)</h3>
-                  <Field label="Sigorta Şirketi">
-                    <Input className={cls} placeholder="Allianz, Axa..." value={form.greenCardCompany} onChange={(e) => set("greenCardCompany", e.target.value)} />
-                  </Field>
-                  <Field label="Yeşil Kart Bitiş Tarihi">
-                    <DatePicker value={form.greenCardExpiry} onChange={(v) => set("greenCardExpiry", v)} />
-                  </Field>
-                  <div className="h-px bg-border/40" />
                   <Field label="TÜVTÜRK Muayene Bitiş">
                     <DatePicker value={form.inspectionExpiry} onChange={(v) => set("inspectionExpiry", v)} />
                   </Field>
@@ -879,54 +875,52 @@ export default function NewVehiclePage() {
               <>
                 {/* Image upload */}
                 <div className="space-y-2">
-                  <label className="block cursor-pointer">
-                    <div className={`relative h-44 rounded-2xl border-2 border-dashed border-border/50 overflow-hidden bg-muted/30 flex items-center justify-center hover:border-primary/50 transition-colors ${form.image ? "border-transparent" : ""}`}>
-                      {form.image ? (
-                        <>
-                          <div
-                            className="absolute inset-0 scale-110"
-                            style={{
-                              backgroundImage: `url(${form.image})`,
-                              backgroundSize: "cover",
-                              backgroundPosition: `center ${form.imagePosition}%`,
-                              filter: "blur(14px) brightness(0.55) saturate(1.4)",
-                            }}
-                          />
-                          <div
-                            className="absolute inset-0"
-                            style={{
-                              backgroundImage: `url(${form.image})`,
-                              backgroundSize: "contain",
-                              backgroundPosition: `center ${form.imagePosition}%`,
-                              backgroundRepeat: "no-repeat",
-                            }}
-                          />
-                        </>
-                      ) : (
+                  {form.image ? (
+                    <>
+                      <div className="flex items-center justify-end px-1">
+                        <button
+                          type="button"
+                          onClick={() => setForm((prev) => ({ ...prev, imagePosition: 50, imagePositionX: 50 }))}
+                          className="text-[10px] font-semibold text-primary hover:underline"
+                        >
+                          Ortala
+                        </button>
+                      </div>
+                      <div className="relative h-44 rounded-2xl overflow-hidden border-2 border-dashed border-border/50 bg-muted/30">
+                        <ImagePositioner
+                          imageUrl={form.image}
+                          x={form.imagePositionX}
+                          y={form.imagePosition}
+                          onChange={({ x, y }) => setForm((prev) => ({ ...prev, imagePositionX: x, imagePosition: y }))}
+                          className="absolute inset-0"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm flex items-center justify-center gap-3 py-2 pointer-events-none">
+                          <label className="pointer-events-auto cursor-pointer bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors">
+                            Değiştir
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] ?? null)} />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setForm((prev) => ({ ...prev, image: "" }))}
+                            className="pointer-events-auto bg-red-500/80 hover:bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors"
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground text-center">Odak noktasını ayarlamak için görseli sürükleyin</p>
+                    </>
+                  ) : (
+                    <label className="block cursor-pointer">
+                      <div className="relative h-44 rounded-2xl border-2 border-dashed border-border/50 overflow-hidden bg-muted/30 flex items-center justify-center hover:border-primary/50 transition-colors">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Camera className="h-8 w-8" />
                           <span className="text-sm font-medium">Araç fotoğrafı ekle</span>
                           <span className="text-xs">Opsiyonel</span>
                         </div>
-                      )}
-                    </div>
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] ?? null)} />
-                  </label>
-                  {form.image && (
-                    <div className="space-y-1.5 px-1">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">Üst</span>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={form.imagePosition}
-                          onChange={(e) => setForm((prev) => ({ ...prev, imagePosition: Number(e.target.value) }))}
-                          className="flex-1 accent-primary cursor-pointer"
-                        />
-                        <span className="text-[10px] text-muted-foreground w-12 shrink-0">Alt</span>
                       </div>
-                    </div>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] ?? null)} />
+                    </label>
                   )}
 
                   {/* Ek fotoğraflar — toplamda 4 (ana + 3 ek) */}

@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { exportVehiclesExcel } from "@/lib/export";
 import { exportVehicleImportTemplate, parseVehicleImportFile, type ParsedVehicleRow } from "@/lib/vehicle-import";
-import { DragSlider } from "@/components/ui/drag-slider";
+import { ImagePositioner } from "@/components/ui/image-positioner";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import {
@@ -310,56 +310,57 @@ export default function VehiclesPage() {
         {/* Image hero */}
         <div className="relative h-52 md:h-56 overflow-hidden">
           {vehicle.image ? (
-            <div
-              className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"
-              style={{
-                backgroundImage: `url(${vehicle.image})`,
-                backgroundSize: "cover",
-                backgroundPosition: repositioningId === vehicle.id
-                  ? `${pendingPosX}% ${pendingPosY}%`
-                  : `${vehicle.imagePositionX ?? 50}% ${vehicle.imagePosition ?? 50}%`,
-              }}
-            />
+            repositioningId === vehicle.id ? (
+              <ImagePositioner
+                imageUrl={vehicle.image}
+                x={pendingPosX}
+                y={pendingPosY}
+                onChange={({ x, y }) => { setPendingPosX(x); setPendingPosY(y); }}
+                className="absolute inset-0 pointer-events-auto"
+              />
+            ) : (
+              <div
+                className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"
+                style={{
+                  backgroundImage: `url(${vehicle.image})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: `${vehicle.imagePositionX ?? 50}% ${vehicle.imagePosition ?? 50}%`,
+                }}
+              />
+            )
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-primary/15 to-transparent flex items-center justify-center">
               <Car className="h-24 w-24 text-primary/20" />
             </div>
           )}
 
-          {/* Subtle top-down tint for badge legibility */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/10 pointer-events-none" />
+          {/* Subtle top-down tint for badge legibility — konumlandırma sırasında görseli örtmemesi için kaldırılır */}
+          {repositioningId !== vehicle.id && (
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/10 pointer-events-none" />
+          )}
 
-          {/* Reposition overlay */}
+          {/* Reposition control bar — görselin üstünü kapatmaz, sadece alt şerit */}
           {repositioningId === vehicle.id && (
-            <div
-              className="absolute inset-0 z-30 bg-black/55 flex flex-col items-center justify-center gap-4 px-5"
-              style={{ pointerEvents: "auto" }}
-            >
-              <p className="text-white/80 text-[11px] font-semibold tracking-wide uppercase select-none">
-                Görseli konumlandır
-              </p>
-              <DragSlider
-                value={pendingPosY}
-                onChange={setPendingPosY}
-                label="Üst"
-                labelEnd="Alt"
-                className="w-full"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setRepositioningId(null)}
-                  className="text-xs text-white/70 border border-white/20 rounded-xl px-4 py-2 hover:bg-white/10 transition-colors"
-                >
-                  İptal
-                </button>
-                <button
-                  onClick={() => savePosition(vehicle.id)}
-                  disabled={positionSaving}
-                  className="text-xs font-semibold text-white bg-primary rounded-xl px-5 py-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {positionSaving ? "Kaydediliyor…" : "Kaydet"}
-                </button>
-              </div>
+            <div className="absolute inset-x-0 bottom-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-between gap-2 px-3 py-2" style={{ pointerEvents: "auto" }}>
+              <button
+                onClick={() => setRepositioningId(null)}
+                className="text-xs text-white/70 hover:text-white transition-colors px-2 py-1"
+              >
+                İptal
+              </button>
+              <button
+                onClick={() => { setPendingPosX(50); setPendingPosY(50); }}
+                className="text-xs text-white/70 hover:text-white font-semibold transition-colors px-2 py-1"
+              >
+                Ortala
+              </button>
+              <button
+                onClick={() => savePosition(vehicle.id)}
+                disabled={positionSaving}
+                className="text-xs font-semibold text-white bg-primary rounded-xl px-4 py-1.5 hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {positionSaving ? "Kaydediliyor…" : "Kaydet"}
+              </button>
             </div>
           )}
 
