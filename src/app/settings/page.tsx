@@ -32,8 +32,9 @@ import { fileToBase64, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS, SCAN_MAX_FILE_SIZE
 import { DEFAULT_TIMEZONE, TIMEZONES, TIMEZONES_BY_REGION, getTimezoneLabel, resolveTimeZone } from "@/lib/timezone";
 import {
   updateNotificationPrefs,
-  getMyVehicles, getMyTrafficFines, getMyReports, getMyFeedback, getMyAssignments,
+  getMyVehicles, getMyTrafficFines, getMyReports, getMyFeedback,
 } from "@/lib/db";
+import { exportMyDataExcel } from "@/lib/export";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -513,21 +514,20 @@ export default function SettingsPage() {
   };
 
   // Verilerimi indir — kendi profil, araç, ceza, rapor ve geri bildirim kayıtlarını
-  // tek bir JSON dosyası olarak indirir (RLS ile zaten kendi kapsamına sınırlı).
+  // okunabilir bir Excel dosyası olarak indirir (RLS ile zaten kendi kapsamına
+  // sınırlı). Ham JSON değil Excel: kullanıcıların çoğu JSON açamaz/anlamaz.
   const [exportingData, setExportingData] = useState(false);
 
   const handleExportData = async () => {
     setExportingData(true);
     try {
-      const [vehicles, fines, reports, feedback, assignments] = await Promise.all([
+      const [vehicles, fines, reports, feedback] = await Promise.all([
         getMyVehicles().catch(() => []),
         getMyTrafficFines().catch(() => []),
         getMyReports().catch(() => []),
         getMyFeedback().catch(() => []),
-        getMyAssignments().catch(() => []),
       ]);
-      const payload = {
-        exportedAt: new Date().toISOString(),
+      exportMyDataExcel({
         profile: {
           fullName: profile?.fullName,
           email: user?.email,
@@ -541,17 +541,7 @@ export default function SettingsPage() {
         trafficFines: fines,
         reports,
         feedback,
-        assignments,
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `carstrack-verilerim-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      });
       toast.success("Verileriniz indirildi");
     } catch {
       toast.error("Veriler indirilemedi", { description: "Lütfen tekrar deneyin." });
@@ -1382,7 +1372,7 @@ export default function SettingsPage() {
                 iconBg="bg-teal-500/10"
                 iconColor="text-teal-500"
                 label={exportingData ? "İndiriliyor…" : "Verilerimi İndir"}
-                description="Profil, araç, ceza ve rapor kayıtlarınızı JSON olarak indirin"
+                description="Profil, araç, ceza ve rapor kayıtlarınızı Excel olarak indirin"
                 trailing={exportingData ? <span className="h-4 w-4 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" /> : undefined}
                 onClick={exportingData ? undefined : handleExportData}
               />
