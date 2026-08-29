@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Moon, Sun, Bell, Shield, HelpCircle, ChevronRight,
+  Moon, Sun, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Car,
   Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Lock, BellRing,
-  RefreshCw, Activity, Clock,
+  RefreshCw, Activity, Clock, KeyRound, Download, Trash2, AlertTriangle,
 } from "lucide-react";
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, getPushSubscribed } from "@/lib/push-client";
 import { useTheme } from "next-themes";
@@ -30,7 +30,10 @@ import { IdCard, Sparkles, Upload, XCircle, CheckCircle2 } from "lucide-react";
 import type { DriverLicenseEntry } from "@/lib/types";
 import { fileToBase64, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS, SCAN_MAX_FILE_SIZE } from "@/lib/file-utils";
 import { DEFAULT_TIMEZONE, TIMEZONES, TIMEZONES_BY_REGION, getTimezoneLabel, resolveTimeZone } from "@/lib/timezone";
-import { updateNotificationPrefs } from "@/lib/db";
+import {
+  updateNotificationPrefs,
+  getMyVehicles, getMyTrafficFines, getMyReports, getMyFeedback, getMyAssignments,
+} from "@/lib/db";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -150,6 +153,37 @@ export default function SettingsPage() {
       toast.error("Kaldırılamadı");
     } finally {
       setAvatarRemoving(false);
+    }
+  };
+
+  // Ad Soyad düzenleme
+  const [fullNameInput, setFullNameInput] = useState("");
+  const [fullNameSaving, setFullNameSaving] = useState(false);
+
+  useEffect(() => {
+    setFullNameInput(profile?.fullName ?? "");
+  }, [profile?.fullName]);
+
+  const handleSaveFullName = async () => {
+    const trimmed = fullNameInput.trim();
+    if (!trimmed) {
+      toast.error("Ad soyad boş olamaz");
+      return;
+    }
+    setFullNameSaving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: trimmed })
+        .eq("id", user!.id);
+      if (error) throw error;
+      await refreshProfile();
+      toast.success("Ad soyad güncellendi");
+    } catch {
+      toast.error("Kaydedilemedi");
+    } finally {
+      setFullNameSaving(false);
     }
   };
 
@@ -438,10 +472,134 @@ export default function SettingsPage() {
     }
   };
 
-  // Notifications
-  const [notifSupported, setNotifSupported] = useState(false);
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
-  const [notifEnabled, setNotifEnabled] = useState(false);
+  // Şifre değiştirme
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordChanging, setPasswordChanging] = useState(false);
+
+  const handleChangePassword = async () => {
+    const { currentPassword, newPassword, confirmPassword } = passwordForm;
+    if (!currentPassword || !newPassword || !confirmPassword) return;
+    if (newPassword.length < 6) {
+      toast.error("Şifre çok kısa", { description: "Yeni şifre en az 6 karakter olmalı." });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Şifreler eşleşmiyor", { description: "Yeni şifre ve tekrarı aynı olmalı." });
+      return;
+    }
+    setPasswordChanging(true);
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: user!.email!,
+        password: currentPassword,
+      });
+      if (authError) {
+        toast.error("Şifre hatalı", { description: "Mevcut şifrenizi doğru girdiğinizden emin olun." });
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setShowPasswordChange(false);
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      toast.success("Şifre değiştirildi", { description: "Yeni şifrenizle giriş yapabilirsiniz." });
+    } catch (err) {
+      console.error(err);
+      toast.error("Hata", { description: "Şifre değiştirilemedi. Lütfen tekrar deneyin." });
+    } finally {
+      setPasswordChanging(false);
+    }
+  };
+
+  // Verilerimi indir — kendi profil, araç, ceza, rapor ve geri bildirim kayıtlarını
+  // tek bir JSON dosyası olarak indirir (RLS ile zaten kendi kapsamına sınırlı).
+  const [exportingData, setExportingData] = useState(false);
+
+  const handleExportData = async () => {
+    setExportingData(true);
+    try {
+      const [vehicles, fines, reports, feedback, assignments] = await Promise.all([
+        getMyVehicles().catch(() => []),
+        getMyTrafficFines().catch(() => []),
+        getMyReports().catch(() => []),
+        getMyFeedback().catch(() => []),
+        getMyAssignments().catch(() => []),
+      ]);
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        profile: {
+          fullName: profile?.fullName,
+          email: user?.email,
+          role: profile?.role,
+          department: profile?.department,
+          company: company?.name,
+          licenseNumber: profile?.licenseNumber,
+          licenses: profile?.licenses,
+        },
+        vehicles,
+        trafficFines: fines,
+        reports,
+        feedback,
+        assignments,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `carstrack-verilerim-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Verileriniz indirildi");
+    } catch {
+      toast.error("Veriler indirilemedi", { description: "Lütfen tekrar deneyin." });
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  // Hesap silme — kimlik doğrulaması istemci tarafında yapılır (e-posta değiştirme
+  // ile aynı desen); sunucu tarafı hesabı hemen devre dışı bırakır ve kalıcı veri
+  // silme talebini destek ekibine iletir (bkz. /api/account/delete-request).
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteAccountForm, setDeleteAccountForm] = useState({ password: "", confirmText: "" });
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    const { password, confirmText } = deleteAccountForm;
+    if (!password || confirmText.trim().toUpperCase() !== "SİL") return;
+    setDeletingAccount(true);
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: user!.email!,
+        password,
+      });
+      if (authError) {
+        toast.error("Şifre hatalı", { description: "Mevcut şifrenizi doğru girdiğinizden emin olun." });
+        return;
+      }
+      const res = await fetch("/api/account/delete-request", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error("Hesap silinemedi", { description: data.error || "Lütfen tekrar deneyin." });
+        return;
+      }
+      toast.success("Hesabınız devre dışı bırakıldı", {
+        description: "Kalıcı veri silme talebiniz destek ekibine iletildi.",
+        duration: 6000,
+      });
+      await signOut();
+      router.push("/login");
+    } catch (err) {
+      console.error(err);
+      toast.error("Hata", { description: "Hesap silinemedi. Lütfen tekrar deneyin." });
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
 
   // Telefon (Web Push) bildirimleri — filo uyarıları telefona düşer
   const [pushSupported, setPushSupported] = useState(false);
@@ -538,11 +696,6 @@ export default function SettingsPage() {
     // Reading browser APIs and localStorage on mount — legitimate setState in effect
     /* eslint-disable react-hooks/set-state-in-effect */
     setMounted(true);
-    if ("Notification" in window) {
-      setNotifSupported(true);
-      setNotifPermission(Notification.permission);
-      setNotifEnabled(localStorage.getItem("carstrack:notifications") === "true");
-    }
     setIsInstalled(window.matchMedia("(display-mode: standalone)").matches);
     setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
     if (isPushSupported()) {
@@ -559,27 +712,6 @@ export default function SettingsPage() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  const handleNotifClick = async () => {
-    if (!notifSupported) return;
-    if (notifPermission === "denied") return;
-
-    if (notifPermission === "granted") {
-      const next = !notifEnabled;
-      setNotifEnabled(next);
-      localStorage.setItem("carstrack:notifications", String(next));
-      return;
-    }
-
-    // permission === "default" → request
-    const permission = await Notification.requestPermission();
-    setNotifPermission(permission);
-    if (permission === "granted") {
-      setNotifEnabled(true);
-      localStorage.setItem("carstrack:notifications", "true");
-      new Notification("CarsTrack", { body: t("settings_notifications_desc"), icon: "/favicon.ico" });
-    }
-  };
-
   const handleInstall = async () => {
     if (deferredPrompt) {
       await deferredPrompt.prompt();
@@ -591,17 +723,6 @@ export default function SettingsPage() {
       }
     }
   };
-
-  // Notification trailing UI
-  const notifTrailing = !notifSupported ? (
-    <Badge variant="secondary" className="text-[10px] border-none">–</Badge>
-  ) : notifPermission === "denied" ? (
-    <Badge className="bg-red-500/10 text-red-500 border-none text-[10px] font-bold">{t("notif_denied")}</Badge>
-  ) : notifPermission === "granted" ? (
-    <Toggle on={notifEnabled} onToggle={handleNotifClick} />
-  ) : (
-    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-  );
 
   return (
     <div className="p-4 space-y-5 pb-28">
@@ -666,6 +787,28 @@ export default function SettingsPage() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Ad Soyad edit */}
+              <div className="pt-3 border-t border-border/30 space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  Ad Soyad
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    value={fullNameInput}
+                    onChange={(e) => setFullNameInput(e.target.value)}
+                    placeholder="Ad Soyad"
+                    className="flex-1 h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <button
+                    onClick={handleSaveFullName}
+                    disabled={fullNameSaving || fullNameInput.trim() === (profile?.fullName ?? "") || !fullNameInput.trim()}
+                    className="h-9 px-4 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                  >
+                    {fullNameSaving ? "..." : "Kaydet"}
+                  </button>
                 </div>
               </div>
 
@@ -1096,19 +1239,6 @@ export default function SettingsPage() {
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               />
               <SettingItem
-                icon={Bell}
-                iconBg="bg-orange-500/10"
-                iconColor="text-orange-500"
-                label={t("settings_notifications")}
-                description={
-                  notifPermission === "denied"
-                    ? t("notif_denied_hint")
-                    : t("settings_notifications_desc")
-                }
-                trailing={notifTrailing}
-                onClick={notifPermission !== "granted" ? handleNotifClick : undefined}
-              />
-              <SettingItem
                 icon={Mail}
                 iconBg="bg-violet-500/10"
                 iconColor="text-violet-500"
@@ -1239,6 +1369,23 @@ export default function SettingsPage() {
                 description={user?.email ?? "—"}
                 onClick={() => setShowEmailChange(true)}
               />
+              <SettingItem
+                icon={KeyRound}
+                iconBg="bg-blue-500/10"
+                iconColor="text-blue-500"
+                label="Şifreyi Değiştir"
+                description="Hesap şifrenizi güncelleyin"
+                onClick={() => setShowPasswordChange(true)}
+              />
+              <SettingItem
+                icon={Download}
+                iconBg="bg-teal-500/10"
+                iconColor="text-teal-500"
+                label={exportingData ? "İndiriliyor…" : "Verilerimi İndir"}
+                description="Profil, araç, ceza ve rapor kayıtlarınızı JSON olarak indirin"
+                trailing={exportingData ? <span className="h-4 w-4 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" /> : undefined}
+                onClick={exportingData ? undefined : handleExportData}
+              />
               <button
                 onClick={signOut}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-destructive/5 transition-colors tap-highlight-transparent text-left cursor-pointer"
@@ -1248,6 +1395,23 @@ export default function SettingsPage() {
                 </div>
                 <span className="text-sm font-medium text-destructive">{t("settings_logout")}</span>
               </button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Tehlikeli Bölge */}
+        <motion.div variants={fadeUp} className="space-y-1">
+          <h3 className="text-xs font-semibold text-destructive/70 uppercase tracking-widest px-1 mb-2">Tehlikeli Bölge</h3>
+          <Card className="rounded-2xl border-destructive/20 shadow-sm">
+            <CardContent className="p-2">
+              <SettingItem
+                icon={Trash2}
+                iconBg="bg-destructive/10"
+                iconColor="text-destructive"
+                label="Hesabımı Sil"
+                description="Hesap erişiminizi kalıcı olarak kapatır"
+                onClick={() => setShowDeleteAccount(true)}
+              />
             </CardContent>
           </Card>
         </motion.div>
@@ -1440,6 +1604,135 @@ export default function SettingsPage() {
               {emailChanging
                 ? <span className="h-4 w-4 rounded-full border-2 border-white border-r-transparent animate-spin" />
                 : "Onay Gönder"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Password Change Dialog ── */}
+      <Dialog
+        open={showPasswordChange}
+        onOpenChange={(o) => { setShowPasswordChange(o); if (!o) setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); }}
+      >
+        <DialogContent className="rounded-3xl max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-blue-500" /> Şifreyi Değiştir
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-4">
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))}
+                    placeholder="••••••••"
+                    className="w-full h-10 rounded-xl border border-border bg-muted/40 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Yeni Şifre</label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
+                    placeholder="En az 6 karakter"
+                    className="w-full h-10 rounded-xl border border-border bg-muted/40 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Yeni Şifre (Tekrar)</label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                    placeholder="••••••••"
+                    onKeyDown={(e) => { if (e.key === "Enter") handleChangePassword(); }}
+                    className="w-full h-10 rounded-xl border border-border bg-muted/40 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
+            <Button
+              onClick={handleChangePassword}
+              disabled={passwordChanging || !passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
+              className="rounded-xl flex-1"
+            >
+              {passwordChanging
+                ? <span className="h-4 w-4 rounded-full border-2 border-white border-r-transparent animate-spin" />
+                : "Şifreyi Değiştir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Account Dialog ── */}
+      <Dialog
+        open={showDeleteAccount}
+        onOpenChange={(o) => { setShowDeleteAccount(o); if (!o) setDeleteAccountForm({ password: "", confirmText: "" }); }}
+      >
+        <DialogContent className="rounded-3xl max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Hesabımı Sil
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Onayladığınızda hesabınıza giriş <span className="font-semibold text-foreground">kalıcı olarak kapatılır</span> ve otomatik çıkış yapılırsınız.
+              Görev, ceza ve servis geçmişi gibi şirket kayıtlarınızla ilişkili verilerin tam silinmesi için talebiniz destek ekibine iletilir ve elle işleme alınır.
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    value={deleteAccountForm.password}
+                    onChange={(e) => setDeleteAccountForm((f) => ({ ...f, password: e.target.value }))}
+                    placeholder="••••••••"
+                    className="w-full h-10 rounded-xl border border-border bg-muted/40 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Onaylamak için <span className="font-semibold text-foreground">SİL</span> yazın
+                </label>
+                <input
+                  type="text"
+                  value={deleteAccountForm.confirmText}
+                  onChange={(e) => setDeleteAccountForm((f) => ({ ...f, confirmText: e.target.value }))}
+                  placeholder="SİL"
+                  className="w-full h-10 rounded-xl border border-destructive/30 bg-destructive/5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/30"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
+            <Button
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount || !deleteAccountForm.password || deleteAccountForm.confirmText.trim().toUpperCase() !== "SİL"}
+              className="rounded-xl flex-1 bg-destructive hover:bg-destructive/90 text-white"
+            >
+              {deletingAccount
+                ? <span className="h-4 w-4 rounded-full border-2 border-white border-r-transparent animate-spin" />
+                : "Hesabı Kalıcı Olarak Sil"}
             </Button>
           </DialogFooter>
         </DialogContent>
