@@ -28,9 +28,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const statCards = [
-  { label: "Aktif Filo", value: "247 Araç", accent: "#4cd7f6" },
-  { label: "Uptime Oranı", value: "99.2%", accent: "#d0bcff" },
-  { label: "Güvenlik", value: "7/24 Takip", accent: "#c2c1ff" },
+  { label: "Aktif Filo", value: "247 Araç", accent: "var(--ct-cyan)" },
+  { label: "Uptime Oranı", value: "99.2%", accent: "var(--ct-purple)" },
+  { label: "Güvenlik", value: "7/24 Takip", accent: "var(--ct-purple)" },
 ];
 
 const features = [
@@ -189,7 +189,7 @@ export default function RegisterClient() {
             <LogoMark size={42} className="shrink-0" />
             <div>
               <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "var(--ct-panel-text)", fontWeight: 800, fontSize: "1.15rem" }}>
-                Cars<span style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
+                Cars<span style={{ background: "linear-gradient(90deg, var(--ct-purple) 0%, var(--ct-cyan) 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
               </span>
               <p style={{ color: "var(--ct-panel-muted)", fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace", marginTop: 2 }}>
                 Filo Yönetim Sistemi
@@ -250,10 +250,10 @@ export default function RegisterClient() {
           <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="p-2 rounded-lg"
               style={{ background: "rgba(208,188,255,0.15)", border: "1px solid rgba(208,188,255,0.3)" }}>
-              <Car className="h-5 w-5" style={{ color: "#d0bcff" }} />
+              <Car className="h-5 w-5" style={{ color: "var(--ct-purple)" }} />
             </div>
             <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "var(--foreground)", fontWeight: 800, fontSize: "1.15rem" }}>
-              Cars<span style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
+              Cars<span style={{ background: "linear-gradient(90deg, var(--ct-purple) 0%, var(--ct-cyan) 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
             </span>
           </Link>
           <div className="flex items-center gap-3">
@@ -261,12 +261,12 @@ export default function RegisterClient() {
               type="button"
               onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
               className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors relative"
-              style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "#d0bcff" }}
+              style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "var(--ct-purple)" }}
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </button>
-            <Link href="/login" style={{ color: "#d0bcff", fontSize: "0.75rem", fontWeight: 600 }}>Giriş yap →</Link>
+            <Link href="/login" style={{ color: "var(--ct-purple)", fontSize: "0.75rem", fontWeight: 600 }}>Giriş yap →</Link>
           </div>
         </div>
 
@@ -276,7 +276,7 @@ export default function RegisterClient() {
             type="button"
             onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
             className="h-9 w-9 flex items-center justify-center rounded-xl transition-all hover:scale-105 relative"
-            style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "#d0bcff" }}
+            style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "var(--ct-purple)" }}
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -293,13 +293,13 @@ export default function RegisterClient() {
               className="inline-flex items-center gap-1.5 mb-5 transition-colors group"
               style={{ color: "var(--muted-foreground)", fontSize: "0.72rem", fontFamily: "var(--font-ibm-mono), monospace", textDecoration: "none" }}
             >
-              <Home className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" style={{ color: "#d0bcff" }} />
+              <Home className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" style={{ color: "var(--ct-purple)" }} />
               <span className="group-hover:text-foreground transition-colors" style={{ color: "inherit" }}>Ana Sayfaya Dön</span>
             </Link>
 
             {/* Header */}
             <div className="mb-6">
-              <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff", fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: "0.6rem" }}>
+              <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "var(--ct-purple)", fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: "0.6rem" }}>
                 ▸ YENİ HESAP
               </span>
               <h1 style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", fontSize: "2.2rem", fontWeight: 800, color: "var(--foreground)", lineHeight: 1.1 }}>
@@ -307,14 +307,14 @@ export default function RegisterClient() {
               </h1>
               <p style={{ color: "var(--muted-foreground)", fontSize: "0.82rem", marginTop: "0.4rem" }}>
                 Filo takip sistemine erişim için hesap oluşturun.{" "}
-                <Link href="/login" style={{ color: "#d0bcff", fontWeight: 600 }}>Giriş yapın</Link>
+                <Link href="/login" style={{ color: "var(--ct-purple)", fontWeight: 600 }}>Giriş yapın</Link>
               </p>
             </div>
 
             {/* Progress */}
             <div className="mb-6">
               <div className="flex justify-between items-end mb-2">
-                <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                <span style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "var(--ct-purple)", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                   ADIM 1 / 2
                 </span>
                 <span style={{ ...labelStyle }}>TEMEL BİLGİLER</span>
@@ -322,7 +322,7 @@ export default function RegisterClient() {
               <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: "rgba(208,188,255,0.12)" }}>
                 <motion.div
                   className="h-full rounded-full"
-                  style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", boxShadow: "0 0 16px rgba(208,188,255,0.5)" }}
+                  style={{ background: "linear-gradient(90deg, var(--ct-purple) 0%, var(--ct-cyan) 100%)", boxShadow: "0 0 16px rgba(208,188,255,0.5)" }}
                   initial={{ width: 0 }}
                   animate={{ width: "50%" }}
                   transition={{ duration: 0.7, ease: "easeOut" }}
@@ -539,11 +539,11 @@ export default function RegisterClient() {
                         <div
                           key={seg}
                           className="h-1 flex-1 rounded-full transition-all duration-300"
-                          style={{ background: seg <= strength.level ? "#d0bcff" : "rgba(208,188,255,0.12)" }}
+                          style={{ background: seg <= strength.level ? "var(--ct-purple)" : "rgba(208,188,255,0.12)" }}
                         />
                       ))}
                     </div>
-                    <p style={{ color: strength.level >= 3 ? "#4cd7f6" : "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                    <p style={{ color: strength.level >= 3 ? "var(--ct-cyan)" : "var(--muted-foreground)", fontSize: "0.62rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
                       {strength.label}
                     </p>
                   </motion.div>
@@ -591,7 +591,7 @@ export default function RegisterClient() {
 
             <p style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", textAlign: "center", marginTop: "1.25rem" }}>
               Zaten hesabınız var mı?{" "}
-              <Link href="/login" style={{ color: "#d0bcff", fontWeight: 600 }}>Giriş yap</Link>
+              <Link href="/login" style={{ color: "var(--ct-purple)", fontWeight: 600 }}>Giriş yap</Link>
             </p>
 
           </div>
