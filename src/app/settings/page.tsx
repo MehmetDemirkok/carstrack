@@ -431,6 +431,66 @@ export default function SettingsPage() {
     }
   };
 
+  // Şirket bilgileri (adres/telefon/vergi) — yalnızca manager düzenleyebilir.
+  const [companyInfo, setCompanyInfo] = useState({
+    name: "", address: "", phone: "", email: "", taxOffice: "", taxNumber: "",
+  });
+  const [companyInfoLoading, setCompanyInfoLoading] = useState(false);
+  const [companyInfoSaving, setCompanyInfoSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile?.role !== "manager") return;
+    setCompanyInfoLoading(true);
+    const supabase = createClient();
+    supabase
+      .from("companies")
+      .select("name, address, phone, email, tax_office, tax_number")
+      .eq("id", profile.companyId)
+      .single()
+      .then(({ data }: {
+        data: {
+          name?: string; address?: string; phone?: string;
+          email?: string; tax_office?: string; tax_number?: string;
+        } | null;
+      }) => {
+        setCompanyInfo({
+          name: data?.name ?? "",
+          address: data?.address ?? "",
+          phone: data?.phone ?? "",
+          email: data?.email ?? "",
+          taxOffice: data?.tax_office ?? "",
+          taxNumber: data?.tax_number ?? "",
+        });
+        setCompanyInfoLoading(false);
+      });
+  }, [profile]);
+
+  const handleSaveCompanyInfo = async () => {
+    if (!companyInfo.name.trim()) {
+      toast.error("Şirket adı boş olamaz");
+      return;
+    }
+    setCompanyInfoSaving(true);
+    try {
+      const res = await fetch("/api/companies/info", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(companyInfo),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Şirket bilgileri kaydedilemedi");
+        return;
+      }
+      await refreshProfile();
+      toast.success("Şirket bilgileri güncellendi");
+    } catch {
+      toast.error("Şirket bilgileri kaydedilemedi");
+    } finally {
+      setCompanyInfoSaving(false);
+    }
+  };
+
   // Dialogs
   const [showLang, setShowLang] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -1177,6 +1237,92 @@ export default function SettingsPage() {
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   Yeni çalışanlar kayıt ekranında <span className="font-semibold text-foreground">&ldquo;Şirkete Katıl&rdquo;</span> seçeneğini seçip bu kodu girerek filonuza erişim sağlayabilir. Katılanlar otomatik olarak <span className="font-semibold text-foreground">Sürücü</span> rolüyle eklenir.
                 </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Şirket Bilgileri — yalnızca manager */}
+        {profile?.role === "manager" && (
+          <motion.div variants={fadeUp} className="space-y-1">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">Şirket Bilgileri</h3>
+            <Card className="rounded-2xl border-border/40 shadow-sm overflow-hidden">
+              <CardContent className="p-5 space-y-3">
+                {companyInfoLoading ? (
+                  <div className="flex items-center gap-2 py-2 text-muted-foreground text-sm">
+                    <span className="h-4 w-4 rounded-full border-2 border-current border-r-transparent animate-spin shrink-0" />
+                    Yükleniyor...
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Şirket Adı</label>
+                      <input
+                        value={companyInfo.name}
+                        onChange={(e) => setCompanyInfo((p) => ({ ...p, name: e.target.value }))}
+                        placeholder="Şirket adı"
+                        className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Adres</label>
+                      <textarea
+                        value={companyInfo.address}
+                        onChange={(e) => setCompanyInfo((p) => ({ ...p, address: e.target.value }))}
+                        placeholder="Şirket açık adresi"
+                        rows={2}
+                        className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Telefon</label>
+                        <input
+                          value={companyInfo.phone}
+                          onChange={(e) => setCompanyInfo((p) => ({ ...p, phone: e.target.value }))}
+                          placeholder="0212 000 00 00"
+                          className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">E-posta</label>
+                        <input
+                          value={companyInfo.email}
+                          onChange={(e) => setCompanyInfo((p) => ({ ...p, email: e.target.value }))}
+                          placeholder="info@sirket.com"
+                          className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Vergi Dairesi</label>
+                        <input
+                          value={companyInfo.taxOffice}
+                          onChange={(e) => setCompanyInfo((p) => ({ ...p, taxOffice: e.target.value }))}
+                          placeholder="Vergi dairesi"
+                          className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Vergi No</label>
+                        <input
+                          value={companyInfo.taxNumber}
+                          onChange={(e) => setCompanyInfo((p) => ({ ...p, taxNumber: e.target.value }))}
+                          placeholder="Vergi numarası"
+                          className="w-full h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSaveCompanyInfo}
+                      disabled={companyInfoSaving || !companyInfo.name.trim()}
+                      className="h-9 px-4 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {companyInfoSaving ? "..." : "Kaydet"}
+                    </button>
+                  </>
+                )}
               </CardContent>
             </Card>
           </motion.div>
