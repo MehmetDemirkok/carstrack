@@ -6,6 +6,9 @@
       "Bash(rsvg-convert -w 64 -h 64 public/logo.svg -o /tmp/s64.png)",
       "Bash(python3 -)",
       "Bash(sed -n '/<style>/,/<\\\\/style>/p' /tmp/design_pretty.html)"
+    ],
+    "deny": [
+      "mcp__claude-in-chrome"
     ]
   }
 }

@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CarsTrack — a multi-tenant fleet management SaaS (Next.js App Router + Supabase). UI copy, code comments, and commit messages are in Turkish; keep new user-facing text and comments in Turkish to match the existing codebase.
 
+## Verification policy
+
+Kod değişikliklerinden sonra tarayıcıda doğrulama yapma. Ben açıkça istemedikçe claude-in-chrome araçlarını veya yerleşik tarayıcıyı kullanma. Doğrulama gerekiyorsa bunu terminal komutlarıyla (test, build, lint) yap.
+
 ## Commands
 
 ```bash

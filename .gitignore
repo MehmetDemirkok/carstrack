@@ -36,6 +36,9 @@ yarn-error.log*
 # demo hesap şifreleri
 DEMO_HESAPLAR.md
 
+# davet maili gönderim listesi
+DAVET_MAILLERI_LISTESI.md
+
 # vercel
 .vercel
 
