@@ -21,6 +21,7 @@ import {
   RefreshCw,
   MapPin,
   Gauge,
+  Wrench,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import {
@@ -32,6 +33,7 @@ import {
   endTask,
   getMembers,
   createTaskAsManager,
+  closeKilometerGap,
   deleteTask,
   getVehicleStatuses,
   MAX_VEHICLE_TASK_KM,
@@ -814,6 +816,12 @@ function ManagerView() {
   });
   const [addSubmitting, setAddSubmitting] = useState(false);
 
+  // KM farkı kapatma (manuel düzeltme)
+  const [showKmGapForm, setShowKmGapForm]       = useState(false);
+  const [showKmGapConfirm, setShowKmGapConfirm] = useState(false);
+  const [kmGapForm, setKmGapForm] = useState({ vehicleId: "", newKm: "", description: "" });
+  const [kmGapSubmitting, setKmGapSubmitting]   = useState(false);
+
   // Delete task
   const [taskToDelete, setTaskToDelete]       = useState<VehicleTask | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -929,6 +937,43 @@ function ManagerView() {
     }
   }
 
+  function openKmGapForm() {
+    setKmGapForm({ vehicleId: "", newKm: "", description: "" });
+    setShowKmGapForm(true);
+  }
+
+  function submitKmGapForm() {
+    if (!kmGapForm.vehicleId) { toast.error("Lütfen bir araç seçin"); return; }
+    const vehicle = vehicles.find((v) => v.id === kmGapForm.vehicleId);
+    const km = parseInt(kmGapForm.newKm, 10);
+    if (!kmGapForm.newKm || isNaN(km)) { toast.error("Geçerli bir güncel KM girin"); return; }
+    if (vehicle && km <= vehicle.mileage) {
+      toast.error(`Güncel KM, aracın kayıtlı KM'sinden (${formatKm(vehicle.mileage)}) büyük olmalı`);
+      return;
+    }
+    if (!kmGapForm.description.trim()) { toast.error("KM farkını kapatırken açıklama girmeniz zorunludur"); return; }
+    setShowKmGapForm(false);
+    setShowKmGapConfirm(true);
+  }
+
+  async function confirmKmGap() {
+    setKmGapSubmitting(true);
+    try {
+      await closeKilometerGap({
+        vehicleId: kmGapForm.vehicleId,
+        newKm: parseInt(kmGapForm.newKm, 10),
+        description: kmGapForm.description.trim(),
+      });
+      setShowKmGapConfirm(false);
+      toast.success("KM farkı kapatıldı", { description: "Araç kilometresi güncellendi ve görev geçmişine eklendi." });
+      loadAll();
+    } catch (err: unknown) {
+      toast.error((err as { message?: string })?.message ?? "KM farkı kapatılamadı");
+    } finally {
+      setKmGapSubmitting(false);
+    }
+  }
+
   function openEndTask(task: VehicleTask) {
     setTaskToEnd(task);
     setManagerEndKm("");
@@ -1010,12 +1055,21 @@ function ManagerView() {
             </div>
           ))}
         </div>
-        <Button
-          onClick={openAddForm}
-          className="h-10 rounded-xl bg-mesh hover:opacity-95 text-white border-none text-xs font-semibold px-4 shrink-0 gap-1.5 self-start mt-0"
-        >
-          <Plus className="h-4 w-4" /> Görev Ekle
-        </Button>
+        <div className="flex flex-col gap-2 shrink-0 self-start">
+          <Button
+            onClick={openAddForm}
+            className="h-10 rounded-xl bg-mesh hover:opacity-95 text-white border-none text-xs font-semibold px-4 gap-1.5"
+          >
+            <Plus className="h-4 w-4" /> Görev Ekle
+          </Button>
+          <Button
+            onClick={openKmGapForm}
+            variant="outline"
+            className="h-10 rounded-xl text-xs font-semibold px-4 gap-1.5 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:text-amber-600"
+          >
+            <Wrench className="h-4 w-4" /> KM Farkı Kapat
+          </Button>
+        </div>
       </div>
 
       {/* Live status */}
@@ -1135,10 +1189,16 @@ function ManagerView() {
                       <p className="text-xs text-muted-foreground truncate">{v ? `${v.brand} ${v.model}` : (task.vehicleName ?? "")}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${isActive ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
-                        {isActive && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
-                        {isActive ? "Aktif" : "Tamamlandı"}
-                      </span>
+                      {task.isAdjustment ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                          <Wrench className="h-3 w-3" /> KM Düzeltme
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${isActive ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
+                          {isActive && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
+                          {isActive ? "Aktif" : "Tamamlandı"}
+                        </span>
+                      )}
                       <Tooltip>
                         <TooltipTrigger
                           render={
@@ -1233,10 +1293,16 @@ function ManagerView() {
                         {isActive ? formatDuration(task.startTime) : task.endTime ? formatDuration(task.startTime, task.endTime) : "—"}
                       </td>
                       <td className="px-4 py-3 overflow-hidden">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${isActive ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
-                          {isActive && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
-                          {isActive ? "Aktif" : "Tamamlandı"}
-                        </span>
+                        {task.isAdjustment ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                            <Wrench className="h-3 w-3" /> KM Düzeltme
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${isActive ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
+                            {isActive && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
+                            {isActive ? "Aktif" : "Tamamlandı"}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap truncate">{formatDateTime(task.startTime)}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -1438,6 +1504,161 @@ function ManagerView() {
           </motion.div>
         </div>
       )}
+
+      {/* ── KM FARKI KAPATMA FORM DIALOG ── */}
+      {showKmGapForm && (() => {
+        const selectedVehicle = vehicles.find((v) => v.id === kmGapForm.vehicleId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowKmGapForm(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="relative bg-card rounded-3xl border border-amber-500/30 shadow-2xl w-full max-w-md p-6 space-y-5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500/10 rounded-xl">
+                  <Wrench className="h-5 w-5 text-amber-500" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-base">KM Farkı Kapat</h2>
+                  <p className="text-xs text-muted-foreground">Görev üzerinden kaydedilmemiş kilometre farkını kapatın</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Araç</label>
+                  <select
+                    value={kmGapForm.vehicleId}
+                    onChange={(e) => setKmGapForm((f) => ({ ...f, vehicleId: e.target.value }))}
+                    className={inpCls}
+                  >
+                    <option value="">Araç seçin...</option>
+                    {vehicles.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.plate} — {v.brand} {v.model} ({formatKm(v.mileage)} km)
+                      </option>
+                    ))}
+                  </select>
+                  {selectedVehicle && (
+                    <p className="text-xs text-muted-foreground">
+                      Kayıtlı KM: {formatKm(selectedVehicle.mileage)} km
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Güncel KM</label>
+                  <input
+                    type="number"
+                    min={selectedVehicle ? selectedVehicle.mileage + 1 : 0}
+                    value={kmGapForm.newKm}
+                    onChange={(e) => setKmGapForm((f) => ({ ...f, newKm: e.target.value }))}
+                    placeholder="Aracın gerçek güncel KM'sini girin"
+                    className={inpCls}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Açıklama <span className="text-amber-500">*</span>
+                  </label>
+                  <textarea
+                    value={kmGapForm.description}
+                    onChange={(e) => setKmGapForm((f) => ({ ...f, description: e.target.value }))}
+                    placeholder="Bu KM farkının nedeni (ör. kaydedilmemiş seyahatler)..."
+                    rows={2}
+                    className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowKmGapForm(false)}>
+                  İptal
+                </Button>
+                <Button
+                  className="flex-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white border-none font-semibold"
+                  onClick={submitKmGapForm}
+                >
+                  Devam
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        );
+      })()}
+
+      {/* ── KM FARKI KAPATMA ONAY POPUP ── */}
+      {showKmGapConfirm && (() => {
+        const vehicle = vehicles.find((v) => v.id === kmGapForm.vehicleId);
+        const newKm = parseInt(kmGapForm.newKm, 10);
+        const diff = vehicle ? newKm - vehicle.mileage : 0;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative bg-card rounded-3xl border border-amber-500/30 shadow-2xl w-full max-w-sm p-6 space-y-4"
+            >
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="p-3 bg-amber-500/10 rounded-2xl">
+                  <AlertTriangle className="h-8 w-8 text-amber-500" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-base">Kritik İşlem Onayı</h2>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Bu işlem aracın kayıtlı kilometresini doğrudan <span className="font-semibold text-foreground">{formatKm(newKm)} km</span> olarak günceller ve görev geçmişine kalıcı bir kayıt ekler.
+                  </p>
+                </div>
+
+                <div className="w-full bg-muted/40 rounded-2xl p-3 text-left space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Araç</span>
+                    <span className="font-semibold">{vehicle?.plate ?? "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Eski KM</span>
+                    <span className="font-semibold">{vehicle ? formatKm(vehicle.mileage) : "—"} km</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Yeni KM</span>
+                    <span className="font-semibold">{formatKm(newKm)} km</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Kapatılan Fark</span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">+{formatKm(diff)} km</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  Devam etmek istediğinize emin misiniz?
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-xl"
+                  onClick={() => { setShowKmGapConfirm(false); setShowKmGapForm(true); }}
+                  disabled={kmGapSubmitting}
+                >
+                  Geri Dön
+                </Button>
+                <Button
+                  className="flex-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white border-none font-semibold"
+                  onClick={confirmKmGap}
+                  disabled={kmGapSubmitting}
+                >
+                  {kmGapSubmitting ? "Kapatılıyor..." : "Evet, Kapat"}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        );
+      })()}
 
       {/* ── END TASK DIALOG ── */}
       {showEndTask && taskToEnd && (

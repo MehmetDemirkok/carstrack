@@ -160,6 +160,8 @@ export interface VehicleTask {
   vehicleName?: string;
   driverName?: string;
   driverDepartment?: string;
+  /** true ise bu kayıt bir seyahat değil, yöneticinin kapattığı KM farkıdır. */
+  isAdjustment?: boolean;
 }
 
 export type ReportStatus = "open" | "acknowledged" | "in_progress" | "resolved";

@@ -21,6 +21,7 @@ function mapTask(row: Record<string, unknown>) {
     vehicleName: vehicle ? `${vehicle.brand ?? ""} ${vehicle.model ?? ""}`.trim() || undefined : undefined,
     driverName: profile?.full_name ?? undefined,
     driverDepartment: profile?.department || undefined,
+    isAdjustment: !!row.is_adjustment,
   };
 }
 

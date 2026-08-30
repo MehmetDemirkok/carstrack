@@ -4,6 +4,7 @@ export type AuditAction =
   | "role_changed"
   | "vehicle_deleted"
   | "task_deleted"
+  | "km_gap_closed"
   | "invite_sent"
   | "invite_revoked"
   | "invite_code_regenerated"

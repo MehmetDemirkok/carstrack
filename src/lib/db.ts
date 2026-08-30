@@ -872,6 +872,7 @@ function toTask(row: Record<string, unknown>): VehicleTask {
       : undefined,
     driverName: profileData?.full_name ?? undefined,
     driverDepartment: profileData?.department || undefined,
+    isAdjustment: !!row.is_adjustment,
   };
 }
 
@@ -1072,6 +1073,84 @@ export async function createTaskAsManager(data: {
   if (error) throw error;
   const task = toTask(inserted as Record<string, unknown>);
   notifyTaskStart(task.id);
+  return task;
+}
+
+/**
+ * Yönetici/operatörün, sürücüler tarafından görev üzerinden hiç
+ * kaydedilmemiş kilometre farkını (KM açığını) tek seferde kapatması.
+ * Aracın mevcut kayıtlı KM'sinden girilen yeni KM'ye kadar olan fark,
+ * tamamlanmış (status: completed) ve is_adjustment=true olan bir görev
+ * olarak kaydedilir — böylece görev geçmişinden takip edilebilir. Görev
+ * başına 1500 km sınırı burada kasıtlı olarak UYGULANMAZ; bu fonksiyonun
+ * amacı zaten birikmiş, tek seferlik görev sınırını aşabilecek farkları
+ * kapatmaktır.
+ */
+export async function closeKilometerGap(data: {
+  vehicleId: string;
+  newKm: number;
+  description: string;
+}): Promise<VehicleTask> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Oturum bulunamadı.");
+
+  const description = data.description.trim();
+  if (!description) throw new Error("Açıklama girmeniz zorunludur.");
+
+  const { data: vehicle, error: vehicleErr } = await supabase
+    .from("vehicles")
+    .select("mileage")
+    .eq("id", data.vehicleId)
+    .eq("company_id", companyId)
+    .single();
+  if (vehicleErr || !vehicle) throw new Error("Araç bulunamadı.");
+
+  const startKm = (vehicle.mileage as number) ?? 0;
+  if (data.newKm <= startKm) {
+    throw new Error(`Güncel KM, aracın kayıtlı KM'sinden (${startKm.toLocaleString("tr-TR")}) büyük olmalı.`);
+  }
+  const distance = data.newKm - startKm;
+
+  const now = new Date().toISOString();
+  const { data: inserted, error } = await supabase
+    .from("vehicle_tasks")
+    .insert({
+      company_id: companyId,
+      vehicle_id: data.vehicleId,
+      driver_id: userId,
+      start_km: startKm,
+      end_km: data.newKm,
+      distance,
+      description,
+      status: "completed",
+      start_time: now,
+      end_time: now,
+      is_adjustment: true,
+    })
+    .select("*, vehicles(plate, brand, model), profiles(full_name, department)")
+    .single();
+  if (error) throw error;
+
+  const { error: kmErr } = await supabase
+    .from("vehicles")
+    .update({ mileage: data.newKm, updated_at: now })
+    .eq("id", data.vehicleId);
+  if (kmErr) {
+    console.error("closeKilometerGap: araç KM güncellenemedi:", kmErr);
+  } else {
+    bustCache(`vehicles:${companyId}`);
+    bustCache("myvehicles:");
+  }
+
+  const task = toTask(inserted as Record<string, unknown>);
+  void logActivity("km_gap_closed", "vehicle_task", {
+    entityId: task.id,
+    entityLabel: task.vehiclePlate ? `${task.vehiclePlate} — ${distance.toLocaleString("tr-TR")} km` : undefined,
+    meta: { startKm, endKm: data.newKm, distance },
+  });
   return task;
 }
 
