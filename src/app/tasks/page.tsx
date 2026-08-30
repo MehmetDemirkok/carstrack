@@ -24,6 +24,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { useData } from "@/context/data-context";
 import {
   getVehicles,
   getMyVehicles,
@@ -113,6 +114,7 @@ export default function TasksPage() {
 
 function StaffView() {
   const { profile, company } = useAuth();
+  const { refresh: refreshVehiclesContext } = useData();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTask, setActiveTask] = useState<VehicleTask | null | undefined>(undefined);
   const [recentTasks, setRecentTasks] = useState<VehicleTask[]>([]);
@@ -234,6 +236,7 @@ function StaffView() {
       setActiveTask(null);
       setEndKm("");
       await loadAll();
+      void refreshVehiclesContext();
       toast.success("Seyahat tamamlandı");
     } catch (err: unknown) {
       toast.error((err as { message?: string })?.message ?? "Seyahat bitirilemedi");
@@ -793,6 +796,7 @@ function StaffView() {
 // ─── Manager View ─────────────────────────────────────────────
 
 function ManagerView() {
+  const { refresh: refreshVehiclesContext } = useData();
   const [tasks, setTasks]       = useState<VehicleTask[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [members, setMembers]   = useState<Profile[]>([]);
@@ -967,6 +971,7 @@ function ManagerView() {
       setShowKmGapConfirm(false);
       toast.success("KM farkı kapatıldı", { description: "Araç kilometresi güncellendi ve görev geçmişine eklendi." });
       loadAll();
+      void refreshVehiclesContext();
     } catch (err: unknown) {
       toast.error((err as { message?: string })?.message ?? "KM farkı kapatılamadı");
     } finally {
@@ -1001,6 +1006,7 @@ function ManagerView() {
       setTaskToEnd(null);
       toast.success("Görev tamamlandı");
       loadAll();
+      void refreshVehiclesContext();
     } catch (err: unknown) {
       toast.error((err as { message?: string })?.message ?? "Görev bitirilemedi");
     } finally {
