@@ -80,13 +80,10 @@ interface ExtractedDocData {
   chassisNo?: string;
   color?: string;
   fuelType?: string;
-  engineVolume?: string;
   mileage?: string;
   ruhsatSahibi?: string;
   insuranceCompany?: string;
   insuranceExpiry?: string;
-  greenCardCompany?: string;
-  greenCardExpiry?: string;
   inspectionExpiry?: string;
 }
 
@@ -118,18 +115,15 @@ const SCAN_FIELD_LABELS: Record<string, string> = {
   chassisNo: "Şasi No",
   color: "Renk",
   fuelType: "Yakıt",
-  engineVolume: "Motor Hacmi",
   mileage: "Kilometre",
   ruhsatSahibi: "Ruhsat Sahibi",
   insuranceCompany: "Sigorta Şirketi",
   insuranceExpiry: "Sigorta Bitiş",
-  greenCardCompany: "Yeşil Kart Şirketi",
-  greenCardExpiry: "Yeşil Kart Bitiş",
   inspectionExpiry: "Muayene Bitiş",
 };
 
 function formatScanValue(key: string, value: string): string {
-  if ((key === "insuranceExpiry" || key === "greenCardExpiry" || key === "inspectionExpiry") && value.includes("-")) {
+  if ((key === "insuranceExpiry" || key === "inspectionExpiry") && value.includes("-")) {
     return value.split("-").reverse().join(".");
   }
   return value;
@@ -254,7 +248,8 @@ interface FormData {
   chassisNo: string;
   color: string;
   mileage: string;
-  engineVolume: string;
+  insuranceCompany: string;
+  insuranceExpiry: string;
   fuelType: FuelType;
   transmission: TransmissionType;
   tireStatus: TireSeasonType;
@@ -265,12 +260,8 @@ interface FormData {
   batteryBrand: string;
   batteryCapacity: string;
   batteryInstallDate: string;
-  insuranceCompany: string;
-  insuranceExpiry: string;
   kaskoCompany: string;
   kaskoExpiry: string;
-  greenCardCompany: string;
-  greenCardExpiry: string;
   inspectionExpiry: string;
   lastServiceDate: string;
   lastServiceMileage: string;
@@ -281,11 +272,12 @@ const defaultForm: FormData = {
   ownershipType: "ozmal", rentCompany: "", ruhsatSahibi: "",
   image: "", image2: "", image3: "", image4: "", imagePosition: 50, imagePositionX: 50, imageZoom: 100, plate: "", brand: "", model: "", year: String(new Date().getFullYear()),
   chassisNo: "",
-  color: "Beyaz", mileage: "", engineVolume: "",
+  color: "Beyaz", mileage: "",
+  insuranceCompany: "", insuranceExpiry: "",
   fuelType: "Benzin", transmission: "Otomatik",
   tireStatus: "Yazlık", tireBrand: "", tireSize: "", tireInstallDate: "", tireMileage: "0",
   batteryBrand: "", batteryCapacity: "", batteryInstallDate: "",
-  insuranceCompany: "", insuranceExpiry: "", kaskoCompany: "", kaskoExpiry: "", greenCardCompany: "", greenCardExpiry: "", inspectionExpiry: "",
+  kaskoCompany: "", kaskoExpiry: "", inspectionExpiry: "",
   lastServiceDate: "", lastServiceMileage: "0", notes: "",
 };
 
@@ -576,13 +568,10 @@ export default function NewVehiclePage() {
     if (mergedExtracted.color) updates.color = mergedExtracted.color;
     if (mergedExtracted.fuelType && FUEL_TYPES.includes(mergedExtracted.fuelType as FuelType))
       updates.fuelType = mergedExtracted.fuelType as FuelType;
-    if (mergedExtracted.engineVolume) updates.engineVolume = mergedExtracted.engineVolume;
     if (mergedExtracted.mileage) updates.mileage = mergedExtracted.mileage;
     if (mergedExtracted.ruhsatSahibi) updates.ruhsatSahibi = mergedExtracted.ruhsatSahibi;
     if (mergedExtracted.insuranceCompany) updates.insuranceCompany = mergedExtracted.insuranceCompany;
     if (mergedExtracted.insuranceExpiry) updates.insuranceExpiry = mergedExtracted.insuranceExpiry;
-    if (mergedExtracted.greenCardCompany) updates.greenCardCompany = mergedExtracted.greenCardCompany;
-    if (mergedExtracted.greenCardExpiry) updates.greenCardExpiry = mergedExtracted.greenCardExpiry;
     if (mergedExtracted.inspectionExpiry) updates.inspectionExpiry = mergedExtracted.inspectionExpiry;
 
     setForm(prev => ({ ...prev, ...updates }));
@@ -626,7 +615,7 @@ export default function NewVehiclePage() {
       color: form.color,
       mileage,
       engineType: "",
-      engineVolume: form.engineVolume,
+      engineVolume: "",
       power: "",
       fuelType: form.fuelType,
       transmission: form.transmission,
@@ -643,8 +632,8 @@ export default function NewVehiclePage() {
       insuranceExpiry: form.insuranceExpiry,
       kaskoCompany: form.kaskoCompany,
       kaskoExpiry: form.kaskoExpiry,
-      greenCardCompany: form.greenCardCompany,
-      greenCardExpiry: form.greenCardExpiry,
+      greenCardCompany: "",
+      greenCardExpiry: "",
       inspectionExpiry: form.inspectionExpiry,
       // Son servis bilgisi normalde araç oluştururken girilmez; ilk "Periyodik Bakım"
       // servis kaydı eklendiğinde otomatik dolar (bkz. applyPeriodicService).
@@ -1271,9 +1260,6 @@ export default function NewVehiclePage() {
                       </motion.div>
                     )}
                   </div>
-                  <Field label="Motor Hacmi (L)">
-                    <Input className={cls} placeholder="2.0" value={form.engineVolume} onChange={(e) => set("engineVolume", e.target.value)} />
-                  </Field>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Yakıt Tipi">
                       <Select value={form.fuelType} onValueChange={(v) => v && set("fuelType", v as FuelType)}>
