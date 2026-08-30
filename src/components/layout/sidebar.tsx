@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut, Gavel } from "lucide-react";
+import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut, Gavel, ChevronLeft } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
@@ -15,7 +15,12 @@ function getInitials(name: string): string {
   return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+}
+
+export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { profile, company, loading, signOut } = useAuth();
@@ -45,128 +50,155 @@ export function Sidebar() {
   const initials = profile?.fullName ? getInitials(profile.fullName) : "?";
 
   return (
-    <aside
-      className="hidden md:flex flex-col w-64 border-r border-border/40 z-40 fixed top-0 bottom-0 left-0 overflow-hidden bg-sidebar/95"
-      style={{ backdropFilter: "blur(20px)" }}
-    >
-      {/* Hex grid overlay */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-60 dark:opacity-100"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(0,74,198,0.06)' stroke-width='0.8'/%3E%3C/svg%3E")`,
-          backgroundSize: "60px 52px",
-        }}
-      />
-      {/* Ambient top glow */}
-      <div className="absolute -top-16 -left-8 w-48 h-48 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, color-mix(in oklab, var(--primary) 7%, transparent) 0%, transparent 70%)" }} />
+    <>
+      <aside
+        className={`hidden md:flex flex-col border-r border-border/40 z-40 fixed top-0 bottom-0 left-0 overflow-hidden bg-sidebar/95 transition-[width] duration-300 ease-in-out ${
+          collapsed ? "w-20" : "w-64"
+        }`}
+        style={{ backdropFilter: "blur(20px)" }}
+      >
+        {/* Hex grid overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-60 dark:opacity-100"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17.3 L60 34.7 L30 52 L0 34.7 L0 17.3Z' fill='none' stroke='rgba(0,74,198,0.06)' stroke-width='0.8'/%3E%3C/svg%3E")`,
+            backgroundSize: "60px 52px",
+          }}
+        />
+        {/* Ambient top glow */}
+        <div className="absolute -top-16 -left-8 w-48 h-48 rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle, color-mix(in oklab, var(--primary) 7%, transparent) 0%, transparent 70%)" }} />
 
-      {/* Logo */}
-      <div className="p-6 relative">
-        <Link href="/dashboard" className="flex items-center gap-3 group">
-          <LogoMark size={40} className="shrink-0 transition-transform group-hover:scale-105" />
-          <div className="flex flex-col leading-none">
-            <span className="text-foreground font-extrabold text-lg tracking-tight"
-              style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif" }}>
-              Cars<span style={{ color: "var(--primary)" }}>Track</span>
-            </span>
-            <span className="text-muted-foreground mt-0.5"
-              style={{ fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
-              Filo Yönetim Sistemi
-            </span>
-          </div>
-        </Link>
-      </div>
-
-      {/* Divider */}
-      <div className="mx-4 h-px mb-2" style={{ background: "color-mix(in oklab, var(--primary) 10%, transparent)" }} />
-
-      <div className="flex-1 px-3 space-y-0.5 overflow-y-auto no-scrollbar relative">
-        {!loading && navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative group ${
-                isActive ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
-              }`}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="sidebar-active"
-                  className="absolute inset-0 rounded-xl"
-                  style={{
-                    background: "color-mix(in oklab, var(--primary) 12%, transparent)",
-                    borderLeft: "2px solid var(--primary)",
-                  }}
-                  transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                />
-              )}
-              <div className="relative shrink-0">
-                <item.icon
-                  className="relative z-10 transition-all"
-                  style={{ width: 18, height: 18, color: isActive ? "var(--primary)" : undefined }}
-                />
-                {item.href === "/settings" && profile && !profile.department && !isActive && (
-                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background z-20" />
-                )}
-              </div>
-              <span className="relative z-10 text-sm">{item.label}</span>
-              {isActive && (
-                <motion.span
-                  layoutId="sidebar-active-dot"
-                  className="ml-auto h-1.5 w-1.5 rounded-full relative z-10"
-                  style={{ background: "var(--primary)" }}
-                />
-              )}
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Bottom: user + add vehicle */}
-      <div className="p-3 space-y-2 relative">
-        <div className="mx-1 h-px mb-3" style={{ background: "color-mix(in oklab, var(--primary) 10%, transparent)" }} />
-
-        {profile && (
-          <div className="flex items-center gap-3 bg-accent rounded-2xl p-3">
-            <Link href="/settings"
-              className="flex items-center gap-3 min-w-0 flex-1 group"
-              title={profile.fullName}>
-              <Avatar className="h-9 w-9 shrink-0" style={{ border: "2px solid color-mix(in oklab, var(--primary) 30%, transparent)" }}>
-                {profile.avatarUrl && (
-                  <AvatarImage src={profile.avatarUrl} alt={profile.fullName || "Profil"} className="object-cover" />
-                )}
-                <AvatarFallback className="text-xs font-bold"
-                  style={{ background: "color-mix(in oklab, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col min-w-0 leading-none">
-                <span className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{profile.fullName || "Kullanıcı"}</span>
-                <span className="text-muted-foreground truncate mt-1"
-                  style={{ fontSize: "0.58rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.04em" }}>
-                  {[company?.name, profile.role === "manager" ? "ADMIN" : profile.role === "operator" ? "OPERATÖR" : profile.role === "sofor" ? "ŞOFÖR" : "KULLANICI"].filter(Boolean).join(" · ")}
+        {/* Logo */}
+        <div className={`p-6 relative ${collapsed ? "flex justify-center px-0" : ""}`}>
+          <Link href="/dashboard" className="flex items-center gap-3 group" title={collapsed ? "CarsTrack" : undefined}>
+            <LogoMark size={40} className="shrink-0 transition-transform group-hover:scale-105" />
+            {!collapsed && (
+              <div className="flex flex-col leading-none">
+                <span className="text-foreground font-extrabold text-lg tracking-tight"
+                  style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif" }}>
+                  Cars<span style={{ color: "var(--primary)" }}>Track</span>
+                </span>
+                <span className="text-muted-foreground mt-0.5"
+                  style={{ fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace" }}>
+                  Filo Yönetim Sistemi
                 </span>
               </div>
-            </Link>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    onClick={signOut}
-                    className="ml-auto shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-                  />
-                }
+            )}
+          </Link>
+        </div>
+
+        {/* Divider */}
+        <div className="mx-4 h-px mb-2" style={{ background: "color-mix(in oklab, var(--primary) 10%, transparent)" }} />
+
+        <div className="flex-1 px-3 space-y-0.5 overflow-y-auto no-scrollbar relative">
+          {!loading && navItems.map((item) => {
+            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={collapsed ? item.label : undefined}
+                className={`flex items-center gap-3 rounded-xl transition-all relative group ${
+                  collapsed ? "justify-center px-0 py-2.5" : "px-4 py-2.5"
+                } ${
+                  isActive ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
+                }`}
               >
-                <LogOut className="h-4 w-4" />
-              </TooltipTrigger>
-              <TooltipContent>Çıkış Yap</TooltipContent>
-            </Tooltip>
-          </div>
-        )}
-      </div>
-    </aside>
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebar-active"
+                    className="absolute inset-0 rounded-xl"
+                    style={{
+                      background: "color-mix(in oklab, var(--primary) 12%, transparent)",
+                      borderLeft: collapsed ? undefined : "2px solid var(--primary)",
+                    }}
+                    transition={{ type: "spring", stiffness: 320, damping: 28 }}
+                  />
+                )}
+                <div className="relative shrink-0">
+                  <item.icon
+                    className="relative z-10 transition-all"
+                    style={{ width: 18, height: 18, color: isActive ? "var(--primary)" : undefined }}
+                  />
+                  {item.href === "/settings" && profile && !profile.department && !isActive && (
+                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-500 ring-1 ring-background z-20" />
+                  )}
+                </div>
+                {!collapsed && <span className="relative z-10 text-sm">{item.label}</span>}
+                {!collapsed && isActive && (
+                  <motion.span
+                    layoutId="sidebar-active-dot"
+                    className="ml-auto h-1.5 w-1.5 rounded-full relative z-10"
+                    style={{ background: "var(--primary)" }}
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Bottom: user + add vehicle */}
+        <div className="p-3 space-y-2 relative">
+          <div className="mx-1 h-px mb-3" style={{ background: "color-mix(in oklab, var(--primary) 10%, transparent)" }} />
+
+          {profile && (
+            <div className={`flex items-center bg-accent rounded-2xl p-3 ${collapsed ? "flex-col gap-2" : "gap-3"}`}>
+              <Link href="/settings"
+                className={`flex items-center min-w-0 group ${collapsed ? "" : "gap-3 flex-1"}`}
+                title={profile.fullName}>
+                <Avatar className="h-9 w-9 shrink-0" style={{ border: "2px solid color-mix(in oklab, var(--primary) 30%, transparent)" }}>
+                  {profile.avatarUrl && (
+                    <AvatarImage src={profile.avatarUrl} alt={profile.fullName || "Profil"} className="object-cover" />
+                  )}
+                  <AvatarFallback className="text-xs font-bold"
+                    style={{ background: "color-mix(in oklab, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                {!collapsed && (
+                  <div className="flex flex-col min-w-0 leading-none">
+                    <span className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{profile.fullName || "Kullanıcı"}</span>
+                    <span className="text-muted-foreground truncate mt-1"
+                      style={{ fontSize: "0.58rem", fontFamily: "var(--font-ibm-mono), monospace", letterSpacing: "0.04em" }}>
+                      {[company?.name, profile.role === "manager" ? "ADMIN" : profile.role === "operator" ? "OPERATÖR" : profile.role === "sofor" ? "ŞOFÖR" : "KULLANICI"].filter(Boolean).join(" · ")}
+                    </span>
+                  </div>
+                )}
+              </Link>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={signOut}
+                      title={collapsed ? "Çıkış Yap" : undefined}
+                      className={`shrink-0 text-muted-foreground hover:text-destructive transition-colors ${collapsed ? "" : "ml-auto"}`}
+                    />
+                  }
+                >
+                  <LogOut className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent>Çıkış Yap</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Collapse/expand toggle — sidebar'ın sağ kenarında, dikeyde ortalanmış */}
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        aria-label={collapsed ? "Kenar çubuğunu genişlet" : "Kenar çubuğunu daralt"}
+        aria-expanded={!collapsed}
+        title={collapsed ? "Kenar çubuğunu genişlet" : "Kenar çubuğunu daralt"}
+        className={`hidden md:flex items-center justify-center h-7 w-7 rounded-full border border-border/50 bg-card text-muted-foreground hover:text-primary hover:border-primary/40 hover:scale-110 active:scale-95 transition-all duration-300 ease-in-out fixed z-40 top-1/2 -translate-y-1/2 ${
+          collapsed ? "left-[66px]" : "left-[242px]"
+        }`}
+        style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.12), 0 0 0 1px color-mix(in oklab, var(--primary) 8%, transparent)" }}
+      >
+        <ChevronLeft className={`h-4 w-4 transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} />
+      </button>
+    </>
   );
 }
