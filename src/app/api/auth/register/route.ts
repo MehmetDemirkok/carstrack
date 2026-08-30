@@ -220,9 +220,12 @@ export async function POST(req: Request) {
 
     // 1. Create company first to get ID
     const inviteCodeValue = generateInviteCode();
+    // GÜVENLİK: davet kodu süresiz kalmasın — regenerate-invite-code ile aynı 30 gün politikası.
+    const inviteCodeExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString();
     const companyPayload = {
       name: companyName,
       invite_code: inviteCodeValue,
+      invite_code_expires_at: inviteCodeExpiresAt,
       timezone: resolveTimeZone(timezone),
     };
     let { data: companyData, error: companyError } = await supabaseAdmin
@@ -233,7 +236,7 @@ export async function POST(req: Request) {
     if (companyError && /timezone|schema cache|column/i.test(companyError.message ?? "")) {
       const retry = await supabaseAdmin
         .from("companies")
-        .insert({ name: companyName, invite_code: inviteCodeValue })
+        .insert({ name: companyName, invite_code: inviteCodeValue, invite_code_expires_at: inviteCodeExpiresAt })
         .select("id")
         .single();
       companyData = retry.data;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI, SchemaType, type Schema } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
 import { LICENSE_CLASSES } from "@/lib/license";
+import { rateLimit } from "@/lib/rate-limit";
 
 const genai = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
 
@@ -109,6 +110,15 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // GÜVENLİK: AI çağrısı maliyetli — kullanıcı başına suistimali sınırla.
+    const rl = rateLimit(`extract-document:${user.id}`, 20, 5 * 60_000);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Çok fazla istek. Lütfen biraz bekleyip tekrar deneyin." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      );
+    }
 
     const body = await req.json() as {
       documentType?: "vehicle" | "license" | "fine";
