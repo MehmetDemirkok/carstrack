@@ -137,7 +137,7 @@ export default function LoginClient() {
               <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "#e8eaf0", fontWeight: 800, fontSize: "1.15rem" }}>
                 Cars<span style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
               </span>
-              <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace", marginTop: 2 }}>
+              <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.6rem", fontFamily: "var(--font-ibm-mono), monospace", marginTop: 2 }}>
                 Filo Yönetim Sistemi
               </p>
             </div>
@@ -203,11 +203,11 @@ export default function LoginClient() {
                   transition={{ delay: 0.2 + i * 0.15, duration: 0.5 }}>
                   <div style={{ fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff", fontSize: "0.95rem", fontWeight: 600 }}>{value}</div>
                   <div style={{ color: "#e8eaf0", fontSize: "0.6rem", fontFamily: "var(--font-barlow), sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>{label}</div>
-                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.58rem" }}>{sub}</div>
+                  <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.58rem" }}>{sub}</div>
                 </motion.div>
               ))}
             </div>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.72rem", fontStyle: "italic", textAlign: "center" }}>
+            <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.72rem", fontStyle: "italic", textAlign: "center" }}>
               Filosunu gerçek zamanlı takip et.
             </p>
           </div>
@@ -233,10 +233,10 @@ export default function LoginClient() {
           <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="p-2 rounded-lg"
               style={{ background: "rgba(208,188,255,0.15)", border: "1px solid rgba(208,188,255,0.3)" }}>
-              <Car className="h-5 w-5" style={{ color: "#d0bcff" }} />
+              <Car className="h-5 w-5" style={{ color: "var(--ct-purple)" }} />
             </div>
             <span style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif", color: "var(--foreground)", fontWeight: 800, fontSize: "1.15rem" }}>
-              Cars<span style={{ background: "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
+              Cars<span style={{ background: "linear-gradient(90deg, var(--ct-purple) 0%, var(--ct-cyan) 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>Track</span>
             </span>
           </Link>
           <div className="flex items-center gap-3">
@@ -244,12 +244,12 @@ export default function LoginClient() {
               type="button"
               onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
               className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors relative"
-              style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "#d0bcff" }}
+              style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "var(--ct-purple)" }}
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </button>
-            <Link href="/register" style={{ color: "#d0bcff", fontSize: "0.75rem", fontWeight: 600 }}>
+            <Link href="/register" style={{ color: "var(--ct-purple)", fontSize: "0.75rem", fontWeight: 600 }}>
               Kayıt ol →
             </Link>
           </div>
@@ -261,7 +261,7 @@ export default function LoginClient() {
             type="button"
             onClick={() => { const next = document.documentElement.classList.contains("dark") ? "light" : "dark"; setTheme(next); }}
             className="h-9 w-9 flex items-center justify-center rounded-xl transition-all hover:scale-105 relative"
-            style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "#d0bcff" }}
+            style={{ background: "rgba(208,188,255,0.1)", border: "1px solid rgba(208,188,255,0.2)", color: "var(--ct-purple)" }}
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -277,7 +277,7 @@ export default function LoginClient() {
               {/* Breadcrumb */}
               <div className="mb-6">
                 <span style={{
-                  fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff",
+                  fontFamily: "var(--font-ibm-mono), monospace", color: "var(--ct-purple)",
                   fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase",
                   display: "block", marginBottom: "0.75rem",
                 }}>
@@ -312,7 +312,7 @@ export default function LoginClient() {
                       Şifre
                     </label>
                     <button type="button" onClick={() => setForgotOpen(true)} tabIndex={-1}
-                      style={{ color: "rgba(208,188,255,0.7)", fontSize: "0.68rem", fontFamily: "var(--font-ibm-mono), monospace", background: "none", border: "none", cursor: "pointer" }}>
+                      style={{ color: "var(--ct-purple)", fontSize: "0.68rem", fontFamily: "var(--font-ibm-mono), monospace", background: "none", border: "none", cursor: "pointer" }}>
                       Şifremi Unuttum?
                     </button>
                   </div>
@@ -359,7 +359,7 @@ export default function LoginClient() {
 
               <p style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", textAlign: "center", marginTop: "1.25rem" }}>
                 Hesabınız yok mu?{" "}
-                <Link href="/register" style={{ color: "#d0bcff", fontWeight: 600 }}>Kayıt İsteği Oluştur</Link>
+                <Link href="/register" style={{ color: "var(--ct-purple)", fontWeight: 600 }}>Kayıt İsteği Oluştur</Link>
               </p>
             </div>
 
@@ -374,7 +374,7 @@ export default function LoginClient() {
               {/* Heading */}
               <div className="mb-8">
                 <span style={{
-                  fontFamily: "var(--font-ibm-mono), monospace", color: "#d0bcff",
+                  fontFamily: "var(--font-ibm-mono), monospace", color: "var(--ct-purple)",
                   fontSize: "0.65rem", letterSpacing: "0.15em", textTransform: "uppercase",
                   display: "block", marginBottom: "0.6rem",
                 }}>
@@ -385,7 +385,7 @@ export default function LoginClient() {
                   fontSize: "1.9rem", fontWeight: 800, color: "var(--foreground)", lineHeight: 1.15,
                 }}>
                   Filo yönetiminin<br />
-                  <span style={{ color: "#d0bcff" }}>akıllı</span> yolu
+                  <span style={{ color: "var(--ct-purple)" }}>akıllı</span> yolu
                 </h2>
                 <p style={{ color: "var(--muted-foreground)", fontSize: "0.82rem", marginTop: "0.6rem", lineHeight: 1.6, maxWidth: 320 }}>
                   Araç bakımından sigorta takibine, servis geçmişinden ekip koordinasyonuna kadar tek platform.
@@ -414,7 +414,7 @@ export default function LoginClient() {
                         border: "1px solid rgba(208,188,255,0.2)",
                       }}
                     >
-                      <Icon style={{ color: "#d0bcff", width: 15, height: 15 }} />
+                      <Icon style={{ color: "var(--ct-purple)", width: 15, height: 15 }} />
                     </div>
                     <div className="min-w-0">
                       <h3 style={{
@@ -436,7 +436,7 @@ export default function LoginClient() {
                 <div className="flex -space-x-2">
                   {["A", "B", "C"].map((l) => (
                     <div key={l} className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ring-2"
-                      style={{ background: "rgba(208,188,255,0.15)", color: "#d0bcff" }}>
+                      style={{ background: "rgba(208,188,255,0.15)", color: "var(--ct-purple)" }}>
                       {l}
                     </div>
                   ))}
@@ -458,6 +458,17 @@ export default function LoginClient() {
 
       <style>{`
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Marka moru/camgöbeği — açık temada koyu (beyaz üstünde okunur),
+           koyu temada açık (lacivert üstünde okunur) tonlar. */
+        .auth-page {
+          --ct-purple: #6d5bd0;
+          --ct-cyan: #1c8aa8;
+        }
+        .dark .auth-page {
+          --ct-purple: #d0bcff;
+          --ct-cyan: #4cd7f6;
+        }
       `}</style>
 
       <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />

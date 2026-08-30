@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 /**
  * Kayıt sayfasının (?invite=<token>) davet bilgisini önceden göstermesi için
  * herkese açık bir doğrulama uç noktası. Oturum gerektirmez (henüz hesabı yok).
  */
 export async function GET(req: NextRequest) {
+  // GÜVENLİK: oturumsuz, herkese açık uç nokta — token deneme/tarama sınırlanır.
+  const rl = rateLimit(`invite-validate:${clientIp(req)}`, 30, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Çok fazla istek. Lütfen biraz bekleyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
   const token = req.nextUrl.searchParams.get("token");
   if (!token) return NextResponse.json({ error: "Token gerekli." }, { status: 400 });
 

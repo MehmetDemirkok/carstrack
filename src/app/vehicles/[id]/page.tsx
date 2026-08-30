@@ -1940,7 +1940,6 @@ export default function VehicleDetailPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-1"><Label className={iLabel}>Motor Hacmi (L)</Label><Input className={iCls} value={editData.engineVolume || ""} onChange={(e) => setEditData((d) => ({ ...d, engineVolume: e.target.value }))} /></div>
                 <div className="space-y-1">
                   <Label className={iLabel}>Lastik Mevsimi</Label>
                   <Select value={editData.tireStatus || ""} onValueChange={(v) => v && setEditData((d) => ({ ...d, tireStatus: v as TireSeasonType }))}>
