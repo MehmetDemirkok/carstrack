@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/kilometer-reminder",
-      "schedule": "30 13 * * 5"
+      "schedule": "0 7 * * 1,5"
     },
     {
       "path": "/api/cron/db-backup",

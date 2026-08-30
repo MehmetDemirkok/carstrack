@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchToUser } from "@/lib/notify";
 import { getAppUrl } from "@/lib/email/emailTypes";
 
-/** Token geçerlilik süresi: 7 gün (bir sonraki Cuma hatırlatmasına kadar). */
+/** Token geçerlilik süresi: 7 gün (bir sonraki hatırlatmaya kadar). */
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function getRequestAppUrl(req: Request): string {
@@ -22,13 +22,15 @@ function createSecureToken(): string {
 }
 
 /**
- * Her Cuma 16:30 (Europe/Istanbul) — araç ataması olan kullanıcılara
- * haftalık kilometre güncelleme hatırlatması gönderir.
+ * Her Pazartesi ve Cuma 10:00 (Europe/Istanbul) — araç ataması olan
+ * kullanıcılara kilometre güncelleme / KM farkı kapatma hatırlatması
+ * (bildirim + e-posta) gönderir.
  *
  * Sürücü başına TEK bildirim + TEK magic link; formda birden fazla araç
  * varsa plaka seçilir.
  *
- * Vercel cron UTC kullanır: 16:30 TR = 13:30 UTC → `30 13 * * 5`
+ * Vercel cron UTC kullanır: 10:00 TR = 07:00 UTC → `0 7 * * 1,5`
+ * (1 = Pazartesi, 5 = Cuma)
  */
 export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");
