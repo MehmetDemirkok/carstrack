@@ -14,6 +14,8 @@ export interface Company {
   plan: PlanType;
   /** IANA saat dilimi — günlük filo özeti bu dilimde yerel 09:00'da gider. */
   timezone?: string;
+  /** Yakıt anomali tespiti eşik yüzdesi — bkz. src/lib/fuel.ts. Varsayılan 15. */
+  fuelAnomalyThresholdPct?: number;
 }
 
 /** Sürücünün sahip olduğu bir ehliyet sınıfı — her sınıfın kendi veriliş/geçerlilik tarihi vardır. */
@@ -262,7 +264,7 @@ export interface FleetAlert {
   title: string;
   description: string;
   severity: AlertSeverity;
-  category: "insurance" | "green-card" | "inspection" | "maintenance" | "tire" | "traffic-fine";
+  category: "insurance" | "green-card" | "inspection" | "maintenance" | "tire" | "traffic-fine" | "fuel";
 }
 
 /** Haftalık kilometre takip kaydı (kilometer_logs). */
@@ -326,6 +328,86 @@ export interface TrafficFine {
   vehiclePlate?: string;
   vehicleName?: string;
   driverName?: string;
+}
+
+// ─── Yakıt Yönetimi ────────────────────────────────────────────
+export type FuelPurchaseType = "motorin" | "benzin" | "lpg" | "elektrik";
+export type FuelPaymentMethod = "nakit" | "kredi_karti" | "yakit_karti" | "fatura" | "diger";
+
+export interface FuelRecord {
+  id: string;
+  companyId: string;
+  vehicleId: string;
+  createdBy?: string;
+  /** Tarih + saat birleşik (ISO). */
+  fueledAt: string;
+  stationName: string;
+  fuelType: FuelPurchaseType;
+  liters: number;
+  pricePerLiter: number;
+  totalAmount: number;
+  odometer: number;
+  paymentMethod: FuelPaymentMethod;
+  receiptNumber: string;
+  /** fuel-receipts bucket'ında dosya yolu — varsa. */
+  receiptPath?: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  // join'lerden / fuel_record_metrics view'ından gelen (opsiyonel)
+  vehiclePlate?: string;
+  vehicleName?: string;
+  /** Aynı araçtaki kronolojik önceki kayda göre — biri eksikse/KM geri gittiyse hesaplanmaz. */
+  prevOdometer?: number;
+  distanceKm?: number;
+  consumptionL100km?: number;
+  costPerKm?: number;
+}
+
+/** fuel_vehicle_stats view — araç bazında toplu istatistik. */
+export interface FuelVehicleStats {
+  vehicleId: string;
+  companyId: string;
+  vehiclePlate: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  purchaseCount: number;
+  totalLiters: number;
+  totalCost: number;
+  totalDistanceKm: number;
+  avgConsumption?: number;
+  avgCostPerKm?: number;
+  avgPricePerLiter?: number;
+  firstFueledAt?: string;
+  lastFueledAt?: string;
+}
+
+/** fuel_vehicle_latest view — aracın en güncel yakıt kaydı + hesaplanmış tüketimi. */
+export interface FuelVehicleLatest {
+  vehicleId: string;
+  companyId: string;
+  vehiclePlate: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  fuelRecordId: string;
+  fueledAt: string;
+  liters: number;
+  totalAmount: number;
+  odometer: number;
+  stationName: string;
+  distanceKm?: number;
+  consumptionL100km?: number;
+  costPerKm?: number;
+}
+
+/** fuel_station_stats view — istasyon bazında toplu istatistik. */
+export interface FuelStationStats {
+  companyId: string;
+  stationName: string;
+  purchaseCount: number;
+  totalLiters: number;
+  totalCost: number;
+  avgPricePerLiter: number;
 }
 
 export type DocumentType = "ruhsat" | "trafik_sigortasi" | "kasko" | "muayene" | "egzoz" | "teslim" | "diger";

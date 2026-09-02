@@ -33,6 +33,7 @@ const BACKUP_TABLES = [
   "kilometer_logs",
   "kilometer_log_tokens",
   "traffic_fines",
+  "fuel_records",
 ] as const;
 
 const BUCKET = "db-backups";

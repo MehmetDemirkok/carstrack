@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CarFront, Activity, Settings, ClipboardList, Users, Wrench, History, Gavel } from "lucide-react";
+import { LayoutDashboard, CarFront, Activity, Settings, ClipboardList, Users, Wrench, History, Gavel, Fuel } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/context/language-context";
@@ -22,6 +22,7 @@ export function BottomNav() {
         { href: "/tasks", icon: ClipboardList, label: "Seyahatler" },
         { href: "/reports", icon: Wrench, label: "Arıza" },
         { href: "/traffic-fines", icon: Gavel, label: "Cezalar" },
+        { href: "/yakit", icon: Fuel, label: "Yakıt" },
         { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
         { href: "/settings", icon: Settings, label: t("nav_settings") },
       ]
@@ -31,6 +32,7 @@ export function BottomNav() {
         { href: "/tasks", icon: ClipboardList, label: t("nav_tasks") },
         { href: "/reports", icon: Wrench, label: "Arıza" },
         { href: "/traffic-fines", icon: Gavel, label: "Cezalar" },
+        { href: "/yakit", icon: Fuel, label: "Yakıt" },
         { href: "/users", icon: Users, label: "Ekip" },
         { href: "/history", icon: History, label: "Servis" },
         { href: "/analytics", icon: Activity, label: t("nav_analytics").split(" ")[0] },

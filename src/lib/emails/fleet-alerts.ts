@@ -14,6 +14,7 @@ const categoryEmoji: Record<FleetAlert["category"], string> = {
   maintenance: "🔧",
   tire: "🔄",
   "traffic-fine": "💸",
+  fuel: "⛽",
 };
 
 export function getFleetAlertsHtml({ recipientName, alerts, appUrl, date }: Params): string {

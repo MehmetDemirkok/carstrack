@@ -1,4 +1,4 @@
-import type { Vehicle, TrafficFine, TrafficFineStatus } from "./types";
+import type { Vehicle, TrafficFine, TrafficFineStatus, FuelVehicleLatest, FuelVehicleStats } from "./types";
 
 // Saf mapper — DB snake_case satırını TypeScript Vehicle tipine dönüştürür.
 // db.ts'deki toVehicle ile birebir aynı mantık; cron context'inde (session yok)
@@ -79,5 +79,47 @@ export function toTrafficFineFromRow(row: Record<string, unknown>): TrafficFine 
     vehicleName: vehicleData
       ? `${vehicleData.brand ?? ""} ${vehicleData.model ?? ""}`.trim() || undefined
       : undefined,
+  };
+}
+
+// Saf mapper — db.ts'deki toFuelVehicleLatest ile birebir aynı mantık; cron
+// context'inde (session yok) kullanılabilmesi için buraya taşındı.
+export function toFuelVehicleLatestFromRow(row: Record<string, unknown>): FuelVehicleLatest {
+  return {
+    vehicleId: row.vehicle_id as string,
+    companyId: row.company_id as string,
+    vehiclePlate: (row.vehicle_plate as string) || "",
+    vehicleBrand: (row.vehicle_brand as string) || "",
+    vehicleModel: (row.vehicle_model as string) || "",
+    fuelRecordId: row.fuel_record_id as string,
+    fueledAt: row.fueled_at as string,
+    liters: Number(row.liters) || 0,
+    totalAmount: Number(row.total_amount) || 0,
+    odometer: Number(row.odometer) || 0,
+    stationName: (row.station_name as string) || "",
+    distanceKm: row.distance_km !== null && row.distance_km !== undefined ? Number(row.distance_km) : undefined,
+    consumptionL100km: row.consumption_l_100km !== null && row.consumption_l_100km !== undefined ? Number(row.consumption_l_100km) : undefined,
+    costPerKm: row.cost_per_km !== null && row.cost_per_km !== undefined ? Number(row.cost_per_km) : undefined,
+  };
+}
+
+// Saf mapper — db.ts'deki toFuelVehicleStats ile birebir aynı mantık; cron
+// context'inde (session yok) kullanılabilmesi için buraya taşındı.
+export function toFuelVehicleStatsFromRow(row: Record<string, unknown>): FuelVehicleStats {
+  return {
+    vehicleId: row.vehicle_id as string,
+    companyId: row.company_id as string,
+    vehiclePlate: (row.vehicle_plate as string) || "",
+    vehicleBrand: (row.vehicle_brand as string) || "",
+    vehicleModel: (row.vehicle_model as string) || "",
+    purchaseCount: Number(row.purchase_count) || 0,
+    totalLiters: Number(row.total_liters) || 0,
+    totalCost: Number(row.total_cost) || 0,
+    totalDistanceKm: Number(row.total_distance_km) || 0,
+    avgConsumption: row.avg_consumption !== null && row.avg_consumption !== undefined ? Number(row.avg_consumption) : undefined,
+    avgCostPerKm: row.avg_cost_per_km !== null && row.avg_cost_per_km !== undefined ? Number(row.avg_cost_per_km) : undefined,
+    avgPricePerLiter: row.avg_price_per_liter !== null && row.avg_price_per_liter !== undefined ? Number(row.avg_price_per_liter) : undefined,
+    firstFueledAt: (row.first_fueled_at as string) || undefined,
+    lastFueledAt: (row.last_fueled_at as string) || undefined,
   };
 }

@@ -5,6 +5,7 @@ import type {
   VehicleReport, VehicleReportLog, ReportStatus, ReportSeverity, ReportCategory,
   Feedback, FeedbackType, ServiceProvider, AuditLog, DriverLicenseEntry,
   TrafficFine, TrafficFineStatus, NotificationPrefs,
+  FuelRecord, FuelPurchaseType, FuelPaymentMethod, FuelVehicleStats, FuelVehicleLatest, FuelStationStats,
 } from "./types";
 import { DEFAULT_NOTIFICATION_PREFS, isDriverRole } from "./types";
 
@@ -2123,6 +2124,502 @@ export async function deleteTrafficFine(id: string): Promise<void> {
 
   const plate = (existing?.vehicles as { plate?: string } | null)?.plate;
   void logActivity("fine_deleted", "traffic_fine", {
+    entityId: id,
+    entityLabel: plate || undefined,
+  });
+}
+
+// ─── Yakıt Yönetimi ─────────────────────────────────────────────
+
+function notifyFuelNew(fuelRecordId: string): void {
+  try {
+    void fetch("/api/fuel/notify-new", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ fuelRecordId }),
+    }).catch(() => {});
+  } catch {
+    /* yoksay */
+  }
+}
+
+function toFuelRecord(row: Record<string, unknown>): FuelRecord {
+  return {
+    id: row.id as string,
+    companyId: row.company_id as string,
+    vehicleId: row.vehicle_id as string,
+    createdBy: (row.created_by as string) || undefined,
+    fueledAt: row.fueled_at as string,
+    stationName: (row.station_name as string) || "",
+    fuelType: row.fuel_type as FuelPurchaseType,
+    liters: Number(row.liters) || 0,
+    pricePerLiter: Number(row.price_per_liter) || 0,
+    totalAmount: Number(row.total_amount) || 0,
+    odometer: Number(row.odometer) || 0,
+    paymentMethod: (row.payment_method as FuelPaymentMethod) || "diger",
+    receiptNumber: (row.receipt_number as string) || "",
+    receiptPath: (row.receipt_path as string) || undefined,
+    notes: (row.notes as string) || "",
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+    vehiclePlate: (row.vehicle_plate as string) || undefined,
+    vehicleName: row.vehicle_brand || row.vehicle_model
+      ? `${row.vehicle_brand ?? ""} ${row.vehicle_model ?? ""}`.trim() || undefined
+      : undefined,
+    prevOdometer: row.prev_odometer !== null && row.prev_odometer !== undefined ? Number(row.prev_odometer) : undefined,
+    distanceKm: row.distance_km !== null && row.distance_km !== undefined ? Number(row.distance_km) : undefined,
+    consumptionL100km: row.consumption_l_100km !== null && row.consumption_l_100km !== undefined ? Number(row.consumption_l_100km) : undefined,
+    costPerKm: row.cost_per_km !== null && row.cost_per_km !== undefined ? Number(row.cost_per_km) : undefined,
+  };
+}
+
+function toFuelVehicleStats(row: Record<string, unknown>): FuelVehicleStats {
+  return {
+    vehicleId: row.vehicle_id as string,
+    companyId: row.company_id as string,
+    vehiclePlate: (row.vehicle_plate as string) || "",
+    vehicleBrand: (row.vehicle_brand as string) || "",
+    vehicleModel: (row.vehicle_model as string) || "",
+    purchaseCount: Number(row.purchase_count) || 0,
+    totalLiters: Number(row.total_liters) || 0,
+    totalCost: Number(row.total_cost) || 0,
+    totalDistanceKm: Number(row.total_distance_km) || 0,
+    avgConsumption: row.avg_consumption !== null && row.avg_consumption !== undefined ? Number(row.avg_consumption) : undefined,
+    avgCostPerKm: row.avg_cost_per_km !== null && row.avg_cost_per_km !== undefined ? Number(row.avg_cost_per_km) : undefined,
+    avgPricePerLiter: row.avg_price_per_liter !== null && row.avg_price_per_liter !== undefined ? Number(row.avg_price_per_liter) : undefined,
+    firstFueledAt: (row.first_fueled_at as string) || undefined,
+    lastFueledAt: (row.last_fueled_at as string) || undefined,
+  };
+}
+
+function toFuelVehicleLatest(row: Record<string, unknown>): FuelVehicleLatest {
+  return {
+    vehicleId: row.vehicle_id as string,
+    companyId: row.company_id as string,
+    vehiclePlate: (row.vehicle_plate as string) || "",
+    vehicleBrand: (row.vehicle_brand as string) || "",
+    vehicleModel: (row.vehicle_model as string) || "",
+    fuelRecordId: row.fuel_record_id as string,
+    fueledAt: row.fueled_at as string,
+    liters: Number(row.liters) || 0,
+    totalAmount: Number(row.total_amount) || 0,
+    odometer: Number(row.odometer) || 0,
+    stationName: (row.station_name as string) || "",
+    distanceKm: row.distance_km !== null && row.distance_km !== undefined ? Number(row.distance_km) : undefined,
+    consumptionL100km: row.consumption_l_100km !== null && row.consumption_l_100km !== undefined ? Number(row.consumption_l_100km) : undefined,
+    costPerKm: row.cost_per_km !== null && row.cost_per_km !== undefined ? Number(row.cost_per_km) : undefined,
+  };
+}
+
+function toFuelStationStats(row: Record<string, unknown>): FuelStationStats {
+  return {
+    companyId: row.company_id as string,
+    stationName: (row.station_name as string) || "",
+    purchaseCount: Number(row.purchase_count) || 0,
+    totalLiters: Number(row.total_liters) || 0,
+    totalCost: Number(row.total_cost) || 0,
+    avgPricePerLiter: Number(row.avg_price_per_liter) || 0,
+  };
+}
+
+const FUEL_RECORD_SELECT = "*";
+
+export interface FuelRecordFilters {
+  vehicleId?: string;
+  fuelType?: FuelPurchaseType;
+  stationName?: string;
+  /** ISO tarih (dahil) — fueled_at >= dateFrom */
+  dateFrom?: string;
+  /** ISO tarih (dahil) — fueled_at <= dateTo (gün sonuna kadar) */
+  dateTo?: string;
+  /** İstasyon / fiş no / plaka içinde arar. */
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: "fueled_at" | "total_amount" | "liters" | "price_per_liter" | "consumption_l_100km" | "cost_per_km" | "odometer";
+  sortDir?: "asc" | "desc";
+}
+
+/**
+ * Yakıt alımlarını sunucu tarafında filtreleyip sayfalar (fuel_record_metrics
+ * view — her satırda hesaplanmış L/100km ve ₺/KM de gelir). Yüz binlerce
+ * kayıtta bile tüm satırları frontend'e çekmeden çalışır (bkz. CLAUDE.md
+ * performans ilkesi).
+ */
+export async function getFuelRecords(filters: FuelRecordFilters = {}): Promise<{ rows: FuelRecord[]; total: number }> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const page = Math.max(1, filters.page ?? 1);
+  const pageSize = Math.min(200, Math.max(1, filters.pageSize ?? 25));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from("fuel_record_metrics")
+    .select(FUEL_RECORD_SELECT, { count: "exact" })
+    .eq("company_id", companyId);
+
+  if (filters.vehicleId) query = query.eq("vehicle_id", filters.vehicleId);
+  if (filters.fuelType) query = query.eq("fuel_type", filters.fuelType);
+  if (filters.stationName) query = query.eq("station_name", filters.stationName);
+  if (filters.dateFrom) query = query.gte("fueled_at", filters.dateFrom);
+  if (filters.dateTo) query = query.lte("fueled_at", `${filters.dateTo}T23:59:59`);
+  if (filters.search?.trim()) {
+    const s = filters.search.trim().replace(/[%,]/g, "");
+    if (s) query = query.or(`station_name.ilike.%${s}%,receipt_number.ilike.%${s}%,vehicle_plate.ilike.%${s}%`);
+  }
+
+  const sortBy = filters.sortBy ?? "fueled_at";
+  query = query.order(sortBy, { ascending: filters.sortDir === "asc", nullsFirst: false }).range(from, to);
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+  return { rows: (data ?? []).map((r) => toFuelRecord(r as Record<string, unknown>)), total: count ?? 0 };
+}
+
+export async function getFuelRecord(id: string): Promise<FuelRecord | null> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data, error } = await supabase
+    .from("fuel_record_metrics")
+    .select(FUEL_RECORD_SELECT)
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? toFuelRecord(data as Record<string, unknown>) : null;
+}
+
+/** Sürücünün kendi eklediği yakıt kayıtları (created_by = kendisi) — RLS zaten bu şekilde daraltır, burada ayrıca filtrelenir. */
+export async function getMyFuelRecords(): Promise<FuelRecord[]> {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) return [];
+
+  const { data, error } = await supabase
+    .from("fuel_record_metrics")
+    .select(FUEL_RECORD_SELECT)
+    .eq("created_by", userId)
+    .order("fueled_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => toFuelRecord(r as Record<string, unknown>));
+}
+
+/** Formda KM karşılaştırması için — aracın en son yakıt kaydı (varsa). */
+export async function getLastFuelRecordForVehicle(vehicleId: string): Promise<{ odometer: number; fueledAt: string } | null> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const cacheKey = `fuel:${companyId}:last:${vehicleId}`;
+  const cached = getCached<{ odometer: number; fueledAt: string } | null>(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const { data, error } = await supabase
+    .from("fuel_records")
+    .select("odometer, fueled_at")
+    .eq("vehicle_id", vehicleId)
+    .eq("company_id", companyId)
+    .order("fueled_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  const result = data ? { odometer: Number(data.odometer), fueledAt: data.fueled_at as string } : null;
+  return setCached(cacheKey, result);
+}
+
+export async function getFuelVehicleStats(): Promise<FuelVehicleStats[]> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const cacheKey = `fuel:${companyId}:stats`;
+  const cached = getCached<FuelVehicleStats[]>(cacheKey);
+  if (cached) return cached;
+
+  const { data, error } = await supabase
+    .from("fuel_vehicle_stats")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("total_cost", { ascending: false });
+  if (error) throw error;
+  return setCached(cacheKey, (data ?? []).map((r) => toFuelVehicleStats(r as Record<string, unknown>)));
+}
+
+/** Tek bir aracın toplu yakıt istatistiği — araç detay sayfası "Yakıt" sekmesi için. */
+export async function getFuelVehicleStatsFor(vehicleId: string): Promise<FuelVehicleStats | null> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const cacheKey = `fuel:${companyId}:vstats:${vehicleId}`;
+  const cached = getCached<FuelVehicleStats | null>(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const { data, error } = await supabase
+    .from("fuel_vehicle_stats")
+    .select("*")
+    .eq("vehicle_id", vehicleId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  if (error) throw error;
+  return setCached(cacheKey, data ? toFuelVehicleStats(data as Record<string, unknown>) : null);
+}
+
+export async function getFuelVehicleLatest(): Promise<FuelVehicleLatest[]> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const cacheKey = `fuel:${companyId}:latest`;
+  const cached = getCached<FuelVehicleLatest[]>(cacheKey);
+  if (cached) return cached;
+
+  const { data, error } = await supabase
+    .from("fuel_vehicle_latest")
+    .select("*")
+    .eq("company_id", companyId);
+  if (error) throw error;
+  return setCached(cacheKey, (data ?? []).map((r) => toFuelVehicleLatest(r as Record<string, unknown>)));
+}
+
+export async function getFuelStationStats(): Promise<FuelStationStats[]> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const cacheKey = `fuel:${companyId}:stations`;
+  const cached = getCached<FuelStationStats[]>(cacheKey);
+  if (cached) return cached;
+
+  const { data, error } = await supabase
+    .from("fuel_station_stats")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("total_cost", { ascending: false });
+  if (error) throw error;
+  return setCached(cacheKey, (data ?? []).map((r) => toFuelStationStats(r as Record<string, unknown>)));
+}
+
+export interface FuelMetricRow {
+  fueledAt: string;
+  totalAmount: number;
+  liters: number;
+  distanceKm?: number;
+  vehicleId: string;
+}
+
+/**
+ * Son N ayı kapsayan (fueledAt, totalAmount, liters, distanceKm) satırları —
+ * dashboard KPI'ları ve analiz sayfasındaki aylık grafikler bu bounded
+ * pencere üzerinde toplulaştırılır (bkz. src/lib/fuel.ts monthlyFuelSeries).
+ * fuel_record_metrics view'ından okur (distance_km hesaplanmış gelir).
+ */
+export async function getFuelMetricsSince(months: number): Promise<FuelMetricRow[]> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const since = new Date();
+  since.setMonth(since.getMonth() - (months - 1), 1);
+  since.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from("fuel_record_metrics")
+    .select("fueled_at, total_amount, liters, distance_km, vehicle_id")
+    .eq("company_id", companyId)
+    .gte("fueled_at", since.toISOString());
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    fueledAt: r.fueled_at as string,
+    totalAmount: Number(r.total_amount) || 0,
+    liters: Number(r.liters) || 0,
+    distanceKm: r.distance_km !== null && r.distance_km !== undefined ? Number(r.distance_km) : undefined,
+    vehicleId: r.vehicle_id as string,
+  }));
+}
+
+export async function getFuelAnomalyThreshold(): Promise<number> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const cacheKey = `fuel:${companyId}:threshold`;
+  const cached = getCached<number>(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const { data, error } = await supabase
+    .from("companies")
+    .select("fuel_anomaly_threshold_pct")
+    .eq("id", companyId)
+    .single();
+  if (error) throw error;
+  return setCached(cacheKey, Number(data?.fuel_anomaly_threshold_pct) || 15);
+}
+
+/** Yalnızca yönetici — companies tablosunda client-side UPDATE RLS'i olmadığından sunucu route'u üzerinden yazar (bkz. /api/companies/timezone ile aynı desen). */
+export async function updateFuelAnomalyThreshold(pct: number): Promise<void> {
+  const companyId = await requireCompanyId();
+  const res = await fetch("/api/companies/fuel-threshold", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ thresholdPct: pct }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Eşik güncellenemedi.");
+  }
+  bustCache(`fuel:${companyId}:threshold`);
+}
+
+/** Fiş/fatura fotoğrafını/PDF'ini `fuel-receipts` bucket'ına yükler. Yol: <company_id>/<vehicle_id>/<uuid>.<ext> */
+export async function uploadFuelReceipt(vehicleId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const fileId = crypto.randomUUID();
+  const filePath = `${companyId}/${vehicleId}/${fileId}.${ext}`;
+  const { error } = await supabase.storage
+    .from("fuel-receipts")
+    .upload(filePath, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return filePath;
+}
+
+export async function getFuelReceiptSignedUrl(path: string): Promise<string> {
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from("fuel-receipts")
+    .createSignedUrl(path, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function createFuelRecord(data: {
+  vehicleId: string;
+  fueledAt: string;
+  stationName?: string;
+  fuelType: FuelPurchaseType;
+  liters: number;
+  pricePerLiter: number;
+  totalAmount: number;
+  odometer: number;
+  paymentMethod: FuelPaymentMethod;
+  receiptNumber?: string;
+  receiptPath?: string;
+  notes?: string;
+}): Promise<FuelRecord> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Oturum bulunamadı.");
+
+  const { data: inserted, error } = await supabase
+    .from("fuel_records")
+    .insert({
+      company_id: companyId,
+      vehicle_id: data.vehicleId,
+      created_by: userId,
+      fueled_at: data.fueledAt,
+      station_name: data.stationName?.trim() || "",
+      fuel_type: data.fuelType,
+      liters: data.liters,
+      price_per_liter: data.pricePerLiter,
+      total_amount: data.totalAmount,
+      odometer: data.odometer,
+      payment_method: data.paymentMethod,
+      receipt_number: data.receiptNumber?.trim() || "",
+      receipt_path: data.receiptPath || null,
+      notes: data.notes?.trim() || "",
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+
+  bustCache(`fuel:${companyId}`);
+
+  const record = await getFuelRecord(inserted.id as string) ?? toFuelRecord(inserted as Record<string, unknown>);
+
+  void logActivity("fuel_record_created", "fuel_record", {
+    entityId: record.id,
+    entityLabel: record.vehiclePlate || undefined,
+    meta: { totalAmount: record.totalAmount, liters: record.liters },
+  });
+
+  notifyFuelNew(record.id);
+
+  return record;
+}
+
+export async function updateFuelRecord(
+  id: string,
+  updates: Partial<{
+    vehicleId: string;
+    fueledAt: string;
+    stationName: string;
+    fuelType: FuelPurchaseType;
+    liters: number;
+    pricePerLiter: number;
+    totalAmount: number;
+    odometer: number;
+    paymentMethod: FuelPaymentMethod;
+    receiptNumber: string;
+    receiptPath: string | null;
+    notes: string;
+  }>,
+): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.vehicleId !== undefined) patch.vehicle_id = updates.vehicleId;
+  if (updates.fueledAt !== undefined) patch.fueled_at = updates.fueledAt;
+  if (updates.stationName !== undefined) patch.station_name = updates.stationName;
+  if (updates.fuelType !== undefined) patch.fuel_type = updates.fuelType;
+  if (updates.liters !== undefined) patch.liters = updates.liters;
+  if (updates.pricePerLiter !== undefined) patch.price_per_liter = updates.pricePerLiter;
+  if (updates.totalAmount !== undefined) patch.total_amount = updates.totalAmount;
+  if (updates.odometer !== undefined) patch.odometer = updates.odometer;
+  if (updates.paymentMethod !== undefined) patch.payment_method = updates.paymentMethod;
+  if (updates.receiptNumber !== undefined) patch.receipt_number = updates.receiptNumber;
+  if (updates.receiptPath !== undefined) patch.receipt_path = updates.receiptPath;
+  if (updates.notes !== undefined) patch.notes = updates.notes;
+
+  const { data: updated, error } = await supabase
+    .from("fuel_records")
+    .update(patch)
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .select("vehicles(plate)")
+    .single();
+  if (error) throw error;
+  bustCache(`fuel:${companyId}`);
+
+  const plate = (updated?.vehicles as { plate?: string } | null)?.plate;
+  void logActivity("fuel_record_updated", "fuel_record", {
+    entityId: id,
+    entityLabel: plate || undefined,
+  });
+}
+
+export async function deleteFuelRecord(id: string): Promise<void> {
+  const supabase = createClient();
+  const companyId = await requireCompanyId();
+
+  const { data: existing } = await supabase
+    .from("fuel_records")
+    .select("receipt_path, vehicles(plate)")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  const receiptPath = existing?.receipt_path as string | null;
+  if (receiptPath) {
+    const { error: storageErr } = await supabase.storage.from("fuel-receipts").remove([receiptPath]);
+    if (storageErr) console.error("Fuel receipt storage delete (non-fatal):", storageErr);
+  }
+
+  const { error } = await supabase
+    .from("fuel_records")
+    .delete()
+    .eq("id", id)
+    .eq("company_id", companyId);
+  if (error) throw error;
+  bustCache(`fuel:${companyId}`);
+
+  const plate = (existing?.vehicles as { plate?: string } | null)?.plate;
+  void logActivity("fuel_record_deleted", "fuel_record", {
     entityId: id,
     entityLabel: plate || undefined,
   });

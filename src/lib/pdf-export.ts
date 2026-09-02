@@ -1,7 +1,8 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { Vehicle, ServiceRecord, FleetAlert, TrafficFine } from "@/lib/types";
+import type { Vehicle, ServiceRecord, FleetAlert, TrafficFine, FuelRecord } from "@/lib/types";
 import { calculateHealthScore, getMaintenanceStatusForItem, getFleetAlerts, getTrafficFineAlerts } from "@/lib/store";
+import { FUEL_TYPE_LABELS, formatTRY as formatFuelTRY, formatConsumption, formatCostPerKm } from "@/lib/fuel";
 
 const SERVICE_TYPE_LABELS: Record<string, string> = {
   routine:    "Periyodik Bakım",
@@ -503,4 +504,45 @@ export async function exportFleetStatusPDF(vehicles: Vehicle[], fines: TrafficFi
 
   addFooter(doc);
   doc.save(`carstrack_filo_raporu_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+// ─── Yakıt Alımları Raporu ──────────────────────────────────────────────────
+
+export async function exportFuelRecordsPDF(records: FuelRecord[]): Promise<void> {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  await embedFonts(doc);
+
+  const totalCost = records.reduce((s, r) => s + r.totalAmount, 0);
+  const totalLiters = records.reduce((s, r) => s + r.liters, 0);
+
+  addHeader(
+    doc,
+    "Yakıt Alımları Raporu",
+    `${records.length} kayıt  •  ${formatFuelTRY(totalCost)}  •  ${totalLiters.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} L  •  ${new Date().toLocaleDateString("tr-TR")}`
+  );
+
+  autoTable(doc, {
+    startY: 46,
+    head: [["Tarih", "Araç", "İstasyon", "Tür", "Litre", "L. Fiyatı", "Toplam", "KM", "L/100KM", "₺/KM"]],
+    body: records.map((r) => [
+      formatDate(r.fueledAt),
+      r.vehiclePlate || "—",
+      r.stationName || "—",
+      FUEL_TYPE_LABELS[r.fuelType] ?? r.fuelType,
+      r.liters.toLocaleString("tr-TR"),
+      `₺${r.pricePerLiter.toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`,
+      formatFuelTRY(r.totalAmount),
+      r.odometer.toLocaleString("tr-TR"),
+      formatConsumption(r.consumptionL100km),
+      formatCostPerKm(r.costPerKm),
+    ]),
+    theme: "striped",
+    ...baseTableStyles(),
+    alternateRowStyles: { fillColor: [248, 248, 255] },
+    styles: { cellPadding: 2.5, font: "Roboto", fontSize: 7.5, overflow: "linebreak" },
+    margin: { left: 10, right: 10 },
+  });
+
+  addFooter(doc);
+  doc.save(`carstrack_yakit_alimlari_${new Date().toISOString().slice(0, 10)}.pdf`);
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut, Gavel, ChevronLeft } from "lucide-react";
+import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut, Gavel, ChevronLeft, Fuel } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
@@ -32,6 +32,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
         { icon: ClipboardList, label: "Seyahatlerim", href: "/tasks" },
         { icon: Wrench, label: "Arıza Bildir", href: "/reports" },
         { icon: Gavel, label: "Cezalarım", href: "/traffic-fines" },
+        { icon: Fuel, label: "Yakıtım", href: "/yakit" },
         { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
         { icon: Settings, label: t("nav_settings"), href: "/settings" },
       ]
@@ -41,6 +42,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
         { icon: ClipboardList, label: t("nav_tasks"), href: "/tasks" },
         { icon: Wrench, label: "Arızalar", href: "/reports" },
         { icon: Gavel, label: "Trafik Cezaları", href: "/traffic-fines" },
+        { icon: Fuel, label: "Yakıt", href: "/yakit" },
         { icon: Users, label: "Ekip", href: "/users" },
         { icon: History, label: t("nav_history"), href: "/history" },
         { icon: Activity, label: t("nav_analytics"), href: "/analytics" },

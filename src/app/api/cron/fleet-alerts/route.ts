@@ -7,7 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendFleetAlertDigest } from "@/lib/email/sendEmail";
 import { sendPushToManagers } from "@/lib/push";
 import { getFleetAlerts, getTrafficFineAlerts } from "@/lib/store";
-import { toVehicleFromRow, toTrafficFineFromRow } from "@/lib/vehicle-mapper";
+import { getFuelConsumptionAlerts } from "@/lib/fuel";
+import { toVehicleFromRow, toTrafficFineFromRow, toFuelVehicleLatestFromRow, toFuelVehicleStatsFromRow } from "@/lib/vehicle-mapper";
 import type { FleetAlert } from "@/lib/types";
 import {
   DIGEST_LOCAL_HOUR,
@@ -43,10 +44,10 @@ export async function GET(req: Request) {
   const forceAll = new URL(req.url).searchParams.get("force") === "1";
 
   // ── 2. Şirketler: yalnızca yerel saat 09:00 olanlar işlenir ─────
-  let companies: { id: string; timezone?: string }[] | null = null;
+  let companies: { id: string; timezone?: string; fuel_anomaly_threshold_pct?: number }[] | null = null;
   const { data: companiesWithTz, error: companiesErr } = await admin
     .from("companies")
-    .select("id, timezone");
+    .select("id, timezone, fuel_anomaly_threshold_pct");
   if (companiesErr) {
     const { data: companiesFallback, error: fallbackErr } = await admin
       .from("companies")
@@ -55,18 +56,20 @@ export async function GET(req: Request) {
       console.error("[cron/fleet-alerts] companies error:", companiesErr);
       return NextResponse.json({ error: "Failed to load companies" }, { status: 500 });
     }
-    console.warn("[cron/fleet-alerts] timezone kolonu yok — Europe/Istanbul varsayılıyor");
+    console.warn("[cron/fleet-alerts] timezone/fuel_anomaly_threshold_pct kolonu yok — varsayılanlar kullanılıyor");
     companies = companiesFallback as { id: string }[];
   } else {
-    companies = companiesWithTz as { id: string; timezone?: string }[];
+    companies = companiesWithTz as { id: string; timezone?: string; fuel_anomaly_threshold_pct?: number }[];
   }
 
   const timezoneByCompany = new Map<string, string>();
+  const fuelThresholdByCompany = new Map<string, number>();
   const digestCompanyIds: string[] = [];
   for (const row of companies ?? []) {
     const companyId = row.id as string;
     const timeZone = resolveTimeZone(row.timezone);
     timezoneByCompany.set(companyId, timeZone);
+    fuelThresholdByCompany.set(companyId, Number(row.fuel_anomaly_threshold_pct) || 15);
     if (forceAll || isLocalHour(now, timeZone, DIGEST_LOCAL_HOUR)) {
       digestCompanyIds.push(companyId);
     }
@@ -150,11 +153,37 @@ export async function GET(req: Request) {
     finesByCompany.get(companyId)!.push(toTrafficFineFromRow(row as Record<string, unknown>));
   }
 
+  // ── 7c. Digest saatindeki şirketlerin yakıt istatistikleri (anomali tespiti) ──
+  const [{ data: rawFuelLatest, error: fuelLatestErr }, { data: rawFuelStats, error: fuelStatsErr }] = await Promise.all([
+    admin.from("fuel_vehicle_latest").select("*").in("company_id", digestCompanyIds),
+    admin.from("fuel_vehicle_stats").select("*").in("company_id", digestCompanyIds),
+  ]);
+  if (fuelLatestErr) console.error("[cron/fleet-alerts] fuel_vehicle_latest error (non-fatal):", fuelLatestErr);
+  if (fuelStatsErr) console.error("[cron/fleet-alerts] fuel_vehicle_stats error (non-fatal):", fuelStatsErr);
+
+  const fuelLatestByCompany = new Map<string, ReturnType<typeof toFuelVehicleLatestFromRow>[]>();
+  for (const row of rawFuelLatest ?? []) {
+    const companyId = row.company_id as string;
+    if (!fuelLatestByCompany.has(companyId)) fuelLatestByCompany.set(companyId, []);
+    fuelLatestByCompany.get(companyId)!.push(toFuelVehicleLatestFromRow(row as Record<string, unknown>));
+  }
+  const fuelStatsByCompany = new Map<string, ReturnType<typeof toFuelVehicleStatsFromRow>[]>();
+  for (const row of rawFuelStats ?? []) {
+    const companyId = row.company_id as string;
+    if (!fuelStatsByCompany.has(companyId)) fuelStatsByCompany.set(companyId, []);
+    fuelStatsByCompany.get(companyId)!.push(toFuelVehicleStatsFromRow(row as Record<string, unknown>));
+  }
+
   const alertsByCompany = new Map<string, FleetAlert[]>();
   for (const [companyId, vehicles] of vehiclesByCompany) {
     const vehicleAlerts = getFleetAlerts(vehicles);
     const fineAlerts = getTrafficFineAlerts(finesByCompany.get(companyId) ?? []);
-    alertsByCompany.set(companyId, [...vehicleAlerts, ...fineAlerts]);
+    const fuelAlerts = getFuelConsumptionAlerts(
+      fuelLatestByCompany.get(companyId) ?? [],
+      fuelStatsByCompany.get(companyId) ?? [],
+      fuelThresholdByCompany.get(companyId) ?? 15,
+    );
+    alertsByCompany.set(companyId, [...vehicleAlerts, ...fineAlerts, ...fuelAlerts]);
   }
 
   // Araç başına uyarı haritası (sürücü filtrelemesi için)

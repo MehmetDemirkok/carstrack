@@ -16,6 +16,7 @@ import { HealthScoreBreakdown } from "@/components/health-score-breakdown";
 import { FleetRiskOverview } from "@/components/fleet-risk-overview";
 import { ServiceActivityChart } from "@/components/service-activity-chart";
 import { FleetComposition } from "@/components/fleet-composition";
+import { FuelDashboardWidget } from "@/components/fuel/fuel-dashboard-widget";
 import { AnimatedCounter } from "@/components/animated-counter";
 import { DriverDashboard } from "@/components/driver-dashboard";
 import { PWAInstallCard } from "@/components/pwa-install";
@@ -36,6 +37,7 @@ import {
   FileWarning,
   Wallet,
   Gavel,
+  Fuel,
   CalendarPlus,
 } from "lucide-react";
 
@@ -67,6 +69,7 @@ const categoryIcon = {
   maintenance: Wrench,
   tire: Disc3,
   "traffic-fine": Gavel,
+  fuel: Fuel,
 };
 
 export default function Dashboard() {
@@ -441,6 +444,9 @@ export default function Dashboard() {
                 </div>
               </motion.div>
             )}
+
+            {/* Yakıt durumu — yalnızca yakıt kaydı varsa görünür */}
+            <FuelDashboardWidget />
 
             {/* Ödemeler — ödenmemiş servis masrafları */}
             {unpaidRecords.length > 0 && (

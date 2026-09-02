@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
-import type { Vehicle, ServiceRecord, VehicleTask, TrafficFine, VehicleReport, Feedback, DriverLicenseEntry } from "@/lib/types";
+import type { Vehicle, ServiceRecord, VehicleTask, TrafficFine, VehicleReport, Feedback, DriverLicenseEntry, FuelRecord } from "@/lib/types";
 import { STATUS_META as FINE_STATUS_META } from "@/components/traffic-fines/fine-badges";
+import { FUEL_TYPE_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/fuel";
 
 const SERVICE_TYPE_LABELS: Record<string, string> = {
   routine: "Periyodik Bakım",
@@ -169,6 +170,37 @@ export function exportFullReportExcel(vehicles: Vehicle[], records: ServiceRecor
   XLSX.utils.book_append_sheet(wb, wsRecords, "Servis Geçmişi");
 
   download(wb, `carstrack_tam_rapor_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+// ─── Yakıt Alımları ─────────────────────────────────────────────────────────
+
+function fuelRecordRows(records: FuelRecord[]) {
+  return records.map((r) => ({
+    "Tarih": formatDate(r.fueledAt),
+    "Saat": new Date(r.fueledAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+    "Araç": r.vehiclePlate ?? "",
+    "İstasyon": r.stationName,
+    "Yakıt Türü": FUEL_TYPE_LABELS[r.fuelType] ?? r.fuelType,
+    "Litre": r.liters,
+    "Litre Fiyatı (₺)": r.pricePerLiter,
+    "Toplam (₺)": r.totalAmount,
+    "Kilometre": r.odometer,
+    "L/100KM": r.consumptionL100km ?? "",
+    "₺/KM": r.costPerKm ?? "",
+    "Ödeme Yöntemi": PAYMENT_METHOD_LABELS[r.paymentMethod] ?? r.paymentMethod,
+    "Fiş/Fatura No": r.receiptNumber,
+    "Not": r.notes,
+  }));
+}
+
+export function exportFuelRecordsExcel(records: FuelRecord[]) {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(
+    records.length > 0 ? fuelRecordRows(records) : [{ "Tarih": "", "Araç": "", "İstasyon": "", "Toplam (₺)": "" }]
+  );
+  autoWidth(ws);
+  XLSX.utils.book_append_sheet(wb, ws, "Yakıt Alımları");
+  download(wb, `carstrack_yakit_alimlari_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 // ─── Kişisel veri indirme ("Verilerimi İndir") ─────────────────────────────

@@ -34,6 +34,9 @@ export const EVENT_CATEGORY: Record<string, "operational" | "reminders"> = {
   fine_status: "reminders",
   kilometer_reminder: "reminders",
   license_expiry: "reminders",
+  fuel_new: "operational",
+  fuel_anomaly: "reminders",
+  fuel_data_inconsistency: "reminders",
 };
 
 /**
@@ -50,6 +53,7 @@ export const EVENT_COOLDOWN_MINUTES: Record<string, number> = {
   task_start: 3,
   task_end: 3,
   vehicle_new: 3,
+  fuel_new: 3,
 };
 
 export interface NotifyEvent {

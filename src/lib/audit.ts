@@ -10,7 +10,10 @@ export type AuditAction =
   | "invite_code_regenerated"
   | "fine_created"
   | "fine_status_changed"
-  | "fine_deleted";
+  | "fine_deleted"
+  | "fuel_record_created"
+  | "fuel_record_updated"
+  | "fuel_record_deleted";
 
 interface LogActivityOptions {
   entityId?: string;

@@ -12,16 +12,27 @@ import {
   getVehicleDocuments, addVehicleDocument, updateVehicleDocument,
   deleteVehicleDocument, getDocumentSignedUrl, uploadDocumentFile,
   getVehicleStatuses, getServiceProviders, getTrafficFines, getDrivers,
+  getFuelRecords, getFuelVehicleStatsFor, getFuelAnomalyThreshold,
 } from "@/lib/db";
 import {
   calculateHealthScore, calculateHealthScoreBreakdown, getMaintenanceStatusForItem,
   getMaintenanceProgress, MAINTENANCE_TEMPLATES, applyPeriodicService,
   TUVTURK_RANDEVU_URL,
 } from "@/lib/store";
-import type { Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType, VehicleDocument, DocumentType, PaymentStatus, TrafficFine, Profile } from "@/lib/types";
+import {
+  formatTRY as formatFuelTRY, formatConsumption, formatLiters,
+  monthlyFuelSeries, computeFuelKpiSet, FUEL_TYPE_LABELS,
+} from "@/lib/fuel";
+import type {
+  Vehicle, ServiceRecord, ServiceType, FuelType, TransmissionType, TireSeasonType,
+  VehicleDocument, DocumentType, PaymentStatus, TrafficFine, Profile,
+  FuelRecord, FuelVehicleStats,
+} from "@/lib/types";
 import { isDriverRole } from "@/lib/types";
 import { FineStatusBadge } from "@/components/traffic-fines/fine-badges";
 import { FineFormDialog } from "@/components/traffic-fines/fine-form-dialog";
+import { FuelFormDialog } from "@/components/fuel/fuel-form-dialog";
+import { FuelTrendChart } from "@/components/fuel/fuel-trend-chart";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -473,6 +484,27 @@ export default function VehicleDetailPage() {
     }
   }, [id, router]);
 
+  // Yakıt — özet + son kayıtlar burada, ekleme de bu sayfadan (Yakıt Ekle dialogu) yapılabilir.
+  const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([]);
+  const [fuelStats, setFuelStats] = useState<FuelVehicleStats | null>(null);
+  const [fuelThreshold, setFuelThreshold] = useState(15);
+  const [showAddFuel, setShowAddFuel] = useState(false);
+  const [editingFuel, setEditingFuel] = useState<FuelRecord | null>(null);
+  const reloadFuel = useCallback(async () => {
+    try {
+      const [{ rows }, stats, threshold] = await Promise.all([
+        getFuelRecords({ vehicleId: id, page: 1, pageSize: 50, sortBy: "fueled_at", sortDir: "desc" }),
+        getFuelVehicleStatsFor(id),
+        getFuelAnomalyThreshold(),
+      ]);
+      setFuelRecords(rows);
+      setFuelStats(stats);
+      setFuelThreshold(threshold);
+    } catch (err) {
+      console.error("Failed to load fuel records:", err);
+    }
+  }, [id]);
+
   const reloadDocs = useCallback(async () => {
     try {
       const docs = await getVehicleDocuments(id);
@@ -500,8 +532,9 @@ export default function VehicleDetailPage() {
       reloadDocs();
       reloadStatus();
       reloadFines();
+      reloadFuel();
     }
-  }, [authLoading, company, reload, reloadDocs, reloadStatus, reloadFines]);
+  }, [authLoading, company, reload, reloadDocs, reloadStatus, reloadFines, reloadFuel]);
 
   // Sürücü listesi yalnızca "Ceza Ekle" dialogu açıldığında, ihtiyaç anında yüklenir.
   useEffect(() => {
@@ -532,9 +565,18 @@ export default function VehicleDetailPage() {
   const unpaidFines = fines.filter((f) => f.status === "unpaid");
   const unpaidFinesTotal = unpaidFines.reduce((sum, f) => sum + f.amount, 0);
 
+  // Yakıt sağlığı: son 30 günün ağırlıklı ortalama tüketimi, genel ortalamadan
+  // şirket eşiğinin üzerinde sapmış mı (bkz. src/lib/fuel.ts).
+  const last30FuelRecords = fuelRecords.filter((r) => new Date().getTime() - new Date(r.fueledAt).getTime() <= 30 * 86400000);
+  const fuelLast30Avg = computeFuelKpiSet(last30FuelRecords).avgConsumption;
+  const fuelOverallAvg = fuelStats?.avgConsumption ?? null;
+  const fuelDiffPct = fuelOverallAvg && fuelLast30Avg ? ((fuelLast30Avg - fuelOverallAvg) / fuelOverallAvg) * 100 : null;
+  const fuelMonthly = monthlyFuelSeries(fuelRecords, 6);
+
   const needsMaintenanceAttention = overdueMaintenanceCount > 0;
   const needsDocAttention = expiringDocsCount > 0;
   const needsFineAttention = unpaidFines.length > 0;
+  const needsFuelAttention = fuelDiffPct !== null && fuelDiffPct > fuelThreshold;
 
   const attentionItems: { icon: LucideIcon; text: string }[] = [];
   if (needsMaintenanceAttention) {
@@ -545,6 +587,9 @@ export default function VehicleDetailPage() {
   }
   if (needsFineAttention) {
     attentionItems.push({ icon: Gavel, text: `${unpaidFines.length} ödenmemiş ceza • ₺${unpaidFinesTotal.toLocaleString("tr-TR")}` });
+  }
+  if (needsFuelAttention && fuelDiffPct !== null) {
+    attentionItems.push({ icon: Fuel, text: `Yakıt tüketimi normalin %${Math.round(fuelDiffPct)} üzerinde` });
   }
 
   const openEdit = () => {
@@ -1084,6 +1129,7 @@ export default function VehicleDetailPage() {
                       { value: "technical", label: "Teknik", icon: Settings },
                       { value: "tires", label: "Lastik", icon: Disc3 },
                       { value: "maintenance", label: "Bakım", icon: Wrench, alert: needsMaintenanceAttention },
+                      { value: "fuel", label: "Yakıt", icon: Fuel, alert: needsFuelAttention },
                       { value: "fines", label: "Cezalar", icon: Gavel, alert: needsFineAttention },
                       { value: "history", label: "Geçmiş", icon: Clock },
                     ];
@@ -1600,6 +1646,106 @@ export default function VehicleDetailPage() {
                 </TabsContent>
                 )}
 
+                {/* ── YAKIT ── (sürücü göremez) */}
+                {!isDriver && (
+                <TabsContent value="fuel" className="space-y-4 outline-none">
+                  {fuelStats ? (
+                    <div className="glass rounded-2xl p-4 border border-border/40 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg leading-none">
+                            {fuelDiffPct === null ? "⚪" : needsFuelAttention ? (fuelDiffPct > fuelThreshold * 2.5 ? "🔴" : "🟡") : "🟢"}
+                          </span>
+                          <div>
+                            <p className="text-xs font-bold">Yakıt Sağlığı</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {fuelDiffPct === null ? "Yetersiz veri" : needsFuelAttention ? "Dikkat" : "Normal"}
+                            </p>
+                          </div>
+                        </div>
+                        <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs shrink-0" onClick={() => { setEditingFuel(null); setShowAddFuel(true); }}>
+                          <Plus className="h-3.5 w-3.5" /> Yakıt Ekle
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div>
+                          <p className="text-muted-foreground">Ortalama</p>
+                          <p className="font-bold">{formatConsumption(fuelStats.avgConsumption)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Son 30 gün</p>
+                          <p className="font-bold">{formatConsumption(fuelLast30Avg)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Değişim</p>
+                          <p className={`font-bold ${fuelDiffPct !== null && fuelDiffPct > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                            {fuelDiffPct === null ? "—" : `${fuelDiffPct > 0 ? "+" : ""}%${fuelDiffPct.toLocaleString("tr-TR", { maximumFractionDigits: 1 })}`}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Toplam Maliyet</p>
+                          <p className="font-bold">{formatFuelTRY(fuelStats.totalCost)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setEditingFuel(null); setShowAddFuel(true); }} className="w-full text-left">
+                      <div className="rounded-2xl bg-mesh p-4 shadow-lg shadow-primary/25 flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                          <Plus className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-white">Yakıt Alımı Ekle</p>
+                          <p className="text-xs text-white/70">Bu araç için henüz yakıt kaydı yok</p>
+                        </div>
+                      </div>
+                    </button>
+                  )}
+
+                  {fuelRecords.length > 0 && <FuelTrendChart data={fuelMonthly} rangeLabel="Son 6 ay" />}
+
+                  {fuelRecords.length > 0 && (
+                    <div className="space-y-2.5">
+                      <p className="text-xs text-muted-foreground">Yakıt Geçmişi ({fuelRecords.length})</p>
+                      {fuelRecords.map((r) => (
+                        <div key={r.id} className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm">
+                          <div className="flex justify-between items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                <h3 className="font-bold text-sm">{r.stationName || FUEL_TYPE_LABELS[r.fuelType]}</h3>
+                                <Badge variant="secondary" className="text-[9px] h-4 px-1.5 border-none font-bold bg-primary/10 text-primary">
+                                  {FUEL_TYPE_LABELS[r.fuelType]}
+                                </Badge>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground">
+                                {new Date(r.fueledAt).toLocaleDateString("tr-TR")} • {formatLiters(r.liters)} • {r.odometer.toLocaleString("tr-TR")} KM
+                                {r.consumptionL100km !== undefined ? ` • ${formatConsumption(r.consumptionL100km)}` : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[11px] font-bold">{formatFuelTRY(r.totalAmount)}</span>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <button
+                                      className="h-7 w-7 rounded-full hover:bg-muted/60 text-muted-foreground flex items-center justify-center transition-colors"
+                                      onClick={() => { setEditingFuel(r); setShowAddFuel(true); }}
+                                    />
+                                  }
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </TooltipTrigger>
+                                <TooltipContent>Düzenle</TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+                )}
+
                 {/* ── CEZALAR ── (sürücü göremez) */}
                 {!isDriver && (
                 <TabsContent value="fines" className="outline-none">
@@ -1747,6 +1893,19 @@ export default function VehicleDetailPage() {
           defaultVehicleId={vehicle.id}
           lockVehicle
           onSaved={reloadFines}
+        />
+      )}
+
+      {/* ── YAKIT EKLE/DÜZENLE DIALOG ── */}
+      {!isDriver && (
+        <FuelFormDialog
+          open={showAddFuel}
+          onOpenChange={setShowAddFuel}
+          editing={editingFuel}
+          vehicles={[vehicle]}
+          defaultVehicleId={vehicle.id}
+          lockVehicle
+          onSaved={reloadFuel}
         />
       )}
 
