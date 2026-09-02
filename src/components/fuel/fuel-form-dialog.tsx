@@ -11,6 +11,7 @@ import { FUEL_TYPES, FUEL_TYPE_LABELS, PAYMENT_METHODS, PAYMENT_METHOD_LABELS } 
 import { SCAN_MAX_FILE_SIZE, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS } from "@/lib/file-utils";
 import type { Vehicle, FuelRecord } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { useData } from "@/context/data-context";
 
 function nowParts(): { date: string; time: string } {
   const d = new Date();
@@ -51,6 +52,7 @@ export interface FuelFormDialogProps {
 export function FuelFormDialog({
   open, onOpenChange, editing, vehicles, stationSuggestions, defaultVehicleId, lockVehicle, onSaved,
 }: FuelFormDialogProps) {
+  const { refresh: refreshSharedData } = useData();
   const [form, setForm] = useState<FormState>(emptyForm());
   const [totalTouched, setTotalTouched] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -75,11 +77,25 @@ export function FuelFormDialog({
       });
       setTotalTouched(true);
     } else {
-      setForm({ ...emptyForm(), vehicleId: defaultVehicleId ?? "" });
+      // Araç önceden seçili geliyorsa (kilitli veya varsayılan), KM alanını
+      // aracın güncel kilometresiyle başlat — sürücü/kullanıcı ordan devam etsin.
+      const preselected = defaultVehicleId ? vehicles.find((v) => v.id === defaultVehicleId) : undefined;
+      setForm({ ...emptyForm(), vehicleId: defaultVehicleId ?? "", odometer: preselected ? String(preselected.mileage) : "" });
       setTotalTouched(false);
     }
     setPhoto(null);
-  }, [open, editing, defaultVehicleId]);
+  }, [open, editing, defaultVehicleId, vehicles]);
+
+  // Araç seçilince (yeni kayıt), KM alanını aracın güncel kilometresiyle doldur —
+  // kullanıcı bu değeri yakıt alımı sonrası okuduğu güncel KM ile değiştirir.
+  function handleVehicleChange(vehicleId: string) {
+    const v = vehicles.find((x) => x.id === vehicleId);
+    setForm((prev) => ({
+      ...prev,
+      vehicleId,
+      odometer: !editing && v ? String(v.mileage) : prev.odometer,
+    }));
+  }
 
   useEffect(() => {
     if (!open || !form.vehicleId) { setLastRecord(null); return; }
@@ -187,6 +203,7 @@ export function FuelFormDialog({
       }
       onOpenChange(false);
       await onSaved();
+      void refreshSharedData();
     } catch (err) {
       toast.error((err as { message?: string })?.message ?? "Kaydedilemedi");
     } finally {
@@ -219,7 +236,7 @@ export function FuelFormDialog({
                   {lockedVehicle ? `${lockedVehicle.plate} — ${lockedVehicle.brand} ${lockedVehicle.model}` : "—"}
                 </div>
               ) : (
-                <select value={form.vehicleId} onChange={(e) => set("vehicleId", e.target.value)} className={inputCls}>
+                <select value={form.vehicleId} onChange={(e) => handleVehicleChange(e.target.value)} className={inputCls}>
                   <option value="">Araç seçin</option>
                   {vehicles.map((v) => <option key={v.id} value={v.id}>{v.plate} — {v.brand} {v.model}</option>)}
                 </select>
@@ -296,8 +313,13 @@ export function FuelFormDialog({
 
             {/* KM */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Kilometre</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Kilometre <span className="normal-case font-normal">(aracın güncel KM&apos;si)</span>
+              </label>
               <input type="number" min="0" step="1" value={form.odometer} onChange={(e) => set("odometer", e.target.value)} className={inputCls} />
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Yakıt alırken gösterge panelindeki güncel kilometreyi yazın — kaydedince aracın ana kilometresi bu değere güncellenir.
+              </p>
               {distancePreview && (
                 <p className={`text-[10px] leading-tight flex items-center gap-1 ${distancePreview.ok ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
                   {distancePreview.ok ? <ArrowRight className="h-3 w-3 shrink-0" /> : <AlertTriangle className="h-3 w-3 shrink-0" />}

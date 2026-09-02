@@ -2485,6 +2485,32 @@ export async function getFuelReceiptSignedUrl(path: string): Promise<string> {
   return data.signedUrl;
 }
 
+/**
+ * Yakıt kaydındaki KM'yi aracın ana kilometresiyle senkronize eder — yalnızca
+ * ileri yönde (closeKilometerGap / endTask ile aynı "KM hiçbir zaman geriye
+ * alınmaz" ilkesi). Girilen KM aracın kayıtlı KM'sinden düşük/eşitse sessizce
+ * atlanır (fuel_records kaydını etkilemez, hata fırlatmaz).
+ */
+async function syncVehicleMileageFromFuel(
+  supabase: ReturnType<typeof createClient>,
+  companyId: string,
+  vehicleId: string,
+  odometer: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from("vehicles")
+    .update({ mileage: odometer, updated_at: new Date().toISOString() })
+    .eq("id", vehicleId)
+    .eq("company_id", companyId)
+    .lt("mileage", odometer);
+  if (error) {
+    console.error("syncVehicleMileageFromFuel: araç KM güncellenemedi:", error);
+    return;
+  }
+  bustCache(`vehicles:${companyId}`);
+  bustCache("myvehicles:");
+}
+
 export async function createFuelRecord(data: {
   vehicleId: string;
   fueledAt: string;
@@ -2528,6 +2554,7 @@ export async function createFuelRecord(data: {
   if (error) throw error;
 
   bustCache(`fuel:${companyId}`);
+  await syncVehicleMileageFromFuel(supabase, companyId, data.vehicleId, data.odometer);
 
   const record = await getFuelRecord(inserted.id as string) ?? toFuelRecord(inserted as Record<string, unknown>);
 
@@ -2581,10 +2608,17 @@ export async function updateFuelRecord(
     .update(patch)
     .eq("id", id)
     .eq("company_id", companyId)
-    .select("vehicles(plate)")
+    .select("vehicle_id, vehicles(plate)")
     .single();
   if (error) throw error;
   bustCache(`fuel:${companyId}`);
+
+  if (updates.odometer !== undefined) {
+    const targetVehicleId = updates.vehicleId ?? (updated?.vehicle_id as string | undefined);
+    if (targetVehicleId) {
+      await syncVehicleMileageFromFuel(supabase, companyId, targetVehicleId, updates.odometer);
+    }
+  }
 
   const plate = (updated?.vehicles as { plate?: string } | null)?.plate;
   void logActivity("fuel_record_updated", "fuel_record", {

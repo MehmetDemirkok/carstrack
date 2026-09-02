@@ -1905,7 +1905,7 @@ export default function VehicleDetailPage() {
           vehicles={[vehicle]}
           defaultVehicleId={vehicle.id}
           lockVehicle
-          onSaved={reloadFuel}
+          onSaved={async () => { await Promise.all([reloadFuel(), reload()]); }}
         />
       )}
 
