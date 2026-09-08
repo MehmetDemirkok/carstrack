@@ -561,7 +561,24 @@ export default function VehicleDetailPage() {
   const expiringVehicleDocsCount = [vehicle.insuranceExpiry, vehicle.kaskoExpiry, vehicle.inspectionExpiry]
     .filter((d) => !!d && daysUntil(d) <= 30).length;
   const expiringUploadedDocsCount = documents.filter((d) => !!d.expiryDate && daysUntil(d.expiryDate) <= 30).length;
-  const expiringDocsCount = expiringVehicleDocsCount + expiringUploadedDocsCount;
+  // Trafik sigortası/kasko/muayene hem araç kartında hem de Yüklenen Belgeler'de ayrı
+  // tarihlerle tutulabiliyor — üstteki genel uyarıda aynı belgeyi iki kez saymamak için
+  // bu üç türü kaynak fark etmeksizin tekil say, geri kalan yüklenen belgeleri ayrıca ekle.
+  const OVERLAPPING_DOC_TYPES: { type: DocumentType; vehicleDate?: string }[] = [
+    { type: "trafik_sigortasi", vehicleDate: vehicle.insuranceExpiry },
+    { type: "kasko", vehicleDate: vehicle.kaskoExpiry },
+    { type: "muayene", vehicleDate: vehicle.inspectionExpiry },
+  ];
+  const expiringOverlapCount = OVERLAPPING_DOC_TYPES.filter(({ type, vehicleDate }) => {
+    const vehicleExpiring = !!vehicleDate && daysUntil(vehicleDate) <= 30;
+    const uploadedExpiring = documents.some((d) => d.type === type && !!d.expiryDate && daysUntil(d.expiryDate) <= 30);
+    return vehicleExpiring || uploadedExpiring;
+  }).length;
+  const expiringOtherUploadedDocsCount = documents.filter(
+    (d) => d.type !== "trafik_sigortasi" && d.type !== "kasko" && d.type !== "muayene"
+      && !!d.expiryDate && daysUntil(d.expiryDate) <= 30
+  ).length;
+  const expiringDocsCount = expiringOverlapCount + expiringOtherUploadedDocsCount;
   const unpaidFines = fines.filter((f) => f.status === "unpaid");
   const unpaidFinesTotal = unpaidFines.reduce((sum, f) => sum + f.amount, 0);
 

@@ -309,6 +309,49 @@ export async function addVehicle(
   return vehicle;
 }
 
+/**
+ * Trafik sigortası/kasko/muayene bitiş tarihi araç düzenleme formundan
+ * değiştirildiğinde, "Yüklenen Belgeler" listesinde aynı türde zaten var olan
+ * belgeyi de günceller — aksi halde araç kartı ve yüklenen belge aynı poliçe
+ * için farklı tarih gösterebilir (bkz. syncVehicleExpiryFromDocument, ters yön).
+ * Belge yoksa yeni belge OLUŞTURULMAZ; boş tarih diğer tarafı silmez, yalnızca
+ * dolu tarihler senkronize edilir.
+ */
+async function syncDocumentExpiryFromVehicleUpdate(
+  supabase: ReturnType<typeof createClient>,
+  companyId: string,
+  vehicleId: string,
+  updates: Partial<Vehicle>,
+): Promise<void> {
+  const pairs: [string | undefined, VehicleDocument["type"]][] = [
+    [updates.insuranceExpiry, "trafik_sigortasi"],
+    [updates.kaskoExpiry, "kasko"],
+    [updates.inspectionExpiry, "muayene"],
+  ];
+  for (const [expiryDate, docType] of pairs) {
+    if (!expiryDate) continue;
+    const { data: existing } = await supabase
+      .from("vehicle_documents")
+      .select("id")
+      .eq("vehicle_id", vehicleId)
+      .eq("company_id", companyId)
+      .eq("type", docType)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!existing) continue;
+    const { error } = await supabase
+      .from("vehicle_documents")
+      .update({ expiry_date: expiryDate, updated_at: new Date().toISOString() })
+      .eq("id", existing.id as string);
+    if (error) {
+      console.error("syncDocumentExpiryFromVehicleUpdate: belge tarihi güncellenemedi:", error);
+      continue;
+    }
+    bustCache(`vdocs:${companyId}`);
+  }
+}
+
 export async function updateVehicle(id: string, updates: Partial<Vehicle>): Promise<void> {
   const supabase = createClient();
   const companyId = await requireCompanyId();
@@ -320,6 +363,7 @@ export async function updateVehicle(id: string, updates: Partial<Vehicle>): Prom
     .eq("company_id", companyId);
   if (error) throw error;
   bustCache(`vehicles:${companyId}`);
+  await syncDocumentExpiryFromVehicleUpdate(supabase, companyId, id, updates);
 }
 
 export async function deleteVehicle(id: string): Promise<void> {
@@ -1244,6 +1288,42 @@ export async function getVehicleDocuments(vehicleId: string): Promise<VehicleDoc
   return setCached(cacheKey, (data ?? []).map(toDocument));
 }
 
+const DOC_TYPE_TO_VEHICLE_EXPIRY_FIELD: Partial<Record<VehicleDocument["type"], "insurance_expiry" | "kasko_expiry" | "inspection_expiry">> = {
+  trafik_sigortasi: "insurance_expiry",
+  kasko: "kasko_expiry",
+  muayene: "inspection_expiry",
+};
+
+/**
+ * Trafik sigortası/kasko/muayene türünde bir belge eklenip/güncellenip bitiş
+ * tarihi girildiğinde, aracın "Sigorta & Muayene" kartındaki karşılık gelen
+ * alanı da günceller — syncVehicleMileageFromFuel ile aynı desen (bkz. yukarı,
+ * ters yön: syncDocumentExpiryFromVehicleUpdate). Boş tarih aracın mevcut
+ * tarihini SİLMEZ, yalnızca dolu tarihler senkronize edilir.
+ */
+async function syncVehicleExpiryFromDocument(
+  supabase: ReturnType<typeof createClient>,
+  companyId: string,
+  vehicleId: string,
+  docType: VehicleDocument["type"],
+  expiryDate: string | undefined,
+): Promise<void> {
+  if (!expiryDate) return;
+  const field = DOC_TYPE_TO_VEHICLE_EXPIRY_FIELD[docType];
+  if (!field) return;
+  const { error } = await supabase
+    .from("vehicles")
+    .update({ [field]: expiryDate, updated_at: new Date().toISOString() })
+    .eq("id", vehicleId)
+    .eq("company_id", companyId);
+  if (error) {
+    console.error("syncVehicleExpiryFromDocument: araç tarihi güncellenemedi:", error);
+    return;
+  }
+  bustCache(`vehicles:${companyId}`);
+  bustCache("myvehicles:");
+}
+
 export async function addVehicleDocument(
   data: Omit<VehicleDocument, "id" | "createdAt" | "updatedAt">,
 ): Promise<VehicleDocument> {
@@ -1268,6 +1348,7 @@ export async function addVehicleDocument(
     .single();
   if (error) throw error;
   bustCache(`vdocs:${companyId}`);
+  await syncVehicleExpiryFromDocument(supabase, companyId, data.vehicleId, data.type, data.expiryDate);
   return toDocument(inserted);
 }
 
@@ -1283,13 +1364,23 @@ export async function updateVehicleDocument(
   if (updates.issueDate !== undefined) patch.issue_date = updates.issueDate || null;
   if (updates.expiryDate !== undefined) patch.expiry_date = updates.expiryDate || null;
   if (updates.notes !== undefined) patch.notes = updates.notes;
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("vehicle_documents")
     .update(patch)
     .eq("id", id)
-    .eq("company_id", companyId);
+    .eq("company_id", companyId)
+    .select("vehicle_id, type")
+    .single();
   if (error) throw error;
   bustCache(`vdocs:${companyId}`);
+  if (updates.expiryDate && updated) {
+    await syncVehicleExpiryFromDocument(
+      supabase, companyId,
+      updated.vehicle_id as string,
+      updated.type as VehicleDocument["type"],
+      updates.expiryDate,
+    );
+  }
 }
 
 export async function deleteVehicleDocument(id: string, filePath: string): Promise<void> {
