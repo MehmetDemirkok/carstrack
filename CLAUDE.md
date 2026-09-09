@@ -46,7 +46,7 @@ Database rows are `snake_case`; app-level types (`src/lib/types.ts`) are `camelC
 
 ### Cron jobs
 
-Defined in `vercel.json`, implemented under `src/app/api/cron/*/route.ts`, protected by `CRON_SECRET` bearer auth: `fleet-alerts`, `license-alerts`, `kilometer-reminder`, `keepalive`, `db-backup`. `db-backup` runs daily and is the project's only backup mechanism (Supabase free tier has none) — see `docs/DATABASE_BACKUP.md` for how it works and how to restore. When adding a table, add it to `BACKUP_TABLES` in `src/app/api/cron/db-backup/route.ts` or it silently won't be backed up.
+Defined in `vercel.json`, implemented under `src/app/api/cron/*/route.ts`, protected by `CRON_SECRET` bearer auth: `fleet-alerts`, `license-alerts`, `kilometer-reminder`, `keepalive`, `db-backup`, `weekly-admin-report`. `db-backup` runs daily and is the project's only backup mechanism (Supabase free tier has none) — see `docs/DATABASE_BACKUP.md` for how it works and how to restore. When adding a table, add it to `BACKUP_TABLES` in `src/app/api/cron/db-backup/route.ts` or it silently won't be backed up. `weekly-admin-report` runs every Friday and emails a cross-tenant user-activity digest to a single hardcoded address (`REPORT_RECIPIENT` in that route) — intentionally bypasses `notify.ts`/per-user prefs since it must never reach anyone but the app owner.
 
 ### Database migrations
 
@@ -63,3 +63,13 @@ Required env vars (see `.env.local`, not committed): `NEXT_PUBLIC_SUPABASE_URL`,
 ## Demo account
 
 `scripts/seed-demo-account.mjs` seeds a full demo tenant ("Demo Filo A.Ş.") into the live Supabase project for sales/demo purposes, isolated from real company data. It refuses to run if a company with that name already exists. See `DEMO_HESAPLAR.md` (gitignored, contains credentials) for login details and content summary.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

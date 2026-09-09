@@ -19,6 +19,7 @@ import { VerifyEmail } from "@/emails/templates/VerifyEmail";
 import { MagicLinkEmail } from "@/emails/templates/MagicLink";
 import { NotificationEmail } from "@/emails/templates/Notification";
 import { getFleetAlertsHtml } from "@/lib/emails/fleet-alerts";
+import { getWeeklyAdminReportHtml, type WeeklyAdminReportParams } from "@/lib/emails/weekly-admin-report";
 import type { FleetAlert } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -270,5 +271,27 @@ export async function sendFleetAlertDigest(params: FleetAlertDigestParams): Prom
     html,
     template: EmailTemplate.FleetAlerts,
     listUnsubscribe: unsubscribeHeader(),
+  });
+}
+
+export interface WeeklyAdminReportEmailParams {
+  to: string;
+  report: WeeklyAdminReportParams;
+}
+
+/**
+ * Haftalık, tüm şirketleri kapsayan kullanıcı-aktivite özetini uygulama
+ * sahibine gönderir (cron işi). Alıcı çağıran kod tarafından sabitlenir —
+ * bildirim tercihlerinden veya şirket verisinden türetilmez.
+ */
+export async function sendWeeklyAdminReportEmail(
+  params: WeeklyAdminReportEmailParams,
+): Promise<SendEmailResult> {
+  const html = getWeeklyAdminReportHtml(params.report);
+  return sendEmail({
+    to: params.to,
+    subject: `${BRAND.name} — Haftalık Kullanıcı Aktivite Raporu (${params.report.periodLabel})`,
+    html,
+    template: EmailTemplate.WeeklyAdminReport,
   });
 }

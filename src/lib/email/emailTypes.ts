@@ -94,6 +94,7 @@ export enum EmailTemplate {
   MagicLink = "magic-link",
   Notification = "notification",
   FleetAlerts = "fleet-alerts",
+  WeeklyAdminReport = "weekly-admin-report",
 }
 
 /** Statik (parametresiz) konu başlıkları. */
