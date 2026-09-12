@@ -4,10 +4,10 @@ Supabase'in ücretsiz planında otomatik yedekleme yoktur (yalnızca ücretli Pr
 
 ## Nasıl çalışır
 
-- Her gün **02:00 UTC** (Türkiye saatiyle 05:00) Vercel Cron bu uç noktayı çağırır (bkz. `vercel.json`).
+- Her Pazartesi **03:00 UTC** (Türkiye saatiyle 06:00) Vercel Cron bu uç noktayı çağırır (bkz. `vercel.json`). Vercel cron'ları her zaman UTC'dir; Türkiye DST uygulamadığı için kayma olmaz.
 - Route, `public` şemasındaki tüm tabloları (`companies`, `vehicles`, `service_records`, ... — tam liste route dosyasının başında) tek tek okuyup tek bir JSON'a toplar.
 - JSON gzip ile sıkıştırılıp Supabase'in **`db-backups`** adlı özel (private) depolama alanına `backups/YYYY-MM-DD.json.gz` olarak yazılır. Bu bucket'a yalnızca `service_role` anahtarı erişebilir — normal kullanıcılar (anon/authenticated) göremez.
-- 30 günden eski yedekler otomatik silinir (depolama alanı şişmesin diye).
+- 60 günden eski yedekler otomatik silinir (depolama alanı şişmesin diye).
 - Yedek başarıyla alındığında `BACKUP_NOTIFY_EMAIL` adresine (tanımlı değilse `mehmetdemirkok@gmail.com`'a) bilgilendirme e-postası gider. **Dosya e-postaya eklenmez** — e-posta yalnızca yedeğin alındığını, tablo/satır sayısını ve Supabase depolamadaki konumunu bildirir; asıl kopya yalnızca Supabase'in `db-backups` bucket'ında durur. Yedekleme başarısız olursa ayrı bir uyarı e-postası gider.
 
 Not: Bu bir **veri** yedeğidir, şema (tablo yapıları) yedeği değil. Şema zaten `supabase/migrations/` altında Git ile versiyonlanıyor — geri yükleme sırasında önce migration'lar çalıştırılır, sonra veri geri yüklenir.
@@ -22,7 +22,7 @@ Not: Bu bir **veri** yedeğidir, şema (tablo yapıları) yedeği değil. Şema 
 ## Ayarları değiştirmek
 
 - **Sıklık:** `vercel.json` içindeki `db-backup` cron'unun `schedule` alanı (cron formatı).
-- **Saklama süresi:** `route.ts` içindeki `RETENTION_DAYS` (şu an 30 gün).
+- **Saklama süresi:** `route.ts` içindeki `RETENTION_DAYS` (şu an 60 gün).
 - **Bildirim e-postası:** `BACKUP_NOTIFY_EMAIL` ortam değişkenini Vercel'de tanımlayın (tanımlı değilse mevcut destek adresine gider).
 - **Yeni tablo eklendiğinde:** `route.ts` içindeki `BACKUP_TABLES` dizisine yeni tablo adını eklemeyi unutmayın — aksi halde o tablo yedeklenmez.
 

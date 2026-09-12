@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/db-backup",
-      "schedule": "0 2 * * *"
+      "schedule": "0 3 * * 1"
     },
     {
       "path": "/api/cron/weekly-admin-report",

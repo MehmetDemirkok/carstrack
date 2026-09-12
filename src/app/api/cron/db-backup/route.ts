@@ -38,7 +38,7 @@ const BACKUP_TABLES = [
 
 const BUCKET = "db-backups";
 const PAGE_SIZE = 1000;
-const RETENTION_DAYS = 30;
+const RETENTION_DAYS = 60;
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -87,7 +87,7 @@ async function notifyFailure(message: string): Promise<void> {
   await sendNotificationEmail(notifyRecipient, "CarsTrack — Veritabanı Yedeği BAŞARISIZ ⚠️", {
     title: "Veritabanı Yedeği Alınamadı",
     emoji: "⚠️",
-    intro: "Günlük otomatik yedekleme cron'u hata verdi. Lütfen Vercel loglarını kontrol edin.",
+    intro: "Haftalık otomatik yedekleme cron'u hata verdi. Lütfen Vercel loglarını kontrol edin.",
     rows: [{ label: "Hata", value: message }],
     severity: "critical",
   }).catch((e) => console.error("[cron/db-backup] failure email gönderilemedi:", e));
@@ -151,7 +151,7 @@ export async function GET(req: Request) {
     {
       title: "Veritabanı Yedeği Alındı",
       emoji: "✅",
-      intro: `Günlük otomatik yedekleme başarıyla tamamlandı. Bu e-postaya dosya eklenmez; yedek yalnızca Supabase depolama alanında (${BUCKET}/${path}) saklanır.`,
+      intro: `Haftalık otomatik yedekleme başarıyla tamamlandı. Bu e-postaya dosya eklenmez; yedek yalnızca Supabase depolama alanında (${BUCKET}/${path}) saklanır.`,
       rows: [
         { label: "Tablo Sayısı", value: String(BACKUP_TABLES.length) },
         { label: "Toplam Satır", value: String(totalRows) },
