@@ -5,7 +5,7 @@ Supabase'in ücretsiz planında otomatik yedekleme yoktur (yalnızca ücretli Pr
 ## Nasıl çalışır
 
 - Her Pazartesi **03:00 UTC** (Türkiye saatiyle 06:00) Vercel Cron bu uç noktayı çağırır (bkz. `vercel.json`). Vercel cron'ları her zaman UTC'dir; Türkiye DST uygulamadığı için kayma olmaz.
-- Route, `public` şemasındaki tüm tabloları (`companies`, `vehicles`, `service_records`, ... — tam liste route dosyasının başında) tek tek okuyup tek bir JSON'a toplar.
+- Route, `public` şemasındaki tüm tabloları (`companies`, `vehicles`, `service_records`, ... — tam liste route dosyasının başında) tek tek okuyup tek bir JSON'a toplar. Büyük payload'lı tablolar (`vehicles` — base64 fotoğraflar) küçük sayfalarla okunur; geçici Gateway Timeout hatalarında üssel geri çekilmeli retry uygulanır. Fonksiyon süresi `maxDuration = 300` sn'dir.
 - JSON gzip ile sıkıştırılıp Supabase'in **`db-backups`** adlı özel (private) depolama alanına `backups/YYYY-MM-DD.json.gz` olarak yazılır. Bu bucket'a yalnızca `service_role` anahtarı erişebilir — normal kullanıcılar (anon/authenticated) göremez.
 - 60 günden eski yedekler otomatik silinir (depolama alanı şişmesin diye).
 - Yedek başarıyla alındığında `BACKUP_NOTIFY_EMAIL` adresine (tanımlı değilse `mehmetdemirkok@gmail.com`'a) bilgilendirme e-postası gider. **Dosya e-postaya eklenmez** — e-posta yalnızca yedeğin alındığını, tablo/satır sayısını ve Supabase depolamadaki konumunu bildirir; asıl kopya yalnızca Supabase'in `db-backups` bucket'ında durur. Yedekleme başarısız olursa ayrı bir uyarı e-postası gider.

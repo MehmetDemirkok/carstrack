@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+/** vehicles tablosundaki base64 fotoğraflar yüzünden export uzun sürebilir. */
+export const maxDuration = 300;
 
 import { NextResponse } from "next/server";
 import { gzipSync } from "node:zlib";
@@ -37,20 +38,85 @@ const BACKUP_TABLES = [
 ] as const;
 
 const BUCKET = "db-backups";
-const PAGE_SIZE = 1000;
+/** Varsayılan sayfa — küçük satırlar için yeterli. */
+const DEFAULT_PAGE_SIZE = 200;
+/**
+ * vehicles.image* alanlarında base64 data-URI tutuluyor; 20 satır ~5 MB olabiliyor
+ * ve Supabase/Kong Gateway Timeout (504) üretiyor. Bu yüzden çok küçük sayfa.
+ */
+const HEAVY_TABLE_PAGE_SIZE: Record<string, number> = {
+  vehicles: 5,
+  profiles: 50,
+};
 const RETENTION_DAYS = 60;
+const MAX_PAGE_RETRIES = 4;
+const RETRY_BASE_DELAY_MS = 750;
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
+function pageSizeFor(table: string): number {
+  return HEAVY_TABLE_PAGE_SIZE[table] ?? DEFAULT_PAGE_SIZE;
+}
+
+function isTransientBackupError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("gateway timeout") ||
+    m.includes("timeout") ||
+    m.includes("timed out") ||
+    m.includes("cloudflare") ||
+    m.includes("502") ||
+    m.includes("503") ||
+    m.includes("504") ||
+    m.includes("fetch failed") ||
+    m.includes("econnreset") ||
+    m.includes("socket hang up") ||
+    m.includes("network")
+  );
+}
+
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+async function fetchPage(
+  admin: AdminClient,
+  table: string,
+  from: number,
+  to: number,
+): Promise<Record<string, unknown>[]> {
+  let lastMessage = "unknown error";
+  for (let attempt = 0; attempt <= MAX_PAGE_RETRIES; attempt++) {
+    const { data, error } = await admin
+      .from(table)
+      .select("*")
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (!error) {
+      return (data as Record<string, unknown>[] | null) ?? [];
+    }
+
+    lastMessage = error.message;
+    const transient = isTransientBackupError(lastMessage);
+    if (!transient || attempt === MAX_PAGE_RETRIES) break;
+
+    const delay = RETRY_BASE_DELAY_MS * 2 ** attempt;
+    console.warn(
+      `[cron/db-backup] ${table} range ${from}-${to} geçici hata (deneme ${attempt + 1}/${MAX_PAGE_RETRIES + 1}): ${lastMessage} — ${delay}ms sonra tekrar`,
+    );
+    await wait(delay);
+  }
+  throw new Error(`${table}: ${lastMessage}`);
+}
+
 async function fetchAllRows(admin: AdminClient, table: string): Promise<Record<string, unknown>[]> {
+  const pageSize = pageSizeFor(table);
   const rows: Record<string, unknown>[] = [];
   let from = 0;
   for (;;) {
-    const { data, error } = await admin.from(table).select("*").range(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(`${table}: ${error.message}`);
-    rows.push(...((data as Record<string, unknown>[] | null) ?? []));
-    if (!data || data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+    const page = await fetchPage(admin, table, from, from + pageSize - 1);
+    rows.push(...page);
+    if (page.length < pageSize) break;
+    from += pageSize;
   }
   return rows;
 }
@@ -106,9 +172,13 @@ export async function GET(req: Request) {
 
   try {
     for (const table of BACKUP_TABLES) {
+      const tableStarted = Date.now();
       const rows = await fetchAllRows(admin, table);
       dump[table] = rows;
       counts[table] = rows.length;
+      console.log(
+        `[cron/db-backup] ${table}: ${rows.length} satır (${Date.now() - tableStarted}ms)`,
+      );
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
