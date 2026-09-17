@@ -23,6 +23,7 @@ import { DriverDashboard } from "@/components/driver-dashboard";
 import { PWAInstallCard } from "@/components/pwa-install";
 import { FirstVehicleOnboarding } from "@/components/onboarding/first-vehicle-onboarding";
 import { MissingDataBanner } from "@/components/dashboard/missing-data-banner";
+import { InviteTeamCard } from "@/components/dashboard/invite-team-card";
 import {
   Car,
   ChevronRight,
@@ -168,6 +169,11 @@ export default function Dashboard() {
         {/* Eksik tarih uyarısı — hatırlatma gönderilemeyen araçlar */}
         <motion.div variants={fadeUp}>
           <MissingDataBanner vehicles={vehicles} />
+        </motion.div>
+
+        {/* Ekipte hiç şoför yoksa davet çağrısı (kendini gizler) */}
+        <motion.div variants={fadeUp}>
+          <InviteTeamCard />
         </motion.div>
 
         {/* PWA Yükleme kartı */}

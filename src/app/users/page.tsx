@@ -189,6 +189,14 @@ export default function UsersPage() {
     if (profile && isDriverRole(profile.role)) router.replace("/tasks");
   }, [profile, router]);
 
+  // Panelden "Davet gönder" ile gelindiğinde dialog doğrudan açılsın.
+  useEffect(() => {
+    if (!profile || profile.role !== "manager") return;
+    if (new URLSearchParams(window.location.search).get("invite") !== "1") return;
+    setInviteOpen(true);
+    router.replace("/users", { scroll: false });
+  }, [profile, router]);
+
   if (profile && isDriverRole(profile.role)) return null;
 
   const isManager = profile?.role === "manager";

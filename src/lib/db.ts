@@ -804,6 +804,28 @@ export async function getAuditLogs(limit = 50): Promise<AuditLog[]> {
 
 // ─── Drivers / Profiles ──────────────────────────────────────
 
+/**
+ * Şirketteki şoför/kullanıcı sayısı. Dashboard'daki "ekibini davet et" kartı
+ * yalnızca bu sayı sıfırken görünür, o yüzden satırları değil sadece sayıyı
+ * çeker (head: true) ve sonucu cache'ler.
+ */
+export async function getDriverCount(): Promise<number> {
+  const companyId = await requireCompanyId();
+  // Anahtar bilerek `drivers:` ile başlıyor — ekip değiştiğinde çalışan
+  // bustCache("drivers:") bu sayıyı da düşürsün.
+  const cacheKey = `drivers:count:${companyId}`;
+  const cached = getCached<number>(cacheKey);
+  if (cached !== undefined) return cached;
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .in("role", ["user", "sofor"]);
+  if (error) throw error;
+  return setCached(cacheKey, count ?? 0);
+}
+
 export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: string[] })[]> {
   const companyId = await requireCompanyId();
   const cacheKey = `drivers:${companyId}`;
