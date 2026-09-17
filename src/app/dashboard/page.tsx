@@ -21,6 +21,7 @@ import { AnimatedCounter } from "@/components/animated-counter";
 import { DriverDashboard } from "@/components/driver-dashboard";
 import { PWAInstallCard } from "@/components/pwa-install";
 import { FirstVehicleOnboarding } from "@/components/onboarding/first-vehicle-onboarding";
+import { MissingDataBanner } from "@/components/dashboard/missing-data-banner";
 import {
   Car,
   ChevronRight,
@@ -163,6 +164,11 @@ export default function Dashboard() {
       <div className="absolute inset-0 -z-10 bg-mesh-soft pointer-events-none" />
 
       <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 lg:space-y-6">
+        {/* Eksik tarih uyarısı — hatırlatma gönderilemeyen araçlar */}
+        <motion.div variants={fadeUp}>
+          <MissingDataBanner vehicles={vehicles} />
+        </motion.div>
+
         {/* PWA Yükleme kartı */}
         <motion.div variants={fadeUp}>
           <PWAInstallCard />

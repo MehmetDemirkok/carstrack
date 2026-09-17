@@ -180,11 +180,27 @@ export function ManagerFinesView() {
           {[0, 1, 2, 3].map((i) => <div key={i} className="h-20 rounded-2xl bg-muted/40 animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Inbox className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">Ceza kaydı bulunamadı</p>
-          {hasFilters && <p className="text-sm mt-1">Filtreleri temizleyerek tekrar deneyin</p>}
-        </div>
+        hasFilters ? (
+          <div className="text-center py-16 text-muted-foreground">
+            <Inbox className="h-10 w-10 mx-auto mb-3 opacity-30" />
+            <p className="font-medium">Ceza kaydı bulunamadı</p>
+            <p className="text-sm mt-1">Filtreleri temizleyerek tekrar deneyin</p>
+          </div>
+        ) : (
+          /* İlk kez açan kullanıcı: modülün ne işe yaradığını anlatmadan
+             kullanılmasını bekleyemeyiz — yakıt modülündeki boş durum deseniyle aynı. */
+          <div className="text-center py-20 text-muted-foreground glass rounded-3xl border border-border/40">
+            <Gavel className="h-12 w-12 mx-auto mb-4 opacity-30" />
+            <p className="font-semibold text-base text-foreground">Henüz ceza kaydı yok</p>
+            <p className="text-sm mt-1 max-w-sm mx-auto">
+              Cezaları araca ve sürücüye bağlayarak ödeme durumunu takip edin; son ödeme
+              tarihi yaklaşanlar için bildirim gönderilir.
+            </p>
+            <Button onClick={openCreate} className="mt-5 rounded-xl bg-mesh text-white border-none">
+              <Plus className="h-4 w-4 mr-1.5" /> İlk Cezayı Ekle
+            </Button>
+          </div>
+        )
       ) : (
         <div className="space-y-3">
           {filtered.map((f) => {

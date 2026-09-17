@@ -27,10 +27,12 @@ const ROLE_LABELS: Record<string, string> = {
   user: "Kullanıcı",
 };
 
+// Doğrulanmamış sayılar (247 araç / %99.2 uptime) yerine ürünün gerçekten
+// yaptığı işler — bkz. landing-client.tsx'teki aynı gerekçe.
 const statCards = [
-  { label: "Aktif Filo", value: "247 Araç", accent: "var(--ct-cyan)" },
-  { label: "Uptime Oranı", value: "99.2%", accent: "var(--ct-purple)" },
-  { label: "Güvenlik", value: "7/24 Takip", accent: "var(--ct-purple)" },
+  { label: "Plan", value: "Ücretsiz", accent: "var(--ct-cyan)" },
+  { label: "Araç Ekleme", value: "Ruhsattan", accent: "var(--ct-purple)" },
+  { label: "Hatırlatma", value: "Otomatik", accent: "var(--ct-purple)" },
 ];
 
 const features = [

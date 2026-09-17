@@ -223,9 +223,13 @@ function AutocompleteInput({
   );
 }
 
+// Kimlik (plaka/marka/model) ilk adım: araç bu üç alanla kaydedilebilir hale
+// gelir ve kullanıcı ilk adımın sonunda "kaydet" görebilir. Belgeler ikinci
+// adımda — canlı veride belge-önce akışı, 19 aracı belgeleriyle girip bir daha
+// dönmeyen kullanıcılar üretiyordu; zorunlu olmayan iş öne alınmamalı.
 const steps = [
-  { id: 1, title: "Belgeler", icon: Shield },
-  { id: 2, title: "Kimlik", icon: Car },
+  { id: 1, title: "Kimlik", icon: Car },
+  { id: 2, title: "Belgeler", icon: Shield },
   { id: 3, title: "Teknik", icon: Fuel },
   { id: 4, title: "Lastik & Akü", icon: Disc3 },
 ];
@@ -796,7 +800,7 @@ export default function NewVehiclePage() {
             className="space-y-5"
           >
             {/* ── STEP 1: BELGELER ── */}
-            {step === 1 && (
+            {step === 2 && (
               <>
               {/* Yarım kalmış taslak geri yüklendiyse, sıfırdan başlama seçeneği */}
               {restoredFromDraft && (
@@ -1035,7 +1039,7 @@ export default function NewVehiclePage() {
             )}
 
             {/* ── STEP 2: KİMLİK ── */}
-            {step === 2 && (
+            {step === 1 && (
               <>
                 {/* Image upload */}
                 <div className="space-y-2">
@@ -1355,12 +1359,12 @@ export default function NewVehiclePage() {
               <Button
                 className="w-full h-12 rounded-2xl font-semibold shadow-lg shadow-primary/20 gap-2"
                 onClick={() => setStep((s) => s + 1)}
-                disabled={step === 2 && !identityValid}
+                disabled={step === 1 && !identityValid}
               >
                 Devam <ChevronRight className="h-4 w-4" />
               </Button>
-              {/* Teknik / Lastik & Akü adımları opsiyonel — kimlik bilgisi tamamsa doğrudan kaydedilebilir */}
-              {step >= 2 && (
+              {/* Kimlik dışındaki adımlar opsiyonel — plaka/marka/model girilir girilmez kaydedilebilir */}
+              {identityValid && (
                 <button
                   type="button"
                   onClick={() => handleSubmit(false)}

@@ -23,10 +23,12 @@ const floatingIcons = [
   { icon: Shield, delay: 1.2 },
 ];
 
+// Doğrulanmamış sayılar (247 araç / %99.2 uptime) yerine ürünün gerçekten
+// yaptığı işler — bkz. landing-client.tsx'teki aynı gerekçe.
 const statCards = [
-  { value: "247",   label: "Araç",  sub: "Aktif Filo" },
-  { value: "99.2%", label: "Uptime",sub: "Kesintisiz" },
-  { value: "7/24",  label: "Takip", sub: "Gerçek Zamanlı" },
+  { value: "Ücretsiz",  label: "Plan",       sub: "Sınırsız Araç" },
+  { value: "Ruhsattan", label: "Araç Ekleme", sub: "Fotoğrafla Otomatik" },
+  { value: "Otomatik",  label: "Hatırlatma",  sub: "Sigorta ve Muayene" },
 ];
 
 const features = [

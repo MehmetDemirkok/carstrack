@@ -105,6 +105,13 @@ export interface DispatchOptions {
    * kitledeki kişilerle ve birbirleriyle çakışanlar otomatik tekilleştirilir.
    */
   extraUserIds?: string[];
+  /**
+   * Olayı tetikleyen kullanıcı. Kendi yaptığı işlemi kendisine bildirmek
+   * bildirim zilini gürültüye boğuyor ve okunma oranını düşürüyordu
+   * (vehicle_new: 49 gönderimde 3 okunma), o yüzden bu kişi alıcı
+   * kitlesinden çıkarılır. `extraUserIds` ile açıkça eklenmişse dokunulmaz.
+   */
+  actorUserId?: string;
 }
 
 /**
@@ -226,7 +233,10 @@ export async function dispatchToManagers(
     .eq("company_id", companyId)
     .in("role", ["manager", "operator"]);
 
-  const managers = (profiles ?? []) as ManagerProfile[];
+  const explicitExtras = new Set(options?.extraUserIds ?? []);
+  const managers = ((profiles ?? []) as ManagerProfile[]).filter(
+    (m) => m.id !== options?.actorUserId || explicitExtras.has(m.id),
+  );
 
   // Ek alıcılar (ör. arızayı açan kullanıcı) — kitlede olmayanları aynı şirketten çek.
   const extraIds = (options?.extraUserIds ?? []).filter(

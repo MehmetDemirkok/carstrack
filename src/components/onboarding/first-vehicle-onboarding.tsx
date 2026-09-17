@@ -10,7 +10,8 @@
  * son adımda uyarıların TAM OLARAK ne zaman geleceğini tarih vererek gösterir.
  */
 
-import { useState } from "react";
+import Link from "next/link";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
 import { MAINTENANCE_TEMPLATES } from "@/lib/store";
 import { addVehicle } from "@/lib/db";
+import { fileToBase64 } from "@/lib/file-utils";
 import type { Vehicle } from "@/lib/types";
 import { useData } from "@/context/data-context";
 import {
@@ -32,7 +34,22 @@ import {
   ChevronLeft,
   Loader2,
   Sparkles,
+  ScanLine,
+  Users,
 } from "lucide-react";
+
+/**
+ * /api/extract-document'in ruhsat/poliçeden okuyabildiği alanlardan bu akışın
+ * kullandıkları. Tam liste için bkz. src/app/vehicles/new/page.tsx.
+ */
+interface ExtractedDocData {
+  plate?: string;
+  brand?: string;
+  model?: string;
+  mileage?: string;
+  insuranceExpiry?: string;
+  inspectionExpiry?: string;
+}
 
 /** getFleetAlerts() belge sürelerinde 60 gün kala uyarmaya başlar (14 günde kritik). */
 const ALERT_LEAD_DAYS = 60;
@@ -73,7 +90,61 @@ export function FirstVehicleOnboarding({ onSkip }: Props) {
   const [insuranceExpiry, setInsuranceExpiry] = useState("");
   const [inspectionExpiry, setInspectionExpiry] = useState("");
 
+  // Ruhsat taraması — ürünün en güçlü anı, ilk temasta yaşanmalı.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanFilled, setScanFilled] = useState(0);
+
   const canContinue = plate.trim().length >= 5 && brand.trim().length > 0;
+
+  /**
+   * Ruhsat fotoğrafını okuyup formu doldurur. Tarama yalnızca kolaylık;
+   * başarısız olursa kullanıcı alanları elle doldurmaya devam eder, akış kesilmez.
+   * Ruhsattan sigorta/muayene tarihi de çıkabildiği için tek fotoğraf
+   * çoğu zaman 2. adımı da dolduruyor.
+   */
+  async function handleRuhsatScan(file: File) {
+    setScanning(true);
+    try {
+      const fileData = await fileToBase64(file);
+      const res = await fetch("/api/extract-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          fileData,
+          mimeType: file.type || "application/octet-stream",
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const { data } = (await res.json()) as { data?: ExtractedDocData };
+      const found = data ?? {};
+      let filled = 0;
+      if (found.plate) { setPlate(found.plate.toUpperCase()); filled += 1; }
+      if (found.brand) { setBrand(found.brand); filled += 1; }
+      if (found.model) { setModel(found.model); filled += 1; }
+      if (found.mileage) { setMileage(found.mileage); filled += 1; }
+      if (found.insuranceExpiry) { setInsuranceExpiry(found.insuranceExpiry); filled += 1; }
+      if (found.inspectionExpiry) { setInspectionExpiry(found.inspectionExpiry); filled += 1; }
+
+      setScanFilled(filled);
+      if (filled === 0) {
+        toast.warning("Bilgi bulunamadı", {
+          description: "Alanları elle doldurabilirsin.",
+        });
+      } else {
+        toast.success(`${filled} alan dolduruldu`, {
+          description: "Kontrol edip devam edebilirsin.",
+        });
+      }
+    } catch (err) {
+      console.error("[onboarding] ruhsat okunamadı:", err);
+      toast.error("Belge okunamadı", { description: "Alanları elle doldurabilirsin." });
+    } finally {
+      setScanning(false);
+    }
+  }
   const hasAnyDate = Boolean(insuranceExpiry || inspectionExpiry);
 
   async function handleSave() {
@@ -184,6 +255,56 @@ export function FirstVehicleOnboarding({ onSkip }: Props) {
                   Sadece birkaç bilgi — detayları sonra tamamlayabilirsin.
                 </p>
               </div>
+
+              {/* Ruhsattan otomatik doldurma — elle yazmadan önce sunulan yol */}
+              <Card className="rounded-2xl mb-3 border-primary/30 bg-primary/5">
+                <CardContent className="p-4">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleRuhsatScan(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <div className="flex items-center gap-3">
+                    <div className="inline-flex p-2.5 rounded-xl bg-primary/10 shrink-0">
+                      {scanning ? (
+                        <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                      ) : (
+                        <ScanLine className="h-5 w-5 text-primary" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">Ruhsatı okutarak doldur</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {scanning
+                          ? "Belge okunuyor…"
+                          : scanFilled > 0
+                            ? `${scanFilled} alan dolduruldu — kontrol et`
+                            : "Fotoğrafını çek, alanları biz dolduralım."}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={scanning}
+                      className="shrink-0"
+                    >
+                      {scanFilled > 0 ? "Tekrar" : "Seç"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <p className="text-center text-xs text-muted-foreground mb-3">
+                veya bilgileri elle gir
+              </p>
 
               <Card className="rounded-2xl">
                 <CardContent className="p-5 space-y-4">
@@ -378,8 +499,30 @@ export function FirstVehicleOnboarding({ onSkip }: Props) {
                 </CardContent>
               </Card>
 
+              {/*
+                Ekip daveti teşviki. Canlı veride 18 kullanıcının 15'i "manager" ve
+                kimse kimseyi davet etmemişti; tek kişilik hesapta ürün kişisel bir
+                hatırlatıcıdan öteye geçemiyor. Şoför katılınca KM girişi ve arıza
+                bildirimi ürünü günlük alışkanlık haline getiriyor.
+              */}
+              <Link
+                href="/users"
+                className="mt-5 flex items-center gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4 transition-colors hover:bg-muted/50"
+              >
+                <div className="inline-flex shrink-0 rounded-xl bg-primary/10 p-2.5">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Şoförünü davet et</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Kilometreyi kendisi girsin, arızayı doğrudan bildirsin.
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+
               <Button
-                className="w-full mt-5 gap-1.5"
+                className="w-full mt-3 gap-1.5"
                 onClick={() => {
                   void refresh();
                 }}

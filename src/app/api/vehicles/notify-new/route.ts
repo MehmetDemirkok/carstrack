@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
         ctaUrl: `/vehicles/${vehicle.id}`,
         ctaLabel: "Aracı Görüntüle",
       },
-    });
+    }, { actorUserId: user.id });
 
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {

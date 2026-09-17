@@ -150,10 +150,15 @@ type Stat = {
   color: string;
 };
 
+// Buradaki her ifade ürünün gerçekten yaptığı bir şeyi anlatır. Daha önce
+// "247+ Aktif Araç" ve "%99.2 Kesintisiz Çalışma" yazıyordu; ikisi de sabit
+// kodlanmış, doğrulanmamış sayılardı. Kaydolan kullanıcı içeride bu vaadin
+// karşılığını görmeyince ilk oturumda terk ediyordu — uydurma sayı yerine
+// gerçek yetenek yazıyoruz.
 const stats: Stat[] = [
-  { to: 247, suffix: "+", label: "Aktif Araç", icon: Car, color: PRIMARY },
-  { to: 99.2, suffix: "%", decimals: 1, label: "Kesintisiz Çalışma", icon: Gauge, color: SECONDARY },
-  { to: 0, text: "7/24", label: "Gerçek Zamanlı Takip", icon: CheckCircle2, color: PRIMARY },
+  { to: 0, text: "Ücretsiz", label: "Sınırsız Araç ve Kullanıcı", icon: CheckCircle2, color: PRIMARY },
+  { to: 0, text: "Ruhsattan", label: "Fotoğrafla Otomatik Ekleme", icon: Car, color: SECONDARY },
+  { to: 0, text: "Otomatik", label: "Sigorta ve Muayene Hatırlatma", icon: Gauge, color: PRIMARY },
   { to: 6, label: "Bakım Kategorisi", icon: Disc3, color: SECONDARY },
 ];
 
