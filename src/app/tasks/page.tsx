@@ -890,7 +890,10 @@ function ManagerView() {
   // Canlı yenileme — sekme görünürken her 15 sn'de bir sessizce tazele.
   // Güncel loadAll closure'ını ref ile çağır ki taze vehicles/members kullanılsın.
   const loadAllRef = useRef(loadAll);
-  loadAllRef.current = loadAll;
+  // Ref'e render sırasında değil, render sonrası effect'te yaz (React 19 kuralı).
+  useEffect(() => {
+    loadAllRef.current = loadAll;
+  });
   useEffect(() => {
     const id = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
