@@ -506,7 +506,7 @@ export function FirstVehicleOnboarding({ onSkip }: Props) {
                 bildirimi ürünü günlük alışkanlık haline getiriyor.
               */}
               <Link
-                href="/users"
+                href="/users?invite=1"
                 className="mt-5 flex items-center gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4 transition-colors hover:bg-muted/50"
               >
                 <div className="inline-flex shrink-0 rounded-xl bg-primary/10 p-2.5">
