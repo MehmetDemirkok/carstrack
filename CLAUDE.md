@@ -46,7 +46,7 @@ Database rows are `snake_case`; app-level types (`src/lib/types.ts`) are `camelC
 
 ### Cron jobs
 
-Defined in `vercel.json`, implemented under `src/app/api/cron/*/route.ts`, protected by `CRON_SECRET` bearer auth: `fleet-alerts`, `license-alerts`, `kilometer-reminder`, `keepalive`, `db-backup`, `weekly-admin-report`. `db-backup` runs weekly (Monday 03:00 UTC / 06:00 Turkey time) and is the project's only backup mechanism (Supabase free tier has none) — see `docs/DATABASE_BACKUP.md` for how it works and how to restore. When adding a table, add it to `BACKUP_TABLES` in `src/app/api/cron/db-backup/route.ts` or it silently won't be backed up. `weekly-admin-report` runs every Friday and emails a cross-tenant user-activity digest to a single hardcoded address (`REPORT_RECIPIENT` in that route) — intentionally bypasses `notify.ts`/per-user prefs since it must never reach anyone but the app owner.
+Defined in `vercel.json`, implemented under `src/app/api/cron/*/route.ts`, protected by `CRON_SECRET` bearer auth: `fleet-alerts`, `license-alerts`, `kilometer-reminder`, `keepalive`, `db-backup`, `weekly-admin-report`, `activation-nudge`. `db-backup` runs weekly (Monday 03:00 UTC / 06:00 Turkey time) and is the project's only backup mechanism (Supabase free tier has none) — see `docs/DATABASE_BACKUP.md` for how it works and how to restore. When adding a table, add it to `BACKUP_TABLES` in `src/app/api/cron/db-backup/route.ts` or it silently won't be backed up. `activation-nudge` (Tue/Fri) is the only cron that fires on the *absence* of data: it emails account managers whose company has no vehicles, or has vehicles but no insurance/inspection dates — those accounts never trigger any other cron, so without it they receive nothing at all. It reuses `email_notification_log` for dedup (capped at 3 sends, 14 days apart) and supports `?dry=1` to preview recipients without sending. `weekly-admin-report` runs every Friday and emails a cross-tenant user-activity digest to a single hardcoded address (`REPORT_RECIPIENT` in that route) — intentionally bypasses `notify.ts`/per-user prefs since it must never reach anyone but the app owner.
 
 ### Database migrations
 
@@ -62,7 +62,9 @@ Required env vars (see `.env.local`, not committed): `NEXT_PUBLIC_SUPABASE_URL`,
 
 ## Demo account
 
-`scripts/seed-demo-account.mjs` seeds a full demo tenant ("Demo Filo A.Ş.") into the live Supabase project for sales/demo purposes, isolated from real company data. It refuses to run if a company with that name already exists. See `DEMO_HESAPLAR.md` (gitignored, contains credentials) for login details and content summary.
+**The demo tenant is currently removed** (deleted 2026-09-17: its 6 auth users had already been deleted at some point, which cascade-wiped the profiles/tasks/assignments and left an orphaned husk nobody could log into). Nothing in the app references it.
+
+`scripts/seed-demo-account.mjs` recreates it from scratch ("Demo Filo A.Ş.", ~50 vehicles, service history, documents) against the live Supabase project, isolated from real company data. It refuses to run if a company with that name already exists, so it is safe to re-run now. See `DEMO_HESAPLAR.md` (gitignored, contains credentials) for login details and content summary.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

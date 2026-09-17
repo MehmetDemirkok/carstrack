@@ -20,6 +20,7 @@ import { FuelDashboardWidget } from "@/components/fuel/fuel-dashboard-widget";
 import { AnimatedCounter } from "@/components/animated-counter";
 import { DriverDashboard } from "@/components/driver-dashboard";
 import { PWAInstallCard } from "@/components/pwa-install";
+import { FirstVehicleOnboarding } from "@/components/onboarding/first-vehicle-onboarding";
 import {
   Car,
   ChevronRight,
@@ -76,6 +77,8 @@ export default function Dashboard() {
   const { profile } = useAuth();
   const { vehicles, records, fines, loading: dataLoading } = useData();
   const [showAlertsDialog, setShowAlertsDialog] = useState(false);
+  // Hiç aracı olmayan yeni kullanıcı kurulum akışını görür; "Şimdilik geç" derse normal panele düşer.
+  const [skipOnboarding, setSkipOnboarding] = useState(false);
 
   const vehicleIds = new Set(vehicles.map((x) => x.id));
   const severityOrder = { critical: 0, warning: 1, info: 2 };
@@ -140,6 +143,11 @@ export default function Dashboard() {
   );
 
   const hasVehicles = vehicles.length > 0;
+
+  // Araç yoksa panel tamamen boş görünür; onun yerine kurulum akışını göster.
+  if (!hasVehicles && !skipOnboarding)
+    return <FirstVehicleOnboarding onSkip={() => setSkipOnboarding(true)} />;
+
   const heroStatus =
     !hasVehicles
       ? { label: "ARAÇ BEKLENİYOR", dot: "bg-white/60", desc: "Henüz araç eklenmedi" }
