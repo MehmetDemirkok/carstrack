@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import Link from "next/link";
 import Image from "next/image";
+import { photoVariantUrl } from "@/lib/vehicle-photo";
 import { calculateHealthScore, getFleetAlerts, getTrafficFineAlerts, TUVTURK_RANDEVU_URL } from "@/lib/store";
 import type { FleetAlert } from "@/lib/types";
 import { isDriverRole } from "@/lib/types";
@@ -370,7 +371,7 @@ export default function Dashboard() {
                           <div className="flex h-[120px] md:h-40">
                             <div className="w-[34%] max-w-[180px] relative shrink-0 bg-muted overflow-hidden">
                               {vehicle.image ? (
-                                <Image src={vehicle.image} alt={vehicle.plate} fill className="object-cover transition-transform duration-500 group-hover:scale-110" sizes="180px" />
+                                <Image src={photoVariantUrl(vehicle.image, "thumb")!} alt={vehicle.plate} fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-110" sizes="180px" />
                               ) : (
                                 <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 to-primary/10 flex items-center justify-center">
                                   <Car className="h-10 w-10 text-primary/30" />

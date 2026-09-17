@@ -58,6 +58,7 @@ import {
 /** Muayene randevusu butonunun aktifleşeceği eşik — bitişe 1 ay (30 gün) kala. */
 const MUAYENE_RANDEVU_ESIK_GUN = 30;
 import { exportVehicleReportPDF } from "@/lib/export-lazy";
+import { photoVariantUrl } from "@/lib/vehicle-photo";
 import { DatePicker } from "@/components/ui/date-picker";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
@@ -1098,7 +1099,7 @@ export default function VehicleDetailPage() {
                         onClick={() => setPhotoView(p)}
                         className="absolute inset-0 hover:ring-2 hover:ring-primary/50 transition-shadow rounded-xl"
                       >
-                        <div className="absolute inset-0" style={{ backgroundImage: `url(${p})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                        <div className="absolute inset-0" style={{ backgroundImage: `url(${photoVariantUrl(p, "thumb")})`, backgroundSize: "cover", backgroundPosition: "center" }} />
                       </button>
                       {isCover ? (
                         <span className="absolute top-1 left-1 inline-flex items-center gap-0.5 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow">

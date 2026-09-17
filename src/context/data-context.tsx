@@ -9,7 +9,10 @@ interface DataContextType {
   vehicles: Vehicle[];
   records: ServiceRecord[];
   fines: TrafficFine[];
+  /** Üç kaynak da (araç + servis kaydı + ceza) yüklendiğinde false olur. */
   loading: boolean;
+  /** Yalnızca araçları bekler — araç listesi servis kayıtlarına takılmasın. */
+  vehiclesLoading: boolean;
   refresh: () => Promise<void>;
   setVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   setRecords: React.Dispatch<React.SetStateAction<ServiceRecord[]>>;
@@ -20,6 +23,7 @@ const DataContext = createContext<DataContextType>({
   records: [],
   fines: [],
   loading: true,
+  vehiclesLoading: true,
   refresh: async () => {},
   setVehicles: () => {},
   setRecords: () => {},
@@ -31,6 +35,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [fines, setFines] = useState<TrafficFine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [vehiclesLoading, setVehiclesLoading] = useState(true);
   const loadingRef = useRef(false);
 
   // getTrafficFines() RLS'e göre otomatik daraltılır: yönetici/operatör tüm
@@ -58,16 +63,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Üç kaynak paralel çalışır ama her biri kendi state'ini hemen yazar: araç
+  // listesi, /api/records'ın (çoğu zaman en yavaş istek) bitmesini beklemez.
   const load = useCallback(async () => {
     if (loadingRef.current) return;
     loadingRef.current = true;
+    setVehiclesLoading(true);
+
+    const vehiclesTask = getMyVehicles()
+      .then((v) => setVehicles(v))
+      .catch((err) => console.error("[DataProvider] vehicles load failed:", err))
+      .finally(() => setVehiclesLoading(false));
+
+    const recordsTask = getRecords()
+      .then((r) => setRecords(r))
+      .catch((err) => console.error("[DataProvider] records load failed:", err));
+
+    const finesTask = fetchFines().then((f) => setFines(f));
+
     try {
-      const [v, r, f] = await Promise.all([getMyVehicles(), getRecords(), fetchFines()]);
-      setVehicles(v);
-      setRecords(r);
-      setFines(f);
-    } catch (err) {
-      console.error("[DataProvider] load failed:", err);
+      await Promise.all([vehiclesTask, recordsTask, finesTask]);
     } finally {
       setLoading(false);
       loadingRef.current = false;
@@ -77,10 +92,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Refresh: re-fetches without showing loading skeleton
   const refresh = useCallback(async () => {
     try {
-      const [v, r, f] = await Promise.all([getMyVehicles(), getRecords(), fetchFines()]);
-      setVehicles(v);
-      setRecords(r);
-      setFines(f);
+      await Promise.all([
+        getMyVehicles().then(setVehicles),
+        getRecords().then(setRecords),
+        fetchFines().then(setFines),
+      ]);
     } catch (err) {
       console.error("[DataProvider] refresh failed:", err);
     }
@@ -92,13 +108,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setRecords([]);
       setFines([]);
       setLoading(true);
+      setVehiclesLoading(true);
       return;
     }
     load();
   }, [user?.id, load]);
 
   return (
-    <DataContext.Provider value={{ vehicles, records, fines, loading, refresh, setVehicles, setRecords }}>
+    <DataContext.Provider value={{ vehicles, records, fines, loading, vehiclesLoading, refresh, setVehicles, setRecords }}>
       {children}
     </DataContext.Provider>
   );

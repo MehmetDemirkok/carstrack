@@ -21,6 +21,7 @@ import { useData } from "@/context/data-context";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ImagePositioner } from "@/components/ui/image-positioner";
 import { fileToBase64, SCAN_MAX_FILE_SIZE, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS } from "@/lib/file-utils";
+import { compressImage } from "@/lib/image";
 
 const BRANDS = ["Audi","BMW","Chevrolet","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Tesla","Toyota","Volkswagen","Volvo","Diğer"];
 const MODELS: Record<string, string[]> = {
@@ -50,25 +51,6 @@ const FUEL_TYPES: FuelType[] = ["Benzin", "Dizel", "LPG", "Hibrit", "Elektrik"];
 const TRANSMISSIONS: TransmissionType[] = ["Manuel", "Otomatik", "CVT", "DSG", "Yarı Otomatik"];
 const TIRE_SEASONS: TireSeasonType[] = ["Yazlık", "Kışlık", "Dört Mevsim"];
 const COLORS = ["Beyaz","Siyah","Gri","Gümüş","Kırmızı","Mavi","Yeşil","Kahverengi","Bej","Sarı","Turuncu","Mor","Diğer"];
-
-async function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/jpeg", quality));
-    };
-    img.src = url;
-  });
-}
 
 // ── Document scanning helpers ─────────────────────────────────
 

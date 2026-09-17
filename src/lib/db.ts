@@ -8,6 +8,8 @@ import type {
   FuelRecord, FuelPurchaseType, FuelPaymentMethod, FuelVehicleStats, FuelVehicleLatest, FuelStationStats,
 } from "./types";
 import { DEFAULT_NOTIFICATION_PREFS, isDriverRole } from "./types";
+import { photoUrl, thumbPath, isProxyPhotoUrl } from "./vehicle-photo";
+import { resizeDataUrl } from "./image";
 
 // ─── TTL data cache ───────────────────────────────────────────
 // Keeps data in memory for 60 seconds so navigating between pages is instant.
@@ -39,9 +41,24 @@ function bustCache(prefix: string) {
 let cachedCompanyId: string | null = null;
 let cachedUserId: string | null = null;
 
+// Kullanıcının rolü: getMyVehicles() her çağrıldığında profiles tablosuna
+// gitmesin diye bellekte tutulur. auth-context profili yüklediğinde
+// primeUserRole() ile doldurur; oturum değişiminde temizlenir.
+let cachedRole: string | null = null;
+let cachedRoleUserId: string | null = null;
+
+/** Profil zaten yüklendiyse rolü db katmanına bildirir (fazladan sorguyu önler). */
+export function primeUserRole(userId: string, role: string | null | undefined) {
+  if (!userId || !role) return;
+  cachedRoleUserId = userId;
+  cachedRole = role;
+}
+
 export function clearCompanyCache() {
   cachedCompanyId = null;
   cachedUserId = null;
+  cachedRole = null;
+  cachedRoleUserId = null;
   dataCache.clear();
 }
 
@@ -183,10 +200,12 @@ function toDbVehicle(v: Partial<Vehicle>, companyId?: string) {
   if (v.model !== undefined) obj.model = v.model;
   if (v.year !== undefined) obj.year = v.year;
   if (v.color !== undefined) obj.color = v.color;
-  if (v.image !== undefined) obj.image = v.image;
-  if (v.image2 !== undefined) obj.image_2 = v.image2;
-  if (v.image3 !== undefined) obj.image_3 = v.image3;
-  if (v.image4 !== undefined) obj.image_4 = v.image4;
+  // Proxy/imzalı URL'ler yalnızca okuma içindir: fotoğrafa dokunulmadan
+  // kaydedilen bir formda bu değerler storage yolunun üstüne yazılmamalı.
+  if (v.image !== undefined && !isReadOnlyPhotoValue(v.image)) obj.image = v.image;
+  if (v.image2 !== undefined && !isReadOnlyPhotoValue(v.image2)) obj.image_2 = v.image2;
+  if (v.image3 !== undefined && !isReadOnlyPhotoValue(v.image3)) obj.image_3 = v.image3;
+  if (v.image4 !== undefined && !isReadOnlyPhotoValue(v.image4)) obj.image_4 = v.image4;
   if (v.imagePosition !== undefined) obj.image_position = v.imagePosition;
   if (v.imagePositionX !== undefined) obj.image_position_x = v.imagePositionX;
   if (v.imageZoom !== undefined) obj.image_zoom = v.imageZoom;
@@ -264,7 +283,7 @@ function isInlinePhoto(value: unknown): value is string {
   return typeof value === "string" && value.startsWith("data:");
 }
 
-/** Storage'da duran bir yol mu? (data-URI ve mutlak URL değilse öyledir) */
+/** Storage'da duran bir yol mu? (data-URI, mutlak URL ve proxy adresi değilse öyledir) */
 function isStoredPhotoPath(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -272,11 +291,31 @@ function isStoredPhotoPath(value: unknown): value is string {
     !value.startsWith("data:") &&
     !value.startsWith("http://") &&
     !value.startsWith("https://") &&
-    !value.startsWith("blob:")
+    !value.startsWith("blob:") &&
+    !value.startsWith("/")
   );
 }
 
-/** data-URI'yi bucket'a yükler, satırda saklanacak yolu döndürür. */
+/**
+ * Ekrandan gelen fotoğraf değeri DB'ye yazılabilir mi?
+ * Proxy URL'i (`/api/vehicle-photo/...`) okuma için üretilir; düzenleme
+ * formu fotoğrafa dokunmadan kaydettiğinde bu değerin satıra yazılıp
+ * storage yolunu ezmemesi gerekir.
+ */
+function isReadOnlyPhotoValue(value: unknown): boolean {
+  return isProxyPhotoUrl(value) || (typeof value === "string" && value.startsWith("http"));
+}
+
+/** Kart/liste görünümünde kullanılan küçük boy fotoğrafın uzun kenarı. */
+const VEHICLE_THUMB_PX = 480;
+
+/**
+ * data-URI'yi bucket'a yükler, satırda saklanacak yolu döndürür.
+ *
+ * Tam boyun yanına bir de küçük boy yazılır: kartlar 1200px'lik (~270 KB)
+ * dosyayı indirmek zorunda kalmasın. Küçük boy üretimi başarısız olursa
+ * sessizce atlanır — proxy route o durumda tam boya düşer.
+ */
 async function uploadVehiclePhoto(
   companyId: string,
   vehicleId: string,
@@ -292,6 +331,19 @@ async function uploadVehiclePhoto(
     .from(VEHICLE_PHOTO_BUCKET)
     .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: true });
   if (error) throw error;
+
+  try {
+    const thumb = await resizeDataUrl(dataUrl, VEHICLE_THUMB_PX, 0.72);
+    if (thumb) {
+      const thumbBlob = await (await fetch(thumb)).blob();
+      await supabase.storage
+        .from(VEHICLE_PHOTO_BUCKET)
+        .upload(thumbPath(path), thumbBlob, { contentType: "image/jpeg", upsert: true });
+    }
+  } catch {
+    // Küçük boy üretilemedi; kartlar tam boya düşer.
+  }
+
   return path;
 }
 
@@ -318,41 +370,28 @@ async function storeInlinePhotos(
 }
 
 /**
- * Araç listesindeki storage yollarını tek çağrıda imzalı URL'lere çevirir.
- * İmzalama başarısız olursa araçlar fotoğrafsız döner; sayfa çökmez.
+ * Araç satırlarındaki storage yollarını proxy URL'lerine çevirir.
+ *
+ * Eskiden burada `createSignedUrls` çağrılıyordu: her araç listesi için fazladan
+ * bir gidiş-dönüş, üstüne her seferinde değişen token yüzünden hiç tutmayan bir
+ * tarayıcı cache'i. Dönüşüm artık tamamen yerel — ağ çağrısı yok.
  */
-async function signVehiclePhotos(vehicles: Vehicle[]): Promise<Vehicle[]> {
-  const paths = new Set<string>();
-  for (const v of vehicles) {
-    for (const value of [v.image, v.image2, v.image3, v.image4]) {
-      if (isStoredPhotoPath(value)) paths.add(value);
-    }
-  }
-  if (paths.size === 0) return vehicles;
+function resolveVehiclePhotos(vehicles: Vehicle[]): Vehicle[] {
+  return vehicles.map((v) => {
+    // Araç güncellendiğinde (fotoğraf değişimi dahil) URL'deki sürüm değişir,
+    // böylece aynı yola yazılan yeni fotoğraf cache'te bayat kalmaz.
+    const version = v.updatedAt ? Date.parse(v.updatedAt) || undefined : undefined;
+    const resolve = <T extends string | undefined>(value: T): T | string =>
+      isStoredPhotoPath(value) ? photoUrl(value, version) : value;
 
-  const list = [...paths];
-  const supabase = createClient();
-  const { data, error } = await supabase.storage
-    .from(VEHICLE_PHOTO_BUCKET)
-    .createSignedUrls(list, 3600);
-  if (error) return vehicles;
-
-  const urls = new Map<string, string>();
-  (data ?? []).forEach((d, i) => {
-    const key = (d as { path?: string | null }).path ?? list[i];
-    if (d.signedUrl && key) urls.set(key, d.signedUrl);
+    return {
+      ...v,
+      image: resolve(v.image),
+      image2: resolve(v.image2),
+      image3: resolve(v.image3),
+      image4: resolve(v.image4),
+    };
   });
-
-  const resolve = <T extends string | undefined>(value: T): T | string =>
-    isStoredPhotoPath(value) ? urls.get(value) ?? "" : value;
-
-  return vehicles.map((v) => ({
-    ...v,
-    image: resolve(v.image),
-    image2: resolve(v.image2),
-    image3: resolve(v.image3),
-    image4: resolve(v.image4),
-  }));
 }
 
 // ─── Vehicles ─────────────────────────────────────────────────
@@ -370,7 +409,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return setCached(cacheKey, await signVehiclePhotos((data ?? []).map(toVehicle)));
+  return setCached(cacheKey, resolveVehiclePhotos((data ?? []).map(toVehicle)));
 }
 
 /**
@@ -404,7 +443,7 @@ export async function getVehicle(id: string): Promise<Vehicle | null> {
     .eq("company_id", companyId)
     .single();
   if (error) return null;
-  const [vehicle] = await signVehiclePhotos([toVehicle(data)]);
+  const [vehicle] = resolveVehiclePhotos([toVehicle(data)]);
   return vehicle;
 }
 
@@ -446,7 +485,7 @@ export async function addVehicle(
   }
 
   bustCache(`vehicles:${companyId}`);
-  const [vehicle] = await signVehiclePhotos([toVehicle(savedRow)]);
+  const [vehicle] = resolveVehiclePhotos([toVehicle(savedRow)]);
   // Yöneticilere bildirim (fire-and-forget) — 4 kanaldan
   notifyEvent("/api/vehicles/notify-new", { vehicleId: vehicle.id });
   return vehicle;
@@ -838,19 +877,26 @@ export async function getMyVehicles(): Promise<Vehicle[]> {
   const cached = getCached<Vehicle[]>(cacheKey);
   if (cached) return cached;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
+  // Rol bellekte varsa profiles sorgusunu tamamen atla — bu sorgu araç
+  // listesinin önünde seri bir gidiş-dönüş olarak duruyordu.
+  let role = cachedRoleUserId === userId ? cachedRole : null;
+  if (!role) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+    role = (profile?.role as string | undefined) ?? null;
+    primeUserRole(userId, role);
+  }
 
-  if (!isDriverRole(profile?.role)) return getVehicles();
+  if (!isDriverRole(role)) return getVehicles();
 
   try {
     const res = await fetch("/api/my-vehicles");
     if (!res.ok) return [];
     const json = await res.json() as { vehicles?: Record<string, unknown>[] };
-    return setCached(cacheKey, await signVehiclePhotos((json.vehicles ?? []).map(toVehicle)));
+    return setCached(cacheKey, resolveVehiclePhotos((json.vehicles ?? []).map(toVehicle)));
   } catch {
     return [];
   }

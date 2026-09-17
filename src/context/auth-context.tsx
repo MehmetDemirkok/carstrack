@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { clearCompanyCache } from "@/lib/db";
+import { clearCompanyCache, primeUserRole } from "@/lib/db";
 import { isPushSupported, getPushSubscribed, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import type { Profile, Company, DriverLicenseEntry, NotificationPrefs } from "@/lib/types";
 import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/types";
@@ -63,6 +63,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const comp = (
           Array.isArray(data.companies) ? data.companies[0] : data.companies
         ) as Record<string, string> | null | undefined;
+
+        // db katmanı rolü buradan öğrensin — getMyVehicles() aynı sorguyu
+        // bir kez daha yapmasın.
+        primeUserRole(data.id as string, data.role as string);
 
         setProfile({
           id: data.id,

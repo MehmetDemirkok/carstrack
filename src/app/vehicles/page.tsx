@@ -21,6 +21,7 @@ import {
   Upload, FileSpreadsheet, ChevronDown, AlertCircle,
 } from "lucide-react";
 import { exportVehiclesExcel, exportVehicleImportTemplate, parseVehicleImportFile, type ParsedVehicleRow } from "@/lib/export-lazy";
+import { photoVariantUrl } from "@/lib/vehicle-photo";
 import { ImagePositioner } from "@/components/ui/image-positioner";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
@@ -103,7 +104,7 @@ function SortableVehicleCard({ id, children }: { id: string; children: React.Rea
 export default function VehiclesPage() {
   const router = useRouter();
   const { profile } = useAuth();
-  const { vehicles, loading, refresh, setVehicles } = useData();
+  const { vehicles, vehiclesLoading: loading, refresh, setVehicles } = useData();
   const isDriver = isDriverRole(profile?.role);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -331,7 +332,7 @@ export default function VehiclesPage() {
               <div
                 className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"
                 style={{
-                  backgroundImage: `url(${vehicle.image})`,
+                  backgroundImage: `url(${photoVariantUrl(vehicle.image, "thumb")})`,
                   backgroundSize: "cover",
                   backgroundPosition: `${vehicle.imagePositionX ?? 50}% ${vehicle.imagePosition ?? 50}%`,
                 }}
