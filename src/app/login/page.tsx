@@ -4,7 +4,7 @@ import LoginClient from "./login-client";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
 
 export const metadata: Metadata = {
-  title: "Panele Giriş | CarsTrack",
+  title: "Panele Giriş",
   description: "CarsTrack filo yönetim paneline giriş yapın. Bireysel araçların veya şirket filolarının bakım takvimlerine, sigorta ve muayene tarihlerine erişin.",
   alternates: {
     canonical: "/login",

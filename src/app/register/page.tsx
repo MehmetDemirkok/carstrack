@@ -5,7 +5,7 @@ import RegisterClient from "./register-client";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
 
 export const metadata: Metadata = {
-  title: "Kayıt Ol | CarsTrack",
+  title: "Ücretsiz Kayıt Ol — Araç Bakım Takibi",
   description: "CarsTrack'e ücretsiz kayıt olun. Araçlarınızın periyodik bakım takibine, masraf yönetimine, sigorta ve muayene hatırlatmalarına hemen başlayın.",
   alternates: {
     canonical: "/register",

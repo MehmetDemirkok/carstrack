@@ -4,7 +4,7 @@ import PrivacyClient from "./privacy-client";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
 
 export const metadata: Metadata = {
-  title: "Gizlilik Politikası | CarsTrack",
+  title: "Gizlilik Politikası",
   description: "CarsTrack gizlilik politikası. Kullanıcı verilerinin güvenliği, saklanması ve üçüncü taraflarla paylaşılmaması konusundaki taahhütlerimiz hakkında bilgi edinin.",
   alternates: {
     canonical: "/privacy",

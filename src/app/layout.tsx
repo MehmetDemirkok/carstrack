@@ -63,7 +63,6 @@ export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   alternates: {
     canonical: "/",
-    languages: { "tr-TR": "/", tr: "/" },
   },
   manifest: "/manifest.json",
   robots: indexRobots,

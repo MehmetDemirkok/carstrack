@@ -10,7 +10,7 @@ import {
 } from "@/lib/seo";
 
 export const metadata = buildPageMetadata({
-  title: "Özellikler — Araç Bakım Takip, Sigorta Hatırlatıcı ve Filo Analitiği",
+  title: "Özellikler — Bakım Takibi ve Sigorta Hatırlatıcı",
   description:
     "CarsTrack özellikleri: periyodik bakım takibi, sigorta ve muayene hatırlatıcı, servis geçmişi, filo analitiği, sürücü yönetimi ve akıllı bildirimler.",
   path: "/ozellikler",

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { KmUpdateClient } from "./km-update-client";
 
 export const metadata: Metadata = {
-  title: "Kilometre Güncelle — CarsTrack",
+  title: "Kilometre Güncelle",
   description: "Haftalık araç kilometre bilginizi girin.",
   robots: { index: false, follow: false },
 };

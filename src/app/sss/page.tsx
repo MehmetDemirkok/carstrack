@@ -8,7 +8,7 @@ import {
 } from "@/lib/seo";
 
 export const metadata = buildPageMetadata({
-  title: "Sıkça Sorulan Sorular (SSS) — CarsTrack Araç Bakım Takip",
+  title: "Sıkça Sorulan Sorular — Araç Bakım Takibi",
   description:
     "CarsTrack hakkında merak edilenler: ücretsiz kullanım, araç limiti, sigorta/muayene hatırlatıcı, mobil PWA, PDF dışa aktarma ve filo yönetimi SSS.",
   path: "/sss",

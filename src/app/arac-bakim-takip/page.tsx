@@ -9,7 +9,7 @@ import {
 } from "@/lib/seo";
 
 export const metadata = buildPageMetadata({
-  title: "Araç Bakım Takip Programı — Ücretsiz Filo Yönetim Sistemi | CarsTrack",
+  title: "Araç Bakım Takip Programı — Ücretsiz Filo Yönetimi",
   description:
     "Araç bakım takip programı ile periyodik bakımları, sigorta ve muayene tarihlerini, servis masraflarını ve filo sağlık skorunu tek yerden yönetin. Ücretsiz başlayın.",
   path: "/arac-bakim-takip",

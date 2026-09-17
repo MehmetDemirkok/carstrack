@@ -119,7 +119,7 @@ function addFooter(doc: jsPDF): void {
     doc.setFont("Roboto", "normal");
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
-    doc.text("CarsTrack — Araç Takip Sistemi", 14, pageH - 8);
+    doc.text("CarsTrack — Araç Bakım Takip Sistemi", 14, pageH - 8);
     doc.text(`Sayfa ${i} / ${pageCount}`, pageW - 14, pageH - 8, { align: "right" });
   }
 }
