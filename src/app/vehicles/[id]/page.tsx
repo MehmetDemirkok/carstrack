@@ -57,7 +57,7 @@ import {
 
 /** Muayene randevusu butonunun aktifleşeceği eşik — bitişe 1 ay (30 gün) kala. */
 const MUAYENE_RANDEVU_ESIK_GUN = 30;
-import { exportVehicleReportPDF } from "@/lib/pdf-export";
+import { exportVehicleReportPDF } from "@/lib/export-lazy";
 import { DatePicker } from "@/components/ui/date-picker";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };

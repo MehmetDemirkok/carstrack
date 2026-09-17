@@ -20,8 +20,7 @@ import {
   AlertTriangle, GripVertical, ArrowUpDown, Settings2, Search, X,
   Upload, FileSpreadsheet, ChevronDown, AlertCircle,
 } from "lucide-react";
-import { exportVehiclesExcel } from "@/lib/export";
-import { exportVehicleImportTemplate, parseVehicleImportFile, type ParsedVehicleRow } from "@/lib/vehicle-import";
+import { exportVehiclesExcel, exportVehicleImportTemplate, parseVehicleImportFile, type ParsedVehicleRow } from "@/lib/export-lazy";
 import { ImagePositioner } from "@/components/ui/image-positioner";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
@@ -535,7 +534,7 @@ export default function VehiclesPage() {
                         variant="outline"
                         size="icon"
                         className="rounded-full h-9 w-9 shadow-sm border-border/50"
-                        onClick={() => exportVehiclesExcel(vehicles)}
+                        onClick={() => { exportVehiclesExcel(vehicles).catch(() => toast.error("Dışa aktarma başarısız")); }}
                       />
                     }
                   >
@@ -844,7 +843,7 @@ export default function VehiclesPage() {
                 <p className="text-sm font-semibold">1. Şablonu indirin</p>
                 <p className="text-xs text-muted-foreground">Doğru sütun başlıklarını içeren örnek Excel dosyası.</p>
               </div>
-              <Button variant="outline" size="sm" className="rounded-xl gap-1.5 shrink-0" onClick={() => exportVehicleImportTemplate()}>
+              <Button variant="outline" size="sm" className="rounded-xl gap-1.5 shrink-0" onClick={() => { exportVehicleImportTemplate().catch(() => toast.error("Şablon indirilemedi")); }}>
                 <Download className="h-3.5 w-3.5" /> İndir
               </Button>
             </div>

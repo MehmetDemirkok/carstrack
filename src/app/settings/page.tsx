@@ -35,7 +35,7 @@ import {
   updateNotificationPrefs,
   getMyVehicles, getMyTrafficFines, getMyReports, getMyFeedback,
 } from "@/lib/db";
-import { exportMyDataExcel } from "@/lib/export";
+import { exportMyDataExcel } from "@/lib/export-lazy";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -588,7 +588,7 @@ export default function SettingsPage() {
         getMyReports().catch(() => []),
         getMyFeedback().catch(() => []),
       ]);
-      exportMyDataExcel({
+      await exportMyDataExcel({
         profile: {
           fullName: profile?.fullName,
           email: user?.email,

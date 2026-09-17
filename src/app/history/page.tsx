@@ -20,8 +20,7 @@ import {
   Filter, Trash2, BatteryCharging, ClipboardList, Download, FileDown,
   Sun, Snowflake, Layers, Pencil, Check, Wallet, XCircle, CalendarPlus,
 } from "lucide-react";
-import { exportServiceHistoryExcel } from "@/lib/export";
-import { exportServiceHistoryPDF } from "@/lib/pdf-export";
+import { exportServiceHistoryExcel, exportServiceHistoryPDF } from "@/lib/export-lazy";
 import { TUVTURK_RANDEVU_URL } from "@/lib/store";
 
 const typeConfig: Record<ServiceType, { icon: React.ElementType; color: string; dot: string; label: string }> = {
@@ -309,7 +308,7 @@ export default function HistoryPage() {
                   size="icon"
                   className="rounded-full h-9 w-9 shadow-sm border-border/50"
                   disabled={filtered.length === 0}
-                  onClick={() => exportServiceHistoryExcel(filtered, vehicles)}
+                  onClick={() => { exportServiceHistoryExcel(filtered, vehicles).catch(() => toast.error("Dışa aktarma başarısız")); }}
                 />
               }
             >

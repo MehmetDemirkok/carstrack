@@ -20,7 +20,7 @@ import {
   getRenewals,
 } from "@/lib/analytics";
 import { calculateHealthScore, getFleetAlerts, getTrafficFineAlerts } from "@/lib/store";
-import { exportFleetStatusPDF } from "@/lib/pdf-export";
+import { exportFleetStatusPDF } from "@/lib/export-lazy";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FleetCommand } from "@/components/analytics/fleet-command";

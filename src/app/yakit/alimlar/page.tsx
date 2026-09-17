@@ -8,8 +8,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { isDriverRole } from "@/lib/types";
 import { getVehicles, getFuelVehicleStats, getFuelStationStats, getFuelRecords, type FuelRecordFilters } from "@/lib/db";
-import { exportFuelRecordsExcel } from "@/lib/export";
-import { exportFuelRecordsPDF } from "@/lib/pdf-export";
+import { exportFuelRecordsExcel, exportFuelRecordsPDF } from "@/lib/export-lazy";
 import type { Vehicle, FuelRecord, FuelVehicleStats, FuelStationStats } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -64,7 +63,7 @@ export default function FuelPurchasesPage() {
         toast.warning("Dışa aktarılacak kayıt bulunamadı");
         return;
       }
-      if (kind === "excel") exportFuelRecordsExcel(rows);
+      if (kind === "excel") await exportFuelRecordsExcel(rows);
       else await exportFuelRecordsPDF(rows);
       toast.success(`${rows.length} kayıt ${kind === "excel" ? "Excel" : "PDF"} olarak dışa aktarıldı`);
     } catch (err) {

@@ -39,7 +39,7 @@ import {
   getVehicleStatuses,
   MAX_VEHICLE_TASK_KM,
 } from "@/lib/db";
-import { exportTasksExcel } from "@/lib/export";
+import { exportTasksExcel } from "@/lib/export-lazy";
 import type { Vehicle, VehicleTask, Profile } from "@/lib/types";
 import { isDriverRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -245,13 +245,13 @@ function StaffView() {
     }
   }
 
-  function handleExport() {
+  async function handleExport() {
     if (allMyTasks.length === 0) {
       toast.error("Raporlanacak tamamlanmış seyahat yok");
       return;
     }
     try {
-      exportTasksExcel(allMyTasks, vehicles);
+      await exportTasksExcel(allMyTasks, vehicles);
       toast.success("Rapor indiriliyor", { description: `${allMyTasks.length} seyahat Excel'e aktarıldı.` });
     } catch {
       toast.error("Rapor oluşturulamadı");
@@ -778,7 +778,7 @@ function StaffView() {
               )}
 
               <Button
-                onClick={() => { exportTasksExcel([selectedTask], vehicles); toast.success("Rapor indiriliyor"); }}
+                onClick={async () => { await exportTasksExcel([selectedTask], vehicles); toast.success("Rapor indiriliyor"); }}
                 variant="outline"
                 className="w-full rounded-xl gap-2"
               >
@@ -1160,7 +1160,7 @@ function ManagerView() {
       {tasks.length > 0 && !loading && (
         <div className="flex justify-end">
           <button
-            onClick={() => exportTasksExcel(tasks, vehicles)}
+            onClick={() => { exportTasksExcel(tasks, vehicles).catch(() => toast.error("Dışa aktarma başarısız")); }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 transition-colors text-sm font-semibold text-foreground/80 hover:text-foreground"
           >
             <Download className="h-4 w-4" />
