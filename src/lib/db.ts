@@ -238,6 +238,123 @@ function toRecord(row: Record<string, unknown>): ServiceRecord {
   };
 }
 
+// ─── Araç fotoğrafları ────────────────────────────────────────
+/**
+ * Araç fotoğrafları eskiden satır içinde base64 data-URI olarak saklanıyordu:
+ * 19 araç tek başına 21 MB tutuyor, vehicles tablosunu 26 MB'a (veritabanının
+ * yarısından fazlası) çıkarıyor ve her araç listesi sorgusunda bu yük tarayıcıya
+ * iniyordu — haftalık yedek cron'unun Gateway Timeout yemesinin sebebi de buydu.
+ *
+ * Artık dosya `vehicle-documents` bucket'ında duruyor, satırda yalnızca yol var.
+ * Yol şeması: {company_id}/arac-fotograflari/{vehicle_id}/{kolon}.{uzanti}
+ * Bucket policy'si yolun ilk segmentini (company_id) kontrol ettiği için ayrı
+ * bir bucket veya ek storage policy'si gerekmiyor.
+ *
+ * Geriye dönük uyumludur: hâlâ data-URI tutan satırlar olduğu gibi gösterilir,
+ * bir sonraki kaydetmede kendiliğinden storage'a taşınır.
+ */
+const VEHICLE_PHOTO_BUCKET = "vehicle-documents";
+const VEHICLE_PHOTO_DIR = "arac-fotograflari";
+
+/** Araç fotoğrafı tutan DB kolonları. */
+const VEHICLE_PHOTO_COLUMNS = ["image", "image_2", "image_3", "image_4"] as const;
+
+/** Satır içinde taşınan base64 fotoğraf mı? */
+function isInlinePhoto(value: unknown): value is string {
+  return typeof value === "string" && value.startsWith("data:");
+}
+
+/** Storage'da duran bir yol mu? (data-URI ve mutlak URL değilse öyledir) */
+function isStoredPhotoPath(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    !value.startsWith("data:") &&
+    !value.startsWith("http://") &&
+    !value.startsWith("https://") &&
+    !value.startsWith("blob:")
+  );
+}
+
+/** data-URI'yi bucket'a yükler, satırda saklanacak yolu döndürür. */
+async function uploadVehiclePhoto(
+  companyId: string,
+  vehicleId: string,
+  column: string,
+  dataUrl: string,
+): Promise<string> {
+  const blob = await (await fetch(dataUrl)).blob();
+  const ext =
+    blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+  const path = `${companyId}/${VEHICLE_PHOTO_DIR}/${vehicleId}/${column}.${ext}`;
+  const supabase = createClient();
+  const { error } = await supabase.storage
+    .from(VEHICLE_PHOTO_BUCKET)
+    .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: true });
+  if (error) throw error;
+  return path;
+}
+
+/**
+ * Bir DB satırındaki base64 fotoğrafları storage'a taşır ve alanı yola çevirir.
+ * Yükleme başarısız olursa o alan data-URI olarak bırakılır — fotoğraf kaybolmasın.
+ */
+async function storeInlinePhotos(
+  row: Record<string, unknown>,
+  companyId: string,
+  vehicleId: string,
+): Promise<Record<string, unknown>> {
+  const out = { ...row };
+  for (const column of VEHICLE_PHOTO_COLUMNS) {
+    const value = out[column];
+    if (!isInlinePhoto(value)) continue;
+    try {
+      out[column] = await uploadVehiclePhoto(companyId, vehicleId, column, value);
+    } catch {
+      // Yükleme başarısızsa eski davranışa düş: satır içinde kalsın.
+    }
+  }
+  return out;
+}
+
+/**
+ * Araç listesindeki storage yollarını tek çağrıda imzalı URL'lere çevirir.
+ * İmzalama başarısız olursa araçlar fotoğrafsız döner; sayfa çökmez.
+ */
+async function signVehiclePhotos(vehicles: Vehicle[]): Promise<Vehicle[]> {
+  const paths = new Set<string>();
+  for (const v of vehicles) {
+    for (const value of [v.image, v.image2, v.image3, v.image4]) {
+      if (isStoredPhotoPath(value)) paths.add(value);
+    }
+  }
+  if (paths.size === 0) return vehicles;
+
+  const list = [...paths];
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from(VEHICLE_PHOTO_BUCKET)
+    .createSignedUrls(list, 3600);
+  if (error) return vehicles;
+
+  const urls = new Map<string, string>();
+  (data ?? []).forEach((d, i) => {
+    const key = (d as { path?: string | null }).path ?? list[i];
+    if (d.signedUrl && key) urls.set(key, d.signedUrl);
+  });
+
+  const resolve = <T extends string | undefined>(value: T): T | string =>
+    isStoredPhotoPath(value) ? urls.get(value) ?? "" : value;
+
+  return vehicles.map((v) => ({
+    ...v,
+    image: resolve(v.image),
+    image2: resolve(v.image2),
+    image3: resolve(v.image3),
+    image4: resolve(v.image4),
+  }));
+}
+
 // ─── Vehicles ─────────────────────────────────────────────────
 
 export async function getVehicles(): Promise<Vehicle[]> {
@@ -253,7 +370,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return setCached(cacheKey, (data ?? []).map(toVehicle));
+  return setCached(cacheKey, await signVehiclePhotos((data ?? []).map(toVehicle)));
 }
 
 /**
@@ -287,7 +404,8 @@ export async function getVehicle(id: string): Promise<Vehicle | null> {
     .eq("company_id", companyId)
     .single();
   if (error) return null;
-  return toVehicle(data);
+  const [vehicle] = await signVehiclePhotos([toVehicle(data)]);
+  return vehicle;
 }
 
 export async function addVehicle(
@@ -296,14 +414,39 @@ export async function addVehicle(
   const supabase = createClient();
   const companyId = await requireCompanyId();
   const row = toDbVehicle(data, companyId);
+
+  // Fotoğraflar storage'a gideceği için base64 hiçbir zaman satıra yazılmaz;
+  // yol için araç id'si gerektiğinden önce boş kaydedilip sonra doldurulur.
+  const inlinePhotos: Record<string, unknown> = {};
+  for (const column of VEHICLE_PHOTO_COLUMNS) {
+    if (isInlinePhoto(row[column])) {
+      inlinePhotos[column] = row[column];
+      row[column] = "";
+    }
+  }
+
   const { data: inserted, error } = await supabase
     .from("vehicles")
     .insert(row)
     .select()
     .single();
   if (error) throw error;
+
+  let savedRow = inserted;
+  if (Object.keys(inlinePhotos).length > 0) {
+    const stored = await storeInlinePhotos(inlinePhotos, companyId, inserted.id as string);
+    const { data: updated } = await supabase
+      .from("vehicles")
+      .update(stored)
+      .eq("id", inserted.id)
+      .eq("company_id", companyId)
+      .select()
+      .single();
+    if (updated) savedRow = updated;
+  }
+
   bustCache(`vehicles:${companyId}`);
-  const vehicle = toVehicle(inserted);
+  const [vehicle] = await signVehiclePhotos([toVehicle(savedRow)]);
   // Yöneticilere bildirim (fire-and-forget) — 4 kanaldan
   notifyEvent("/api/vehicles/notify-new", { vehicleId: vehicle.id });
   return vehicle;
@@ -355,7 +498,11 @@ async function syncDocumentExpiryFromVehicleUpdate(
 export async function updateVehicle(id: string, updates: Partial<Vehicle>): Promise<void> {
   const supabase = createClient();
   const companyId = await requireCompanyId();
-  const row = { ...toDbVehicle(updates), updated_at: new Date().toISOString() };
+  const row = await storeInlinePhotos(
+    { ...toDbVehicle(updates), updated_at: new Date().toISOString() },
+    companyId,
+    id,
+  );
   const { error } = await supabase
     .from("vehicles")
     .update(row)
@@ -703,7 +850,7 @@ export async function getMyVehicles(): Promise<Vehicle[]> {
     const res = await fetch("/api/my-vehicles");
     if (!res.ok) return [];
     const json = await res.json() as { vehicles?: Record<string, unknown>[] };
-    return setCached(cacheKey, (json.vehicles ?? []).map(toVehicle));
+    return setCached(cacheKey, await signVehiclePhotos((json.vehicles ?? []).map(toVehicle)));
   } catch {
     return [];
   }

@@ -45,3 +45,4 @@ DAVET_MAILLERI_LISTESI.md
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+supabase/.temp/
