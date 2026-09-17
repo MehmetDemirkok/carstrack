@@ -2,6 +2,16 @@ import type { NextConfig } from "next";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
 
+// Araç fotoğrafları Supabase Storage'da tutuluyor; next/image için proje
+// hostname'ini env'den türetiyoruz (ortam değişince config elle güncellenmesin).
+const SUPABASE_HOSTNAME = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname || null;
+  } catch {
+    return null;
+  }
+})();
+
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control", value: "on" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -20,6 +30,15 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "github.com" },
       { protocol: "https", hostname: "loremflickr.com" },
       { protocol: "https", hostname: "randomuser.me" },
+      ...(SUPABASE_HOSTNAME
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: SUPABASE_HOSTNAME,
+              pathname: "/storage/v1/object/**",
+            },
+          ]
+        : []),
     ],
   },
   async headers() {
