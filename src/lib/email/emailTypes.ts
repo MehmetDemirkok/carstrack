@@ -95,6 +95,7 @@ export enum EmailTemplate {
   Notification = "notification",
   FleetAlerts = "fleet-alerts",
   WeeklyAdminReport = "weekly-admin-report",
+  AdminBroadcast = "admin-broadcast",
 }
 
 /** Statik (parametresiz) konu başlıkları. */
@@ -167,6 +168,22 @@ export interface NotificationEmailProps extends BaseEmailProps {
   ctaUrl?: string;
   /** CTA buton metni. */
   ctaLabel?: string;
+}
+
+/**
+ * Süper admin panelinden gönderilen duyuru e-postası.
+ * `body` DÜZ METİNDİR — HTML kabul edilmez (bkz. AdminBroadcast şablonu).
+ */
+export interface AdminBroadcastEmailProps extends BaseEmailProps {
+  /** Başlık (e-posta konusundan ayrı olabilir). */
+  title: string;
+  /** Gövde metni: boş satır paragraf ayırır, "- " madde yapar. */
+  body: string;
+  /** İsteğe bağlı CTA butonu. */
+  ctaUrl?: string;
+  ctaLabel?: string;
+  /** Alt imza satırı (ör. "CarsTrack Ekibi"). */
+  signature?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

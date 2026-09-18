@@ -8,7 +8,10 @@ import { BottomNav } from "./bottom-nav";
 
 const SIDEBAR_COLLAPSED_KEY = "carstrack:sidebar-collapsed";
 
+// /admin kendi kabuğuna sahiptir (src/app/admin/layout.tsx) — kiracı
+// sidebar'ı/top bar'ı onun üstüne binmesin diye buradan muaf tutulur.
 const AUTH_PATHS = [
+  "/admin",
   "/login",
   "/register",
   "/reset-password",

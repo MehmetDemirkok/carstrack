@@ -20,6 +20,33 @@ function userIdFromAccessToken(accessToken: string): string | null {
   }
 }
 
+/** Aynı JWT'den `email` claim'i — /admin ön kontrolü için. */
+function emailFromAccessToken(accessToken: string): string | null {
+  try {
+    const [, payload] = accessToken.split(".");
+    if (!payload) return null;
+    const json = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8")
+    ) as { email?: unknown };
+    return typeof json.email === "string" ? json.email.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Süper admin adresleri — `src/lib/admin/auth.ts` ile aynı env'i okur.
+ * Burada ayrı tutulur çünkü proxy Edge'de çalışır ve Supabase sunucu
+ * istemcisini (cookies()) import edemez.
+ */
+function adminEmails(): string[] {
+  const raw =
+    process.env.ADMIN_EMAILS ??
+    process.env.FEEDBACK_INBOX_EMAIL ??
+    "mehmetdemirkok@gmail.com";
+  return raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+}
+
 // Next.js 16 proxy (replaces middleware.ts).
 //
 // PERFORMANCE: getSession() is local (cookie JWT). We never read session.user —
@@ -55,6 +82,7 @@ export async function proxy(request: NextRequest) {
   );
 
   let userId: string | null = null;
+  let userEmail: string | null = null;
   let staleSession = false;
   try {
     const {
@@ -71,6 +99,7 @@ export async function proxy(request: NextRequest) {
       }
     } else if (session?.access_token) {
       userId = userIdFromAccessToken(session.access_token);
+      userEmail = emailFromAccessToken(session.access_token);
     }
   } catch {
     // Unexpected error — don't block the request.
@@ -150,6 +179,25 @@ export async function proxy(request: NextRequest) {
   if (userId && (isAuthOnlyPath || pathname === "/") && !isRegisterWithInvite) {
     const redirectResponse = NextResponse.redirect(
       new URL("/dashboard", request.url)
+    );
+    supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
+      redirectResponse.cookies.set(
+        name,
+        value,
+        rest as Parameters<typeof redirectResponse.cookies.set>[2]
+      )
+    );
+    return redirectResponse;
+  }
+
+  // ── Süper admin konsolu ───────────────────────────────────────
+  // Buradaki kontrol yalnızca ERKEN ÇIKIŞTIR: JWT imzası doğrulanmadan
+  // okunur, o yüzden güvenlik sınırı DEĞİLDİR. Gerçek kapı
+  // src/app/admin/layout.tsx (getUser) ve her /api/admin ucudur.
+  // Yetkisiz kullanıcı panelin varlığını öğrenmesin diye dashboard'a atılır.
+  if (pathname.startsWith("/admin") && !adminEmails().includes(userEmail ?? "")) {
+    const redirectResponse = NextResponse.redirect(
+      new URL(userId ? "/dashboard" : "/login", request.url)
     );
     supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
       redirectResponse.cookies.set(

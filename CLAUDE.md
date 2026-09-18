@@ -44,6 +44,17 @@ Database rows are `snake_case`; app-level types (`src/lib/types.ts`) are `camelC
 
 `src/lib/notify.ts` (`dispatchToManagers` / `NotifyEvent`) is the single fan-out point for events, sending to three channels: in-app (`notifications` table, always sent), Web Push (`src/lib/push.ts`), and email (`src/lib/notify-email.ts`, via Resend). Event types map to a category (`operational` | `reminders`) in `EVENT_CATEGORY`, which per-user `notification_prefs` can opt out of for push/email only — the in-app bell always fires. `EVENT_COOLDOWN_MINUTES` suppresses repeat push/email for noisy event types within a short window. When adding a new notification-worthy event, add its type to `EVENT_CATEGORY` (and `EVENT_COOLDOWN_MINUTES` if it can fire in bursts) rather than inventing a parallel dispatch path.
 
+### Super-admin console (`/admin`)
+
+A cross-tenant console for the app owner only, living beside the tenant app but sharing none of its plumbing — see `docs/ADMIN_PANEL.md` for the full map.
+
+- **Authorization is env-based, never in the database**: `ADMIN_EMAILS` (comma-separated; falls back to `FEEDBACK_INBOX_EMAIL`). Three independent gates enforce it: `src/proxy.ts` decodes the JWT `email` claim for a fast redirect (unsigned — *not* a security boundary), `src/app/admin/layout.tsx` verifies via `getUser()` and `notFound()`s non-admins, and every `/api/admin/*` route wraps itself in `withAdmin()` from `src/lib/admin/api.ts`. The service-role client is only ever constructed inside that wrapper.
+- `/admin` is listed in `AUTH_PATHS` in `shell-wrapper.tsx` so the tenant shell doesn't render underneath the console's own shell.
+- **Every mutating action writes to `admin_audit_log`** via `logAdminAction()`; broadcast emails also write `admin_email_log`. Both tables are service-role-only (RLS on, no policies) and both writes fail silently if the migration hasn't been applied — the panel still works without them.
+- Broadcast email goes through `sendAdminBroadcastEmail` in `sendEmail.ts` (one call per recipient, rate-limit chunked), with segments resolved by `src/lib/admin/recipients.ts`. It honours `profiles.notify_by_email` unless the caller explicitly sets `ignoreOptOut`.
+- `src/lib/admin/crons.ts` mirrors `vercel.json` by hand and doubles as the allow-list for manually triggering cron jobs from `/admin/system` — add a new cron to both files.
+- User/company list filtering and sorting happen **in memory** because email and `last_sign_in_at` live in `auth.users` while everything else lives in `profiles`/`companies`, and PostgREST can't join them. Revisit with a SQL view if the user count reaches five figures.
+
 ### Cron jobs
 
 Defined in `vercel.json`, implemented under `src/app/api/cron/*/route.ts`, protected by `CRON_SECRET` bearer auth: `fleet-alerts`, `license-alerts`, `kilometer-reminder`, `keepalive`, `db-backup`, `weekly-admin-report`, `activation-nudge`. `db-backup` runs weekly (Monday 03:00 UTC / 06:00 Turkey time) and is the project's only backup mechanism (Supabase free tier has none) — see `docs/DATABASE_BACKUP.md` for how it works and how to restore. When adding a table, add it to `BACKUP_TABLES` in `src/app/api/cron/db-backup/route.ts` or it silently won't be backed up. `activation-nudge` (Tue/Fri) is the only cron that fires on the *absence* of data: it emails account managers whose company has no vehicles, or has vehicles but no insurance/inspection dates — those accounts never trigger any other cron, so without it they receive nothing at all. It reuses `email_notification_log` for dedup (capped at 3 sends, 14 days apart) and supports `?dry=1` to preview recipients without sending. `weekly-admin-report` runs every Friday and emails a cross-tenant user-activity digest to a single hardcoded address (`REPORT_RECIPIENT` in that route) — intentionally bypasses `notify.ts`/per-user prefs since it must never reach anyone but the app owner.
@@ -58,7 +69,7 @@ Plain numbered SQL files in `supabase/migrations/` (`YYYYMMDD[a-z]_description.s
 
 ## Environment
 
-Required env vars (see `.env.local`, not committed): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FEEDBACK_INBOX_EMAIL`, `CRON_SECRET`, `VAPID_PRIVATE_KEY`/`NEXT_PUBLIC_VAPID_PUBLIC_KEY`/`VAPID_SUBJECT` (web push), `ANTHROPIC_API_KEY`/`GOOGLE_AI_API_KEY` (document extraction), `NEXT_PUBLIC_APP_URL`.
+Required env vars (see `.env.local`, not committed): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FEEDBACK_INBOX_EMAIL`, `ADMIN_EMAILS` (super-admin console access), `CRON_SECRET`, `VAPID_PRIVATE_KEY`/`NEXT_PUBLIC_VAPID_PUBLIC_KEY`/`VAPID_SUBJECT` (web push), `ANTHROPIC_API_KEY`/`GOOGLE_AI_API_KEY` (document extraction), `NEXT_PUBLIC_APP_URL`.
 
 ## Demo account
 

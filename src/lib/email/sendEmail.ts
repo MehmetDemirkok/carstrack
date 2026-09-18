@@ -12,12 +12,14 @@ import {
   type SendEmailResult,
   type VerifyEmailProps,
   type WelcomeEmailProps,
+  type AdminBroadcastEmailProps,
 } from "./emailTypes";
 import { WelcomeEmail } from "@/emails/templates/Welcome";
 import { ResetPasswordEmail } from "@/emails/templates/ResetPassword";
 import { VerifyEmail } from "@/emails/templates/VerifyEmail";
 import { MagicLinkEmail } from "@/emails/templates/MagicLink";
 import { NotificationEmail } from "@/emails/templates/Notification";
+import { AdminBroadcastEmail } from "@/emails/templates/AdminBroadcast";
 import { getFleetAlertsHtml } from "@/lib/emails/fleet-alerts";
 import { getWeeklyAdminReportHtml, type WeeklyAdminReportParams } from "@/lib/emails/weekly-admin-report";
 import type { FleetAlert } from "@/lib/types";
@@ -293,5 +295,38 @@ export async function sendWeeklyAdminReportEmail(
     subject: `${BRAND.name} — Haftalık Kullanıcı Aktivite Raporu (${params.report.periodLabel})`,
     html,
     template: EmailTemplate.WeeklyAdminReport,
+  });
+}
+
+export interface AdminBroadcastParams extends AdminBroadcastEmailProps {
+  to: string;
+  /** E-posta konusu — verilmezse `title` kullanılır. */
+  subject?: string;
+}
+
+/**
+ * Süper admin panelinden tek bir alıcıya duyuru gönderir.
+ *
+ * Toplu gönderimde bu fonksiyon alıcı başına çağrılır: her kişi kendi adıyla
+ * selamlansın ve biri başarısız olduğunda diğerleri etkilenmesin diye
+ * (Resend'in `to: []` çoklu alıcısı hepsini tek zarfta birleştirir ve
+ * alıcıları birbirine gösterir — duyuruda istenmeyen bir durum).
+ */
+export async function sendAdminBroadcastEmail(
+  params: AdminBroadcastParams,
+): Promise<SendEmailResult> {
+  const { to, subject, ...props } = params;
+  const appUrl = props.appUrl ?? getAppUrl();
+  const html = await render(AdminBroadcastEmail({ ...props, appUrl }));
+  const text = await render(AdminBroadcastEmail({ ...props, appUrl }), { plainText: true });
+
+  return sendEmail({
+    to,
+    subject: subject?.trim() || props.title,
+    html,
+    text,
+    template: EmailTemplate.AdminBroadcast,
+    listUnsubscribe: unsubscribeHeader(),
+    tags: [{ name: "kind", value: "admin-broadcast" }],
   });
 }
