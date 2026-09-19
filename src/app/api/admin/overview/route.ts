@@ -5,7 +5,7 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { withAdmin, listAllAuthUsers } from "@/lib/admin/api";
 import type { AdminOverviewResponse } from "@/lib/admin/types";
-import type { PlanType, UserRole } from "@/lib/types";
+import type { UserRole } from "@/lib/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SERIES_DAYS = 30;
@@ -47,28 +47,18 @@ export const GET = withAdmin(async (_req, { db }) => {
     companiesRes,
     profilesRes,
     vehiclesRes,
-    serviceCountRes,
     serviceRecentRes,
-    taskCountRes,
     taskRecentRes,
-    fuelCountRes,
     fuelRecentRes,
-    fineCountRes,
-    reportCountRes,
     feedbackRes,
     authUsers,
   ] = await Promise.all([
-    db.from("companies").select("id, name, plan, created_at"),
+    db.from("companies").select("id, name, created_at"),
     db.from("profiles").select("id, company_id, full_name, role, created_at"),
     db.from("vehicles").select("id, company_id, created_at, insurance_expiry, inspection_expiry"),
-    db.from("service_records").select("id", { count: "exact", head: true }),
     db.from("service_records").select("company_id, created_at").gte("created_at", iso60),
-    db.from("vehicle_tasks").select("id", { count: "exact", head: true }),
     db.from("vehicle_tasks").select("company_id, created_at").gte("created_at", iso60),
-    db.from("fuel_records").select("id", { count: "exact", head: true }),
     db.from("fuel_records").select("company_id, created_at").gte("created_at", iso60),
-    db.from("traffic_fines").select("id", { count: "exact", head: true }),
-    db.from("vehicle_reports").select("id", { count: "exact", head: true }),
     db.from("feedback").select("id, company_id, user_id, type, status, message, created_at").order("created_at", { ascending: false }).limit(200),
     listAllAuthUsers(db),
   ]);
@@ -141,12 +131,17 @@ export const GET = withAdmin(async (_req, { db }) => {
   }
   const series = [...seriesMap.entries()].map(([date, v]) => ({ date, ...v }));
 
+  // ── Son 7 günde üretilen içerik ───────────────────────────────────────────
+  // Ömür boyu toplam yerine bunu gösteriyoruz: "12.400 servis kaydı" hiçbir
+  // karara girmiyordu, "bu hafta 3" giriyor. Veri zaten 60 günlük pencereden
+  // geliyor, ek sorgu yok.
+  const activity7d = {
+    serviceRecords: countSince(serviceRecentRes.data ?? [], d7),
+    tasks: countSince(taskRecentRes.data ?? [], d7),
+    fuelRecords: countSince(fuelRecentRes.data ?? [], d7),
+  };
+
   // ── Kırılımlar ────────────────────────────────────────────────────────────
-  const planCounts = new Map<PlanType, number>();
-  for (const c of companies) {
-    const plan = ((c.plan as PlanType) || "free") as PlanType;
-    planCounts.set(plan, (planCounts.get(plan) ?? 0) + 1);
-  }
   const roleCounts = new Map<UserRole, number>();
   for (const p of profiles) {
     const role = ((p.role as UserRole) || "user") as UserRole;
@@ -184,7 +179,7 @@ export const GET = withAdmin(async (_req, { db }) => {
     { label: "Son 30 gün aktif", count: activeCompanyIds.size },
   ];
 
-  // ── Dikkat listesi ────────────────────────────────────────────────────────
+  // Şirketin son giriş anı — hem kohort hem dikkat listesi bunu kullanır.
   const lastSignInByCompany = new Map<string, number>();
   for (const p of profiles) {
     const au = authUsers.get(p.id as string);
@@ -194,6 +189,56 @@ export const GET = withAdmin(async (_req, { db }) => {
     lastSignInByCompany.set(cid, Math.max(lastSignInByCompany.get(cid) ?? 0, t));
   }
 
+  // ── Kohort / tutundurma ───────────────────────────────────────────────────
+  // Huni "kaç adım tamamlandı" sorusuna cevap veriyor ama zaman boyutu yok.
+  // Burada şirketleri kaydoldukları HAFTAYA göre grupluyoruz ve o kohorttan
+  // kaçının hâlâ aktif olduğunu sayıyoruz — ürünün tutup tutmadığını söyleyen
+  // tek metrik bu. Ek sorgu yok: created_at + last_sign_in_at zaten elde.
+  const COHORT_WEEKS = 8;
+  const WEEK_MS = 7 * DAY_MS;
+
+  /** Haftanın pazartesi 00:00'ı (UTC) — kohort anahtarı. */
+  function weekStart(ms: number): number {
+    const d = new Date(ms);
+    d.setUTCHours(0, 0, 0, 0);
+    // getUTCDay: 0=pazar → pazartesiye çekmek için 6 gün geri.
+    const back = (d.getUTCDay() + 6) % 7;
+    return d.getTime() - back * DAY_MS;
+  }
+
+  const cohortMap = new Map<
+    number,
+    { signedUp: number; activated: number; retained: number }
+  >();
+  const oldestCohort = weekStart(now - (COHORT_WEEKS - 1) * WEEK_MS);
+
+  for (const c of companies) {
+    const createdMs = new Date(c.created_at as string).getTime();
+    if (!Number.isFinite(createdMs)) continue;
+    const key = weekStart(createdMs);
+    if (key < oldestCohort) continue;
+
+    const entry = cohortMap.get(key) ?? { signedUp: 0, activated: 0, retained: 0 };
+    entry.signedUp++;
+    // Aktive = en az bir araç eklemiş.
+    if (companiesWithVehicle.has(c.id as string)) entry.activated++;
+    // Tutundu = kayıttan en az 7 gün SONRA giriş yapmış. Kayıt günündeki giriş
+    // tutundurma değildir; sadece kaydolmuş olmaktır.
+    const last = lastSignInByCompany.get(c.id as string);
+    if (last && last - createdMs >= 7 * DAY_MS) entry.retained++;
+    cohortMap.set(key, entry);
+  }
+
+  const cohorts = [...cohortMap.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([week, v]) => ({
+      weekStart: new Date(week).toISOString().slice(0, 10),
+      signedUp: v.signedUp,
+      activated: v.activated,
+      retained: v.retained,
+    }));
+
+  // ── Dikkat listesi ────────────────────────────────────────────────────────
   const emptyCompanies = companies
     .filter((c) => !companiesWithVehicle.has(c.id as string))
     .map((c) => ({
@@ -249,7 +294,6 @@ export const GET = withAdmin(async (_req, { db }) => {
     .map((c) => ({
       id: c.id as string,
       name: (c.name as string) || "İsimsiz Şirket",
-      plan: ((c.plan as PlanType) || "free") as PlanType,
       createdAt: c.created_at as string,
       userCount: usersPerCompany.get(c.id as string) ?? 0,
     }));
@@ -269,18 +313,14 @@ export const GET = withAdmin(async (_req, { db }) => {
       companies: companies.length,
       users: profiles.length,
       vehicles: vehicles.length,
-      serviceRecords: serviceCountRes.count ?? 0,
-      tasks: taskCountRes.count ?? 0,
-      fuelRecords: fuelCountRes.count ?? 0,
-      trafficFines: fineCountRes.count ?? 0,
-      reports: reportCountRes.count ?? 0,
     },
+    activity7d,
     growth,
     engagement: { activeToday, active7d, active30d, neverSignedIn, unconfirmedEmail },
     series,
-    planBreakdown: [...planCounts.entries()].map(([plan, count]) => ({ plan, count })),
     roleBreakdown: [...roleCounts.entries()].map(([role, count]) => ({ role, count })),
     funnel,
+    cohorts,
     recentUsers,
     recentCompanies,
     recentFeedback,

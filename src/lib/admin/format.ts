@@ -1,4 +1,4 @@
-import type { PlanType, UserRole } from "@/lib/types";
+import type { UserRole } from "@/lib/types";
 import type { AdminCompanyHealth } from "./types";
 
 /** Panel genelinde kullanılan biçimlendiriciler — istemci tarafında da çalışır. */
@@ -73,12 +73,6 @@ export const ROLE_CLASSES: Record<UserRole, string> = {
   sofor: "bg-muted text-muted-foreground ring-border",
 };
 
-export const PLAN_LABELS: Record<PlanType, string> = {
-  free: "Ücretsiz",
-  pro: "Profesyonel",
-  fleet: "Filo",
-};
-
 export const HEALTH_LABELS: Record<AdminCompanyHealth, string> = {
   healthy: "Aktif",
   partial: "Yavaşlamış",
@@ -145,6 +139,7 @@ export const ACTION_LABELS: Record<string, string> = {
   user_deleted: "Kullanıcı silindi",
   user_password_reset_link: "Şifre sıfırlama bağlantısı üretildi",
   user_magic_link: "Giriş bağlantısı üretildi",
+  // Plan sistemi kaldırıldı; etiket yalnızca eski denetim kayıtları okunabilsin diye duruyor.
   company_plan_changed: "Şirket planı değiştirildi",
   company_updated: "Şirket güncellendi",
   company_deleted: "Şirket silindi",
@@ -152,6 +147,12 @@ export const ACTION_LABELS: Record<string, string> = {
   notification_broadcast_sent: "Uygulama içi duyuru gönderildi",
   feedback_status_changed: "Geri bildirim durumu değişti",
   cron_triggered: "Cron işi elle çalıştırıldı",
+  admin_note_added: "Destek notu eklendi",
+  admin_note_deleted: "Destek notu silindi",
+  invite_revoked_by_admin: "Davet iptal edildi (admin)",
+  email_scheduled: "Duyuru kuyruğa alındı",
+  email_queue_cancelled: "Kuyruktaki duyuru iptal edildi",
+  app_banner_changed: "Uygulama bandı değiştirildi",
 };
 
 export function actionLabel(action: string): string {

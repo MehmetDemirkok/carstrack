@@ -21,7 +21,6 @@ import {
   formatRelative,
   HEALTH_CLASSES,
   HEALTH_LABELS,
-  PLAN_LABELS,
 } from "@/lib/admin/format";
 import { Button } from "@/components/ui/button";
 
@@ -31,13 +30,6 @@ const HEALTH_FILTERS = [
   { value: "partial", label: "Yavaşlamış" },
   { value: "empty", label: "Araç yok" },
   { value: "dormant", label: "Uykuda" },
-];
-
-const PLAN_FILTERS = [
-  { value: "all", label: "Tüm planlar" },
-  { value: "free", label: "Ücretsiz" },
-  { value: "pro", label: "Profesyonel" },
-  { value: "fleet", label: "Filo" },
 ];
 
 const SORT_OPTIONS = [
@@ -52,16 +44,15 @@ const SORT_OPTIONS = [
 export default function AdminCompaniesPage() {
   const [query, setQuery] = React.useState("");
   const [health, setHealth] = React.useState("all");
-  const [plan, setPlan] = React.useState("all");
   const [sort, setSort] = React.useState("created");
   const [dir, setDir] = React.useState<"asc" | "desc">("desc");
 
   const debouncedQuery = useDebounced(query, 300);
 
   const url = React.useMemo(() => {
-    const params = new URLSearchParams({ q: debouncedQuery, health, plan, sort, dir });
+    const params = new URLSearchParams({ q: debouncedQuery, health, sort, dir });
     return `/api/admin/companies?${params}`;
-  }, [debouncedQuery, health, plan, sort, dir]);
+  }, [debouncedQuery, health, sort, dir]);
 
   const { data, loading, error, reload } = useAdminFetch<AdminCompanyListResponse>(url);
 
@@ -121,7 +112,6 @@ export default function AdminCompaniesPage() {
             />
           </div>
           <FilterSelect value={health} onChange={setHealth} options={HEALTH_FILTERS} />
-          <FilterSelect value={plan} onChange={setPlan} options={PLAN_FILTERS} />
           <FilterSelect
             value={sort}
             onChange={setSort}
@@ -153,7 +143,6 @@ export default function AdminCompaniesPage() {
                   <tr className="border-b border-border/60 text-left">
                     <Th>Şirket</Th>
                     <Th>Yetkili</Th>
-                    <Th>Plan</Th>
                     <Th className="text-right">Kullanıcı</Th>
                     <Th className="text-right">Araç</Th>
                     <Th className="text-right">30g aktivite</Th>
@@ -178,7 +167,6 @@ export default function AdminCompaniesPage() {
                           {c.ownerEmail ?? ""}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">{PLAN_LABELS[c.plan]}</td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums">{c.userCount}</td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums">{c.vehicleCount}</td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">

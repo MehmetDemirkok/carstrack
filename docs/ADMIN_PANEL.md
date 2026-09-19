@@ -15,14 +15,25 @@ tamamen ayrıdır: kendi kabuğu, kendi API yüzeyi, kendi denetim kaydı vardı
    > Migration çalıştırılmadan da panel açılır ve çalışır; yalnızca denetim
    > kaydı ve gönderim geçmişi boş kalır (kod `try/catch` ile sessizce geçer).
 
-2. **Ortam değişkeni** — yerelde `.env.local`, canlıda Vercel:
+2. **İkinci migration'ı çalıştır** —
+   `supabase/migrations/20260919_admin_panel_v2.sql`
+   Dört tablo (`cron_runs`, `admin_notes`, `admin_email_queue`, `app_settings`)
+   ve iki depolama görünümü (`admin_vehicle_weights`, `admin_company_weights`)
+   ekler. İlk üç tablo yine yalnızca service-role erişimlidir; `app_settings`
+   istisnadır — bakım bandını kiracı uygulaması da okuduğu için SELECT'e açıktır,
+   yazma service-role'dedir.
+
+   > Bu migration olmadan da panel açılır: cron geçmişi, notlar, kuyruk ve
+   > depolama panelleri "tablo yok" uyarısı gösterir, geri kalan her şey çalışır.
+
+3. **Ortam değişkeni** — yerelde `.env.local`, canlıda Vercel:
    ```
    ADMIN_EMAILS=mehmetdemirkok@gmail.com
    ```
    Virgülle ayrılmış liste kabul eder. Tanımlı değilse sırayla
    `FEEDBACK_INBOX_EMAIL` → `mehmetdemirkok@gmail.com` kullanılır.
 
-3. Kendi hesabınla giriş yap, `/admin` adresine git.
+4. Kendi hesabınla giriş yap, `/admin` adresine git.
 
 ## Yetkilendirme — üç bağımsız katman
 
@@ -42,18 +53,54 @@ korumaları tamamen `withAdmin`'dendir.
 
 | Yol | İçerik |
 |---|---|
-| `/admin` | Toplamlar, 30 günlük büyüme grafiği, aktivasyon hunisi, plan/rol kırılımı, son kayıtlar, dikkat listesi (araç eklememiş / uykuda hesaplar) |
+| `/admin` | Toplamlar, son 7 günde üretilen içerik, 30 günlük büyüme grafiği, haftalık kohortlar, aktivasyon hunisi, rol kırılımı, son kayıtlar, dikkat listesi (araç eklememiş / uykuda hesaplar) |
 | `/admin/users` | Tüm kullanıcılar: arama, rol/şirket/durum filtresi, sıralama, sayfalama, CSV |
-| `/admin/users/[id]` | Profil düzenleme, rol değiştirme, askıya alma, e-posta doğrulama, şifre sıfırlama/giriş bağlantısı üretme, kalıcı silme, atanmış araçlar, etkinlik geçmişi |
+| `/admin/users/[id]` | Profil düzenleme, rol değiştirme, askıya alma, e-posta doğrulama, şifre sıfırlama/giriş bağlantısı üretme, kalıcı silme, atanmış araçlar, etkinlik geçmişi, destek notları |
 | `/admin/companies` | Tüm tenant'lar: kullanıcı/araç sayısı, 30 günlük aktivite, sağlık durumu, CSV |
-| `/admin/companies/[id]` | Şirket bilgileri/plan düzenleme, ekip, araç listesi, içerik sayaçları, şirketi tüm verisiyle silme |
-| `/admin/email` | Duyuru oluşturma: segment seçimi, canlı alıcı sayısı, gerçek şablondan önizleme, kendine test, e-posta + uygulama içi bildirim gönderimi, gönderim geçmişi |
+| `/admin/companies/[id]` | Şirket bilgileri düzenleme, ekip, araç listesi, içerik sayaçları, destek notları, şirketi tüm verisiyle silme |
+| `/admin/vehicles` | Tüm filo: plaka/marka/şirket/sürücü araması, belge durumu filtresi, sıralama, sayfalama |
+| `/admin/vehicles/[id]` | Aracın künyesi, sürücüleri, belgeleri, servis/sefer/yakıt/ceza/arıza geçmişi, destek notları |
+| `/admin/invites` | Tüm şirketlerin ekip davetleri: bekleyen/süresi geçmiş/kabul/iptal, daveti iptal etme |
+| `/admin/email` | Duyuru oluşturma: segment seçimi, canlı alıcı sayısı, gerçek şablondan önizleme, kendine test, e-posta + uygulama içi bildirim gönderimi, kuyruk/zamanlama, gönderim geçmişi |
 | `/admin/feedback` | Tüm şirketlerden gelen geri bildirimler, durum yönetimi, e-posta ile yanıtlama |
-| `/admin/activity` | `audit_logs` (şirket işlemleri) + `admin_audit_log` (panel işlemleri) birleşik zaman çizelgesi |
-| `/admin/system` | Ortam değişkeni sağlık kontrolü, cron'ları elle çalıştırma, DB yedekleri, tablo satır sayıları |
+| `/admin/activity` | `audit_logs` + `admin_audit_log` birleşik zaman çizelgesi; güne göre gruplu, şirket/işlem/tarih/arama filtreli, CSV |
+| `/admin/system` | Global duyuru bandı, depolama baskısı, cron sağlığı ve elle çalıştırma, eksik ortam değişkenleri, DB yedekleri, tablo satır sayıları + son 7 gün artışı |
 
 Üst çubuktaki global arama kullanıcı (ad/e-posta), şirket (ad) ve araç (plaka)
-üzerinde çalışır.
+üzerinde çalışır; araç sonucu doğrudan araç sayfasını açar.
+
+## Destek notları
+
+Kullanıcı, şirket ve araç detaylarındaki not paneli `admin_notes`'a yazar.
+Notlar **yalnızca bu panelde** görünür (tablo service-role'e kapalıdır) ve
+hedefe FK ile bağlı DEĞİLDİR: şirket silinse bile "neden sildik" notu kalsın
+diye.
+
+## Cron sağlığı
+
+`src/lib/cron/record.ts` içindeki `withCronLogging` her cron'un GET'ini sarar:
+gövdeye dokunmadan süreyi ölçer, yanıtı okur ve `cron_runs` tablosuna yazar.
+`/admin/system` her iş için son çalışma, süre ve 7 günlük hata sayısını gösterir
+— önceden otomatik çalışmaların sonucu hiçbir yere yazılmıyordu, sessizce
+patlayan bir cron fark edilmezdi. Panelden elle tetiklenen çalışmalar
+`x-admin-manual-run` başlığı sayesinde `manual` olarak ayrılır.
+
+## Depolama
+
+Araç fotoğrafları `vehicle-documents` bucket'ına taşındı, ama taşıma geriye
+dönük uyumlu: eski satırlar hâlâ base64 data-URI taşıyor olabilir ve db-backup'ın
+`vehicles` tablosunu 5'erli sayfalarla okumasının sebebi bu kalıntı.
+`/admin/system` → Depolama paneli kaç aracın hâlâ satır içi fotoğraf taşıdığını
+ve bucket kullanımını gösterir. Bayt hesabı `admin_vehicle_weights` /
+`admin_company_weights` view'larında, SQL tarafında yapılır — satırları panele
+çekip JS'te ölçmek aynı Gateway Timeout'ları üretirdi.
+
+## Uygulama bandı
+
+`app_settings.banner` tüm kiracıların üstünde görünen global duyuruyu tutar;
+`/admin/system` üzerinden açılır/kapatılır ve her değişiklik denetime yazılır.
+Kiracı tarafında `src/components/layout/app-banner.tsx` gösterir — okuma
+başarısız olursa bant hiç çıkmaz, uygulama akışını asla engellemez.
 
 ## E-posta gönderimi
 
@@ -73,6 +120,21 @@ yani retry + log + Reply-To + List-Unsubscribe tutarlılığıyla yapılır. Al�
 başına ayrı çağrı yapılır (herkes kendi adıyla selamlansın ve alıcılar
 birbirini görmesin diye), Resend'in saniyede 2 istek sınırına uymak için
 partiler arasında beklenir — 500 alıcı ≈ 4 dakika.
+
+Bu süre tek fonksiyon çağrısına sığmadığı için gönderimin iki yolu var:
+
+1. **Doğrudan gönderim** (`/api/admin/email/send`) — parçalıdır: uç 45 sn'lik
+   bütçesi dolunca kalan alıcıları `remaining` ile döndürür, panel aynı uca
+   `resumeUserIds` ile devam eder ve onay düğmesinde ilerlemeyi gösterir.
+   Fonksiyon hiçbir planda ortada öldürülmez. Her parça `admin_email_log`'a
+   kendi satırını yazar. Tarayıcının açık kalması gerekir.
+
+2. **Kuyruk** (`/api/admin/email/queue`) — duyuru `admin_email_queue`'ya
+   yazılır, `email-queue-drain` cron'u (5 dakikada bir) parça parça boşaltır.
+   Tarayıcı kapatılabilir, `scheduled_at` ile ileri bir saate bırakılabilir.
+   Alıcı listesi kuyruğa alınırken çözülüp satıra yazılır: segment sonradan
+   değişse bile duyuru kime söz verildiyse ona gider. Gönderilen alıcılar
+   `pending_ids`'ten düşüldüğü için kimse iki kez almaz.
 
 Gövde **düz metindir**: boş satır paragraf ayırır, `- ` ile başlayan satır
 madde olur. HTML bilinçli olarak kabul edilmez.

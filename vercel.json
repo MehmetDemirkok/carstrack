@@ -21,12 +21,12 @@
       "schedule": "0 3 * * 1"
     },
     {
-      "path": "/api/cron/weekly-admin-report",
-      "schedule": "0 6 * * 5"
-    },
-    {
       "path": "/api/cron/activation-nudge",
       "schedule": "0 8 * * 2,5"
+    },
+    {
+      "path": "/api/cron/email-queue-drain",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

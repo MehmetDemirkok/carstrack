@@ -8,6 +8,7 @@ import { gzipSync } from "node:zlib";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendNotificationEmail } from "@/lib/email/sendEmail";
 import { BRAND } from "@/lib/email/emailTypes";
+import { withCronLogging } from "@/lib/cron/record";
 
 // Yeni bir migration ile tablo eklenirse buraya da eklenmeli — pg_dump yerine
 // PostgREST üzerinden okuduğumuz için şema burada elle listelenir. Şema zaten
@@ -20,7 +21,6 @@ const BACKUP_TABLES = [
   "vehicle_assignments",
   "email_notification_log",
   "vehicle_tasks",
-  "subscriptions",
   "vehicle_documents",
   "vehicle_reports",
   "vehicle_report_logs",
@@ -159,7 +159,7 @@ async function notifyFailure(message: string): Promise<void> {
   }).catch((e) => console.error("[cron/db-backup] failure email gönderilemedi:", e));
 }
 
-export async function GET(req: Request) {
+async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -242,3 +242,6 @@ export async function GET(req: Request) {
     deletedOldBackups: deleted,
   });
 }
+
+/** Her çalışma `cron_runs`'a yazılır — bkz. lib/cron/record.ts. */
+export const GET = withCronLogging("db-backup", handler);

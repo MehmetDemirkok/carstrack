@@ -4,6 +4,7 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Bell,
+  CalendarClock,
   CheckCircle2,
   Eye,
   History,
@@ -17,8 +18,10 @@ import { toast } from "sonner";
 import type {
   AdminCompanyListResponse,
   AdminEmailLogRow,
+  AdminEmailQueueRow,
   AdminEmailRecipientsResponse,
   AdminEmailSegment,
+  AdminEmailSendResponse,
 } from "@/lib/admin/types";
 import {
   ConfirmDialog,
@@ -50,7 +53,7 @@ type Channel = "email" | "notification" | "both";
 
 export default function AdminEmailPage() {
   const searchParams = useSearchParams();
-  const [tab, setTab] = React.useState<"compose" | "history">("compose");
+  const [tab, setTab] = React.useState<"compose" | "queue" | "history">("compose");
 
   return (
     <div className="mx-auto max-w-7xl space-y-4">
@@ -65,6 +68,9 @@ export default function AdminEmailPage() {
           <TabButton active={tab === "compose"} onClick={() => setTab("compose")}>
             <Send className="size-3.5" /> Yeni duyuru
           </TabButton>
+          <TabButton active={tab === "queue"} onClick={() => setTab("queue")}>
+            <CalendarClock className="size-3.5" /> Kuyruk
+          </TabButton>
           <TabButton active={tab === "history"} onClick={() => setTab("history")}>
             <History className="size-3.5" /> Geçmiş
           </TabButton>
@@ -73,10 +79,140 @@ export default function AdminEmailPage() {
 
       {tab === "compose" ? (
         <Composer initialCompanyId={searchParams.get("company")} />
+      ) : tab === "queue" ? (
+        <EmailQueue />
       ) : (
         <SendHistory />
       )}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kuyruk
+// ─────────────────────────────────────────────────────────────────────────────
+
+const QUEUE_STATUS: Record<AdminEmailQueueRow["status"], { label: string; cls: string }> = {
+  pending: {
+    label: "Bekliyor",
+    cls: "bg-amber-500/10 text-amber-600 ring-amber-500/20 dark:text-amber-400",
+  },
+  sending: { label: "Gönderiliyor", cls: "bg-primary/10 text-primary ring-primary/20" },
+  done: {
+    label: "Tamamlandı",
+    cls: "bg-emerald-500/10 text-emerald-600 ring-emerald-500/20 dark:text-emerald-400",
+  },
+  cancelled: { label: "İptal edildi", cls: "bg-muted text-muted-foreground ring-border" },
+  error: { label: "Hata", cls: "bg-destructive/10 text-destructive ring-destructive/20" },
+};
+
+/**
+ * Kuyruğa alınmış duyurular.
+ *
+ * Gönderimi `email-queue-drain` cron'u sürdürür (5 dakikada bir), bu yüzden
+ * burada görülen ilerleme sayfayı yenileyince artar.
+ */
+function EmailQueue() {
+  const [nonce, setNonce] = React.useState(0);
+  const [busy, setBusy] = React.useState<string | null>(null);
+
+  const { data, loading } = useAdminFetch<{
+    queue: AdminEmailQueueRow[];
+    unavailable: boolean;
+  }>("/api/admin/email/queue", [nonce]);
+
+  async function cancel(id: string) {
+    setBusy(id);
+    try {
+      const res = await fetch("/api/admin/email/queue", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "İptal edilemedi");
+      toast.success(
+        json.alreadySent > 0
+          ? `İptal edildi — ${json.alreadySent} kişiye çoktan gitmişti`
+          : "İptal edildi",
+      );
+      setNonce((n) => n + 1);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "İptal edilemedi");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (loading) return <LoadingRows rows={6} />;
+
+  if (data?.unavailable) {
+    return (
+      <Panel>
+        <EmptyState
+          icon={CalendarClock}
+          title="Kuyruk tablosu yok"
+          description="supabase/migrations/20260919_admin_panel_v2.sql dosyasını Supabase'de çalıştırın."
+        />
+      </Panel>
+    );
+  }
+
+  const queue = data?.queue ?? [];
+
+  return (
+    <Panel>
+      <PanelHeader title="Duyuru kuyruğu" description={`${queue.length} kayıt`} />
+      {queue.length === 0 ? (
+        <EmptyState icon={CalendarClock} title="Kuyrukta duyuru yok" />
+      ) : (
+        <ul className="divide-y divide-border/60">
+          {queue.map((job) => {
+            const meta = QUEUE_STATUS[job.status];
+            const pct =
+              job.totalCount > 0 ? Math.round((job.sentCount / job.totalCount) * 100) : 0;
+            return (
+              <li key={job.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+                    {job.title}
+                    <Pill className={meta.cls}>{meta.label}</Pill>
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {job.segmentLabel} · {formatNumber(job.sentCount)}/
+                    {formatNumber(job.totalCount)} gönderildi
+                    {job.failedCount > 0 ? ` · ${formatNumber(job.failedCount)} hata` : ""}
+                  </p>
+                  <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-[width]"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="shrink-0 text-right">
+                  <span className="block font-mono text-[11px] text-muted-foreground">
+                    {formatDateTime(job.scheduledAt)}
+                  </span>
+                  {job.status === "pending" || job.status === "sending" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-1"
+                      disabled={busy === job.id}
+                      onClick={() => cancel(job.id)}
+                    >
+                      İptal et
+                    </Button>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Panel>
   );
 }
 
@@ -104,6 +240,12 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
   const [previewHtml, setPreviewHtml] = React.useState<string>("");
   const [busy, setBusy] = React.useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  /** Parçalı gönderimde ilerleme — tek parçada biten gönderimlerde null kalır. */
+  const [sendProgress, setSendProgress] = React.useState<{ sent: number; total: number } | null>(
+    null,
+  );
+  /** datetime-local değeri; boşsa duyuru hemen kuyruğa girer. */
+  const [scheduledAt, setScheduledAt] = React.useState("");
 
   const companiesState = useAdminFetch<AdminCompanyListResponse>(
     "/api/admin/companies?sort=name&dir=asc",
@@ -201,6 +343,44 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
     }
   }
 
+  /**
+   * Duyuruyu kuyruğa alır. Doğrudan gönderimden farkı: tarayıcı kapanabilir,
+   * gönderimi `email-queue-drain` cron'u sürdürür ve ileri bir saate bırakılabilir.
+   */
+  async function enqueue() {
+    setBusy("queue");
+    try {
+      const res = await fetch("/api/admin/email/queue", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          segment,
+          companyId: companyId || null,
+          ignoreOptOut,
+          subject,
+          title,
+          message,
+          ctaUrl,
+          ctaLabel,
+          signature,
+          // datetime-local yerel saat verir; Date onu doğru UTC'ye çevirir.
+          scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Kuyruğa alınamadı");
+      toast.success(
+        scheduledAt
+          ? `${json.recipientCount} kişi için zamanlandı`
+          : `${json.recipientCount} kişi kuyruğa alındı`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Kuyruğa alınamadı");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function send() {
     setBusy("send");
     try {
@@ -217,15 +397,52 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
       };
 
       if (channel === "email" || channel === "both") {
-        const res = await fetch("/api/admin/email/send", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error ?? "Gönderilemedi");
-        if (json.skipped) toast.warning("RESEND_API_KEY yok — e-posta gönderimi atlandı");
-        else toast.success(`${json.sent} e-posta gönderildi${json.failed ? `, ${json.failed} başarısız` : ""}`);
+        // Toplu gönderim tek istekte bitmeyebilir: sunucu süre bütçesi dolunca
+        // kalan alıcıları döndürür, buradan kaldığı yerden devam ederiz. Böylece
+        // fonksiyon ortada öldürülmez ve kimin aldığı belirsiz kalmaz.
+        const expected = recipients?.total ?? 0;
+        let resumeUserIds: string[] = [];
+        let totalSent = 0;
+        let totalFailed = 0;
+        let anySkipped = false;
+        let part = 0;
+
+        for (;;) {
+          part += 1;
+          const res = await fetch("/api/admin/email/send", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(
+              part === 1 ? { ...payload, part } : { ...payload, part, resumeUserIds },
+            ),
+          });
+          const json = (await res.json().catch(() => ({}))) as Partial<AdminEmailSendResponse> & {
+            error?: string;
+          };
+
+          if (!res.ok) {
+            const reason = json.error ?? "Gönderilemedi";
+            throw new Error(
+              totalSent > 0 ? `${reason} (${totalSent} kişiye gönderildikten sonra durdu)` : reason,
+            );
+          }
+
+          totalSent += json.sent ?? 0;
+          totalFailed += json.failed ?? 0;
+          if (json.skipped) anySkipped = true;
+
+          if (json.done !== false) break;
+
+          resumeUserIds = json.remaining ?? [];
+          if (resumeUserIds.length === 0) break;
+
+          setSendProgress({ sent: totalSent, total: expected || totalSent + resumeUserIds.length });
+        }
+
+        setSendProgress(null);
+
+        if (anySkipped) toast.warning("RESEND_API_KEY yok — e-posta gönderimi atlandı");
+        else toast.success(`${totalSent} e-posta gönderildi${totalFailed ? `, ${totalFailed} başarısız` : ""}`);
       }
 
       if (channel === "notification" || channel === "both") {
@@ -249,6 +466,7 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gönderilemedi");
     } finally {
+      setSendProgress(null);
       setBusy(null);
     }
   }
@@ -475,6 +693,33 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
               <Send />
               {formatNumber(recipients?.total ?? 0)} kişiye gönder
             </Button>
+
+            {/* Kuyruk: tarayıcıyı açık tutmadan, ileri bir saate de bırakılabilir. */}
+            <div className="space-y-1.5 border-t border-border/60 pt-2">
+              <label className="block space-y-1">
+                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+                  Zamanla (boşsa hemen kuyruğa girer)
+                </span>
+                <Input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                />
+              </label>
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={!canSend || busy !== null}
+                onClick={enqueue}
+              >
+                {busy === "queue" ? <Loader2 className="animate-spin" /> : <CalendarClock />}
+                Kuyruğa al
+              </Button>
+              <p className="text-center text-[11px] text-muted-foreground">
+                Kuyruk 5 dakikada bir boşalır — tarayıcıyı kapatabilirsin.
+              </p>
+            </div>
+
             {!canSend ? (
               <p className="text-center text-[11px] text-muted-foreground">
                 Başlık, mesaj ve en az bir alıcı gerekli.
@@ -488,7 +733,11 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Duyuruyu gönder"
-        confirmLabel="Gönder"
+        confirmLabel={
+          sendProgress
+            ? `Gönderiliyor… ${formatNumber(sendProgress.sent)}/${formatNumber(sendProgress.total)}`
+            : "Gönder"
+        }
         confirmWord="GONDER"
         busy={busy === "send"}
         onConfirm={send}

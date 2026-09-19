@@ -25,24 +25,29 @@ const ENV_CHECKS: { key: string; required: boolean; hint: string }[] = [
   { key: "GOOGLE_AI_API_KEY", required: false, hint: "Belge okuma yedek sağlayıcı" },
 ];
 
-const COUNTED_TABLES = [
-  "companies",
-  "profiles",
-  "vehicles",
-  "service_records",
-  "vehicle_documents",
-  "vehicle_tasks",
-  "vehicle_assignments",
-  "vehicle_reports",
-  "fuel_records",
-  "traffic_fines",
-  "kilometer_logs",
-  "notifications",
-  "feedback",
-  "company_invites",
-  "audit_logs",
-  "push_subscriptions",
-] as const;
+/**
+ * Satır sayısının yanında son 7 günlük artış da gösterilir: toplam sayı
+ * Supabase panelinde zaten var, burada asıl merak edilen neyin büyüdüğü.
+ * `time` sütunu olmayan/isabet etmeyen tabloda artış "—" görünür.
+ */
+const COUNTED_TABLES: { table: string; time: string | null }[] = [
+  { table: "companies", time: "created_at" },
+  { table: "profiles", time: "created_at" },
+  { table: "vehicles", time: "created_at" },
+  { table: "service_records", time: "created_at" },
+  { table: "vehicle_documents", time: "created_at" },
+  { table: "vehicle_tasks", time: "created_at" },
+  { table: "vehicle_assignments", time: "created_at" },
+  { table: "vehicle_reports", time: "created_at" },
+  { table: "fuel_records", time: "created_at" },
+  { table: "traffic_fines", time: "created_at" },
+  { table: "kilometer_logs", time: "created_at" },
+  { table: "notifications", time: "created_at" },
+  { table: "feedback", time: "created_at" },
+  { table: "company_invites", time: "created_at" },
+  { table: "audit_logs", time: "created_at" },
+  { table: "push_subscriptions", time: "created_at" },
+];
 
 function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "—";
@@ -58,11 +63,23 @@ function formatBytes(bytes: number): string {
 
 /** Sistem sağlığı: ortam değişkenleri, cron'lar, yedekler, tablo boyutları. */
 export const GET = withAdmin(async (_req, { db }) => {
-  const [counts, backupsRes, emailLog7Res, emailLog30Res, lastEmailRes] = await Promise.all([
+  const [counts, backupsRes, emailLog7Res, emailLog30Res, lastEmailRes, cronRunsRes] = await Promise.all([
     Promise.all(
-      COUNTED_TABLES.map(async (table) => {
-        const { count, error } = await db.from(table).select("id", { count: "exact", head: true });
-        return { table, rows: error ? -1 : (count ?? 0) };
+      COUNTED_TABLES.map(async ({ table, time }) => {
+        const [totalRes, recentRes] = await Promise.all([
+          db.from(table).select("id", { count: "exact", head: true }),
+          time
+            ? db
+                .from(table)
+                .select("id", { count: "exact", head: true })
+                .gte(time, daysAgoIso(7))
+            : Promise.resolve({ count: null, error: null }),
+        ]);
+        return {
+          table,
+          rows: totalRes.error ? -1 : (totalRes.count ?? 0),
+          last7d: recentRes.error ? null : recentRes.count,
+        };
       }),
     ),
     db.storage.from("db-backups").list("", { limit: 20, sortBy: { column: "name", order: "desc" } }),
@@ -80,7 +97,36 @@ export const GET = withAdmin(async (_req, { db }) => {
       .order("sent_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Son 7 günün çalışmaları — her cron için özet buradan türetilir.
+    db
+      .from("cron_runs")
+      .select("job, trigger, status, http_status, duration_ms, summary, error, created_at")
+      .gte("created_at", daysAgoIso(7))
+      .order("created_at", { ascending: false })
+      .limit(300),
   ]);
+
+  // cron_runs migration'ı uygulanmadıysa panel çalışmaya devam eder, geçmiş boş görünür.
+  if (cronRunsRes.error) {
+    console.warn(`[admin/system] cron_runs okunamadı: ${cronRunsRes.error.message}`);
+  }
+  const cronRuns = cronRunsRes.data ?? [];
+
+  /** Bir işin son 7 gündeki durumu — en son çalışma + başarı/hata sayısı. */
+  function healthOf(path: string) {
+    const job = path.split("/").pop() ?? path;
+    const runs = cronRuns.filter((r) => r.job === job);
+    const last = runs[0];
+    return {
+      lastRunAt: (last?.created_at as string) ?? null,
+      lastStatus: ((last?.status as string) ?? null) as "ok" | "error" | null,
+      lastDurationMs: (last?.duration_ms as number) ?? null,
+      lastError: (last?.error as string) ?? null,
+      lastSummary: (last?.summary as Record<string, unknown>) ?? {},
+      runs7d: runs.length,
+      errors7d: runs.filter((r) => r.status === "error").length,
+    };
+  }
 
   const backups = (backupsRes.data ?? [])
     .filter((f) => f.name && !f.name.startsWith("."))
@@ -100,7 +146,7 @@ export const GET = withAdmin(async (_req, { db }) => {
       required: e.required,
       hint: e.hint,
     })),
-    crons: CRON_JOBS.map((c) => ({ ...c })),
+    crons: CRON_JOBS.map((c) => ({ ...c, health: healthOf(c.path) })),
     backups,
     tables: counts,
     emailLog: {

@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function loadProfile(userId: string, metadataCompanyId?: string) {
       try {
         if (metadataCompanyId) {
-          setCompany({ id: metadataCompanyId, name: "Yükleniyor...", createdAt: "", inviteCode: "", plan: "free" });
+          setCompany({ id: metadataCompanyId, name: "Yükleniyor...", createdAt: "", inviteCode: "" });
         }
 
         const { data, error } = await supabase
@@ -88,7 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: comp.name,
             createdAt: comp.created_at,
             inviteCode: comp.invite_code,
-            plan: "free",
             timezone: comp.timezone,
           } as import("@/lib/types").Company);
           // Back-fill company_id into user metadata for faster loads next time
@@ -133,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const metaCompanyId = u.user_metadata?.company_id as string | undefined;
             if (metaCompanyId) {
               // Partial company so requireCompanyId() returns instantly
-              setCompany(prev => prev ?? { id: metaCompanyId, name: "", createdAt: "", inviteCode: "", plan: "free" });
+              setCompany(prev => prev ?? { id: metaCompanyId, name: "", createdAt: "", inviteCode: "" });
             }
             setLoading(false);
             initializedRef.current = true;

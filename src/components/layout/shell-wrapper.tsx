@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { BottomNav } from "./bottom-nav";
+import { AppBanner } from "./app-banner";
 
 const SIDEBAR_COLLAPSED_KEY = "carstrack:sidebar-collapsed";
 
@@ -61,6 +62,7 @@ export function ShellWrapper({ children }: { children: React.ReactNode }) {
         }`}
       >
         <TopBar />
+        <AppBanner />
         <main className="flex-1 overflow-x-hidden pb-20 md:pb-6 w-full">
           {children}
         </main>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bug, CheckCircle2, Eye, Lightbulb, MessageSquareText } from "lucide-react";
+import { Bug, CheckCircle2, Download, Eye, Lightbulb, MessageSquareText } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminFeedbackRow } from "@/lib/admin/types";
 import {
@@ -76,11 +76,21 @@ export default function AdminFeedbackPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <header>
-        <h1 className="font-heading text-xl font-semibold tracking-tight">Geri Bildirim</h1>
-        <p className="text-sm text-muted-foreground">
-          Tüm şirketlerden gelen hata bildirimleri ve öneriler.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-xl font-semibold tracking-tight">Geri Bildirim</h1>
+          <p className="text-sm text-muted-foreground">
+            Tüm şirketlerden gelen hata bildirimleri ve öneriler.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={<a href="/api/admin/export?kind=feedback" />}
+        >
+          <Download /> CSV indir
+        </Button>
       </header>
 
       {data ? (

@@ -16,6 +16,7 @@ import {
   isLocalHour,
   resolveTimeZone,
 } from "@/lib/timezone";
+import { withCronLogging } from "@/lib/cron/record";
 
 // Kritik uyarılar 3, warning uyarılar 7 günde bir yeniden gönderilir.
 const SUPPRESSION_DAYS: Record<string, number> = {
@@ -31,7 +32,7 @@ function getAppUrl(req: Request): string {
   return origin;
 }
 
-export async function GET(req: Request) {
+async function handler(req: Request): Promise<Response> {
   // ── 1. Authorization ────────────────────────────────────────────
   const authHeader = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -317,3 +318,6 @@ export async function GET(req: Request) {
   console.log(`[cron/fleet-alerts] done — companies:${digestCompanyIds.length} email_sent:${sent} email_errors:${errors} skipped:${skipped} | push_sent:${pushSent}`);
   return NextResponse.json({ ok: true, emailSent: sent, emailErrors: errors, skipped, pushSent, total: results.length });
 }
+
+/** Her çalışma `cron_runs`'a yazılır — bkz. lib/cron/record.ts. */
+export const GET = withCronLogging("fleet-alerts", handler);

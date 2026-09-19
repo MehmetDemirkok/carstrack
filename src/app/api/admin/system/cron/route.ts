@@ -44,7 +44,11 @@ export const POST = withAdmin(async (req, ctx) => {
 
   try {
     const res = await fetch(url.toString(), {
-      headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+      headers: {
+        authorization: `Bearer ${process.env.CRON_SECRET}`,
+        // withCronLogging bunu görüp çalışmayı "manual" olarak kaydeder.
+        "x-admin-manual-run": "1",
+      },
       cache: "no-store",
     });
     status = res.status;

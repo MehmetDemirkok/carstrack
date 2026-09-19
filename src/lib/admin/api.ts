@@ -56,17 +56,22 @@ export type AdminAuditAction =
   | "user_deleted"
   | "user_password_reset_link"
   | "user_magic_link"
-  | "company_plan_changed"
   | "company_updated"
   | "company_deleted"
   | "email_broadcast_sent"
   | "notification_broadcast_sent"
   | "feedback_status_changed"
-  | "cron_triggered";
+  | "cron_triggered"
+  | "admin_note_added"
+  | "admin_note_deleted"
+  | "invite_revoked_by_admin"
+  | "email_scheduled"
+  | "email_queue_cancelled"
+  | "app_banner_changed";
 
 export interface AdminAuditEntry {
   action: AdminAuditAction;
-  targetType: "user" | "company" | "feedback" | "email" | "system";
+  targetType: "user" | "company" | "vehicle" | "feedback" | "email" | "system";
   targetId?: string | null;
   targetLabel?: string | null;
   meta?: Record<string, unknown>;
@@ -144,10 +149,36 @@ export interface AuthUserSummary {
 const AUTH_PAGE_SIZE = 1000;
 const AUTH_MAX_PAGES = 50;
 
+/**
+ * Tüm auth listesini kısa süreliğine tutan önbellek.
+ *
+ * Panelin neredeyse her ucu (genel bakış, kullanıcılar, şirketler, geri
+ * bildirim, CSV, global arama) bu listeye ihtiyaç duyuyor; üstelik üst
+ * çubuktaki arama her tuş vuruşunda tetikleniyordu. TTL bilerek kısa: bu
+ * yalnızca okuma önbelleği, panelden yapılan her auth mutasyonu
+ * `bustAuthCache()` ile anında düşürüyor.
+ *
+ * Serverless'ta önbellek instance başınadır — garanti değil, sadece aynı
+ * instance'a düşen ardışık istekleri ucuzlatır.
+ */
+const AUTH_CACHE_TTL_MS = 30_000;
+let authCache: { at: number; users: Map<string, AuthUserSummary> } | null = null;
+
+/** Auth önbelleğini düşürür — ban/silme/rol gibi her mutasyondan sonra çağrılır. */
+export function bustAuthCache(): void {
+  authCache = null;
+}
+
 export async function listAllAuthUsers(
   db: AdminContext["db"],
 ): Promise<Map<string, AuthUserSummary>> {
+  if (authCache && Date.now() - authCache.at < AUTH_CACHE_TTL_MS) {
+    return authCache.users;
+  }
+
   const map = new Map<string, AuthUserSummary>();
+  // Sayfalama yarıda kesilirse liste eksiktir — eksik listeyi önbelleğe almayız.
+  let complete = false;
 
   for (let page = 1; page <= AUTH_MAX_PAGES; page++) {
     const { data, error } = await db.auth.admin.listUsers({ page, perPage: AUTH_PAGE_SIZE });
@@ -177,8 +208,13 @@ export async function listAllAuthUsers(
         provider: row.app_metadata?.provider ?? "email",
       });
     }
-    if (users.length < AUTH_PAGE_SIZE) break;
+    if (users.length < AUTH_PAGE_SIZE) {
+      complete = true;
+      break;
+    }
   }
+
+  if (complete) authCache = { at: Date.now(), users: map };
 
   return map;
 }

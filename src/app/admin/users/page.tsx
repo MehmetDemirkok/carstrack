@@ -31,7 +31,6 @@ import {
   formatNumber,
   formatRelative,
   initials,
-  PLAN_LABELS,
   ROLE_CLASSES,
   ROLE_LABELS,
 } from "@/lib/admin/format";
@@ -233,9 +232,6 @@ export default function AdminUsersPage() {
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
-                        <span className="block text-xs text-muted-foreground">
-                          {PLAN_LABELS[u.companyPlan]}
-                        </span>
                       </td>
                       <td className="px-3 py-2">
                         <Pill className={ROLE_CLASSES[u.role]}>{ROLE_LABELS[u.role]}</Pill>

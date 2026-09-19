@@ -5,7 +5,7 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { withAdmin, intParam, isBanned, listAllAuthUsers } from "@/lib/admin/api";
 import type { AdminUserListResponse, AdminUserRow } from "@/lib/admin/types";
-import type { PlanType, UserRole } from "@/lib/types";
+import type { UserRole } from "@/lib/types";
 import { isDriverRole } from "@/lib/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -32,7 +32,7 @@ export const GET = withAdmin(async (req, { db }) => {
 
   const [profilesRes, companiesRes, assignmentsRes, tasksRes, authUsers] = await Promise.all([
     db.from("profiles").select("id, company_id, full_name, role, department, created_at, notify_by_email"),
-    db.from("companies").select("id, name, plan"),
+    db.from("companies").select("id, name"),
     db.from("vehicle_assignments").select("driver_id"),
     db.from("vehicle_tasks").select("driver_id"),
     listAllAuthUsers(db),
@@ -43,7 +43,7 @@ export const GET = withAdmin(async (req, { db }) => {
   const companies = new Map(
     (companiesRes.data ?? []).map((c) => [
       c.id as string,
-      { name: (c.name as string) || "İsimsiz Şirket", plan: ((c.plan as PlanType) || "free") as PlanType },
+      { name: (c.name as string) || "İsimsiz Şirket" },
     ]),
   );
 
@@ -69,7 +69,6 @@ export const GET = withAdmin(async (req, { db }) => {
       department: (p.department as string) || "",
       companyId: (p.company_id as string) ?? null,
       companyName: company?.name ?? "—",
-      companyPlan: company?.plan ?? "free",
       createdAt: p.created_at as string,
       lastSignInAt: au?.lastSignInAt ?? null,
       emailConfirmed: Boolean(au?.emailConfirmedAt),

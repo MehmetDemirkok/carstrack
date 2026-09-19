@@ -2,10 +2,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { withAdmin, getAuthUser, isBanned, logAdminAction, uniqueIds } from "@/lib/admin/api";
+import { bustAuthCache, withAdmin, getAuthUser, isBanned, logAdminAction, uniqueIds } from "@/lib/admin/api";
 import { isAdminEmail } from "@/lib/admin/auth";
 import type { AdminUserDetail } from "@/lib/admin/types";
-import type { PlanType, UserRole } from "@/lib/types";
+import type { UserRole } from "@/lib/types";
 
 const VALID_ROLES: UserRole[] = ["manager", "operator", "user", "sofor"];
 
@@ -33,7 +33,7 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
   const [companyRes, assignmentsRes, auditRes, taskCountRes, fuelCountRes, reportCountRes, feedbackCountRes, kmLogCountRes] =
     await Promise.all([
       companyId
-        ? db.from("companies").select("id, name, plan").eq("id", companyId).maybeSingle()
+        ? db.from("companies").select("id, name").eq("id", companyId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
       db.from("vehicle_assignments").select("vehicle_id").eq("driver_id", userId),
       db
@@ -54,7 +54,7 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
     ? await db.from("vehicles").select("id, plate, brand, model").in("id", vehicleIds)
     : { data: [], error: null };
 
-  const company = companyRes.data as { id: string; name: string; plan: string } | null;
+  const company = companyRes.data as { id: string; name: string } | null;
 
   const detail: AdminUserDetail = {
     id: userId,
@@ -64,7 +64,6 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
     department: (profile?.department as string) || "",
     companyId,
     companyName: company?.name || "—",
-    companyPlan: ((company?.plan as PlanType) || "free") as PlanType,
     createdAt: (profile?.created_at as string) ?? authUser?.createdAt ?? new Date().toISOString(),
     lastSignInAt: authUser?.lastSignInAt ?? null,
     emailConfirmed: Boolean(authUser?.emailConfirmedAt),
@@ -177,6 +176,7 @@ export const PATCH = withAdmin<{ id: string }>(async (req, ctx) => {
       ban_duration: body.banned ? "876000h" : "none",
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    bustAuthCache();
 
     await logAdminAction(ctx, {
       action: body.banned ? "user_banned" : "user_unbanned",
@@ -189,6 +189,7 @@ export const PATCH = withAdmin<{ id: string }>(async (req, ctx) => {
   if (body.confirmEmail === true) {
     const { error } = await db.auth.admin.updateUserById(userId, { email_confirm: true });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    bustAuthCache();
 
     await logAdminAction(ctx, {
       action: "user_email_confirmed",
@@ -240,6 +241,7 @@ export const DELETE = withAdmin<{ id: string }>(async (_req, ctx) => {
 
   const { error } = await db.auth.admin.deleteUser(userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  bustAuthCache();
 
   await logAdminAction(ctx, {
     action: "user_deleted",

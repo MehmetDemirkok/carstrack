@@ -32,7 +32,6 @@ import {
   formatDate,
   formatNumber,
   formatRelative,
-  PLAN_LABELS,
   ROLE_CLASSES,
   ROLE_LABELS,
 } from "@/lib/admin/format";
@@ -59,10 +58,9 @@ export default function AdminOverviewPage() {
   if (error) return <ErrorState message={error} onRetry={reload} />;
   if (loading || !data) return <LoadingRows rows={10} />;
 
-  const { totals, growth, engagement, series, funnel, attention } = data;
+  const { totals, activity7d, growth, engagement, series, funnel, cohorts, attention } = data;
   const chartSeries = series.map((p) => ({ date: p.date, value: p[seriesKey] }));
   const funnelMax = funnel[0]?.count ?? 1;
-  const planMax = Math.max(1, ...data.planBreakdown.map((p) => p.count));
   const roleMax = Math.max(1, ...data.roleBreakdown.map((r) => r.count));
 
   return (
@@ -127,11 +125,11 @@ export default function AdminOverviewPage() {
         />
       </div>
 
-      {/* ── İkincil sayaçlar ── */}
+      {/* ── Son 7 günde üretilen içerik ── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Servis kaydı" value={totals.serviceRecords} icon={Wrench} />
-        <StatCard label="Görev" value={totals.tasks} icon={ClipboardList} />
-        <StatCard label="Yakıt kaydı" value={totals.fuelRecords} icon={Fuel} />
+        <StatCard label="Servis kaydı" value={activity7d.serviceRecords} icon={Wrench} sublabel="son 7 gün" />
+        <StatCard label="Görev" value={activity7d.tasks} icon={ClipboardList} sublabel="son 7 gün" />
+        <StatCard label="Yakıt kaydı" value={activity7d.fuelRecords} icon={Fuel} sublabel="son 7 gün" />
         <StatCard
           label="Açık geri bildirim"
           value={attention.openFeedback}
@@ -175,9 +173,47 @@ export default function AdminOverviewPage() {
         </div>
       </Panel>
 
+      {/* ── Kohort / tutundurma ── */}
+      <Panel>
+        <PanelHeader
+          title="Haftalık kohortlar"
+          description="Kaydolan şirketlerin kaçı araç ekledi ve kaçı bir hafta sonra geri döndü"
+        />
+        {cohorts.length === 0 ? (
+          <EmptyState title="Son 8 haftada kayıt yok" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/60 text-left">
+                  <CohortTh>Hafta</CohortTh>
+                  <CohortTh className="text-right">Kaydolan</CohortTh>
+                  <CohortTh className="text-right">Araç ekledi</CohortTh>
+                  <CohortTh className="text-right">7+ gün sonra döndü</CohortTh>
+                </tr>
+              </thead>
+              <tbody>
+                {cohorts.map((c) => (
+                  <tr key={c.weekStart} className="border-b border-border/40 last:border-0">
+                    <td className="px-3 py-2 font-mono text-xs">{formatDate(c.weekStart)}</td>
+                    <td className="px-3 py-2 text-right font-mono tabular-nums">{c.signedUp}</td>
+                    <td className="px-3 py-2 text-right">
+                      <CohortCell value={c.activated} total={c.signedUp} />
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <CohortCell value={c.retained} total={c.signedUp} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
       {/* ── Huni + kırılımlar ── */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Panel className="lg:col-span-1">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel>
           <PanelHeader title="Aktivasyon hunisi" description="Şirketlerin kaç adımı tamamladığı" />
           <div className="space-y-3 p-4">
             {funnel.map((step, i) => (
@@ -190,19 +226,6 @@ export default function AdminOverviewPage() {
                 tone={i === funnel.length - 1 ? "mint" : "primary"}
               />
             ))}
-          </div>
-        </Panel>
-
-        <Panel>
-          <PanelHeader title="Plan dağılımı" description="Şirketlerin abonelik planları" />
-          <div className="space-y-3 p-4">
-            {data.planBreakdown.length === 0 ? (
-              <EmptyState title="Veri yok" />
-            ) : (
-              data.planBreakdown.map((p) => (
-                <BarRow key={p.plan} label={PLAN_LABELS[p.plan] ?? p.plan} value={p.count} max={planMax} />
-              ))
-            )}
           </div>
         </Panel>
 
@@ -288,7 +311,7 @@ export default function AdminOverviewPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{c.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {PLAN_LABELS[c.plan]} · {c.userCount} kullanıcı
+                        {c.userCount} kullanıcı
                       </p>
                     </div>
                     <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
@@ -395,5 +418,32 @@ function Metric({ label, value }: { label: string; value: number }) {
       <p className="font-heading text-lg font-semibold tabular-nums">{formatNumber(value)}</p>
       <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
     </div>
+  );
+}
+
+function CohortTh({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th
+      className={`px-3 py-2 font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+/** Sayı + oran — kohort küçükken oran yanıltıcı olmasın diye ikisi birlikte. */
+function CohortCell({ value, total }: { value: number; total: number }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      <span className="font-mono tabular-nums">{value}</span>
+      <span
+        className={`font-mono text-[10px] ${
+          pct >= 60 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
+        }`}
+      >
+        %{pct}
+      </span>
+    </span>
   );
 }

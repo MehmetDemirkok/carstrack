@@ -5,6 +5,7 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendNotificationEmail } from "@/lib/email/sendEmail";
+import { withCronLogging } from "@/lib/cron/record";
 
 /**
  * AKTİVASYON HATIRLATICISI
@@ -65,7 +66,7 @@ function hasAlertableDate(v: VehicleRow): boolean {
   return Boolean(v.insurance_expiry || v.kasko_expiry || v.inspection_expiry || v.last_service_date);
 }
 
-export async function GET(req: Request) {
+async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -278,3 +279,6 @@ export async function GET(req: Request) {
   console.info(`[cron/activation-nudge] aday=${candidates.length} gönderildi=${sent} hata=${failed}`);
   return NextResponse.json({ ok: true, checked: companies.length, candidates: candidates.length, sent, failed });
 }
+
+/** Her çalışma `cron_runs`'a yazılır — bkz. lib/cron/record.ts. */
+export const GET = withCronLogging("activation-nudge", handler);

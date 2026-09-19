@@ -33,10 +33,10 @@ import {
   formatDateTime,
   formatRelative,
   initials,
-  PLAN_LABELS,
   ROLE_CLASSES,
   ROLE_LABELS,
 } from "@/lib/admin/format";
+import { AdminNotes } from "@/components/admin/admin-notes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -194,7 +194,6 @@ export default function AdminUserDetailPage() {
                 )
               }
             />
-            <Meta label="Plan" value={PLAN_LABELS[data.companyPlan]} />
           </dl>
         </div>
       </Panel>
@@ -376,6 +375,8 @@ export default function AdminUserDetailPage() {
           )}
         </Panel>
       </div>
+
+      <AdminNotes targetType="user" targetId={data.id} targetLabel={data.fullName} />
 
       <ConfirmDialog
         open={deleteOpen}

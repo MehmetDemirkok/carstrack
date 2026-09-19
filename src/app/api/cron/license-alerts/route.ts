@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchToUser, dispatchToManagers } from "@/lib/notify";
 import { getFlaggedEntries, daysUntilDate } from "@/lib/license";
 import type { DriverLicenseEntry } from "@/lib/types";
+import { withCronLogging } from "@/lib/cron/record";
 
 // Kritik (süresi dolmuş) uyarılar 3, uyarı (yaklaşan) uyarılar 7 günde bir
 // yeniden gönderilir — fleet-alerts cron'undaki SUPPRESSION_DAYS ile aynı mantık.
@@ -48,7 +49,7 @@ async function isSuppressed(
   return daysSince < SUPPRESSION_DAYS[severity];
 }
 
-export async function GET(req: Request) {
+async function handler(req: Request): Promise<Response> {
   // ── Authorization ────────────────────────────────────────────
   const authHeader = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -173,3 +174,6 @@ export async function GET(req: Request) {
     managerNotified,
   });
 }
+
+/** Her çalışma `cron_runs`'a yazılır — bkz. lib/cron/record.ts. */
+export const GET = withCronLogging("license-alerts", handler);

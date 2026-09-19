@@ -21,7 +21,7 @@ export const GET = withAdmin(async (req, { db }) => {
 
   const [profilesRes, companiesRes, vehiclesRes, authUsers] = await Promise.all([
     db.from("profiles").select("id, company_id, full_name, role").ilike("full_name", `%${q}%`).limit(LIMIT),
-    db.from("companies").select("id, name, plan").ilike("name", `%${q}%`).limit(LIMIT),
+    db.from("companies").select("id, name").ilike("name", `%${q}%`).limit(LIMIT),
     db.from("vehicles").select("id, company_id, plate, brand, model").ilike("plate", `%${q}%`).limit(LIMIT),
     listAllAuthUsers(db),
   ]);
@@ -67,7 +67,6 @@ export const GET = withAdmin(async (req, { db }) => {
     companies: (companiesRes.data ?? []).map((c) => ({
       id: c.id as string,
       name: (c.name as string) || "İsimsiz Şirket",
-      plan: c.plan as string,
     })),
     vehicles: (vehiclesRes.data ?? []).map((v) => ({
       id: v.id as string,

@@ -3,11 +3,12 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { withCronLogging } from "@/lib/cron/record";
 
 // Supabase free tier projeyi ~7 gün hareketsizlikte askıya alır. Bu uç nokta
 // 2 günde bir (Vercel cron) çağrılır: bir satır ekler ve eskileri siler, böylece
 // her çalışmada garanti bir yazma işlemi olur ve proje aktif kalır.
-export async function GET(req: Request) {
+async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,3 +40,6 @@ export async function GET(req: Request) {
   console.log(`[cron/keepalive] ok — pinged_at:${now.toISOString()}`);
   return NextResponse.json({ ok: true, pingedAt: now.toISOString() });
 }
+
+/** Her çalışma `cron_runs`'a yazılır — bkz. lib/cron/record.ts. */
+export const GET = withCronLogging("keepalive", handler);

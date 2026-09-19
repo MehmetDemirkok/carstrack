@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
   Building2,
+  Car,
+  MailPlus,
   ExternalLink,
   LayoutDashboard,
   Mail,
@@ -26,6 +28,8 @@ const NAV = [
   { href: "/admin", label: "Genel Bakış", icon: LayoutDashboard, exact: true },
   { href: "/admin/users", label: "Kullanıcılar", icon: Users },
   { href: "/admin/companies", label: "Şirketler", icon: Building2 },
+  { href: "/admin/vehicles", label: "Araçlar", icon: Car },
+  { href: "/admin/invites", label: "Davetler", icon: MailPlus },
   { href: "/admin/email", label: "E-posta & Duyuru", icon: Mail },
   { href: "/admin/feedback", label: "Geri Bildirim", icon: MessageSquareText },
   { href: "/admin/activity", label: "Etkinlik", icon: Activity },
@@ -162,7 +166,7 @@ export function AdminShell({
 
 interface SearchResults {
   users: { id: string; fullName: string; email: string; role: string; companyName: string }[];
-  companies: { id: string; name: string; plan: string }[];
+  companies: { id: string; name: string }[];
   vehicles: { id: string; plate: string; label: string; companyId: string; companyName: string }[];
 }
 
@@ -249,7 +253,7 @@ function GlobalSearch() {
                     key={c.id}
                     onClick={() => go(`/admin/companies/${c.id}`)}
                     title={c.name}
-                    subtitle={`Plan: ${c.plan}`}
+                    subtitle="Şirket"
                   />
                 ))}
               </ResultGroup>
@@ -257,7 +261,7 @@ function GlobalSearch() {
                 {results.vehicles.map((v) => (
                   <ResultItem
                     key={v.id}
-                    onClick={() => go(`/admin/companies/${v.companyId}`)}
+                    onClick={() => go(`/admin/vehicles/${v.id}`)}
                     title={v.plate}
                     subtitle={`${v.label} · ${v.companyName}`}
                   />

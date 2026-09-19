@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Car, Loader2, Mail, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminCompanyDetail } from "@/lib/admin/types";
-import type { PlanType } from "@/lib/types";
 import {
   ConfirmDialog,
   ErrorState,
@@ -22,14 +21,13 @@ import {
   formatRelative,
   HEALTH_CLASSES,
   HEALTH_LABELS,
-  PLAN_LABELS,
   ROLE_CLASSES,
   ROLE_LABELS,
 } from "@/lib/admin/format";
+import { AdminNotes } from "@/components/admin/admin-notes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const PLAN_OPTIONS: PlanType[] = ["free", "pro", "fleet"];
 
 export default function AdminCompanyDetailPage() {
   const params = useParams<{ id: string }>();
@@ -41,7 +39,6 @@ export default function AdminCompanyDetailPage() {
   );
 
   const [name, setName] = React.useState("");
-  const [plan, setPlan] = React.useState<PlanType>("free");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [busy, setBusy] = React.useState<string | null>(null);
@@ -52,7 +49,6 @@ export default function AdminCompanyDetailPage() {
     if (!data) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setName(data.name);
-    setPlan(data.plan);
     setEmail(data.email ?? "");
     setPhone(data.phone ?? "");
   }, [data]);
@@ -63,7 +59,7 @@ export default function AdminCompanyDetailPage() {
       const res = await fetch(`/api/admin/companies/${companyId}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, plan, email, phone }),
+        body: JSON.stringify({ name, email, phone }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Kaydedilemedi");
@@ -96,7 +92,6 @@ export default function AdminCompanyDetailPage() {
 
   const dirty =
     name !== data.name ||
-    plan !== data.plan ||
     email !== (data.email ?? "") ||
     phone !== (data.phone ?? "");
 
@@ -119,7 +114,6 @@ export default function AdminCompanyDetailPage() {
             </p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               <Pill className={HEALTH_CLASSES[data.health]}>{HEALTH_LABELS[data.health]}</Pill>
-              <Pill className="bg-muted text-muted-foreground ring-border">{PLAN_LABELS[data.plan]}</Pill>
               {data.inviteCode ? (
                 <Pill className="bg-muted text-muted-foreground ring-border">
                   Davet kodu: {data.inviteCode}
@@ -167,23 +161,10 @@ export default function AdminCompanyDetailPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {/* ── Düzenleme ── */}
         <Panel>
-          <PanelHeader title="Şirket bilgileri" description="Ad, plan ve iletişim" />
+          <PanelHeader title="Şirket bilgileri" description="Ad ve iletişim" />
           <div className="space-y-3 p-4">
             <Field label="Şirket adı">
               <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </Field>
-            <Field label="Plan">
-              <select
-                value={plan}
-                onChange={(e) => setPlan(e.target.value as PlanType)}
-                className="h-8 w-full rounded-lg border border-border/60 bg-background px-2 text-sm outline-none focus:border-ring"
-              >
-                {PLAN_OPTIONS.map((p) => (
-                  <option key={p} value={p}>
-                    {PLAN_LABELS[p]}
-                  </option>
-                ))}
-              </select>
             </Field>
             <Field label="İletişim e-postası">
               <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="—" />
@@ -259,6 +240,8 @@ export default function AdminCompanyDetailPage() {
           </ul>
         )}
       </Panel>
+
+      <AdminNotes targetType="company" targetId={data.id} targetLabel={data.name} />
 
       <ConfirmDialog
         open={deleteOpen}

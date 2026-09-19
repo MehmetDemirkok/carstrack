@@ -3,12 +3,19 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
-import { withAdmin, daysAgoIso, listAllAuthUsers, logAdminAction } from "@/lib/admin/api";
+import {
+  bustAuthCache,
+  daysAgoIso,
+  getAuthUser,
+  listAllAuthUsers,
+  logAdminAction,
+  withAdmin,
+} from "@/lib/admin/api";
+import { isAdminEmail } from "@/lib/admin/auth";
 import type { AdminCompanyDetail, AdminCompanyHealth } from "@/lib/admin/types";
-import type { PlanType, UserRole } from "@/lib/types";
+import type { UserRole } from "@/lib/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const VALID_PLANS: PlanType[] = ["free", "pro", "fleet"];
 
 /** Tek şirketin tam dökümü: bilgiler, ekip, araçlar ve içerik sayaçları. */
 export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
@@ -95,7 +102,6 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
   const detail: AdminCompanyDetail = {
     id: companyId,
     name: (company.name as string) || "İsimsiz Şirket",
-    plan: ((company.plan as PlanType) || "free") as PlanType,
     createdAt,
     timezone: (company.timezone as string) ?? null,
     email: (company.email as string) ?? null,
@@ -134,11 +140,10 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
   return NextResponse.json(detail);
 });
 
-/** Şirket güncelleme: plan, ad, saat dilimi ve iletişim bilgileri. */
+/** Şirket güncelleme: ad, saat dilimi ve iletişim bilgileri. */
 export const PATCH = withAdmin<{ id: string }>(async (req, ctx) => {
   const { db, params } = ctx;
   const body = (await req.json()) as {
-    plan?: PlanType;
     name?: string;
     timezone?: string;
     email?: string;
@@ -146,12 +151,6 @@ export const PATCH = withAdmin<{ id: string }>(async (req, ctx) => {
   };
 
   const patch: Record<string, unknown> = {};
-  if (body.plan !== undefined) {
-    if (!VALID_PLANS.includes(body.plan)) {
-      return NextResponse.json({ error: "Geçersiz plan" }, { status: 400 });
-    }
-    patch.plan = body.plan;
-  }
   if (body.name !== undefined) {
     const name = body.name.trim();
     if (!name) return NextResponse.json({ error: "Şirket adı boş olamaz" }, { status: 400 });
@@ -175,7 +174,7 @@ export const PATCH = withAdmin<{ id: string }>(async (req, ctx) => {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   await logAdminAction(ctx, {
-    action: body.plan !== undefined ? "company_plan_changed" : "company_updated",
+    action: "company_updated",
     targetType: "company",
     targetId: params.id,
     targetLabel: (data?.name as string) ?? params.id,
@@ -192,6 +191,13 @@ export const PATCH = withAdmin<{ id: string }>(async (req, ctx) => {
  * cascade ile götürür), sonra şirket satırı silinir — bu da araç/servis/görev
  * gibi company_id FK'li tüm tabloları cascade ile temizler. Ters sırada
  * yapılırsa şirketsiz kalan auth kullanıcıları ortada kalır.
+ *
+ * İki koruma var:
+ *  1. Şirkette süper admin hesabı varsa işlem hiç başlamaz — aksi halde
+ *     kendi hesabını silip panele erişimini kaybedebilirsin.
+ *  2. Üyelerden biri silinemezse şirket satırına DOKUNULMAZ. Yarım kalan
+ *     silme, profili cascade ile gitmiş ama auth kaydı duran "yetim"
+ *     kullanıcılar bırakırdı.
  */
 export const DELETE = withAdmin<{ id: string }>(async (_req, ctx) => {
   const { db, params } = ctx;
@@ -207,10 +213,47 @@ export const DELETE = withAdmin<{ id: string }>(async (_req, ctx) => {
   const { data: members } = await db.from("profiles").select("id").eq("company_id", params.id);
   const memberIds = (members ?? []).map((m) => m.id as string);
 
+  // ── Koruma 1: süper admin bu şirkette mi? ────────────────────────────────
+  const memberAuth = await Promise.all(memberIds.map((id) => getAuthUser(db, id)));
+  const adminMember = memberAuth.find((u) => isAdminEmail(u?.email));
+  if (adminMember) {
+    return NextResponse.json(
+      {
+        error:
+          `Bu şirkette süper admin hesabı var (${adminMember.email}) — ` +
+          "silinirse panele erişimini kaybedersin. Önce o hesabı başka bir şirkete taşı.",
+      },
+      { status: 400 },
+    );
+  }
+
+  // ── Koruma 2: üyelerin hepsi silinemezse şirkete dokunma ─────────────────
   const failures: string[] = [];
   for (const id of memberIds) {
     const { error } = await db.auth.admin.deleteUser(id);
     if (error) failures.push(`${id}: ${error.message}`);
+  }
+  bustAuthCache();
+
+  if (failures.length > 0) {
+    await logAdminAction(ctx, {
+      action: "company_deleted",
+      targetType: "company",
+      targetId: params.id,
+      targetLabel: (company.name as string) ?? params.id,
+      meta: { outcome: "aborted", memberCount: memberIds.length, failures },
+    });
+
+    return NextResponse.json(
+      {
+        error:
+          `${failures.length} üye silinemedi, şirket silinmedi. ` +
+          "Tekrar dene; sorun sürerse önce o kullanıcıları tek tek sil.",
+        failures,
+        deletedUsers: memberIds.length - failures.length,
+      },
+      { status: 409 },
+    );
   }
 
   const { error } = await db.from("companies").delete().eq("id", params.id);
@@ -221,8 +264,8 @@ export const DELETE = withAdmin<{ id: string }>(async (_req, ctx) => {
     targetType: "company",
     targetId: params.id,
     targetLabel: (company.name as string) ?? params.id,
-    meta: { deletedUsers: memberIds.length, failures },
+    meta: { outcome: "deleted", deletedUsers: memberIds.length },
   });
 
-  return NextResponse.json({ ok: true, deletedUsers: memberIds.length, failures });
+  return NextResponse.json({ ok: true, deletedUsers: memberIds.length, failures: [] });
 });

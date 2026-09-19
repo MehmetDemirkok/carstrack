@@ -49,9 +49,21 @@ function adminEmails(): string[] {
 
 // Next.js 16 proxy (replaces middleware.ts).
 //
-// PERFORMANCE: getSession() is local (cookie JWT). We never read session.user —
-// only access_token → decode `sub` — so the insecure-user warning stays silent.
-// getUser()/getClaims() with HS256 would add ~400–500ms per request.
+// PERFORMANCE: getSession() reads the cookie JWT locally and only goes to the
+// network when the access token is within the expiry margin — then it refreshes
+// and writes the rotated cookies, which is what keeps Server Component sessions
+// alive. We never read session.user — only access_token → decode `sub` — so the
+// insecure-user warning stays silent. getUser()/getClaims() with HS256 would add
+// ~400–500ms to EVERY request.
+//
+// BAYAT ÇEREZ: o refresh çağrısı başarısız olursa (kullanıcı başka yerde çıkış
+// yapmış, oturum iptal edilmiş veya paralel istekler token rotasyonunda
+// yarışmış) `@supabase/auth-js` hatayı DÖNDÜRMEDEN ÖNCE kendi içinde
+// `console.error` ile basar — sunucu logundaki "Invalid Refresh Token" satırı
+// odur, bizim kodumuzdan gelmez ve bastırılamaz. Hata aşağıda `staleSession`
+// olarak yakalanır: sb- çerezleri silinir, korumalı sayfa /login'e döner,
+// public sayfa normal render edilir. Çerez temizlendiği için satır kendini
+// tekrarlamaz; sürekli tekrarlıyorsa sebep token rotasyonu yarışıdır.
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 

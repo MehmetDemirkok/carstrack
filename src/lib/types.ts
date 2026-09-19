@@ -1,5 +1,4 @@
 export type UserRole = "manager" | "operator" | "user" | "sofor";
-export type PlanType = "free" | "pro" | "fleet";
 
 /** "user" (Kullanıcı) ve "sofor" (Şoför) yetki bakımından birebir aynıdır — yalnızca ekip listesinde ayrı etiketle gösterilirler. */
 export function isDriverRole(role?: UserRole | string | null): boolean {
@@ -11,7 +10,6 @@ export interface Company {
   name: string;
   createdAt: string;
   inviteCode?: string;
-  plan: PlanType;
   /** IANA saat dilimi — günlük filo özeti bu dilimde yerel 09:00'da gider. */
   timezone?: string;
   /** Yakıt anomali tespiti eşik yüzdesi — bkz. src/lib/fuel.ts. Varsayılan 15. */

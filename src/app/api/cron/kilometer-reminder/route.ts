@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchToUser } from "@/lib/notify";
 import { getAppUrl } from "@/lib/email/emailTypes";
+import { withCronLogging } from "@/lib/cron/record";
 
 /** Token geçerlilik süresi: 7 gün (bir sonraki hatırlatmaya kadar). */
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -32,7 +33,7 @@ function createSecureToken(): string {
  * Vercel cron UTC kullanır: 10:00 TR = 07:00 UTC → `0 7 * * 1,5`
  * (1 = Pazartesi, 5 = Cuma)
  */
-export async function GET(req: Request) {
+async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -180,3 +181,6 @@ export async function GET(req: Request) {
     total: results.length,
   });
 }
+
+/** Her çalışma `cron_runs`'a yazılır — bkz. lib/cron/record.ts. */
+export const GET = withCronLogging("kilometer-reminder", handler);

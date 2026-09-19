@@ -25,16 +25,16 @@ export const CRON_JOBS = [
     description: "Hiç araç eklememiş hesaplara e-posta atar. Salı/Cuma 11:00 (TR).",
   },
   {
-    path: "/api/cron/weekly-admin-report",
-    schedule: "0 6 * * 5",
-    label: "Haftalık admin raporu",
-    description: "Tüm şirketleri kapsayan aktivite özetini sana yollar. Cuma 09:00 (TR).",
-  },
-  {
     path: "/api/cron/db-backup",
     schedule: "0 3 * * 1",
     label: "Veritabanı yedeği",
     description: "Tüm tabloları gzip'leyip Storage'a yazar. Pazartesi 06:00 (TR).",
+  },
+  {
+    path: "/api/cron/email-queue-drain",
+    schedule: "*/5 * * * *",
+    label: "Duyuru kuyruğu",
+    description: "Kuyruktaki toplu duyuruları parça parça gönderir. 5 dakikada bir.",
   },
   {
     path: "/api/cron/keepalive",

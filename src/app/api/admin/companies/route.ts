@@ -9,7 +9,6 @@ import type {
   AdminCompanyListResponse,
   AdminCompanyRow,
 } from "@/lib/admin/types";
-import type { PlanType } from "@/lib/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,7 +25,6 @@ export const GET = withAdmin(async (req, { db }) => {
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const healthFilter = url.searchParams.get("health") ?? "all";
-  const planFilter = url.searchParams.get("plan") ?? "all";
   const sort = url.searchParams.get("sort") ?? "created";
   const dir = url.searchParams.get("dir") === "asc" ? "asc" : "desc";
 
@@ -36,7 +34,7 @@ export const GET = withAdmin(async (req, { db }) => {
 
   const [companiesRes, profilesRes, vehiclesRes, svcRes, taskRes, fuelRes, fineRes, authUsers] =
     await Promise.all([
-      db.from("companies").select("id, name, plan, created_at, timezone, email, phone"),
+      db.from("companies").select("id, name, created_at, timezone, email, phone"),
       db.from("profiles").select("id, company_id, full_name, role, created_at"),
       db.from("vehicles").select("id, company_id, created_at"),
       db.from("service_records").select("company_id").gte("created_at", since30),
@@ -111,7 +109,6 @@ export const GET = withAdmin(async (req, { db }) => {
     return {
       id,
       name: (c.name as string) || "İsimsiz Şirket",
-      plan: ((c.plan as PlanType) || "free") as PlanType,
       createdAt,
       timezone: (c.timezone as string) ?? null,
       email: (c.email as string) ?? null,
@@ -144,7 +141,6 @@ export const GET = withAdmin(async (req, { db }) => {
     );
   }
   if (healthFilter !== "all") rows = rows.filter((c) => c.health === healthFilter);
-  if (planFilter !== "all") rows = rows.filter((c) => c.plan === planFilter);
 
   const factor = dir === "asc" ? 1 : -1;
   rows = rows.slice().sort((a, b) => {
