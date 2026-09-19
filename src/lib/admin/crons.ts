@@ -32,9 +32,10 @@ export const CRON_JOBS = [
   },
   {
     path: "/api/cron/email-queue-drain",
-    schedule: "*/5 * * * *",
+    schedule: "15 6 * * *",
     label: "Duyuru kuyruğu",
-    description: "Kuyruktaki toplu duyuruları parça parça gönderir. 5 dakikada bir.",
+    description:
+      "Toplu duyuru kuyruğunu gönderir. Gönderim kendini zincirler; bu çalışma emniyet ağıdır (09:15 TR).",
   },
   {
     path: "/api/cron/keepalive",

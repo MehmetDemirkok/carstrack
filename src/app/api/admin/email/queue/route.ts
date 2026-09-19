@@ -2,8 +2,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { withAdmin, logAdminAction } from "@/lib/admin/api";
+import { kickEmailQueueDrain } from "@/lib/admin/queue";
 import { resolveRecipients, SEGMENT_LABELS } from "@/lib/admin/recipients";
 import type { AdminEmailSegment, AdminEmailQueueRow } from "@/lib/admin/types";
 
@@ -142,6 +143,13 @@ export const POST = withAdmin(async (req, ctx) => {
       scheduledAt: scheduledAt.toISOString(),
     },
   });
+
+  // Hemen gönderilecekse kuyruğu şimdi başlat: Hobby planında cron günde bir kez
+  // çalışıyor, dolayısıyla gönderimi başlatan bu tetikleme. İleri tarihli duyuruyu
+  // günlük cron alır.
+  if (scheduledAt.getTime() <= Date.now()) {
+    after(() => kickEmailQueueDrain());
+  }
 
   return NextResponse.json({
     ok: true,

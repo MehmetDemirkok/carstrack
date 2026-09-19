@@ -130,11 +130,22 @@ Bu süre tek fonksiyon çağrısına sığmadığı için gönderimin iki yolu v
    kendi satırını yazar. Tarayıcının açık kalması gerekir.
 
 2. **Kuyruk** (`/api/admin/email/queue`) — duyuru `admin_email_queue`'ya
-   yazılır, `email-queue-drain` cron'u (5 dakikada bir) parça parça boşaltır.
-   Tarayıcı kapatılabilir, `scheduled_at` ile ileri bir saate bırakılabilir.
-   Alıcı listesi kuyruğa alınırken çözülüp satıra yazılır: segment sonradan
-   değişse bile duyuru kime söz verildiyse ona gider. Gönderilen alıcılar
-   `pending_ids`'ten düşüldüğü için kimse iki kez almaz.
+   yazılır, `email-queue-drain` parça parça boşaltır. Tarayıcı kapatılabilir,
+   `scheduled_at` ile ileri bir saate bırakılabilir. Alıcı listesi kuyruğa
+   alınırken çözülüp satıra yazılır: segment sonradan değişse bile duyuru kime
+   söz verildiyse ona gider. Gönderilen alıcılar `pending_ids`'ten düşüldüğü
+   için kimse iki kez almaz.
+
+   **Kuyruğu kim sürdürüyor:** Vercel Hobby planı cron'ları günde en fazla bir
+   kez çalıştırıyor, bu yüzden gönderim cron'a bırakılamaz. Duyuru sıraya
+   girdiğinde route `kickEmailQueueDrain()` ile ilk çalışmayı başlatır; her
+   çalışma ~40 sn gönderip iş kalmışsa bir sonrakini tetikler (en fazla 40
+   halka ≈ 30 dk). `vercel.json`'daki günlük çalışma (09:15 TR) emniyet ağıdır:
+   zincir koparsa veya ileri tarihli bir duyuru varsa onu alır; `/admin/system`
+   üzerinden elle de tetiklenebilir. Zincir halkaları `cron_runs`'a yazılmaz —
+   kayda giren, işi başlatan çalışmadır. Aynı iş üzerinde iki çalışma
+   çakışmasın diye satır `started_at` damgasıyla kilitlenir (3 dk'lık lease);
+   kilit pasın sonunda bırakılır, bu yüzden kimse iki kez e-posta almaz.
 
 Gövde **düz metindir**: boş satır paragraf ayırır, `- ` ile başlayan satır
 madde olur. HTML bilinçli olarak kabul edilmez.

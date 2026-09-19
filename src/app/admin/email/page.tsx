@@ -109,8 +109,9 @@ const QUEUE_STATUS: Record<AdminEmailQueueRow["status"], { label: string; cls: s
 /**
  * Kuyruğa alınmış duyurular.
  *
- * Gönderimi `email-queue-drain` cron'u sürdürür (5 dakikada bir), bu yüzden
- * burada görülen ilerleme sayfayı yenileyince artar.
+ * Gönderimi `email-queue-drain` sürdürür: kuyruğa alınır alınmaz başlar ve iş
+ * bitene kadar kendini zincirleyerek tetikler. Burada görülen ilerleme sayfayı
+ * yenileyince artar.
  */
 function EmailQueue() {
   const [nonce, setNonce] = React.useState(0);
@@ -345,7 +346,7 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
 
   /**
    * Duyuruyu kuyruğa alır. Doğrudan gönderimden farkı: tarayıcı kapanabilir,
-   * gönderimi `email-queue-drain` cron'u sürdürür ve ileri bir saate bırakılabilir.
+   * gönderimi `email-queue-drain` arka planda sürdürür ve ileri bir saate bırakılabilir.
    */
   async function enqueue() {
     setBusy("queue");
@@ -716,7 +717,7 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
                 Kuyruğa al
               </Button>
               <p className="text-center text-[11px] text-muted-foreground">
-                Kuyruk 5 dakikada bir boşalır — tarayıcıyı kapatabilirsin.
+                Kuyruk arka planda boşalır — tarayıcıyı kapatabilirsin.
               </p>
             </div>
 

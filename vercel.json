@@ -26,7 +26,7 @@
     },
     {
       "path": "/api/cron/email-queue-drain",
-      "schedule": "*/5 * * * *"
+      "schedule": "15 6 * * *"
     }
   ]
 }

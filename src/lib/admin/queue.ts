@@ -8,13 +8,32 @@ import { getAppUrl } from "@/lib/email/emailTypes";
  * Neden kuyruk: Resend saniyede 2 istek kabul ediyor, yani 500 alıcı ≈ 4 dakika
  * — hiçbir serverless fonksiyon süresine güvenle sığmaz. Duyuru
  * `admin_email_queue`'ya yazılır, bu fonksiyon her çağrıldığında süre bütçesi
- * kadar alıcıya gönderip kalanı satırda bırakır. Cron tekrar tekrar çağırdıkça
+ * kadar alıcıya gönderip kalanı satırda bırakır. Tekrar tekrar çağrıldıkça
  * kuyruk boşalır; hiçbir alıcı iki kez almaz çünkü gönderilenler
  * `pending_ids`'ten düşülür.
+ *
+ * Kim çağırıyor: Vercel Hobby planı cron'ları günde EN FAZLA bir kez
+ * çalıştırıyor (beş dakikalık cron ifadesi deploy'u reddettiriyor), bu yüzden
+ * kuyruk kendini sürdürüyor — duyuru sıraya girince `kickEmailQueueDrain` bir
+ * çalışma başlatır, her çalışma işi bitmediyse bir sonrakini tetikler. Günlük
+ * cron yalnızca emniyet ağıdır: zincir koparsa ya da ileri tarihli bir duyuru varsa devreye
+ * girer (`/admin/system`'den elle de tetiklenebilir).
  */
 
 export const BATCH_SIZE = 2;
 export const BATCH_DELAY_MS = 1100;
+
+/**
+ * Bir işin "başkası işliyor" sayılacağı süre.
+ *
+ * `started_at` aynı zamanda kilittir: çalışma işi kapınca damgalanır, pasın
+ * sonunda `null`'a çekilir. Fonksiyon ortasında ölen bir çalışma satırı kilitli
+ * bırakır; bu süre dolduğunda bir sonraki çalışma işi devralır.
+ */
+const LEASE_MS = 3 * 60_000;
+
+/** Zincir çağrısının yanıtı beklenmez — istek gitsin yeter. */
+const KICK_TIMEOUT_MS = 5_000;
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -29,6 +48,8 @@ export interface DrainResult {
   sent: number;
   failed: number;
   remaining: number;
+  /** Zamanı gelmiş başka iş kaldı mı — zincirin devam edip etmeyeceğini belirler. */
+  hasMore: boolean;
 }
 
 /**
@@ -43,7 +64,13 @@ export async function drainEmailQueue(budgetMs: number): Promise<DrainResult> {
   const db = createAdminClient();
   const appUrl = getAppUrl();
 
-  const result: DrainResult = { processedJobs: 0, sent: 0, failed: 0, remaining: 0 };
+  const result: DrainResult = {
+    processedJobs: 0,
+    sent: 0,
+    failed: 0,
+    remaining: 0,
+    hasMore: false,
+  };
 
   const { data: jobs, error } = await db
     .from("admin_email_queue")
@@ -72,12 +99,27 @@ export async function drainEmailQueue(budgetMs: number): Promise<DrainResult> {
       continue;
     }
 
-    // İşi "sending" işaretle — böylece panelde ilerlediği görülür.
-    if (job.status !== "sending") {
-      await db
-        .from("admin_email_queue")
-        .update({ status: "sending", started_at: job.started_at ?? new Date().toISOString() })
-        .eq("id", jobId);
+    // Kilidi hâlâ taze olan işe dokunma: başka bir çalışma (zincirin bir halkası
+    // veya elle tetikleme) şu anda o işin alıcılarına gönderiyor olabilir.
+    const lockedAt = job.started_at ? Date.parse(job.started_at as string) : null;
+    if (lockedAt !== null && Date.now() - lockedAt < LEASE_MS) continue;
+
+    // İşi kap: satır biz okuduğumuzdan beri değişmediyse bizimdir. Aynı anda
+    // iki çalışma denerse yalnızca biri satır döndürür — diğeri işi atlar.
+    // Aksi halde aynı alıcı iki kez e-posta alırdı.
+    const claim = db
+      .from("admin_email_queue")
+      .update({ status: "sending", started_at: new Date().toISOString() })
+      .eq("id", jobId);
+    const { data: claimed } = await (
+      job.started_at ? claim.eq("started_at", job.started_at) : claim.is("started_at", null)
+    )
+      .select("id")
+      .maybeSingle();
+
+    if (!claimed) {
+      console.info(`[email-queue] ${jobId} — başka bir çalışma işliyor, atlandı.`);
+      continue;
     }
 
     // Alıcı adı/adresi gönderim anında çözülür: kuyrukta beklerken kişi silinmiş
@@ -148,6 +190,8 @@ export async function drainEmailQueue(budgetMs: number): Promise<DrainResult> {
         failed_count: failed,
         status: done ? "done" : "sending",
         finished_at: done ? new Date().toISOString() : null,
+        // Kilidi bırak: iş yarım kaldıysa sıradaki çalışma hemen devralabilsin.
+        started_at: null,
       })
       .eq("id", jobId);
 
@@ -161,5 +205,43 @@ export async function drainEmailQueue(budgetMs: number): Promise<DrainResult> {
     );
   }
 
+  // Zamanı gelmiş iş kaldıysa zincir devam etmeli: bütçe dolduğu için yarım
+  // bıraktığımız iş de, hiç sıra gelmeyen iş de buraya düşer.
+  const { count } = await db
+    .from("admin_email_queue")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["pending", "sending"])
+    .lte("scheduled_at", new Date().toISOString());
+  result.hasMore = (count ?? 0) > 0;
+
   return result;
+}
+
+/**
+ * Kuyruk boşaltmayı bir sonraki çalışmaya devreder.
+ *
+ * Yanıt beklenmez; istek gönderildikten sonra bağlantı kapatılır — çağrılan
+ * fonksiyon kendi başına çalışmaya devam eder. Çağıranın (duyuruyu kuyruğa alan
+ * istek ya da zincirin bir önceki halkası) yanıtı bunu beklemesin diye
+ * `after()` içinden çağrılmalıdır.
+ */
+export async function kickEmailQueueDrain(chain = 0): Promise<void> {
+  if (!process.env.CRON_SECRET) {
+    console.warn("[email-queue] CRON_SECRET yok — kuyruk kendini tetikleyemez.");
+    return;
+  }
+
+  const url = `${getAppUrl()}/api/cron/email-queue-drain?chain=${chain}`;
+  try {
+    await fetch(url, {
+      headers: {
+        authorization: `Bearer ${process.env.CRON_SECRET}`,
+        // Zincir çağrıları `cron_runs`'a yazılmaz — bkz. cron route'u.
+        "x-queue-chain": "1",
+      },
+      signal: AbortSignal.timeout(KICK_TIMEOUT_MS),
+    });
+  } catch {
+    // Zaman aşımı beklenen sonuçtur: iş uzun sürüyor, biz yanıtı beklemiyoruz.
+  }
 }
