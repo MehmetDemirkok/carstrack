@@ -305,7 +305,7 @@ export default function VehiclesPage() {
     const selected = selectedIds.includes(vehicle.id);
     const alert = getVehicleAlert(vehicle);
     const onTask = activeVehicleMap.has(vehicle.id);
-    const scoreTone = score >= 85 ? "text-mint" : score >= 65 ? "text-amber-300" : "text-red-300";
+    const scoreTone = score >= 85 ? "text-mint-strong" : score >= 65 ? "text-amber-300" : "text-red-300";
     return (
       <Card className={`overflow-hidden rounded-3xl shadow-sm transition-all relative group flex flex-col h-full ${selected ? "border-primary ring-2 ring-primary/20 shadow-primary/20" : "border-border/40 hover:shadow-2xl hover:shadow-primary/10"}`}>
         {isSelectionMode && (
