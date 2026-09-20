@@ -416,4 +416,16 @@
   .animate-float-slow {
     animation: float-slow 6s ease-in-out infinite;
   }
+  /* Hero giriş animasyonu — SSR-güvenli.
+     framer-motion'ın `initial="hidden"` yolu sunucudan inline `opacity:0` ile
+     geliyordu; Googlebot'un ham HTML'inde H1 gizli görünüyordu. Aynı hareket
+     saf CSS ile veriliyor: HTML'de gizleme yok, animasyon sadece tarayıcıda.
+     `prefers-reduced-motion` bloğu süreyi zaten sıfırlıyor. */
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .animate-rise-in {
+    animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
 }

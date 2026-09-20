@@ -52,15 +52,43 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
-      // Never cache HTML pages — ensures users always get the latest deploy
-      // Static assets below override this with long-lived immutable headers
+      // Uygulama (giriş gerektiren) sayfaları asla cache'lenmez — kullanıcı her
+      // zaman en son deploy'u alır. Ayrıca `X-Robots-Tag` ile noindex: bu
+      // rotaların çoğu client component olduğu için `metadata` export edemiyor,
+      // header tek merkezden hepsini kapsar.
       {
-        source: "/((?!_next\\/static|_next\\/image|fonts\\/|favicon\\.ico|apple-touch-icon\\.png|icon\\.png|icon-192\\.png|icon-512\\.png|logo\\.svg|og-image\\.png|manifest\\.json|robots\\.txt|sitemap\\.xml).*)",
+        source:
+          "/:path(dashboard|vehicles|history|analytics|settings|users|tasks|reports|activity|notifications|traffic-fines|yakit|km-guncelle|admin|reset-password|auth)/:rest*",
         headers: [
           { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
           { key: "Pragma", value: "no-cache" },
           { key: "Expires", value: "0" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
         ],
+      },
+      // Giriş/kayıt: cache yok ama indekslenebilir kalsın (robots.txt allow).
+      {
+        source: "/:path(login|register)",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
+      // Pazarlama sayfaları CDN'de tutulur. Önceden bunlar da `no-store` idi;
+      // her Googlebot isteği soğuk SSR'a gidiyor, TTFB ve tarama bütçesi
+      // gereksiz yanıyordu. Vercel yeni deploy'da cache'i zaten temizler.
+      {
+        source: "/:path(|ozellikler|sss|arac-bakim-takip|privacy)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
+          },
+        ],
+      },
+      // Herkese açık ama indekslenmesini istemediğimiz statik dosya.
+      {
+        source: "/sunum.html",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
       // Long-lived cache for versioned static assets (production only)
       ...(isProd

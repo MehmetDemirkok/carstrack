@@ -178,48 +178,28 @@ export default function LandingClient() {
           />
 
           <div className="container-marketing relative pt-20 pb-section-tight sm:pt-28">
-            <motion.div
-              variants={
-                reduce
-                  ? undefined
-                  : {
-                      hidden: {},
-                      show: { transition: { staggerChildren: 0.09 } },
-                    }
-              }
-              initial={reduce ? undefined : "hidden"}
-              animate={reduce ? undefined : "show"}
-              className="mx-auto max-w-3xl space-y-7 text-center"
-            >
-              <motion.div
-                variants={reduce ? undefined : fadeUp}
-                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm"
-              >
+            {/* Hero girişi framer-motion yerine saf CSS ile animasyonlu:
+                `initial="hidden"` sunucudan inline `opacity:0` gönderiyordu ve
+                Googlebot'un ham HTML'inde H1 gizli görünüyordu. */}
+            <div className="mx-auto max-w-3xl space-y-7 text-center">
+              <div className="animate-rise-in inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
                 Ücretsiz kullanmaya başlayın · Kredi kartı gerekmez
-              </motion.div>
+              </div>
 
-              <motion.h1
-                variants={reduce ? undefined : fadeUp}
-                className="font-outfit text-display font-black text-balance"
-              >
-                Filonuzun <span className="text-gradient">tam kontrolü</span>,
-                tek ekranda
-              </motion.h1>
+              <h1 className="animate-rise-in font-outfit text-display font-black text-balance [animation-delay:90ms]">
+                Araç bakım takibi ve{" "}
+                <span className="text-gradient">filo yönetimi</span>, tek
+                ekranda
+              </h1>
 
-              <motion.p
-                variants={reduce ? undefined : fadeUp}
-                className="mx-auto max-w-2xl text-lead text-muted-foreground text-pretty"
-              >
-                Araç bakım takibi, sigorta ve muayene hatırlatmaları, servis
-                geçmişi ve filo analitiği — hepsi tek Türkçe platformda,
+              <p className="animate-rise-in mx-auto max-w-2xl text-lead text-muted-foreground text-pretty [animation-delay:180ms]">
+                Periyodik bakım hatırlatmaları, sigorta ve muayene takibi,
+                servis geçmişi ve filo analitiği — hepsi tek Türkçe platformda,
                 otomatik takip altında.
-              </motion.p>
+              </p>
 
-              <motion.div
-                variants={reduce ? undefined : fadeUp}
-                className="flex flex-col justify-center gap-3 sm:flex-row"
-              >
+              <div className="animate-rise-in flex flex-col justify-center gap-3 sm:flex-row [animation-delay:270ms]">
                 <Link
                   href="/register"
                   className="group inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-7 py-3.5 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
@@ -234,20 +214,17 @@ export default function LandingClient() {
                 >
                   Giriş Yap
                 </Link>
-              </motion.div>
+              </div>
 
-              <motion.ul
-                variants={reduce ? undefined : fadeUp}
-                className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground"
-              >
+              <ul className="animate-rise-in flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground [animation-delay:360ms]">
                 {HERO_POINTS.map((p) => (
                   <li key={p} className="inline-flex items-center gap-1.5">
                     <CheckCircle2 className="h-3.5 w-3.5 text-mint-strong" />
                     {p}
                   </li>
                 ))}
-              </motion.ul>
-            </motion.div>
+              </ul>
+            </div>
 
             {/* Ürün önizlemesi — ekran görüntüsü değil, canlı bileşen kopyası */}
             <div className="relative mx-auto mt-14 max-w-5xl sm:mt-20">
