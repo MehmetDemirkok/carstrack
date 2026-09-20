@@ -42,7 +42,9 @@ export default function robots(): MetadataRoute.Robots {
         disallow: privatePaths,
       },
     ],
-    host: APP_URL.replace(/^https?:\/\//, ""),
+    // `host` direktifi bilerek yok: Google hiç desteklemedi, Yandex de 2018'de
+    // bıraktı. Search Console robots.txt raporunda "kural yok sayıldı"
+    // uyarısı üretmekten başka bir işe yaramıyordu.
     sitemap: `${APP_URL}/sitemap.xml`,
   };
 }
