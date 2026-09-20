@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Hanken_Grotesk, Barlow_Condensed, JetBrains_Mono } from "next/font/google";
+import { Inter, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ShellWrapper } from "@/components/layout/shell-wrapper";
@@ -32,11 +32,6 @@ const hankenGrotesk = Hanken_Grotesk({
   subsets: ["latin"],
   variable: "--font-outfit",
   weight: ["400", "500", "600", "700", "800"],
-});
-const barlowCondensed = Barlow_Condensed({
-  subsets: ["latin"],
-  variable: "--font-barlow",
-  weight: ["400", "500", "600", "700", "800", "900"],
 });
 // JetBrains Mono for label-caps / mono accents (exposed as --font-ibm-mono).
 const jetbrainsMono = JetBrains_Mono({
@@ -121,7 +116,7 @@ export default function RootLayout({
         <JsonLd data={organizationJsonLd()} />
       </head>
       <body
-        className={`${inter.variable} ${hankenGrotesk.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} font-sans antialiased bg-background text-foreground min-h-[100dvh] flex flex-col`}
+        className={`${inter.variable} ${hankenGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased bg-background text-foreground min-h-[100dvh] flex flex-col`}
       >
         <ThemeProvider
           attribute="class"

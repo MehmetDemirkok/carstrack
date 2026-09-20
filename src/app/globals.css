@@ -10,6 +10,8 @@
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-mint: var(--mint);
+  --color-mint-strong: var(--mint-strong);
+  --color-warning: var(--warning);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
@@ -46,6 +48,23 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* ── Marketing/auth tip ölçeği — akışkan, tek kaynaktan ────────────── */
+  --text-display: clamp(2.75rem, 6vw, 4.5rem);
+  --text-hero: clamp(2.25rem, 5vw, 3.5rem);
+  --text-section: clamp(1.75rem, 3.2vw, 2.5rem);
+  --text-lead: clamp(1.0625rem, 1.4vw, 1.25rem);
+  --text-display--line-height: 1.02;
+  --text-hero--line-height: 1.06;
+  --text-section--line-height: 1.15;
+  --text-lead--line-height: 1.65;
+  --text-display--letter-spacing: -0.03em;
+  --text-hero--letter-spacing: -0.025em;
+  --text-section--letter-spacing: -0.02em;
+  /* Bölüm ritmi — py-section / py-section-tight */
+  --spacing-section: clamp(4rem, 9vw, 7.5rem);
+  --spacing-section-tight: clamp(2.5rem, 5vw, 4rem);
+  /* Giriş öncesi sayfaların ızgara genişliği — max-w-marketing */
+  --container-marketing: 80rem;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -88,6 +107,10 @@
   --success: oklch(0.47 0.102 162);
   --success-foreground: oklch(0.99 0 0);
   --mint: oklch(0.74 0.15 162);
+  /* Yazı ve ikon için mint: açık temada --mint'in beyaz üstündeki kontrastı
+     2.16 (WCAG AA 4.5 altında). Dolgu/arka plan --mint kalır, okunması
+     gereken her yerde --mint-strong kullanılır → beyaz üstünde 5.67, hero zemininde 4.80. */
+  --mint-strong: oklch(0.5 0.11 162);
   /* tonal surface containers (from M3 surface-container ramp) */
   --surface-1: oklch(0.967 0.016 282);
   --surface-2: oklch(0.949 0.024 278);
@@ -100,6 +123,31 @@
   --sidebar-accent-foreground: oklch(0.3 0.03 268);
   --sidebar-border: oklch(0.866 0.022 278);
   --sidebar-ring: oklch(0.459 0.203 261);
+
+  /* ── Marka aksanları ────────────────────────────────────────────────
+     Giriş öncesi yüzeyler (landing, login, register) artık sabit pastel
+     mor/camgöbeği yerine ürünün kendi mavi + mint paletini kullanır.
+     Tek kaynak burasıdır; hiçbir ekran kendi rengini tanımlamaz. */
+  --brand-1: var(--primary);
+  --brand-2: var(--primary-3);
+  --brand-on: var(--primary-foreground);
+  --brand-gradient: linear-gradient(90deg, var(--brand-1) 0%, var(--brand-2) 100%);
+  --brand-glow: 0 0 28px var(--accent-glow);
+  --brand-1-soft: color-mix(in oklab, var(--brand-1) 10%, transparent);
+  --brand-2-soft: color-mix(in oklab, var(--brand-2) 10%, transparent);
+  --warning: oklch(0.72 0.16 72);
+
+  /* ── Hero zemini — temayı İZLER (eski sabit lacivert yerine) ───────── */
+  --hero-from: oklch(0.985 0.009 299);
+  --hero-to: oklch(0.945 0.028 285);
+  --hero-grid: oklch(0.32 0.05 270 / 0.06);
+  --hero-bg: linear-gradient(160deg, var(--hero-from) 0%, var(--hero-to) 100%);
+
+  /* ── Cam yüzey (hero kartı, panel kartları) ────────────────────────── */
+  --glass-bg: color-mix(in oklab, var(--card) 72%, transparent);
+  --glass-border: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --glass-border-hi: color-mix(in oklab, var(--foreground) 16%, transparent);
+
 }
 
 .dark {
@@ -133,6 +181,7 @@
   --success: oklch(0.62 0.12 162);
   --success-foreground: oklch(0.16 0.024 265);
   --mint: oklch(0.8 0.15 162);
+  --mint-strong: oklch(0.8 0.15 162);
   --surface-1: oklch(0.205 0.026 264);
   --surface-2: oklch(0.245 0.028 264);
   --surface-3: oklch(0.285 0.03 264);
@@ -144,6 +193,14 @@
   --sidebar-accent-foreground: oklch(0.95 0.01 280);
   --sidebar-border: oklch(1 0 0 / 9%);
   --sidebar-ring: oklch(0.72 0.15 262);
+
+  --warning: oklch(0.8 0.15 75);
+  --hero-from: oklch(0.215 0.032 265);
+  --hero-to: oklch(0.145 0.022 265);
+  --hero-grid: oklch(1 0 0 / 0.05);
+  --glass-bg: color-mix(in oklab, var(--card) 62%, transparent);
+  --glass-border: color-mix(in oklab, oklch(1 0 0) 10%, transparent);
+  --glass-border-hi: color-mix(in oklab, oklch(1 0 0) 20%, transparent);
 }
 
 @layer base {
@@ -157,9 +214,68 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Klavye odağı her zaman görünür olsun. Fare/dokunma ile tıklamada
+     (`:focus`, `:focus-visible` değil) halka çıkmaz, böylece görsel gürültü
+     yaratmadan klavye erişilebilirliği sağlanır. */
+  :where(a, button, summary, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Hareket azaltma tercihi ──────────────────────────────────────────
+   framer-motion tarafını `useReducedMotion` hallediyor; buradaki blok CSS
+   ile tanımlı süsleme animasyonlarını (shimmer, float, orb) kapatır. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @layer utilities {
+  /* Klavye/ekran okuyucu için "içeriğe atla" — odaklanınca görünür olur */
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: 0.5rem;
+    z-index: 100;
+    transform: translateY(-200%);
+    transition: transform 160ms ease;
+  }
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
+  /* Giriş öncesi sayfaların ortak kabı ve hero zemini */
+  .container-marketing {
+    width: 100%;
+    max-width: var(--container-marketing);
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+  .bg-hero {
+    background-image: var(--hero-bg);
+  }
+  .bg-hero-grid {
+    background-image:
+      linear-gradient(var(--hero-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--hero-grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .surface-glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid var(--glass-border);
+    border-top-color: var(--glass-border-hi);
+    border-left-color: var(--glass-border-hi);
+  }
   .font-outfit {
     font-family: var(--font-outfit), system-ui, sans-serif;
   }

@@ -78,7 +78,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
             {!collapsed && (
               <div className="flex flex-col leading-none">
                 <span className="text-foreground font-extrabold text-lg tracking-tight"
-                  style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif" }}>
+                  style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
                   Cars<span style={{ color: "var(--primary)" }}>Track</span>
                 </span>
                 <span className="text-muted-foreground mt-0.5"

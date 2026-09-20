@@ -198,7 +198,7 @@ export function TopBar() {
                 >
                   <div className="px-4 py-3 flex justify-between items-center border-b border-border/50 bg-muted/30">
                     <h3 className="text-sm font-bold text-foreground tracking-wider"
-                      style={{ fontFamily: "var(--font-barlow), sans-serif" }}>
+                      style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
                       BİLDİRİMLER
                     </h3>
                     {unreadCount > 0 && (
@@ -274,7 +274,7 @@ export function TopBar() {
                 {getGreeting()}
               </span>
               <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors"
-                style={{ fontFamily: "var(--font-barlow), sans-serif" }}>
+                style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
                 {displayName}
               </span>
             </div>
