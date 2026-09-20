@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Wrench, Shield, FileText, BarChart3, Users, Bell, CheckCircle2,
 } from "lucide-react";
@@ -8,6 +7,16 @@ import {
   breadcrumbJsonLd,
   softwareJsonLd,
 } from "@/lib/seo";
+import {
+  MarketingPage,
+  PageHero,
+  PrimaryAction,
+  SecondaryAction,
+  MarketingCta,
+} from "@/components/marketing/marketing-page";
+import { Section, SectionHeading } from "@/components/marketing/section";
+import { Reveal, RevealGroup } from "@/components/marketing/motion-primitives";
+import { ProductPreview } from "@/components/marketing/product-preview";
 
 export const metadata = buildPageMetadata({
   title: "Özellikler — Bakım Takibi ve Sigorta Hatırlatıcı",
@@ -56,9 +65,18 @@ const features = [
   },
 ];
 
+const reasons = [
+  "Ücretsiz başlangıç — kredi kartı gerekmez",
+  "Türkçe arayüz, Türkiye mevzuatına uygun belge takibi",
+  "PWA ile mobil kullanım",
+  "PDF / Excel raporlama",
+  "Çok araçlı filo desteği",
+  "Rol bazlı ekip erişimi",
+];
+
 export default function OzelliklerPage() {
   return (
-    <main className="min-h-[100dvh] bg-background text-foreground">
+    <MarketingPage>
       <JsonLd data={softwareJsonLd()} />
       <JsonLd
         data={breadcrumbJsonLd([
@@ -67,62 +85,73 @@ export default function OzelliklerPage() {
         ])}
       />
 
-      <div className="max-w-5xl mx-auto px-4 py-12 sm:py-16 space-y-12">
-        <header className="max-w-3xl space-y-3">
-          <p className="text-[11px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
-            Ürün · Özellikler
-          </p>
-          <h1 className="font-outfit text-3xl sm:text-4xl font-bold tracking-tight">
-            Filo yönetimini kolaylaştıran araç bakım takip özellikleri
-          </h1>
-          <p className="text-muted-foreground text-base leading-relaxed">
-            CarsTrack; bakım planı, belge takibi, maliyet görünürlüğü ve ekip koordinasyonunu
-            tek Türkçe platformda birleştirir. Küçük filolardan kurumsal ekiplere kadar
-            ölçeklenir.
-          </p>
-        </header>
+      <PageHero
+        eyebrow="Ürün · Özellikler"
+        title="Filo yönetimini kolaylaştıran araç bakım takip özellikleri"
+        description="CarsTrack; bakım planı, belge takibi, maliyet görünürlüğü ve ekip koordinasyonunu tek Türkçe platformda birleştirir. Küçük filolardan kurumsal ekiplere kadar ölçeklenir."
+        actions={
+          <>
+            <PrimaryAction href="/register">Ücretsiz dene</PrimaryAction>
+            <SecondaryAction href="/sss">SSS</SecondaryAction>
+          </>
+        }
+      />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <Section>
+        <RevealGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map(({ icon: Icon, title, desc }) => (
             <article
               key={title}
-              className="rounded-[20px] bg-card p-6 ring-1 ring-black/[0.04] dark:ring-white/[0.06] shadow-sm space-y-3"
+              className="space-y-3 rounded-2xl border border-border/60 bg-card p-6 transition-colors hover:border-primary/30"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Icon className="h-5 w-5" />
               </div>
-              <h2 className="font-outfit text-lg font-semibold tracking-tight">{title}</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              <h2 className="font-outfit text-lg font-bold tracking-tight">{title}</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">{desc}</p>
             </article>
           ))}
-        </div>
+        </RevealGroup>
+      </Section>
 
-        <section className="rounded-[24px] bg-mesh-soft p-8 ring-1 ring-border/40 space-y-4">
-          <h2 className="font-outfit text-2xl font-bold tracking-tight flex items-center gap-2">
-            <CheckCircle2 className="h-6 w-6 text-primary" />
-            Neden CarsTrack?
-          </h2>
-          <ul className="grid sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
-            <li>• Ücretsiz başlangıç — kredi kartı gerekmez</li>
-            <li>• Türkçe arayüz, Türkiye mevzuatına uygun belge takibi</li>
-            <li>• PWA ile mobil kullanım</li>
-            <li>• PDF / Excel raporlama</li>
-            <li>• Çok araçlı filo desteği</li>
-            <li>• Rol bazlı ekip erişimi</li>
-          </ul>
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Link
-              href="/register"
-              className="inline-flex items-center rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
-            >
-              Ücretsiz dene
-            </Link>
-            <Link href="/sss" className="inline-flex items-center rounded-2xl bg-card px-5 py-2.5 text-sm font-semibold ring-1 ring-border/50">
-              SSS
-            </Link>
-          </div>
-        </section>
-      </div>
-    </main>
+      <Section tone="muted">
+        <SectionHeading
+          eyebrow="Panel"
+          title="Hepsi tek ekranda"
+          description="Araç listesi, filo sağlık skoru, aktif uyarılar ve masraf dağılımı — açtığınız anda gördüğünüz ekran."
+        />
+        <div className="mx-auto mt-14 max-w-5xl">
+          <ProductPreview />
+        </div>
+      </Section>
+
+      <Section>
+        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+          <Reveal>
+            <h2 className="font-outfit text-section font-black text-balance">
+              Neden CarsTrack?
+            </h2>
+            <p className="mt-4 leading-relaxed text-muted-foreground">
+              Excel tablosu hatırlatmaz, rol bazlı erişim sunmaz ve mobil bildirim
+              göndermez. CarsTrack bunların hepsini ücretsiz planda yapar.
+            </p>
+          </Reveal>
+          <Reveal>
+            <ul className="space-y-3">
+              {reasons.map((r) => (
+                <li key={r} className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-mint-strong" />
+                  <span className="text-sm leading-relaxed text-muted-foreground">{r}</span>
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        </div>
+      </Section>
+
+      <Section tight>
+        <MarketingCta />
+      </Section>
+    </MarketingPage>
   );
 }

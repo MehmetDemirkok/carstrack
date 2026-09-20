@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { JsonLd } from "@/components/seo/json-ld";
 import {
   buildPageMetadata,
@@ -7,6 +6,15 @@ import {
   LANDING_FAQS,
   softwareJsonLd,
 } from "@/lib/seo";
+import {
+  MarketingPage,
+  PageHero,
+  PrimaryAction,
+  SecondaryAction,
+  MarketingCta,
+} from "@/components/marketing/marketing-page";
+import { Section } from "@/components/marketing/section";
+import { Reveal, RevealGroup } from "@/components/marketing/motion-primitives";
 
 export const metadata = buildPageMetadata({
   title: "Araç Bakım Takip Programı — Ücretsiz Filo Yönetimi",
@@ -44,9 +52,16 @@ const sections = [
   },
 ];
 
+const startSteps = [
+  "Ücretsiz hesap oluşturun.",
+  "Araçlarınızı plaka ve km bilgisiyle ekleyin.",
+  "Bakım aralıkları ile sigorta/muayene tarihlerini girin.",
+  "CarsTrack hatırlatmaları ve sağlık skorunu otomatik üretsin.",
+];
+
 export default function AracBakimTakipPage() {
   return (
-    <main className="min-h-[100dvh] bg-background text-foreground">
+    <MarketingPage>
       <JsonLd data={softwareJsonLd()} />
       <JsonLd data={faqJsonLd(LANDING_FAQS.slice(0, 5))} />
       <JsonLd
@@ -56,55 +71,54 @@ export default function AracBakimTakipPage() {
         ])}
       />
 
-      <article className="max-w-3xl mx-auto px-4 py-12 sm:py-16 space-y-10">
-        <header className="space-y-4">
-          <p className="text-[11px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
-            Rehber · Araç bakım takip
-          </p>
-          <h1 className="font-outfit text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
-            Araç bakım takip programı ile filonuzu kontrol altında tutun
-          </h1>
-          <p className="text-muted-foreground text-base leading-relaxed">
-            CarsTrack; Türkiye’de araç bakım takibi, sigorta/muayene hatırlatıcı ve filo
-            yönetimi ihtiyaçlarını tek ücretsiz platformda toplar. Aşağıda sistemin nasıl
-            çalıştığını ve kimler için uygun olduğunu özetledik.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/register"
-              className="inline-flex items-center rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
-            >
-              Ücretsiz kayıt ol
-            </Link>
-            <Link
-              href="/ozellikler"
-              className="inline-flex items-center rounded-2xl bg-muted px-5 py-2.5 text-sm font-semibold"
-            >
-              Özellikler
-            </Link>
-          </div>
-        </header>
+      <PageHero
+        eyebrow="Rehber · Araç bakım takip"
+        title="Araç bakım takip programı ile filonuzu kontrol altında tutun"
+        description="CarsTrack; Türkiye’de araç bakım takibi, sigorta/muayene hatırlatıcı ve filo yönetimi ihtiyaçlarını tek ücretsiz platformda toplar. Aşağıda sistemin nasıl çalıştığını ve kimler için uygun olduğunu özetledik."
+        actions={
+          <>
+            <PrimaryAction href="/register">Ücretsiz kayıt ol</PrimaryAction>
+            <SecondaryAction href="/ozellikler">Özellikler</SecondaryAction>
+          </>
+        }
+      />
 
-        {sections.map((s) => (
-          <section key={s.h} className="space-y-2">
-            <h2 className="font-outfit text-xl font-semibold tracking-tight">{s.h}</h2>
-            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{s.p}</p>
-          </section>
-        ))}
+      <Section>
+        <article className="mx-auto max-w-3xl space-y-12">
+          {sections.map((s) => (
+            <Reveal key={s.h} className="space-y-3">
+              <h2 className="font-outfit text-2xl font-black tracking-tight text-balance">
+                {s.h}
+              </h2>
+              <p className="leading-relaxed text-muted-foreground text-pretty">{s.p}</p>
+            </Reveal>
+          ))}
+        </article>
+      </Section>
 
-        <section className="rounded-[20px] bg-card p-6 ring-1 ring-border/40 space-y-3">
-          <h2 className="font-outfit text-xl font-semibold">Hemen başlamak için</h2>
-          <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
-            <li>Ücretsiz hesap oluşturun.</li>
-            <li>Araçlarınızı plaka ve km bilgisiyle ekleyin.</li>
-            <li>Bakım aralıkları ile sigorta/muayene tarihlerini girin.</li>
-            <li>CarsTrack hatırlatmaları ve sağlık skorunu otomatik üretsin.</li>
-          </ol>
-          <Link href="/register" className="inline-flex text-sm font-semibold text-primary pt-2">
-            CarsTrack’e ücretsiz başla →
-          </Link>
-        </section>
-      </article>
-    </main>
+      <Section tone="muted">
+        <div className="mx-auto max-w-3xl">
+          <Reveal>
+            <h2 className="font-outfit text-section font-black text-balance">
+              Hemen başlamak için
+            </h2>
+          </Reveal>
+          <RevealGroup className="mt-8 space-y-4">
+            {startSteps.map((step, i) => (
+              <div key={step} className="flex items-start gap-4">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                  {i + 1}
+                </span>
+                <p className="pt-1 leading-relaxed text-muted-foreground">{step}</p>
+              </div>
+            ))}
+          </RevealGroup>
+        </div>
+      </Section>
+
+      <Section tight>
+        <MarketingCta />
+      </Section>
+    </MarketingPage>
   );
 }

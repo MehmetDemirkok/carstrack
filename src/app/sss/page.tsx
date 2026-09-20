@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { JsonLd } from "@/components/seo/json-ld";
 import {
   buildPageMetadata,
@@ -6,6 +5,15 @@ import {
   faqJsonLd,
   LANDING_FAQS,
 } from "@/lib/seo";
+import {
+  MarketingPage,
+  PageHero,
+  PrimaryAction,
+  SecondaryAction,
+  MarketingCta,
+} from "@/components/marketing/marketing-page";
+import { Section } from "@/components/marketing/section";
+import { RevealGroup } from "@/components/marketing/motion-primitives";
 
 export const metadata = buildPageMetadata({
   title: "Sıkça Sorulan Sorular — Araç Bakım Takibi",
@@ -22,7 +30,7 @@ export const metadata = buildPageMetadata({
 
 export default function SssPage() {
   return (
-    <main className="min-h-[100dvh] bg-background text-foreground">
+    <MarketingPage>
       <JsonLd data={faqJsonLd(LANDING_FAQS)} />
       <JsonLd
         data={breadcrumbJsonLd([
@@ -31,50 +39,40 @@ export default function SssPage() {
         ])}
       />
 
-      <div className="max-w-3xl mx-auto px-4 py-12 sm:py-16 space-y-10">
-        <header className="space-y-3">
-          <p className="text-[11px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
-            Yardım · SSS
-          </p>
-          <h1 className="font-outfit text-3xl sm:text-4xl font-bold tracking-tight">
-            Sıkça Sorulan Sorular
-          </h1>
-          <p className="text-muted-foreground text-base leading-relaxed">
-            CarsTrack araç bakım takip ve filo yönetim sistemi hakkında en çok sorulan
-            soruların yanıtları.
-          </p>
-        </header>
+      <PageHero
+        eyebrow="Yardım · SSS"
+        title="Sıkça sorulan sorular"
+        description="CarsTrack araç bakım takip ve filo yönetim sistemi hakkında en çok sorulan soruların yanıtları."
+        actions={
+          <>
+            <PrimaryAction href="/register">Ücretsiz başla</PrimaryAction>
+            <SecondaryAction href="/ozellikler">Özellikleri incele</SecondaryAction>
+          </>
+        }
+      />
 
-        <div className="space-y-4">
+      <Section>
+        {/* Yanıtlar bilerek açık duruyor: arama motoru ve ekran okuyucu için
+            katlanan bir panelin arkasına saklamak yerine doğrudan okunur. */}
+        <RevealGroup className="mx-auto max-w-3xl space-y-4">
           {LANDING_FAQS.map((faq) => (
             <article
               key={faq.q}
-              className="rounded-[20px] bg-card p-5 sm:p-6 ring-1 ring-black/[0.04] dark:ring-white/[0.06] shadow-sm"
+              className="rounded-2xl border border-border/60 bg-card p-6"
             >
-              <h2 className="font-outfit text-lg font-semibold tracking-tight">{faq.q}</h2>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+              <h2 className="font-outfit text-lg font-bold tracking-tight">{faq.q}</h2>
+              <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{faq.a}</p>
             </article>
           ))}
-        </div>
+        </RevealGroup>
+      </Section>
 
-        <div className="flex flex-wrap gap-3 pt-4">
-          <Link
-            href="/register"
-            className="inline-flex items-center rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
-          >
-            Ücretsiz başla
-          </Link>
-          <Link
-            href="/ozellikler"
-            className="inline-flex items-center rounded-2xl bg-muted px-5 py-2.5 text-sm font-semibold"
-          >
-            Özellikleri incele
-          </Link>
-          <Link href="/" className="inline-flex items-center text-sm font-semibold text-primary px-2">
-            Ana sayfa
-          </Link>
-        </div>
-      </div>
-    </main>
+      <Section tight>
+        <MarketingCta
+          title="Sorunuzun yanıtı burada yoksa"
+          description="Ücretsiz hesap oluşturup ürünü kendiniz deneyin; kurulum dakikalar sürer, kredi kartı gerekmez."
+        />
+      </Section>
+    </MarketingPage>
   );
 }
