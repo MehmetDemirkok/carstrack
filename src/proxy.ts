@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+// Bayat refresh token loglarını süzer — Supabase istemcisi kurulmadan ÖNCE yüklenmeli.
+import "@/lib/supabase/silence-refresh-logs";
 
 /**
  * Read `sub` from the access token JWT without touching `session.user`.
@@ -60,10 +62,10 @@ function adminEmails(): string[] {
 // yapmış, oturum iptal edilmiş veya paralel istekler token rotasyonunda
 // yarışmış) `@supabase/auth-js` hatayı DÖNDÜRMEDEN ÖNCE kendi içinde
 // `console.error` ile basar — sunucu logundaki "Invalid Refresh Token" satırı
-// odur, bizim kodumuzdan gelmez ve bastırılamaz. Hata aşağıda `staleSession`
+// odur, bizim kodumuzdan gelmez ve try/catch ile susmaz; yukarıdaki
+// `silence-refresh-logs` importu o satırı süzer. Hata aşağıda `staleSession`
 // olarak yakalanır: sb- çerezleri silinir, korumalı sayfa /login'e döner,
-// public sayfa normal render edilir. Çerez temizlendiği için satır kendini
-// tekrarlamaz; sürekli tekrarlıyorsa sebep token rotasyonu yarışıdır.
+// public sayfa normal render edilir (kullanıcı /login'e fırlatılmaz).
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -102,13 +104,12 @@ export async function proxy(request: NextRequest) {
       error,
     } = await supabase.auth.getSession();
     if (error) {
-      const code = (error as { code?: string })?.code ?? "";
-      if (
-        code === "refresh_token_not_found" ||
-        code === "refresh_token_already_used"
-      ) {
-        staleSession = true;
-      }
+      // Ağ hatasında oturumu düşürmeyiz (geçici olabilir); bunun dışındaki her
+      // auth hatası çerezdeki oturumun kullanılamaz olduğu anlamına gelir
+      // (refresh_token_not_found / _already_used, bozuk çerez, validation_failed…).
+      const retryable =
+        (error as { name?: string })?.name === "AuthRetryableFetchError";
+      staleSession = !retryable;
     } else if (session?.access_token) {
       userId = userIdFromAccessToken(session.access_token);
       userEmail = emailFromAccessToken(session.access_token);
@@ -150,18 +151,21 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/arac-bakim-takip") ||
     pathname.startsWith("/km-guncelle");
 
-  // Stale/expired session → wipe sb- cookies, redirect to login
+  // Bayat/süresi dolmuş oturum → sb- çerezlerini sil. Korumalı sayfadaysak
+  // /login'e döneriz; public sayfada (landing, SSS, fiyatlandırma…) ziyaretçiyi
+  // login'e fırlatmayız, sayfa normal render edilir. Her iki durumda da çerez
+  // temizlendiği için aynı istek bir daha yenileme denemez.
   if (staleSession) {
-    const redirectResponse = NextResponse.redirect(
-      new URL("/login", request.url)
-    );
+    const response = isPublicPath
+      ? supabaseResponse
+      : NextResponse.redirect(new URL("/login", request.url));
     request.cookies
       .getAll()
       .filter(({ name }) => name.startsWith("sb-"))
       .forEach(({ name }) =>
-        redirectResponse.cookies.set(name, "", { maxAge: 0, path: "/" })
+        response.cookies.set(name, "", { maxAge: 0, path: "/" })
       );
-    return redirectResponse;
+    return response;
   }
 
   // Unauthenticated on a protected page → login

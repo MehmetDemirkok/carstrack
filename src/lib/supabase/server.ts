@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+// Bayat refresh token loglarını süzer — istemci kurulmadan ÖNCE yüklenmeli.
+import "./silence-refresh-logs";
 
 export async function createClient() {
   const cookieStore = await cookies();
