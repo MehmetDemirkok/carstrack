@@ -1,768 +1,418 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   motion,
   useScroll,
   useTransform,
-  useInView,
-  useMotionValue,
-  animate,
-  type Variants,
+  useReducedMotion,
 } from "framer-motion";
+import { useRef } from "react";
 import {
-  Car, Wrench, Shield, BarChart3, Users, Bell,
-  CheckCircle2, ArrowRight, FileText, ChevronRight,
-  CalendarDays, Gauge, Disc3, AlertTriangle, Clock, Sparkles, Sun, Moon,
+  Car,
+  Wrench,
+  Shield,
+  BarChart3,
+  Users,
+  Bell,
+  FileText,
+  CheckCircle2,
+  ArrowRight,
+  ChevronRight,
+  CalendarDays,
+  Sparkles,
 } from "lucide-react";
-import { useTheme } from "next-themes";
-import { LogoMark } from "@/components/brand/logo-mark";
+import { LANDING_FAQS } from "@/lib/seo";
+import { MarketingNav } from "@/components/marketing/marketing-nav";
+import { MarketingFooter } from "@/components/marketing/marketing-footer";
+import { Section, SectionHeading } from "@/components/marketing/section";
+import {
+  Reveal,
+  RevealGroup,
+  fadeUp,
+} from "@/components/marketing/motion-primitives";
+import {
+  ProductPreview,
+  AlertFeed,
+  HealthPanel,
+  TeamPanel,
+} from "@/components/marketing/product-preview";
 
-/* ───────────────────────── data ───────────────────────── */
+/* ───────────────────────── içerik ─────────────────────────
+   Buradaki her ifade ürünün gerçekten yaptığı bir şeyi anlatır.
+   Doğrulanamayan sosyal kanıt ("500+ şirket güveniyor") ve rakam
+   vaadi eden sahte istatistik bandı bilinçli olarak kaldırıldı. */
 
-/* ── design.md palette (Material 3) ── */
-const PRIMARY = "#d0bcff"; // pastel purple
-const SECONDARY = "#4cd7f6"; // cyan
-const ON_PRIMARY = "#23005c"; // dark text on gradient/primary surfaces
-const GRAD = "linear-gradient(90deg, #d0bcff 0%, #4cd7f6 100%)";
-const GLOW = "0 0 24px rgba(109,59,215,0.55)";
-const PRIMARY_BG = "rgba(208,188,255,0.10)";
-const SECONDARY_BG = "rgba(76,215,246,0.10)";
+const HERO_POINTS = [
+  "Sınırsız araç ve kullanıcı",
+  "PDF & Excel dışa aktarım",
+  "Telefonda uygulama gibi çalışır",
+];
 
-const glassCard: React.CSSProperties = {
-  background: "rgba(255,255,255,0.03)",
-  backdropFilter: "blur(20px)",
-  WebkitBackdropFilter: "blur(20px)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderTop: "1px solid rgba(255,255,255,0.2)",
-  borderLeft: "1px solid rgba(255,255,255,0.2)",
+type Benefit = {
+  eyebrow: string;
+  title: string;
+  desc: string;
+  bullets: { icon: typeof Car; text: string }[];
+  visual: React.ReactNode;
 };
 
-const textGradient: React.CSSProperties = {
-  background: GRAD,
-  WebkitBackgroundClip: "text",
-  backgroundClip: "text",
-  WebkitTextFillColor: "transparent",
-  color: "transparent",
-};
-
-const features = [
+const benefits: Benefit[] = [
   {
-    icon: Wrench,
-    title: "Bakım Takibi",
-    desc: "Yağ değişimi, fren, filtre gibi periyodik bakımları otomatik takip edin. Kilometre ve zaman bazlı hatırlatmalarla asla kaçırmayın.",
-    color: PRIMARY,
-    bg: PRIMARY_BG,
+    eyebrow: "Hatırlatmalar",
+    title: "Hiçbir bakımı ve belgeyi kaçırmayın",
+    desc: "Periyodik bakımları kilometre ve zamana göre planlayın; sigorta ile muayene süreleri dolmadan önce uyarı alın.",
+    bullets: [
+      {
+        icon: Wrench,
+        text: "Yağ, fren, filtre gibi bakımlar için km ve zaman bazlı takip",
+      },
+      {
+        icon: Shield,
+        text: "Kasko, trafik sigortası ve TÜVTÜRK muayene süreleri",
+      },
+    ],
+    visual: (
+      <div className="rounded-2xl border border-border/60 bg-card p-5">
+        <AlertFeed />
+      </div>
+    ),
   },
   {
-    icon: Shield,
-    title: "Sigorta & Muayene",
-    desc: "Kasko, trafik sigortası ve TÜVTÜRK muayene sürelerini takip edin. Vade dolmadan önce otomatik uyarı alın.",
-    color: SECONDARY,
-    bg: SECONDARY_BG,
+    eyebrow: "Görünürlük",
+    title: "Filonuzun gerçek durumunu görün",
+    desc: "Araç sağlık skoru, maliyet dağılımı ve bakım trendi ile filonun nerede olduğunu tahmin etmeyi bırakın.",
+    bullets: [
+      {
+        icon: BarChart3,
+        text: "Sağlık skoru, maliyet dağılımı ve bakım trendi raporları",
+      },
+      {
+        icon: FileText,
+        text: "Servis geçmişi arşivi — PDF ve Excel olarak dışa aktarın",
+      },
+    ],
+    visual: <HealthPanel />,
   },
   {
-    icon: FileText,
-    title: "Servis Geçmişi",
-    desc: "Tüm servis ve onarım kayıtlarını dijital arşivde tutun. PDF ve Excel formatında dışa aktarın, paylaşın.",
-    color: PRIMARY,
-    bg: PRIMARY_BG,
-  },
-  {
-    icon: BarChart3,
-    title: "Filo Analitiği",
-    desc: "Araç sağlık skoru, maliyet dağılımı ve bakım trendi raporları ile filonuzun gerçek durumunu görün.",
-    color: SECONDARY,
-    bg: SECONDARY_BG,
-  },
-  {
-    icon: Users,
-    title: "Ekip Yönetimi",
-    desc: "Şirket yetkilisi ve sürücü rolleri ile araç atama, seyahat takibi ve koordinasyonu kolayca yönetin.",
-    color: PRIMARY,
-    bg: PRIMARY_BG,
-  },
-  {
-    icon: Bell,
-    title: "Akıllı Bildirimler",
-    desc: "Kritik bakım ve belge uyarıları anında bildirim olarak ulaşır. E-posta ile de otomatik hatırlatma alın.",
-    color: SECONDARY,
-    bg: SECONDARY_BG,
+    eyebrow: "Ekip",
+    title: "Ekibinizle birlikte yönetin",
+    desc: "Yönetici, operatör ve sürücü rolleriyle araç atayın; kritik uyarılar doğru kişiye kendiliğinden ulaşsın.",
+    bullets: [
+      {
+        icon: Users,
+        text: "Yönetici, operatör ve sürücü rolleri ile araç atama",
+      },
+      {
+        icon: Bell,
+        text: "Kritik uyarılar anlık bildirim ve e-posta olarak iletilir",
+      },
+    ],
+    visual: <TeamPanel />,
   },
 ];
 
 const steps = [
   {
     num: "01",
-    title: "Araçlarınızı Ekleyin",
-    desc: "Plaka, marka, model ve kilometre bilgilerini girin. Araç başına bakım kalıplarını tanımlayın.",
+    title: "Araçlarınızı ekleyin",
+    desc: "Plaka, marka, model ve kilometre bilgilerini girin. Ruhsat fotoğrafından otomatik de ekleyebilirsiniz.",
     icon: Car,
   },
   {
     num: "02",
-    title: "Bakım Verilerini Girin",
+    title: "Bakım verilerini girin",
     desc: "Son servis tarihi ve km bilgilerini kaydedin. Sigorta ve muayene bitiş tarihlerini ekleyin.",
     icon: CalendarDays,
   },
   {
     num: "03",
-    title: "Sisteme Bırakın",
+    title: "Sisteme bırakın",
     desc: "CarsTrack otomatik olarak takip eder, hesaplar ve zamanı geldiğinde sizi uyarır.",
     icon: CheckCircle2,
   },
 ];
 
-const faqs = [
-  {
-    q: "CarsTrack nedir?",
-    a: "CarsTrack, araçlarınızın bakım geçmişini, sigorta ve muayene tarihlerini, servis kayıtlarını ve filo durumunu dijital ortamda yönetmenizi sağlayan Türkçe bir araç bakım takip uygulamasıdır. Bireysel araç sahiplerinden şirket filolarına kadar her ölçekte kullanılabilir.",
-  },
-  {
-    q: "CarsTrack ücretsiz mi kullanılabilir?",
-    a: "Evet, CarsTrack temel özellikleriyle tamamen ücretsiz kullanılabilir. Kayıt olmak için kredi kartı gerekmez.",
-  },
-  {
-    q: "Kaç araç ekleyebilirim?",
-    a: "İstediğiniz kadar araç ekleyebilir ve tüm araçlarınızı tek panelden yönetebilirsiniz. Araç sayısında herhangi bir kısıtlama yoktur.",
-  },
-  {
-    q: "Mobil cihazlarda kullanılabilir mi?",
-    a: "Evet, CarsTrack Progressive Web App (PWA) teknolojisiyle geliştirilmiştir. Telefon ve tabletlerde uygulama gibi çalışır, ana ekrana ekleyerek hızlıca erişebilirsiniz.",
-  },
-  {
-    q: "Araç bakım hatırlatıcısı nasıl çalışır?",
-    a: "Her araç için kilometre ve zaman bazlı bakım aralıkları tanımlayabilirsiniz. Son bakım tarihini ve kilometresini girdiğinizde CarsTrack otomatik olarak bir sonraki bakım zamanını hesaplar, yaklaşan ve geciken bakımlar için uyarı verir.",
-  },
-  {
-    q: "Verilerimi dışa aktarabilir miyim?",
-    a: "Evet, araç raporlarını ve servis geçmişini PDF ve Excel (XLSX) formatında dışa aktarabilirsiniz. Dilediğiniz zaman verilerinizin tam sahibi sizsiniz.",
-  },
-];
 
-type Stat = {
-  to: number;
-  suffix?: string;
-  decimals?: number;
-  text?: string;
-  label: string;
-  icon: typeof Car;
-  color: string;
-};
-
-// Buradaki her ifade ürünün gerçekten yaptığı bir şeyi anlatır. Daha önce
-// "247+ Aktif Araç" ve "%99.2 Kesintisiz Çalışma" yazıyordu; ikisi de sabit
-// kodlanmış, doğrulanmamış sayılardı. Kaydolan kullanıcı içeride bu vaadin
-// karşılığını görmeyince ilk oturumda terk ediyordu — uydurma sayı yerine
-// gerçek yetenek yazıyoruz.
-const stats: Stat[] = [
-  { to: 0, text: "Ücretsiz", label: "Sınırsız Araç ve Kullanıcı", icon: CheckCircle2, color: PRIMARY },
-  { to: 0, text: "Ruhsattan", label: "Fotoğrafla Otomatik Ekleme", icon: Car, color: SECONDARY },
-  { to: 0, text: "Otomatik", label: "Sigorta ve Muayene Hatırlatma", icon: Gauge, color: PRIMARY },
-  { to: 6, label: "Bakım Kategorisi", icon: Disc3, color: SECONDARY },
-];
-
-/* ───────────────────────── motion helpers ───────────────────────── */
-
-const EASE = [0.22, 1, 0.36, 1] as const;
-
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 28 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
-};
-
-const stagger: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.1, delayChildren: 0.05 } },
-};
-
-function Reveal({
-  children,
-  className,
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  delay?: number;
-}) {
-  return (
-    <motion.div
-      className={className}
-      variants={fadeUp}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ delay }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-/* Animated number that counts up when scrolled into view */
-function CountUp({
-  to,
-  suffix = "",
-  decimals = 0,
-}: {
-  to: number;
-  suffix?: string;
-  decimals?: number;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-  const mv = useMotionValue(0);
-  const [display, setDisplay] = useState("0");
-
-  useEffect(() => {
-    if (!inView) return;
-    const controls = animate(mv, to, { duration: 1.6, ease: EASE });
-    const unsub = mv.on("change", (v) => setDisplay(v.toFixed(decimals)));
-    return () => {
-      controls.stop();
-      unsub();
-    };
-  }, [inView, to, decimals, mv]);
-
-  return (
-    <span ref={ref}>
-      {display}
-      {suffix}
-    </span>
-  );
-}
-
-/* ───────────────────────── hero dashboard mockup ───────────────────────── */
-
-const HEALTH = 87;
-
-function HealthRing() {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true });
-  const radius = 52;
-  const circumference = 2 * Math.PI * radius;
-  const mv = useMotionValue(0);
-  const [score, setScore] = useState(0);
-  const [offset, setOffset] = useState(circumference);
-
-  useEffect(() => {
-    if (!inView) return;
-    const controls = animate(mv, HEALTH, { duration: 1.8, ease: EASE, delay: 0.4 });
-    const unsub = mv.on("change", (v) => {
-      setScore(Math.round(v));
-      setOffset(circumference - (v / 100) * circumference);
-    });
-    return () => {
-      controls.stop();
-      unsub();
-    };
-  }, [inView, mv, circumference]);
-
-  return (
-    <div ref={ref} className="relative w-[136px] h-[136px] shrink-0">
-      <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" />
-        <circle
-          cx="60"
-          cy="60"
-          r={radius}
-          fill="none"
-          stroke="url(#ringGrad)"
-          strokeWidth="9"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-        />
-        <defs>
-          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={SECONDARY} />
-            <stop offset="100%" stopColor={PRIMARY} />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-black text-white" style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
-          {score}
-        </span>
-        <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Skor</span>
-      </div>
-    </div>
-  );
-}
-
-const mockAlerts = [
-  { icon: AlertTriangle, label: "34 ABC 12 — Muayene 4 gün", tone: "#f87171", bg: "rgba(248,113,113,0.12)" },
-  { icon: Clock, label: "06 XYZ 88 — Yağ değişimi yaklaşıyor", tone: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
-  { icon: CheckCircle2, label: "35 DEF 45 — Tüm bakımlar güncel", tone: "#34d399", bg: "rgba(52,211,153,0.12)" },
-];
-
-function HeroMockup() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 40, rotateX: 8 }}
-      animate={{ opacity: 1, y: 0, rotateX: 0 }}
-      transition={{ duration: 0.9, ease: EASE, delay: 0.35 }}
-      style={{ perspective: 1000 }}
-      className="relative mx-auto w-full max-w-md"
-    >
-      {/* glow behind the card */}
-      <div
-        className="absolute -inset-6 rounded-[2rem] pointer-events-none"
-        style={{ background: "radial-gradient(ellipse at center, rgba(208,188,255,0.30), rgba(76,215,246,0.12) 40%, transparent 70%)" }}
-      />
-      <div
-        className="relative rounded-3xl p-5"
-        style={{ ...glassCard, boxShadow: "0 30px 80px -20px rgba(0,0,0,0.6)" }}
-      >
-        {/* header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-full" style={{ background: PRIMARY_BG }}>
-              <Car className="h-3.5 w-3.5" style={{ color: PRIMARY }} />
-            </div>
-            <span className="text-sm font-bold text-white">Filo Paneli</span>
-          </div>
-          {/* insurance status pill */}
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-            style={{ background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.20)" }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span className="text-[10px] font-bold text-emerald-400">Sigorta OK</span>
-          </div>
-        </div>
-
-        {/* score + mini stats */}
-        <div className="flex items-center gap-4 mb-4">
-          <HealthRing />
-          <div className="flex-1 space-y-2">
-            {[
-              { label: "Toplam Araç", value: "12", w: "100%" },
-              { label: "Aktif Uyarı", value: "3", w: "60%" },
-              { label: "Bu Ay Servis", value: "5", w: "78%" },
-            ].map((row, i) => (
-              <motion.div
-                key={row.label}
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.7 + i * 0.12, duration: 0.5, ease: EASE }}
-                className="space-y-1"
-              >
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-white/45">{row.label}</span>
-                  <span className="text-white font-semibold">{row.value}</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: GRAD }}
-                    initial={{ width: 0 }}
-                    animate={{ width: row.w }}
-                    transition={{ delay: 0.9 + i * 0.12, duration: 0.9, ease: EASE }}
-                  />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* alert feed */}
-        <div className="space-y-2">
-          {mockAlerts.map((a, i) => (
-            <motion.div
-              key={a.label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.1 + i * 0.15, duration: 0.5, ease: EASE }}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2"
-              style={{ background: a.bg, border: `1px solid ${a.tone}22` }}
-            >
-              <a.icon className="h-3.5 w-3.5 shrink-0" style={{ color: a.tone }} />
-              <span className="text-[11px] text-white/80 font-medium truncate">{a.label}</span>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      {/* floating chip */}
-      <motion.div
-        className="absolute -left-4 -bottom-5 rounded-2xl px-4 py-3 hidden sm:flex items-center gap-3 shadow-2xl"
-        style={glassCard}
-        animate={{ y: [0, 12, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-      >
-        <span className="grid place-items-center w-8 h-8 rounded-full shrink-0" style={{ background: PRIMARY }}>
-          <Bell className="h-4 w-4" style={{ color: ON_PRIMARY }} />
-        </span>
-        <span className="text-[11px] font-semibold text-white whitespace-nowrap">Bakım hatırlatması</span>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-/* ───────────────────────── page ───────────────────────── */
+/* ───────────────────────── sayfa ───────────────────────── */
 
 export default function LandingClient() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  const heroRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLElement>(null);
+  const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
   });
-  const gridY = useTransform(scrollYProgress, [0, 1], [0, 120]);
-  const heroFade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  const gridY = useTransform(scrollYProgress, [0, 1], [0, 110]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+      <MarketingNav />
 
-      {/* ── Navbar ── */}
-      <motion.nav
-        initial={{ y: -60, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: EASE }}
-        className="sticky top-0 z-50 border-b border-border/40 bg-background/85 backdrop-blur-xl"
-      >
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
+      <main id="icerik">
+        {/* ── Hero ───────────────────────────────────────────────
+          Zemin artık sabit lacivert değil, --hero-bg token'ı: açık
+          temada açık, koyu temada koyu. Hero ile gövde arasındaki
+          sert renk dikişi bu sayede yok. */}
+        <section ref={heroRef} className="relative overflow-hidden bg-hero">
+          <motion.div
+            aria-hidden
+            style={reduce ? undefined : { y: gridY }}
+            className="bg-hero-grid pointer-events-none absolute inset-0 opacity-70"
+          />
+          <div
+            aria-hidden
+            className="orb -top-40 left-1/2 h-[520px] w-[520px] -translate-x-1/2"
+            style={{
+              background:
+                "color-mix(in oklab, var(--brand-1) 16%, transparent)",
+            }}
+          />
+          <div
+            aria-hidden
+            className="orb -right-32 top-32 h-80 w-80"
+            style={{
+              background:
+                "color-mix(in oklab, var(--brand-2) 14%, transparent)",
+            }}
+          />
+
+          <div className="container-marketing relative pt-20 pb-section-tight sm:pt-28">
             <motion.div
-              whileHover={{ rotate: -8, scale: 1.05 }}
-              transition={{ type: "spring", stiffness: 300 }}
-              className="shrink-0"
+              variants={
+                reduce
+                  ? undefined
+                  : {
+                      hidden: {},
+                      show: { transition: { staggerChildren: 0.09 } },
+                    }
+              }
+              initial={reduce ? undefined : "hidden"}
+              animate={reduce ? undefined : "show"}
+              className="mx-auto max-w-3xl space-y-7 text-center"
             >
-              <LogoMark size={36} />
+              <motion.div
+                variants={reduce ? undefined : fadeUp}
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                Ücretsiz kullanmaya başlayın · Kredi kartı gerekmez
+              </motion.div>
+
+              <motion.h1
+                variants={reduce ? undefined : fadeUp}
+                className="font-outfit text-display font-black text-balance"
+              >
+                Filonuzun <span className="text-gradient">tam kontrolü</span>,
+                tek ekranda
+              </motion.h1>
+
+              <motion.p
+                variants={reduce ? undefined : fadeUp}
+                className="mx-auto max-w-2xl text-lead text-muted-foreground text-pretty"
+              >
+                Araç bakım takibi, sigorta ve muayene hatırlatmaları, servis
+                geçmişi ve filo analitiği — hepsi tek Türkçe platformda,
+                otomatik takip altında.
+              </motion.p>
+
+              <motion.div
+                variants={reduce ? undefined : fadeUp}
+                className="flex flex-col justify-center gap-3 sm:flex-row"
+              >
+                <Link
+                  href="/register"
+                  className="group inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-7 py-3.5 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
+                  style={{ boxShadow: "var(--brand-glow)" }}
+                >
+                  Ücretsiz Başla
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-card/60 px-7 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/60"
+                >
+                  Giriş Yap
+                </Link>
+              </motion.div>
+
+              <motion.ul
+                variants={reduce ? undefined : fadeUp}
+                className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground"
+              >
+                {HERO_POINTS.map((p) => (
+                  <li key={p} className="inline-flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-mint-strong" />
+                    {p}
+                  </li>
+                ))}
+              </motion.ul>
             </motion.div>
-            <span
-              className="font-extrabold text-lg tracking-tight"
-              style={{ fontFamily: "var(--font-barlow), var(--font-outfit), sans-serif" }}
-            >
-              Cars<span style={textGradient}>Track</span>
-            </span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              title={mounted ? (theme === "dark" ? "Açık tema" : "Koyu tema") : undefined}
-              aria-label="Tema değiştir"
-              suppressHydrationWarning
-              className="relative grid place-items-center h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            >
-              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            </button>
-            <Link
-              href="/login"
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted/50"
-            >
-              Giriş Yap
-            </Link>
-            <Link
-              href="/register"
-              className="px-5 py-2 text-sm font-bold rounded-full transition-transform hover:scale-[1.03] active:scale-95"
-              style={{ background: GRAD, color: ON_PRIMARY, boxShadow: GLOW }}
-            >
-              Ücretsiz Başla
-            </Link>
+
+            {/* Ürün önizlemesi — ekran görüntüsü değil, canlı bileşen kopyası */}
+            <div className="relative mx-auto mt-14 max-w-5xl sm:mt-20">
+              <ProductPreview />
+            </div>
           </div>
-        </div>
-      </motion.nav>
+        </section>
 
-      {/* ── Hero ── */}
-      <section
-        ref={heroRef}
-        className="relative overflow-hidden pt-20 pb-24 px-4"
-        style={{ background: "linear-gradient(160deg, #161a2e 0%, #0f131d 60%, #0a0e18 100%)" }}
-      >
-        {/* parallax square grid */}
-        <motion.div
-          style={{
-            y: gridY,
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-          className="absolute inset-0 pointer-events-none opacity-40"
-        />
-        {/* animated orbs */}
-        <motion.div
-          className="orb w-[420px] h-[420px] -top-32 left-1/2 -translate-x-1/2"
-          style={{ background: "rgba(208,188,255,0.18)" }}
-          animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="orb w-72 h-72 top-40 -right-20"
-          style={{ background: "rgba(76,215,246,0.16)" }}
-          animate={{ y: [0, 30, 0], x: [0, -20, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        />
+        {/* ── Faydalar ── */}
+        <Section>
+          <SectionHeading
+            eyebrow="Neden CarsTrack?"
+            title="Takip etmeyi bırakın, takip edilsin"
+            description="Araç yönetiminde ihtiyaç duyduğunuz üç şey — hatırlatma, görünürlük ve ekip koordinasyonu — tek platformda."
+          />
 
-        <motion.div
-          style={{ opacity: heroFade }}
-          className="relative max-w-5xl mx-auto grid lg:grid-cols-2 gap-12 items-center"
-        >
-          {/* left: copy */}
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-            className="text-center lg:text-left space-y-6"
-          >
-            <motion.div
-              variants={fadeUp}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.75)" }}
-            >
-              <Sparkles className="h-3 w-3" style={{ color: PRIMARY }} />
-              Ücretsiz kullanmaya başlayın · Kredi kartı gerekmez
-            </motion.div>
+          <div className="mt-16 space-y-20 sm:space-y-24">
+            {benefits.map((b, i) => (
+              <Reveal key={b.title}>
+                <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+                  <div className={i % 2 === 1 ? "lg:order-2" : undefined}>
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                      {b.eyebrow}
+                    </span>
+                    <h3 className="font-outfit mt-3 text-2xl font-black tracking-tight sm:text-3xl text-balance">
+                      {b.title}
+                    </h3>
+                    <p className="mt-4 leading-relaxed text-muted-foreground">
+                      {b.desc}
+                    </p>
+                    <ul className="mt-6 space-y-3">
+                      {b.bullets.map((bl) => (
+                        <li key={bl.text} className="flex items-start gap-3">
+                          <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10">
+                            <bl.icon className="h-3.5 w-3.5 text-primary" />
+                          </span>
+                          <span className="text-sm leading-relaxed text-muted-foreground">
+                            {bl.text}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className={i % 2 === 1 ? "lg:order-1" : undefined}>
+                    {b.visual}
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </Section>
 
-            <motion.h1
-              variants={fadeUp}
-              className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.05]"
-              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
-            >
-              Araç Bakım Takibi ve{" "}
-              <span style={textGradient}>Filo Yönetimi</span>
-            </motion.h1>
+        {/* ── Nasıl çalışır ── */}
+        <Section tone="muted">
+          <SectionHeading
+            eyebrow="Kurulum"
+            title="3 adımda başlayın"
+            description="Dakikalar içinde araçlarınızı sisteme ekleyin."
+          />
 
-            <motion.p
-              variants={fadeUp}
-              className="text-base md:text-lg text-white/60 max-w-xl mx-auto lg:mx-0 leading-relaxed"
-            >
-              Bakım takvimi, sigorta ve muayene süreleri, servis geçmişi ve filo sağlık
-              analizi — araçlarınızla ilgili her şey tek platformda, otomatik takip altında.
-            </motion.p>
-
-            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start pt-2">
-              <Link
-                href="/register"
-                className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-transform hover:scale-[1.03] active:scale-95"
-                style={{ background: GRAD, color: ON_PRIMARY, boxShadow: GLOW }}
-              >
-                Hemen Ücretsiz Dene
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm border border-white/10 text-white/70 hover:text-white hover:border-white/20 transition-all"
-              >
-                Giriş Yap
-              </Link>
-            </motion.div>
-          </motion.div>
-
-          {/* right: animated mockup */}
-          <HeroMockup />
-        </motion.div>
-      </section>
-
-      {/* ── Stats ── */}
-      <section className="border-y border-border/40 py-10 px-4">
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-60px" }}
-          className="max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6"
-        >
-          {stats.map((stat) => (
-            <motion.div key={stat.label} variants={fadeUp} className="text-center">
-              <p
-                className="text-2xl md:text-3xl font-black"
-                style={{ fontFamily: "var(--font-outfit), sans-serif", color: stat.color }}
-              >
-                {stat.text ? stat.text : <CountUp to={stat.to} suffix={stat.suffix} decimals={stat.decimals} />}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">{stat.label}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-      </section>
-
-      {/* ── Features ── */}
-      <section className="py-16 px-4 max-w-5xl mx-auto">
-        <Reveal className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-black tracking-tight mb-3" style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
-            Her Şey Tek Yerde
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Araç yönetiminde ihtiyaç duyacağınız tüm araçlar, tek bir platformda ve ücretsiz.
-          </p>
-        </Reveal>
-
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-60px" }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          {features.map((f) => (
-            <motion.article
-              key={f.title}
-              variants={fadeUp}
-              whileHover={{ y: -6 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="rounded-2xl p-5 border border-border/40 bg-card space-y-3 hover:border-border/80"
-            >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: f.bg }}>
-                <f.icon className="h-5 w-5" style={{ color: f.color }} />
-              </div>
-              <h3 className="font-bold text-sm">{f.title}</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
-            </motion.article>
-          ))}
-        </motion.div>
-      </section>
-
-      {/* ── How It Works ── */}
-      <section
-        className="py-16 px-4"
-        style={{ background: "rgba(208,188,255,0.03)", borderTop: "1px solid rgba(208,188,255,0.08)", borderBottom: "1px solid rgba(208,188,255,0.08)" }}
-      >
-        <div className="max-w-3xl mx-auto">
-          <Reveal className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-black tracking-tight mb-3" style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
-              3 Adımda Başlayın
-            </h2>
-            <p className="text-sm text-muted-foreground">Dakikalar içinde araçlarınızı sisteme ekleyin.</p>
-          </Reveal>
-
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-60px" }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
-          >
+          <RevealGroup className="mt-14 grid gap-8 md:grid-cols-3">
             {steps.map((step, i) => (
               <motion.div key={step.num} variants={fadeUp} className="relative">
                 {i < steps.length - 1 && (
                   <div
-                    className="hidden md:block absolute top-5 left-[calc(100%-8px)] w-full h-px z-0"
-                    style={{ background: "linear-gradient(90deg, rgba(208,188,255,0.35), transparent)" }}
+                    aria-hidden
+                    className="absolute left-[calc(100%-1rem)] top-7 z-0 hidden h-px w-full md:block"
+                    style={{
+                      background:
+                        "linear-gradient(90deg, color-mix(in oklab, var(--brand-1) 35%, transparent), transparent)",
+                    }}
                   />
                 )}
-                <div className="relative z-10 text-center space-y-3">
-                  <motion.div
-                    whileHover={{ scale: 1.08, rotate: 4 }}
-                    className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center"
-                    style={{ background: PRIMARY_BG, border: "1px solid rgba(208,188,255,0.2)" }}
-                  >
-                    <step.icon className="h-5 w-5" style={{ color: PRIMARY }} />
-                  </motion.div>
-                  <span className="block text-xs font-black" style={{ color: PRIMARY, fontFamily: "var(--font-ibm-mono), monospace" }}>
-                    {step.num}
-                  </span>
-                  <h3 className="font-bold text-sm">{step.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{step.desc}</p>
+                <div className="relative z-10 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-primary/10">
+                      <step.icon className="h-6 w-6 text-primary" />
+                    </span>
+                    <span className="font-mono text-sm font-bold text-primary">
+                      {step.num}
+                    </span>
+                  </div>
+                  <h3 className="font-outfit text-lg font-bold">
+                    {step.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {step.desc}
+                  </p>
                 </div>
               </motion.div>
             ))}
-          </motion.div>
-        </div>
-      </section>
+          </RevealGroup>
+        </Section>
 
-      {/* ── FAQ ── */}
-      <section className="py-16 px-4 max-w-3xl mx-auto">
-        <Reveal className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-black tracking-tight mb-3" style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
-            Sık Sorulan Sorular
-          </h2>
-          <p className="text-sm text-muted-foreground">CarsTrack hakkında merak ettikleriniz.</p>
-        </Reveal>
+        {/* ── SSS ── */}
+        <Section>
+          <SectionHeading
+            eyebrow="SSS"
+            title="Sık sorulan sorular"
+            description="CarsTrack hakkında merak ettikleriniz."
+          />
 
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-60px" }}
-          className="space-y-3"
-        >
-          {faqs.map((faq) => (
-            <motion.details
-              key={faq.q}
-              variants={fadeUp}
-              className="group rounded-2xl border border-border/40 bg-card overflow-hidden"
+          <RevealGroup className="mx-auto mt-12 max-w-3xl space-y-3">
+            {LANDING_FAQS.map((faq) => (
+              <motion.details
+                key={faq.q}
+                variants={fadeUp}
+                className="group overflow-hidden rounded-2xl border border-border/60 bg-card"
+              >
+                <summary className="flex cursor-pointer list-none select-none items-center justify-between gap-4 px-5 py-4 font-semibold transition-colors hover:bg-muted/40">
+                  <span>{faq.q}</span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+                </summary>
+                <div className="border-t border-border/50 px-5 pb-5 pt-4 text-sm leading-relaxed text-muted-foreground">
+                  {faq.a}
+                </div>
+              </motion.details>
+            ))}
+          </RevealGroup>
+        </Section>
+
+        {/* ── Kapanış CTA ── */}
+        <Section tight>
+          <Reveal>
+            <div
+              className="relative overflow-hidden rounded-3xl border border-primary/20 p-10 text-center sm:p-14"
+              style={{
+                background:
+                  "linear-gradient(135deg, color-mix(in oklab, var(--brand-1) 12%, transparent) 0%, color-mix(in oklab, var(--brand-2) 8%, transparent) 100%)",
+              }}
             >
-              <summary className="flex items-center justify-between px-5 py-4 cursor-pointer list-none select-none font-semibold text-sm hover:bg-muted/30 transition-colors">
-                <span>{faq.q}</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-3 transition-transform group-open:rotate-90" />
-              </summary>
-              <div className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed border-t border-border/30 pt-3">
-                {faq.a}
+              <div
+                aria-hidden
+                className="orb -top-24 left-1/2 h-72 w-72 -translate-x-1/2"
+                style={{
+                  background:
+                    "color-mix(in oklab, var(--brand-1) 18%, transparent)",
+                }}
+              />
+              <div className="relative mx-auto max-w-2xl space-y-5">
+                <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-primary/25 bg-primary/10">
+                  <Car className="h-7 w-7 text-primary" />
+                </span>
+                <h2 className="font-outfit text-section font-black text-balance">
+                  Araçlarınızı hemen takibe alın
+                </h2>
+                <p className="text-muted-foreground text-pretty">
+                  Ücretsiz hesap oluşturun, dakikalar içinde ilk aracınızı
+                  ekleyin. Kredi kartı gerekmez.
+                </p>
+                <Link
+                  href="/register"
+                  className="group inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
+                  style={{ boxShadow: "var(--brand-glow)" }}
+                >
+                  Ücretsiz Başla
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
               </div>
-            </motion.details>
-          ))}
-        </motion.div>
-      </section>
+            </div>
+          </Reveal>
+        </Section>
+      </main>
 
-      {/* ── CTA Banner ── */}
-      <section className="py-16 px-4">
-        <Reveal>
-          <div
-            className="max-w-2xl mx-auto text-center rounded-3xl p-10 space-y-5 relative overflow-hidden"
-            style={{
-              background: "linear-gradient(135deg, rgba(208,188,255,0.12) 0%, rgba(76,215,246,0.08) 100%)",
-              border: "1px solid rgba(208,188,255,0.2)",
-            }}
-          >
-            <motion.div
-              className="orb w-64 h-64 -top-20 left-1/2 -translate-x-1/2"
-              style={{ background: "rgba(208,188,255,0.2)" }}
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <motion.div
-              whileHover={{ rotate: -6, scale: 1.05 }}
-              className="relative w-14 h-14 rounded-2xl mx-auto flex items-center justify-center"
-              style={{ background: PRIMARY_BG, border: "1px solid rgba(208,188,255,0.28)" }}
-            >
-              <Car className="h-7 w-7" style={{ color: PRIMARY }} />
-            </motion.div>
-            <h2 className="relative text-2xl md:text-3xl font-black tracking-tight" style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
-              Araçlarınızı Hemen Takibe Alın
-            </h2>
-            <p className="relative text-sm text-muted-foreground">
-              Ücretsiz hesap oluşturun, dakikalar içinde ilk aracınızı ekleyin. Kredi kartı gerekmez.
-            </p>
-            <Link
-              href="/register"
-              className="group relative inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-transform hover:scale-[1.03] active:scale-95"
-              style={{ background: GRAD, color: ON_PRIMARY, boxShadow: GLOW }}
-            >
-              Ücretsiz Başla
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
-        </Reveal>
-      </section>
-
-      {/* ── Footer ── */}
-      <footer className="border-t border-border/40 py-8 px-4">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Car className="h-4 w-4" style={{ color: PRIMARY }} />
-            <span className="font-bold text-sm">
-              Cars<span style={textGradient}>Track</span>
-            </span>
-            <span className="text-muted-foreground text-xs ml-2">
-              © {new Date().getFullYear()} Tüm hakları saklıdır.
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap justify-center">
-            <Link href="/arac-bakim-takip" className="hover:text-foreground transition-colors">Araç Bakım Takip</Link>
-            <Link href="/ozellikler" className="hover:text-foreground transition-colors">Özellikler</Link>
-            <Link href="/sss" className="hover:text-foreground transition-colors">SSS</Link>
-            <Link href="/privacy" className="hover:text-foreground transition-colors">Gizlilik</Link>
-            <Link href="/login" className="hover:text-foreground transition-colors">Giriş Yap</Link>
-            <Link href="/register" className="hover:text-foreground transition-colors">Kayıt Ol</Link>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }
