@@ -58,7 +58,7 @@ const nextConfig: NextConfig = {
       // header tek merkezden hepsini kapsar.
       {
         source:
-          "/:path(dashboard|vehicles|history|analytics|settings|users|tasks|reports|activity|notifications|traffic-fines|yakit|km-guncelle|admin|reset-password|auth)/:rest*",
+          "/:path(dashboard|vehicles|history|analytics|settings|users|tasks|reports|activity|notifications|traffic-fines|yakit|admin|reset-password|auth)/:rest*",
         headers: [
           { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
           { key: "Pragma", value: "no-cache" },

@@ -10,7 +10,7 @@ import { withCronLogging } from "@/lib/cron/record";
 /**
  * AKTİVASYON HATIRLATICISI
  * ============================================================================
- * Diğer tüm cron'lar (fleet-alerts, license-alerts, kilometer-reminder) VERİ
+ * Diğer tüm cron'lar (fleet-alerts, license-alerts) VERİ
  * VARSA çalışır. Yani kaydolup araç eklemeyen ya da araç ekleyip sigorta/muayene
  * tarihi girmeyen kullanıcı hiçbir e-posta almaz — ürün ona hiçbir değer teslim
  * etmez ve sessizce kaybedilir.

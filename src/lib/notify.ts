@@ -17,7 +17,7 @@ import type { EventEmailContent } from "@/lib/notify-email";
  * Eşlemede olmayan (ör. güvenlik/kurtarma) türler her zaman gönderilir.
  *
  *  - operational: günlük aktivite (yeni araç/kayıt/arıza/görev/ekip/geri bildirim)
- *  - reminders:   kişiye özel hatırlatmalar (km, ehliyet, trafik cezası)
+ *  - reminders:   kişiye özel hatırlatmalar (ehliyet, trafik cezası)
  */
 export const EVENT_CATEGORY: Record<string, "operational" | "reminders"> = {
   vehicle_new: "operational",
@@ -32,7 +32,6 @@ export const EVENT_CATEGORY: Record<string, "operational" | "reminders"> = {
   license_expiry_team: "operational",
   fine_assigned: "reminders",
   fine_status: "reminders",
-  kilometer_reminder: "reminders",
   license_expiry: "reminders",
   fuel_new: "operational",
   fuel_anomaly: "reminders",

@@ -4,7 +4,7 @@
  * Hiç aracı olmayan yeni kullanıcı için üç adımlı kurulum akışı.
  *
  * Neden var: kaydolup araç eklemeyen ya da araç ekleyip tarih girmeyen kullanıcıya
- * hiçbir cron (fleet-alerts / license-alerts / kilometer-reminder) e-posta göndermez;
+ * hiçbir cron (fleet-alerts / license-alerts) e-posta göndermez;
  * yani ürün ona ömrü boyunca hiçbir değer teslim etmez ve sessizce kaybedilir.
  * Bu akış kullanıcıyı ilk hatırlatmanın tetikleneceği noktaya kadar taşır ve
  * son adımda uyarıların TAM OLARAK ne zaman geleceğini tarih vererek gösterir.

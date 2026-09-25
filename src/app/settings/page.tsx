@@ -1425,7 +1425,7 @@ export default function SettingsPage() {
                 iconBg="bg-amber-500/10"
                 iconColor="text-amber-500"
                 label={categoryPrefSaving === "reminders" ? "Kaydediliyor…" : "Hatırlatıcılar"}
-                description="Haftalık kilometre, ehliyet süresi ve trafik cezası bildirimleri"
+                description="Ehliyet süresi ve trafik cezası bildirimleri"
                 trailing={<Toggle on={remindersNotif} onToggle={() => handleCategoryToggle("reminders")} />}
                 onClick={() => handleCategoryToggle("reminders")}
               />

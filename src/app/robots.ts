@@ -18,7 +18,6 @@ export default function robots(): MetadataRoute.Robots {
     "/notifications",
     "/traffic-fines",
     "/yakit",
-    "/km-guncelle",
     "/admin",
     "/api/",
     "/reset-password",

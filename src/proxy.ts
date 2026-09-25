@@ -148,8 +148,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/sss") ||
     pathname.startsWith("/ozellikler") ||
-    pathname.startsWith("/arac-bakim-takip") ||
-    pathname.startsWith("/km-guncelle");
+    pathname.startsWith("/arac-bakim-takip");
 
   // Bayat/süresi dolmuş oturum → sb- çerezlerini sil. Korumalı sayfadaysak
   // /login'e döneriz; public sayfada (landing, SSS, fiyatlandırma…) ziyaretçiyi

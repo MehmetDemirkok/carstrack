@@ -27,7 +27,7 @@ export interface DriverLicenseEntry {
 export interface NotificationPrefs {
   /** Günlük aktivite: yeni araç/servis kaydı/arıza/görev/ekip üyesi/geri bildirim durumu. */
   operational: boolean;
-  /** Doğrudan kişiye yönelik hatırlatmalar: haftalık km, ehliyet süresi, trafik cezası. */
+  /** Doğrudan kişiye yönelik hatırlatmalar: ehliyet süresi, trafik cezası. */
   reminders: boolean;
 }
 
@@ -263,38 +263,6 @@ export interface FleetAlert {
   description: string;
   severity: AlertSeverity;
   category: "insurance" | "green-card" | "inspection" | "maintenance" | "tire" | "traffic-fine" | "fuel";
-}
-
-/** Haftalık kilometre takip kaydı (kilometer_logs). */
-export interface KilometerLog {
-  id: string;
-  companyId: string;
-  vehicleId: string;
-  userId: string;
-  kilometerValue: number;
-  previousKilometer?: number;
-  photoUrl?: string;
-  createdAt: string;
-  vehiclePlate?: string;
-  userName?: string;
-}
-
-/** Atanan araç özeti — magic link formunda plaka seçimi için. */
-export interface KilometerLogVehicleOption {
-  vehicleId: string;
-  vehiclePlate: string;
-  vehicleName: string;
-  previousKilometer: number;
-  /** Bu token döneminde bu araç için km girilmiş mi. */
-  alreadySubmitted?: boolean;
-}
-
-/** Magic link token bağlamı — form sayfasında gösterilir. */
-export interface KilometerLogTokenContext {
-  token: string;
-  expiresAt: string;
-  /** Atanan araçlar (1+). Birden fazlaysa formda plaka seçilir. */
-  vehicles: KilometerLogVehicleOption[];
 }
 
 // ─── Trafik Cezaları ───────────────────────────────────────────

@@ -13,12 +13,6 @@ export const CRON_JOBS = [
     description: "Süresi dolan sürücü ehliyetlerini hatırlatır. Her gün 08:00 (TR).",
   },
   {
-    path: "/api/cron/kilometer-reminder",
-    schedule: "0 7 * * 1,5",
-    label: "Kilometre hatırlatması",
-    description: "Sürücülerden haftalık km bildirimi ister. Pazartesi/Cuma 10:00 (TR).",
-  },
-  {
     path: "/api/cron/activation-nudge",
     schedule: "0 8 * * 2,5",
     label: "Aktivasyon dürtmesi",
