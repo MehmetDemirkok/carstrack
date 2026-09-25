@@ -31,8 +31,6 @@ const BACKUP_TABLES = [
   "service_providers",
   "audit_logs",
   "license_notification_log",
-  "kilometer_logs",
-  "kilometer_log_tokens",
   "traffic_fines",
   "fuel_records",
 ] as const;

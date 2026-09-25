@@ -164,7 +164,7 @@ function inviteCode() {
 }
 const { data: company, error: companyErr } = await admin
   .from("companies")
-  .insert({ name: COMPANY_NAME, plan: "fleet", invite_code: inviteCode() })
+  .insert({ name: COMPANY_NAME, invite_code: inviteCode() })
   .select("id")
   .single();
 if (companyErr) throw companyErr;

@@ -55,7 +55,6 @@ export interface AdminUserDetail extends AdminUserRow {
     fuelRecords: number;
     reports: number;
     feedback: number;
-    kilometerLogs: number;
   };
 }
 

@@ -38,7 +38,7 @@ Database rows are `snake_case`; app-level types (`src/lib/types.ts`) are `camelC
 - Every table is scoped by `company_id`; tenant isolation is enforced by Postgres RLS policies (see `supabase/migrations/`, especially the `2026061*` and `2026070*` "security_hardening"/"rls_*" migrations).
 - `requireCompanyId()` in `db.ts` resolves the current user's company id client-side, in order: cached value → `user_metadata.company_id` (fast path) → `/api/auth/profile` fallback, which then back-fills metadata for future calls. Any new client-side data function should call this rather than re-deriving company id.
 - `src/context/auth-context.tsx` owns `user`/`profile`/`company` state app-wide via `onAuthStateChange`, and unblocks the UI using `user_metadata.company_id` before the full profile row has loaded — the full `Profile`/`Company` load happens in the background and patches in.
-- Roles (`UserRole` in `types.ts`): `manager`, `operator`, `user` (driver). There is no plan/billing tier: the plan system was removed on 2026-09-19 because every gate returned `true` and no payment integration exists. The `companies.plan` column still exists in the database but nothing in the app reads or writes it.
+- Roles (`UserRole` in `types.ts`): `manager`, `operator`, `user` (driver). There is no plan/billing tier: the plan system was removed on 2026-09-19 (app gates) and schema-cleaned on 2026-09-25 (`20260925_remove_plans_billing.sql` drops `companies.plan*` / Stripe columns and the unused `subscriptions` billing table). Product is free for all tenants; marketing copy says "ücretsiz", not "ücretsiz plan".
 
 ### Notifications
 

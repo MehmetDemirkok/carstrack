@@ -30,7 +30,7 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
 
   const companyId = (profile?.company_id as string) ?? null;
 
-  const [companyRes, assignmentsRes, auditRes, taskCountRes, fuelCountRes, reportCountRes, feedbackCountRes, kmLogCountRes] =
+  const [companyRes, assignmentsRes, auditRes, taskCountRes, fuelCountRes, reportCountRes, feedbackCountRes] =
     await Promise.all([
       companyId
         ? db.from("companies").select("id, name").eq("id", companyId).maybeSingle()
@@ -46,7 +46,6 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
       db.from("fuel_records").select("id", { count: "exact", head: true }).eq("created_by", userId),
       db.from("vehicle_reports").select("id", { count: "exact", head: true }).eq("reporter_id", userId),
       db.from("feedback").select("id", { count: "exact", head: true }).eq("user_id", userId),
-      db.from("kilometer_logs").select("id", { count: "exact", head: true }).eq("user_id", userId),
     ]);
 
   const vehicleIds = uniqueIds((assignmentsRes.data ?? []).map((a) => a.vehicle_id as string));
@@ -91,7 +90,6 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
       fuelRecords: fuelCountRes.count ?? 0,
       reports: reportCountRes.count ?? 0,
       feedback: feedbackCountRes.count ?? 0,
-      kilometerLogs: kmLogCountRes.count ?? 0,
     },
   };
 

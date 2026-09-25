@@ -199,12 +199,11 @@ export default function AdminUserDetailPage() {
       </Panel>
 
       {/* ── İstatistikler ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniStat label="Atanmış araç" value={data.vehicleCount} />
         <MiniStat label="Görev" value={data.stats.tasks} />
         <MiniStat label="Yakıt kaydı" value={data.stats.fuelRecords} />
         <MiniStat label="Arıza bildirimi" value={data.stats.reports} />
-        <MiniStat label="Km bildirimi" value={data.stats.kilometerLogs} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

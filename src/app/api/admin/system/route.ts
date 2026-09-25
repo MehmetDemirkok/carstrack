@@ -41,7 +41,6 @@ const COUNTED_TABLES: { table: string; time: string | null }[] = [
   { table: "vehicle_reports", time: "created_at" },
   { table: "fuel_records", time: "created_at" },
   { table: "traffic_fines", time: "created_at" },
-  { table: "kilometer_logs", time: "created_at" },
   { table: "notifications", time: "created_at" },
   { table: "feedback", time: "created_at" },
   { table: "company_invites", time: "created_at" },

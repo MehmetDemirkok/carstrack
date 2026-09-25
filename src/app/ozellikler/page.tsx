@@ -133,7 +133,7 @@ export default function OzelliklerPage() {
             </h2>
             <p className="mt-4 leading-relaxed text-muted-foreground">
               Excel tablosu hatırlatmaz, rol bazlı erişim sunmaz ve mobil bildirim
-              göndermez. CarsTrack bunların hepsini ücretsiz planda yapar.
+              göndermez. CarsTrack bunların hepsini ücretsiz yapar.
             </p>
           </Reveal>
           <Reveal>

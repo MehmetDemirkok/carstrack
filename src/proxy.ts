@@ -151,7 +151,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/arac-bakim-takip");
 
   // Bayat/süresi dolmuş oturum → sb- çerezlerini sil. Korumalı sayfadaysak
-  // /login'e döneriz; public sayfada (landing, SSS, fiyatlandırma…) ziyaretçiyi
+  // /login'e döneriz; public sayfada (landing, SSS, özellikler…) ziyaretçiyi
   // login'e fırlatmayız, sayfa normal render edilir. Her iki durumda da çerez
   // temizlendiği için aynı istek bir daha yenileme denemez.
   if (staleSession) {
