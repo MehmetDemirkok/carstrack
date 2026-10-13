@@ -419,6 +419,11 @@ export default function VehicleDetailPage() {
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
   const [editData, setEditData] = useState<Partial<Vehicle>>({});
+  // Km ve yıl düzenlenirken ham metin tutulur, sayıya yalnızca kayıtta çevrilir.
+  // Doğrudan sayı state'e bağlanınca alan boşaltılamıyordu: boş giriş `|| eskiDeğer`
+  // ile geri düşüyor ve kullanıcı değeri silip yeniden yazamıyordu.
+  const [editMileage, setEditMileage] = useState("");
+  const [editYear, setEditYear] = useState("");
   const [recordForm, setRecordForm] = useState({
     date: new Date().toISOString().split("T")[0],
     type: "routine" as ServiceType,
@@ -612,6 +617,8 @@ export default function VehicleDetailPage() {
 
   const openEdit = () => {
     setEditData({ ...vehicle });
+    setEditMileage(vehicle.mileage != null ? String(vehicle.mileage) : "");
+    setEditYear(vehicle.year != null ? String(vehicle.year) : "");
     setShowEdit(true);
   };
 
@@ -642,8 +649,28 @@ export default function VehicleDetailPage() {
   };
 
   const handleSaveEdit = async () => {
+    // Km boş bırakılamaz: parseKm("") 0 döndüğü için boş girişi sessizce 0'a
+    // düşürmek yerine kullanıcıyı uyarırız.
+    const mileageRaw = editMileage.trim();
+    if (mileageRaw === "") {
+      toast.error("Kilometre gerekli", { description: "Lütfen aracın güncel kilometresini girin." });
+      return;
+    }
+    const mileage = parseKm(mileageRaw);
+    if (mileage < 0) {
+      toast.error("Geçersiz Kilometre", { description: "Kilometre 0 veya daha büyük bir sayı olmalı." });
+      return;
+    }
+
+    const yearRaw = editYear.trim();
+    const year = yearRaw === "" ? editData.year : parseInt(yearRaw, 10);
+    if (year !== undefined && (Number.isNaN(year) || year < 1900 || year > 2100)) {
+      toast.error("Geçersiz Yıl", { description: "Yıl 1900–2100 arasında olmalı." });
+      return;
+    }
+
     try {
-      await updateVehicle(vehicle.id, editData);
+      await updateVehicle(vehicle.id, { ...editData, mileage, year });
       setShowEdit(false);
       reload();
       refreshShared();
@@ -2082,7 +2109,7 @@ export default function VehicleDetailPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1"><Label className={iLabel}>Yıl</Label><Input className={iCls} type="number" value={editData.year || ""} onChange={(e) => setEditData((d) => ({ ...d, year: parseInt(e.target.value) || d.year }))} /></div>
+                  <div className="space-y-1"><Label className={iLabel}>Yıl</Label><Input className={iCls} type="text" inputMode="numeric" value={editYear} onChange={(e) => setEditYear(e.target.value)} placeholder={vehicle.year != null ? String(vehicle.year) : ""} /></div>
                   <div className="space-y-1">
                     <Label className={iLabel}>Renk</Label>
                     <AutocompleteInput
@@ -2095,7 +2122,7 @@ export default function VehicleDetailPage() {
                     />
                   </div>
                 </div>
-                <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="text" inputMode="numeric" value={editData.mileage || ""} onChange={(e) => setEditData((d) => ({ ...d, mileage: parseKm(e.target.value) || d.mileage }))} /></div>
+                <div className="space-y-1"><Label className={iLabel}>Kilometre</Label><Input className={iCls} type="text" inputMode="numeric" value={editMileage} onChange={(e) => setEditMileage(e.target.value)} placeholder={String(vehicle.mileage)} /></div>
                 <div className="space-y-1"><Label className={iLabel}>Şasi No</Label><Input className={iCls} value={editData.chassisNo || ""} onChange={(e) => setEditData((d) => ({ ...d, chassisNo: e.target.value }))} /></div>
               </div>
 

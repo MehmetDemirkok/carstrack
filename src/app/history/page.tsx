@@ -274,7 +274,7 @@ export default function HistoryPage() {
       <datalist id="service-providers-list">
         {providers.map((p) => <option key={p.id} value={p.name} />)}
       </datalist>
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-outfit font-bold tracking-tight">Servis Kayıtları</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -283,20 +283,21 @@ export default function HistoryPage() {
             {unpaidTotal > 0 && <> • <span className="font-semibold text-destructive">₺{unpaidTotal.toLocaleString("tr-TR")} ödenmedi</span></>}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-start gap-2 sm:justify-end">
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
                   variant="outline"
-                  size="icon"
-                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                  size="sm"
+                  className="rounded-full h-9 gap-1.5 px-3 shadow-sm border-border/50 font-semibold"
                   disabled={filtered.length === 0}
                   onClick={() => exportServiceHistoryPDF(filtered, vehicles)}
                 />
               }
             >
               <FileDown className="h-4 w-4" />
+              <span className="text-xs">PDF</span>
             </TooltipTrigger>
             <TooltipContent>PDF&apos;e Aktar</TooltipContent>
           </Tooltip>
@@ -305,14 +306,15 @@ export default function HistoryPage() {
               render={
                 <Button
                   variant="outline"
-                  size="icon"
-                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                  size="sm"
+                  className="rounded-full h-9 gap-1.5 px-3 shadow-sm border-border/50 font-semibold"
                   disabled={filtered.length === 0}
                   onClick={() => { exportServiceHistoryExcel(filtered, vehicles).catch(() => toast.error("Dışa aktarma başarısız")); }}
                 />
               }
             >
               <Download className="h-4 w-4" />
+              <span className="text-xs">Excel</span>
             </TooltipTrigger>
             <TooltipContent>Excel&apos;e Aktar</TooltipContent>
           </Tooltip>
@@ -321,19 +323,21 @@ export default function HistoryPage() {
               render={
                 <Button
                   variant="outline"
-                  size="icon"
-                  className="rounded-full h-9 w-9 shadow-sm border-border/50"
+                  size="sm"
+                  className="rounded-full h-9 gap-1.5 px-3 shadow-sm border-border/50 font-semibold"
                   onClick={() => setShowProviders(true)}
                 />
               }
             >
               <Wrench className="h-4 w-4" />
+              <span className="text-xs">Servis Noktaları</span>
             </TooltipTrigger>
             <TooltipContent>Servis Sağlayıcılar</TooltipContent>
           </Tooltip>
           <Tooltip>
-            <TooltipTrigger render={<Button variant="outline" size="icon" className="rounded-full h-9 w-9 shadow-sm border-border/50" onClick={() => setShowFilters((s) => !s)} />}>
+            <TooltipTrigger render={<Button variant="outline" size="sm" className="rounded-full h-9 gap-1.5 px-3 shadow-sm border-border/50 font-semibold" onClick={() => setShowFilters((s) => !s)} />}>
               <Filter className={`h-4 w-4 ${showFilters ? "text-primary" : ""}`} />
+              <span className="text-xs">Filtre</span>
             </TooltipTrigger>
             <TooltipContent>Araç Filtresi</TooltipContent>
           </Tooltip>
@@ -344,17 +348,19 @@ export default function HistoryPage() {
                   href={TUVTURK_RANDEVU_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-full h-9 w-9 shadow-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-full h-9 px-3 shadow-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors font-semibold"
                 />
               }
             >
               <CalendarPlus className="h-4 w-4" />
+              <span className="text-xs">TÜVTÜRK Randevu</span>
             </TooltipTrigger>
             <TooltipContent>Muayene Randevusu Al (TÜVTÜRK)</TooltipContent>
           </Tooltip>
           <Tooltip>
-            <TooltipTrigger render={<Button size="icon" className="rounded-full h-9 w-9 shadow-md" onClick={() => { setRecordMaintIds(["oil"]); setShowAdd(true); }} />}>
+            <TooltipTrigger render={<Button size="sm" className="rounded-full h-9 gap-1.5 px-3 shadow-md font-semibold" onClick={() => { setRecordMaintIds(["oil"]); setShowAdd(true); }} />}>
               <Plus className="h-4 w-4" />
+              <span className="text-xs">Servis Kaydı Ekle</span>
             </TooltipTrigger>
             <TooltipContent>Servis Kaydı Ekle</TooltipContent>
           </Tooltip>

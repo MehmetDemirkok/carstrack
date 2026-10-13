@@ -130,6 +130,10 @@ export const ACTION_LABELS: Record<string, string> = {
   fuel_record_created: "Yakıt kaydı eklendi",
   fuel_record_updated: "Yakıt kaydı güncellendi",
   fuel_record_deleted: "Yakıt kaydı silindi",
+  company_info_updated: "Şirket bilgileri güncellendi",
+  timezone_updated: "Saat dilimi güncellendi",
+  fuel_threshold_updated: "Yakıt tüketim eşiği güncellendi",
+  account_delete_requested: "Hesap silme talebi oluşturuldu",
   // admin (admin_audit_log)
   user_role_changed: "Kullanıcı rolü değiştirildi",
   user_profile_updated: "Kullanıcı profili güncellendi",

@@ -5,20 +5,49 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Activity, UserCog, Car, Route, Mail, RefreshCw, MailX } from "lucide-react";
+import {
+  Activity, UserCog, Car, Route, Mail, RefreshCw, MailX,
+  Fuel, Receipt, Building2, Clock, UserX, Gauge,
+} from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getAuditLogs } from "@/lib/db";
 import type { AuditLog } from "@/lib/types";
+import { ACTION_LABELS } from "@/lib/admin/format";
 import { toast } from "sonner";
 
-const ACTION_CONFIG: Record<string, { label: string; icon: React.ElementType; iconBg: string; iconColor: string }> = {
-  role_changed: { label: "Rol değiştirildi", icon: UserCog, iconBg: "bg-primary/10", iconColor: "text-primary" },
-  vehicle_deleted: { label: "Araç silindi", icon: Car, iconBg: "bg-red-500/10", iconColor: "text-red-500" },
-  task_deleted: { label: "Görev silindi", icon: Route, iconBg: "bg-orange-500/10", iconColor: "text-orange-500" },
-  invite_sent: { label: "Davet gönderildi", icon: Mail, iconBg: "bg-sky-500/10", iconColor: "text-sky-500" },
-  invite_revoked: { label: "Davet iptal edildi", icon: MailX, iconBg: "bg-muted", iconColor: "text-muted-foreground" },
-  invite_code_regenerated: { label: "Davet kodu yenilendi", icon: RefreshCw, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500" },
+/**
+ * Aksiyon → ikon/renk. Etiketler merkezî `ACTION_LABELS`'tan gelir (admin
+ * panelindeki aktivite sayfasıyla aynı sözlük) — burada yalnızca görsel stil
+ * tanımlanır ki yeni aksiyonlar ham kod olarak görünmesin.
+ */
+const ACTION_STYLE: Record<string, { icon: React.ElementType; iconBg: string; iconColor: string }> = {
+  role_changed: { icon: UserCog, iconBg: "bg-primary/10", iconColor: "text-primary" },
+  vehicle_deleted: { icon: Car, iconBg: "bg-red-500/10", iconColor: "text-red-500" },
+  task_deleted: { icon: Route, iconBg: "bg-orange-500/10", iconColor: "text-orange-500" },
+  km_gap_closed: { icon: Gauge, iconBg: "bg-sky-500/10", iconColor: "text-sky-500" },
+  invite_sent: { icon: Mail, iconBg: "bg-sky-500/10", iconColor: "text-sky-500" },
+  invite_revoked: { icon: MailX, iconBg: "bg-muted", iconColor: "text-muted-foreground" },
+  invite_code_regenerated: { icon: RefreshCw, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500" },
+  fine_created: { icon: Receipt, iconBg: "bg-amber-500/10", iconColor: "text-amber-500" },
+  fine_status_changed: { icon: Receipt, iconBg: "bg-amber-500/10", iconColor: "text-amber-500" },
+  fine_deleted: { icon: Receipt, iconBg: "bg-red-500/10", iconColor: "text-red-500" },
+  fuel_record_created: { icon: Fuel, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500" },
+  fuel_record_updated: { icon: Fuel, iconBg: "bg-sky-500/10", iconColor: "text-sky-500" },
+  fuel_record_deleted: { icon: Fuel, iconBg: "bg-red-500/10", iconColor: "text-red-500" },
+  company_info_updated: { icon: Building2, iconBg: "bg-primary/10", iconColor: "text-primary" },
+  timezone_updated: { icon: Clock, iconBg: "bg-primary/10", iconColor: "text-primary" },
+  fuel_threshold_updated: { icon: Gauge, iconBg: "bg-primary/10", iconColor: "text-primary" },
+  account_delete_requested: { icon: UserX, iconBg: "bg-red-500/10", iconColor: "text-red-500" },
 };
+
+const DEFAULT_STYLE = { icon: Activity, iconBg: "bg-muted", iconColor: "text-muted-foreground" };
+
+/** Bilinmeyen bir aksiyon gelirse ham `snake_case` yerine okunur bir metin üret. */
+function humanizeAction(action: string): string {
+  if (!action) return "İşlem";
+  const text = action.replace(/_/g, " ");
+  return text.charAt(0).toLocaleUpperCase("tr") + text.slice(1);
+}
 
 export default function ActivityPage() {
   const { profile, user } = useAuth();
@@ -76,8 +105,9 @@ export default function ActivityPage() {
           className="space-y-2"
         >
           {logs.map((log) => {
-            const config = ACTION_CONFIG[log.action] ?? { label: log.action, icon: Activity, iconBg: "bg-muted", iconColor: "text-muted-foreground" };
+            const config = ACTION_STYLE[log.action] ?? DEFAULT_STYLE;
             const Icon = config.icon;
+            const label = ACTION_LABELS[log.action] ?? humanizeAction(log.action);
             return (
               <motion.div
                 key={log.id}
@@ -88,7 +118,7 @@ export default function ActivityPage() {
                   <Icon className={`h-4 w-4 ${config.iconColor}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{config.label}</p>
+                  <p className="text-sm font-semibold">{label}</p>
                   <p className="text-xs text-muted-foreground truncate">
                     {log.actorName}
                     {log.entityLabel && ` — ${log.entityLabel}`}
