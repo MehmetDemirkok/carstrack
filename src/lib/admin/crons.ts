@@ -19,6 +19,13 @@ export const CRON_JOBS = [
     description: "Hiç araç eklememiş hesaplara e-posta atar. Salı/Cuma 11:00 (TR).",
   },
   {
+    path: "/api/cron/feedback-reminder",
+    schedule: "0 9 * * 1",
+    label: "Geri bildirim isteği",
+    description:
+      "Kullanıcılardan ürünü geliştirmek için geri bildirim ister (zil + push). Pazartesi 12:00 (TR).",
+  },
+  {
     path: "/api/cron/db-backup",
     schedule: "0 3 * * 1",
     label: "Veritabanı yedeği",

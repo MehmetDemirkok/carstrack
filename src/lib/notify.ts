@@ -256,6 +256,102 @@ export async function dispatchToManagers(
 }
 
 /**
+ * Admin panelinden gönderilen sistem duyurusunun alıcısı. `companyId` şart:
+ * `notifications.company_id NOT NULL` olduğundan zil satırı şirketsiz yazılamaz
+ * ve tek duyuru birden çok şirkete gidebilir (her alıcının kendi şirketi).
+ */
+export interface AnnouncementRecipient {
+  userId: string;
+  companyId: string;
+}
+
+/**
+ * `dispatchAnnouncement` girdisi. `NotifyEvent`'ten farkı: e-posta içeriği yok,
+ * çünkü e-posta ayrı uçtan (`/api/admin/email/send`) gönderilir.
+ */
+export interface AnnouncementEvent {
+  type: string;
+  severity?: "info" | "warning" | "critical";
+  title: string;
+  body: string;
+  url?: string;
+  meta?: Record<string, unknown>;
+}
+
+/** Zil insert'ini ve push id listesini parçalama boyutu. */
+const ANNOUNCEMENT_CHUNK = 500;
+
+/**
+ * Admin panelinden gönderilen sistem duyurusunu zile + Web Push'a dağıtır.
+ *
+ * E-posta BURADAN gönderilmez: "ikisi birden" seçildiğinde e-posta ayrı uçtan
+ * gider; burada da gönderilseydi çift mail düşerdi.
+ *
+ * Kategori/soğuma/tercih filtreleri uygulanmaz — duyuru operasyonel bir olay
+ * değil sistem mesajıdır, her alıcıya ulaşması amaçlanır (zil her zaman
+ * çalar; push için de aynı kitle hedeflenir).
+ */
+export async function dispatchAnnouncement(
+  admin: SupabaseClient,
+  recipients: AnnouncementRecipient[],
+  event: AnnouncementEvent,
+): Promise<DispatchResult> {
+  const result: DispatchResult = { recipients: 0, inApp: 0, push: 0, email: 0 };
+  if (recipients.length === 0) return result;
+  result.recipients = recipients.length;
+
+  const severity = event.severity ?? "info";
+
+  // 1) Uygulama içi zil — tüm kullanıcı segmentinde binlerce satır olabilir.
+  try {
+    const rows = recipients.map((r) => ({
+      company_id: r.companyId,
+      user_id: r.userId,
+      type: event.type,
+      title: event.title,
+      body: event.body,
+      url: event.url ?? null,
+      severity,
+      meta: event.meta ?? {},
+    }));
+    for (let i = 0; i < rows.length; i += ANNOUNCEMENT_CHUNK) {
+      const slice = rows.slice(i, i + ANNOUNCEMENT_CHUNK);
+      const { error, count } = await admin
+        .from("notifications")
+        .insert(slice, { count: "exact" });
+      if (error) {
+        console.error("[notify] duyuru zil kaydı hatası:", error);
+        break;
+      }
+      result.inApp += count ?? slice.length;
+    }
+  } catch (err) {
+    console.error("[notify] duyuru zil kaydı istisnası:", err);
+  }
+
+  // 2) Web Push — id listesi büyük olabileceğinden parçalanır.
+  try {
+    let push = 0;
+    for (let i = 0; i < recipients.length; i += ANNOUNCEMENT_CHUNK) {
+      push += await sendPushToUsers(
+        admin,
+        recipients.slice(i, i + ANNOUNCEMENT_CHUNK).map((r) => r.userId),
+        {
+          title: event.title,
+          body: event.body,
+          url: event.url ?? "/dashboard",
+        },
+      );
+    }
+    result.push = push;
+  } catch (err) {
+    console.error("[notify] duyuru push hatası:", err);
+  }
+
+  return result;
+}
+
+/**
  * Tek bir kullanıcıya (ör. kendi ehliyet süresi dolan sürücü) olayı 3 kanaldan
  * birden iletir (bkz. dispatchToProfiles). Kullanıcı bulunamazsa sessizce boş
  * sonuç döner.

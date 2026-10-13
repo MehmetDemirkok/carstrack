@@ -5,15 +5,16 @@ export const maxDuration = 120;
 import { NextResponse } from "next/server";
 import { withAdmin, logAdminAction } from "@/lib/admin/api";
 import { resolveRecipients, SEGMENT_LABELS } from "@/lib/admin/recipients";
+import { dispatchAnnouncement } from "@/lib/notify";
+import { isPushConfigured } from "@/lib/push";
 import type { AdminEmailSegment } from "@/lib/admin/types";
 
-/** Tek insert'te gönderilecek bildirim sayısı. */
-const CHUNK = 500;
-
 /**
- * Uygulama içi (zil) duyuru gönderir. E-postadan farklı olarak bildirim
- * tercihine BAKMAZ — uygulama içi zil her zaman çalar (bkz. notify.ts) — bu
- * yüzden alıcı çözümlemesi `ignoreOptOut: true` ile yapılır.
+ * Uygulama içi (zil) + Web Push duyuru gönderir. E-postadan farklı olarak
+ * bildirim tercihine BAKMAZ — zil her zaman çalar, push da aynı kitleye gider
+ * (bkz. notify.ts) — bu yüzden alıcı çözümlemesi `ignoreOptOut: true` ile
+ * yapılır. E-posta bu uçta gönderilmez; "ikisi birden" seçilirse ayrı uçtan
+ * (`/api/admin/email/send`) gider.
  */
 export const POST = withAdmin(async (req, ctx) => {
   const body = (await req.json()) as {
@@ -50,40 +51,39 @@ export const POST = withAdmin(async (req, ctx) => {
 
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 });
 
-  const rows = (profiles ?? [])
+  const targets = (profiles ?? [])
     .filter((p) => p.company_id)
-    .map((p) => ({
-      company_id: p.company_id as string,
-      user_id: p.id as string,
-      type: "admin_announcement",
-      title,
-      body: message,
-      url: body.url?.trim() || null,
-      severity: body.severity ?? "info",
-      meta: { source: "admin-panel" },
-    }));
+    .map((p) => ({ userId: p.id as string, companyId: p.company_id as string }));
 
-  let inserted = 0;
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const { error } = await ctx.db.from("notifications").insert(rows.slice(i, i + CHUNK));
-    if (error) return NextResponse.json({ error: error.message, inserted }, { status: 400 });
-    inserted += Math.min(CHUNK, rows.length - i);
+  if (targets.length === 0) {
+    return NextResponse.json({ error: "Alıcıların şirketi çözülemedi" }, { status: 400 });
   }
+
+  const result = await dispatchAnnouncement(ctx.db, targets, {
+    type: "admin_announcement",
+    severity: body.severity ?? "info",
+    title,
+    body: message,
+    url: body.url?.trim() || undefined,
+    meta: { source: "admin-panel" },
+  });
 
   await logAdminAction(ctx, {
     action: "notification_broadcast_sent",
     targetType: "system",
     targetLabel: title,
-    meta: { segment: body.segment, count: inserted },
+    meta: { segment: body.segment, count: result.inApp, push: result.push },
   });
 
   console.info(
-    `[admin/notify] uygulama içi duyuru — segment:${body.segment} alıcı:${inserted}`,
+    `[admin/notify] duyuru — segment:${body.segment} zil:${result.inApp} push:${result.push}`,
   );
 
   return NextResponse.json({
     ok: true,
-    inserted,
+    inserted: result.inApp,
+    push: result.push,
+    pushConfigured: isPushConfigured(),
     segmentLabel: SEGMENT_LABELS[body.segment],
   });
 });

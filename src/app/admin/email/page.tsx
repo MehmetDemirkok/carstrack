@@ -460,7 +460,14 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error ?? "Bildirim gönderilemedi");
-        toast.success(`${json.inserted} kişiye uygulama içi bildirim düştü`);
+        toast.success(
+          `${json.inserted} kişiye uygulama içi bildirim düştü${
+            json.push ? `, ${json.push} cihaza push gitti` : ""
+          }`,
+        );
+        if (json.pushConfigured === false) {
+          toast.warning("VAPID anahtarları tanımlı değil — push gönderilemedi");
+        }
       }
 
       setConfirmOpen(false);
@@ -595,13 +602,13 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
               active={channel === "notification"}
               onClick={() => setChannel("notification")}
               icon={Bell}
-              label="Yalnızca uygulama içi"
+              label="Uygulama içi + push"
             />
             <ChannelOption
               active={channel === "both"}
               onClick={() => setChannel("both")}
               icon={Send}
-              label="İkisi birden"
+              label="E-posta + uygulama içi"
             />
           </div>
         </Panel>
@@ -750,8 +757,8 @@ function Composer({ initialCompanyId }: { initialCompanyId: string | null }) {
                 {channel === "email"
                   ? "e-posta"
                   : channel === "notification"
-                    ? "uygulama içi bildirim"
-                    : "e-posta + uygulama içi bildirim"}
+                    ? "uygulama içi bildirim ve push"
+                    : "e-posta + uygulama içi bildirim ve push"}
               </span>{" "}
               gönderilecek.
             </p>
