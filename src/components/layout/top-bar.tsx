@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Bell, Search, LogOut, Sun, Moon, MessageSquarePlus } from "lucide-react";
-import { FeedbackDialog } from "@/components/feedback-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { useNotifications } from "@/hooks/use-notifications";
 import type { NotificationItem } from "@/hooks/use-notifications";
@@ -29,9 +29,9 @@ function getGreeting(): string {
 export function TopBar() {
   const { profile, user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -106,7 +106,7 @@ export function TopBar() {
                   variant="ghost"
                   size="icon"
                   className="rounded-xl h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                  onClick={() => setShowFeedback(true)}
+                  onClick={() => router.push("/feedback")}
                   suppressHydrationWarning
                 />
               }
@@ -289,8 +289,6 @@ export function TopBar() {
           </Link>
         </div>
       </div>
-
-      <FeedbackDialog open={showFeedback} onOpenChange={setShowFeedback} />
     </header>
   );
 }
