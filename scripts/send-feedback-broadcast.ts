@@ -62,7 +62,7 @@ const BODY = [
   "- Eksik ya da zorlandığınız bir nokta var mı?",
   "- Yeni görmek istediğiniz bir özellik var mı?",
   "",
-  "Kısa bir geri bildirim bile yol haritamızı doğrudan etkiler. Bu e-postayı yanıtlamanız yeterli; dilerseniz uygulamadaki Ayarlar → Geri Bildirim bölümünden de yazabilirsiniz.",
+  "Kısa bir geri bildirim bile yol haritamızı doğrudan etkiler. Bu e-postayı yanıtlamanız yeterli; dilerseniz uygulamadaki üst menüde yer alan geri bildirim butonundan geri bildirim sayfasına giderek de yazabilirsiniz.",
 ].join("\n");
 const CTA_LABEL = "Geri Bildirim Gönder";
 const SIGNATURE = "CarsTrack Ekibi";

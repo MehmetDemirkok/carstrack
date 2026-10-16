@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Users, Car, Route, Pencil, UserCog, X, Plus, Mail, Send, Trash2, IdCard } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Users, Car, Route, Pencil, UserCog, X, Plus, Mail, Send, Trash2, IdCard, HelpCircle, ChevronDown, ShieldCheck } from "lucide-react";
 import { getOverallLicenseStatus, getMostUrgentEntry, daysUntilDate } from "@/lib/license";
 import type { DriverLicenseEntry } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
@@ -22,6 +22,7 @@ import { isDriverRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -71,6 +72,41 @@ function licenseBadge(licenses?: DriverLicenseEntry[]) {
 
 type DriverWithAssignment = Profile & { assignedVehicleIds: string[] };
 
+// ─── "Nasıl çalışır?" yardım içeriği ─────────────────────────
+const HELP_KEY = "users-help-dismissed";
+const HELP_STEPS: { Icon: React.ElementType; title: string; desc: string }[] = [
+  {
+    Icon: Users,
+    title: "Ekip üyeleri",
+    desc: "Şirketinize bağlı herkes, rol etiketiyle burada listelenir. Kartlar o anki durumu (müsait / aktif / araç atanmamış) gösterir.",
+  },
+  {
+    Icon: ShieldCheck,
+    title: "Roller ve yetkiler",
+    desc: "Kullanıcı ve Şoför yalnızca kendine atanan araçları görüp kilometre/görev günceller. Operatör tüm araç, görev ve cezaları yönetir ama ekip davet edemez. Şirket Yetkilisi tam yetkilidir.",
+  },
+  {
+    Icon: Mail,
+    title: "Ekibe davet",
+    desc: "Yalnızca Şirket Yetkilisi e-posta ile davet gönderir. Davet kabul edilince kişi otomatik olarak listeye eklenir; bekleyen davetler üstte görünür.",
+  },
+  {
+    Icon: Car,
+    title: "Araç atama",
+    desc: "Sürücü kartındaki araç ikonuyla ona araç atayabilir veya atamayı kaldırabilirsiniz. Sürücü, yalnızca atanan araçları görür.",
+  },
+  {
+    Icon: Route,
+    title: "Durum ve ehliyet",
+    desc: "\u201cAktif seyahat\u201d etiketi canlı süre ile birlikte gösterilir. Ehliyet geçerliliği de kartta renkli olarak işaretlenir.",
+  },
+  {
+    Icon: Pencil,
+    title: "Düzenleme",
+    desc: "Kalem ikonuyla ad ve departman bilgisini; yetkiniz varsa kullanıcının rolünü değiştirebilirsiniz.",
+  },
+];
+
 // ─── Page ────────────────────────────────────────────────────
 
 export default function UsersPage() {
@@ -103,6 +139,25 @@ export default function UsersPage() {
   const [pendingInvites, setPendingInvites] = useState<
     { id: string; email: string; role: UserRole; created_at: string; expires_at: string }[]
   >([]);
+
+  // "Nasıl çalışır?" yardım kartı — ilk girişte açık, kapatılınca hatırlanır.
+  const [showHelp, setShowHelp] = useState(true);
+  useEffect(() => {
+    if (localStorage.getItem(HELP_KEY) === "1") setShowHelp(false);
+  }, []);
+
+  function toggleHelp() {
+    setShowHelp((v) => {
+      const next = !v;
+      localStorage.setItem(HELP_KEY, next ? "0" : "1");
+      return next;
+    });
+  }
+
+  function dismissHelp() {
+    setShowHelp(false);
+    localStorage.setItem(HELP_KEY, "1");
+  }
 
   async function loadInvites() {
     try {
@@ -330,6 +385,73 @@ export default function UsersPage() {
             <Mail className="h-4 w-4" /> Davet Et
           </Button>
         )}
+      </motion.div>
+
+      {/* ── Nasıl çalışır? ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.03 }}
+        className="glass rounded-3xl border border-border/40 overflow-hidden"
+      >
+        <button
+          type="button"
+          onClick={toggleHelp}
+          aria-expanded={showHelp}
+          className="w-full flex items-center gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-3xl"
+        >
+          <span className="p-2 rounded-xl bg-primary/10 shrink-0">
+            <HelpCircle className="h-5 w-5 text-primary" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm">Bu sayfa nasıl çalışır?</p>
+            <p className="text-xs text-muted-foreground">Ekip, roller ve araç atamaları hakkında kısa bilgi</p>
+          </div>
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground shrink-0 transition-transform", showHelp && "rotate-180")} />
+        </button>
+
+        <AnimatePresence initial={false}>
+          {showHelp && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4 space-y-3">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Bu sayfa, şirket ekibinizi ve araç atamalarını tek yerden yönetmenizi sağlar. Kısa özet:
+                </p>
+                <div className="grid sm:grid-cols-2 gap-2.5">
+                  {HELP_STEPS.map(({ Icon, title, desc }) => (
+                    <div key={title} className="flex gap-3 rounded-2xl bg-muted/30 border border-border/30 p-3">
+                      <span className="h-8 w-8 rounded-lg bg-background flex items-center justify-center shrink-0">
+                        <Icon className="h-4 w-4 text-primary" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold">{title}</p>
+                        <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <p className="text-[11px] text-muted-foreground">
+                    İpucu: Kartlardaki kalem ve araç ikonlarıyla işlem yapabilirsiniz.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={dismissHelp}
+                    className="shrink-0 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
+                  >
+                    Bir daha gösterme
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* ── Bekleyen Davetler ── */}
