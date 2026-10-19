@@ -53,7 +53,11 @@ self.addEventListener("push", (event) => {
 // Bildirime dokunulduğunda uygulamayı (ilgili sayfayı) aç/öne getir.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || "/";
+  const rawUrl = (event.notification.data && event.notification.data.url) || "/";
+  // Göreli yolları (ör. "/uyarilar?durum=kritik") mutlak adrese çevir; bazı
+  // tarayıcılar/PWA sarmalayıcıları göreli yolu kök dizine yorumlayabiliyor.
+  let targetUrl = rawUrl;
+  try { targetUrl = new URL(rawUrl, self.registration.scope).href; } catch { /* yoksay */ }
 
   event.waitUntil(
     (async () => {

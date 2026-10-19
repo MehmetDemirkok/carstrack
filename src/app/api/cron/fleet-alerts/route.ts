@@ -294,15 +294,23 @@ async function handler(req: Request): Promise<Response> {
   for (const [companyId, alerts] of alertsByCompany) {
     const counts = { critical: 0, warning: 0, info: 0 } as Record<string, number>;
     for (const a of alerts) counts[a.severity] = (counts[a.severity] ?? 0) + 1;
+    const firstCritical = alerts.find((a) => a.severity === "critical");
     const body =
       alerts.length === 0
         ? "✅ Her şey yolunda — aktif uyarı yok."
-        : `🔴 ${counts.critical} kritik · 🟡 ${counts.warning} uyarı · 🔵 ${counts.info} bilgi`;
+        : firstCritical
+        ? `🔴 ${firstCritical.title}${firstCritical.vehiclePlate ? ` (${firstCritical.vehiclePlate})` : ""}${
+            counts.critical > 1 ? ` +${counts.critical - 1} kritik` : ""
+          } · 🟡 ${counts.warning} uyarı`
+        : `🟡 ${counts.warning} uyarı · 🔵 ${counts.info} bilgi`;
+    // Bildirime dokununca doğrudan uyarı merkezi açılır; kritik varsa
+    // yalnızca kritikler filtrelenmiş şekilde gelir ki kullanıcı ne olduğunu görsün.
+    const pushUrl = counts.critical > 0 ? "/uyarilar?durum=kritik" : "/uyarilar";
     try {
       pushSent += await sendPushToManagers(admin, companyId, {
         title: "🚗 Günlük Filo Raporu",
         body,
-        url: "/vehicles",
+        url: pushUrl,
         tag: "fleet-digest",
       });
     } catch (err) {

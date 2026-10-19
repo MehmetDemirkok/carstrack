@@ -632,6 +632,9 @@ export default function Dashboard() {
               );
             })}
           </div>
+          <Link href="/uyarilar" className="block">
+            <Button variant="secondary" className="w-full rounded-xl">Tüm uyarıları görüntüle</Button>
+          </Link>
           <DialogClose render={<Button variant="outline" className="w-full rounded-xl" />}>Kapat</DialogClose>
         </DialogContent>
       </Dialog>
