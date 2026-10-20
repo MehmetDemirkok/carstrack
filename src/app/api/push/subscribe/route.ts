@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Tarayıcının PushManager aboneliğini kaydeder. Ayarlar'da "Telefon
  * Bildirimleri" açıldığında çağrılır. Aynı endpoint tekrar gelirse günceller
  * (upsert) — böylece tablo çoğalmaz.
+ *
+ * Aynı cihazda hesap değiştiğinde endpoint hâlâ eski kullanıcıya bağlıdır.
+ * RLS, başka bir kullanıcının satırını güncellemeye izin vermediği için
+ * upsert service-role ile yapılır: endpoint fiziksel cihaza ait bir kimliktir,
+ * bu yüzden satırı o an oturum açmış kullanıcıya taşımak güvenlidir. Aksi
+ * halde eski hesabın bildirimleri bu cihaza gelmeye devam ederdi.
  *
  *   POST /api/push/subscribe  { endpoint, keys: { p256dh, auth } }
  */
@@ -26,6 +33,7 @@ export async function POST(req: NextRequest) {
 
     if (
       typeof endpoint !== "string" ||
+      !endpoint.startsWith("https://") ||
       typeof p256dh !== "string" ||
       typeof auth !== "string"
     ) {
@@ -44,7 +52,8 @@ export async function POST(req: NextRequest) {
       companyId = (prof?.company_id as string) ?? null;
     }
 
-    const { error } = await supabase
+    const admin = createAdminClient();
+    const { error } = await admin
       .from("push_subscriptions")
       .upsert(
         {
@@ -88,11 +97,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "endpoint gerekli" }, { status: 400 });
     }
 
-    // RLS: kullanıcı yalnızca kendi aboneliğini silebilir.
-    const { error } = await supabase
+    // Endpoint cihaza ait olduğu için, önceki bir hesaptan kalmış satır da
+    // temizlenmeli. RLS başka kullanıcının satırını silemeyeceğinden
+    // service-role kullanılır.
+    const admin = createAdminClient();
+    const { error } = await admin
       .from("push_subscriptions")
       .delete()
-      .eq("user_id", user.id)
       .eq("endpoint", body.endpoint);
 
     if (error) {

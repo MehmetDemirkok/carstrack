@@ -89,6 +89,28 @@ export async function unsubscribeFromPush(): Promise<void> {
   await sub.unsubscribe().catch(() => {});
 }
 
+/**
+ * Bu cihazda zaten var olan push aboneliğini sunucuda oturum açmış kullanıcıya
+ * yeniden bağlar. İzin/sorgu yapmaz; yeni abonelik oluşturmaz. Hesap
+ * değişiminde çağrılır — aksi halde endpoint sunucuda eski kullanıcıya kayıtlı
+ * kalır ve o hesabın bildirimleri bu cihaza düşmeye devam eder.
+ */
+export async function rebindPushSubscription(): Promise<void> {
+  if (!isPushSupported()) return;
+  if (Notification.permission !== "granted") return;
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) return;
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) return;
+
+  const res = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sub.toJSON()),
+  });
+  if (!res.ok) throw new Error("Abonelik bu hesaba bağlanamadı.");
+}
+
 /** Bu cihazda aktif bir push aboneliği var mı? (mount'ta bekletmemek için ready kullanmaz) */
 export async function getPushSubscribed(): Promise<boolean> {
   if (!isPushSupported()) return false;

@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { clearCompanyCache, primeUserRole } from "@/lib/db";
-import { isPushSupported, getPushSubscribed, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
+import { isPushSupported, rebindPushSubscription, unsubscribeFromPush } from "@/lib/push-client";
 import type { Profile, Company, DriverLicenseEntry, NotificationPrefs } from "@/lib/types";
 import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/types";
 
@@ -145,9 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // bildirimleri bu cihaza gelmeye devam eder (endpoint sunucuda hâlâ
             // eski user_id'ye kayıtlı olur).
             if (isPushSupported()) {
-              getPushSubscribed()
-                .then((subscribed) => { if (subscribed) return subscribeToPush(); })
-                .catch(() => {});
+              rebindPushSubscription().catch(() => {});
             }
           } else {
             setProfile(null);
