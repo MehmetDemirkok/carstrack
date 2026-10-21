@@ -43,6 +43,7 @@ import {
   Gavel,
   Fuel,
   CalendarPlus,
+  ExternalLink,
 } from "lucide-react";
 
 const stagger = {
@@ -80,6 +81,7 @@ export default function Dashboard() {
   const { profile } = useAuth();
   const { vehicles, records, fines, loading: dataLoading } = useData();
   const [showAlertsDialog, setShowAlertsDialog] = useState(false);
+  const [showScoreInfoDialog, setShowScoreInfoDialog] = useState(false);
   // Hiç aracı olmayan yeni kullanıcı kurulum akışını görür; "Şimdilik geç" derse normal panele düşer.
   const [skipOnboarding, setSkipOnboarding] = useState(false);
 
@@ -188,7 +190,7 @@ export default function Dashboard() {
             { icon: Car, label: "Filo", href: "/vehicles", gradient: "from-cyan-300 via-teal-500 to-emerald-600", shadow: "shadow-teal-500/30" },
             { icon: History, label: "Servis", href: "/history", gradient: "from-amber-300 via-amber-500 to-orange-600", shadow: "shadow-amber-500/30" },
             { icon: FileWarning, label: "Arıza Bildir", href: "/reports", gradient: "from-rose-400 via-red-500 to-red-600", shadow: "shadow-red-500/30" },
-            { icon: CalendarPlus, label: "Muayene Al", href: TUVTURK_RANDEVU_URL, gradient: "from-violet-400 via-indigo-500 to-indigo-700", shadow: "shadow-indigo-500/30", external: true },
+            { icon: CalendarPlus, label: "TÜVTÜRK Randevu", href: TUVTURK_RANDEVU_URL, gradient: "from-violet-400 via-indigo-500 to-indigo-700", shadow: "shadow-indigo-500/30", external: true },
           ].map((action) => (
             <Link
               href={action.href}
@@ -204,6 +206,11 @@ export default function Dashboard() {
                     >
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.45),transparent_60%)]" />
                       <action.icon className="h-5 w-5 md:h-6 md:w-6 text-white relative z-10 drop-shadow-sm" strokeWidth={2.25} />
+                      {action.external && (
+                        <span className="absolute top-0.5 right-0.5 z-20 grid place-items-center w-4 h-4 rounded-full bg-white text-indigo-600 shadow-sm">
+                          <ExternalLink className="h-2.5 w-2.5" strokeWidth={2.75} />
+                        </span>
+                      )}
                     </div>
                     <span className="text-[10px] md:text-xs font-semibold leading-tight line-clamp-2">{action.label}</span>
                   </CardContent>
@@ -256,6 +263,14 @@ export default function Dashboard() {
                         <span className={`w-2 h-2 rounded-full ${heroStatus.dot} animate-pulse`} />
                         {heroStatus.label}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowScoreInfoDialog(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur rounded-full text-white text-[10px] font-semibold hover:bg-white/25 transition-colors cursor-pointer"
+                      >
+                        <Info className="h-3 w-3" />
+                        Nasıl hesaplanır?
+                      </button>
                       {criticalCount > 0 && (
                         <button
                           type="button"
@@ -636,6 +651,87 @@ export default function Dashboard() {
             <Button variant="secondary" className="w-full rounded-xl">Tüm uyarıları görüntüle</Button>
           </Link>
           <DialogClose render={<Button variant="outline" className="w-full rounded-xl" />}>Kapat</DialogClose>
+        </DialogContent>
+      </Dialog>
+
+      {/* Filo sağlık skoru açıklaması */}
+      <Dialog open={showScoreInfoDialog} onOpenChange={setShowScoreInfoDialog}>
+        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <Info className="h-5 w-5 text-indigo-500" /> Filo Sağlık Skoru Nasıl Hesaplanır?
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Skor, filodaki her aracın 0–100 arasındaki sağlık puanının ortalamasıdır. Araç puanı üç bileşenden oluşur:
+            </p>
+
+            <div className="space-y-2">
+              {[
+                { Icon: Wrench, label: "Bakım", weight: "70%", desc: "Her bakım kalemi (yağ, filtre, fren vb.) km ve süre aralığına göre puanlanır; araç puanı kalemlerin ortalamasıdır." },
+                { Icon: Shield, label: "Sigorta", weight: "15%", desc: "Trafik sigortasının bitiş tarihine kalan güne göre puanlanır." },
+                { Icon: Calendar, label: "Muayene", weight: "15%", desc: "TÜVTÜRK muayene bitiş tarihine kalan güne göre puanlanır." },
+              ].map(({ Icon, label, weight, desc }) => (
+                <div key={label} className="flex gap-3 items-start rounded-2xl border border-border/40 bg-muted/30 p-3">
+                  <div className="p-1.5 rounded-lg bg-primary/10 shrink-0">
+                    <Icon className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold">{label}</span>
+                      <span className="text-[9px] font-mono text-muted-foreground bg-background px-1.5 py-0.5 rounded-full border border-border/40">{weight}</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold mb-1.5">Belge puanı (sigorta ve muayene)</p>
+              <div className="rounded-xl border border-border/40 divide-y divide-border/40 overflow-hidden text-[11px]">
+                {[
+                  ["90+ gün kaldı", "100"],
+                  ["60–89 gün kaldı", "80"],
+                  ["30–59 gün kaldı", "65"],
+                  ["15–29 gün kaldı", "40"],
+                  ["1–14 gün kaldı", "20"],
+                  ["Süresi geçti", "0"],
+                ].map(([range, point]) => (
+                  <div key={range} className="flex items-center justify-between px-3 py-1.5">
+                    <span className="text-muted-foreground">{range}</span>
+                    <span className="font-semibold">{point}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold mb-1.5">Skor bantları</p>
+              <div className="space-y-1.5">
+                {[
+                  { dot: "bg-[oklch(0.85_0.15_162)]", range: "85–100", label: "Mükemmel durum" },
+                  { dot: "bg-amber-400", range: "65–84", label: "İyi durumda" },
+                  { dot: "bg-red-400", range: "0–64", label: "Acil bakım" },
+                ].map(({ dot, range, label }) => (
+                  <div key={range} className="flex items-center gap-2 text-[11px]">
+                    <span className={`w-2 h-2 rounded-full ${dot}`} />
+                    <span className="font-semibold w-14">{range}</span>
+                    <span className="text-muted-foreground">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-[10px] text-muted-foreground bg-muted/40 rounded-xl p-3 leading-relaxed">
+              Tarihi girilmemiş sigorta/muayene belgeleri ve tanımlanmamış bakım kalemleri tam puan (100) sayılır.
+              Skorun gerçeği yansıtması için araç bilgilerini eksiksiz tutun.
+            </p>
+          </div>
+
+          <DialogClose render={<Button variant="outline" className="w-full rounded-xl" />}>Anladım</DialogClose>
         </DialogContent>
       </Dialog>
     </div>
