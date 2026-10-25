@@ -19,12 +19,22 @@ import {
   CheckCircle2,
   ArrowRight,
   ChevronRight,
-  CalendarDays,
   Sparkles,
+  Fuel,
+  Gavel,
+  ClipboardList,
+  ScanLine,
+  ShieldCheck,
+  Lock,
+  Database,
+  Trash2,
 } from "lucide-react";
+import { track } from "@vercel/analytics";
 import { LANDING_FAQS } from "@/lib/seo";
+import { useAuth } from "@/context/auth-context";
 import { MarketingNav } from "@/components/marketing/marketing-nav";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
+import { StickyCta } from "@/components/landing/sticky-cta";
 import { Section, SectionHeading } from "@/components/marketing/section";
 import {
   Reveal,
@@ -112,24 +122,84 @@ const benefits: Benefit[] = [
   },
 ];
 
-const steps = [
+const personas = [
   {
-    num: "01",
-    title: "Araçlarınızı ekleyin",
-    desc: "Plaka, marka, model ve kilometre bilgilerini girin. Ruhsat fotoğrafından otomatik de ekleyebilirsiniz.",
     icon: Car,
+    title: "Aracım var",
+    desc: "Tek aracını takip eden bireysel kullanıcı için.",
+    points: [
+      "Muayene, sigorta ve kasko bitişini kaçırma",
+      "Servis geçmişini ve masrafları tek yerde tut",
+      "Sınırsız araç ekle, kredi kartı verme",
+    ],
+    cta: "Ücretsiz başla",
   },
   {
-    num: "02",
-    title: "Bakım verilerini girin",
-    desc: "Son servis tarihi ve km bilgilerini kaydedin. Sigorta ve muayene bitiş tarihlerini ekleyin.",
-    icon: CalendarDays,
+    icon: Users,
+    title: "Filom var",
+    desc: "Şoförlü araçları ve ekibi yöneten şirketler için.",
+    points: [
+      "Sürücü ve operatör rolleriyle araç ata",
+      "Yakıt, ceza ve arıza maliyetlerini tek panelde gör",
+      "PDF ve Excel raporlarıyla muhasebeye aktar",
+    ],
+    cta: "Filoyu kur",
+  },
+];
+
+const features = [
+  {
+    icon: Fuel,
+    title: "Yakıt takibi",
+    desc: "Litre, kilometre ve tutar bazında araç başına tüketim ve maliyet analizi.",
   },
   {
-    num: "03",
-    title: "Sisteme bırakın",
-    desc: "CarsTrack otomatik olarak takip eder, hesaplar ve zamanı geldiğinde sizi uyarır.",
-    icon: CheckCircle2,
+    icon: Gavel,
+    title: "Trafik cezaları",
+    desc: "Ceza kaydı, ödeme durumu ve hangi aracın hangi cezayı aldığı tek listede.",
+  },
+  {
+    icon: Wrench,
+    title: "Arıza bildirimi",
+    desc: "Sürücü arızayı fotoğrafla bildirir; durum takibi yöneticide kalır.",
+  },
+  {
+    icon: ClipboardList,
+    title: "Görev ve seyahat",
+    desc: "Araç atama, başlangıç-bitiş kilometresi ve seyahat kaydı.",
+  },
+  {
+    icon: Bell,
+    title: "Uyarı merkezi",
+    desc: "Yaklaşan bakım, biten belge ve kritik uyarılar tek ekranda toplanır.",
+  },
+  {
+    icon: ScanLine,
+    title: "Ruhsat fotoğrafından ekleme",
+    desc: "Ruhsatın fotoğrafını yükleyin; plaka ve tarihler otomatik doldurulsun.",
+  },
+];
+
+const security = [
+  {
+    icon: ShieldCheck,
+    title: "Rol bazlı erişim",
+    desc: "Sürücü yalnızca kendine atanan aracı ve kendi kayıtlarını görür.",
+  },
+  {
+    icon: Lock,
+    title: "Şirket izolasyonu",
+    desc: "Her şirketin verisi veritabanı seviyesinde ayrılır; başka firmaya görünmez.",
+  },
+  {
+    icon: Database,
+    title: "Otomatik yedek",
+    desc: "Veritabanı haftalık olarak yedeklenir; yedekler ayrı bir alanda tutulur.",
+  },
+  {
+    icon: Trash2,
+    title: "Veriniz sizde",
+    desc: "Kayıtlarınızı dilediğiniz an indirebilir, hesabınızı kalıcı olarak silebilirsiniz.",
   },
 ];
 
@@ -137,6 +207,7 @@ const steps = [
 /* ───────────────────────── sayfa ───────────────────────── */
 
 export default function LandingClient() {
+  const { user } = useAuth();
   const heroRef = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({
@@ -184,7 +255,7 @@ export default function LandingClient() {
             <div className="mx-auto max-w-3xl space-y-7 text-center">
               <div className="animate-rise-in inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
-                Ücretsiz kullanmaya başlayın · Kredi kartı gerekmez
+                Tamamen ücretsiz · Kredi kartı gerekmez
               </div>
 
               <h1 className="animate-rise-in font-outfit text-display font-black text-balance [animation-delay:90ms]">
@@ -201,18 +272,24 @@ export default function LandingClient() {
 
               <div className="animate-rise-in flex flex-col justify-center gap-3 sm:flex-row [animation-delay:270ms]">
                 <Link
-                  href="/register"
+                  href={user ? "/dashboard" : "/register"}
+                  onClick={() =>
+                    track("cta_click", {
+                      konum: "hero",
+                      hedef: user ? "dashboard" : "register",
+                    })
+                  }
                   className="group inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-7 py-3.5 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
                   style={{ boxShadow: "var(--brand-glow)" }}
                 >
-                  Ücretsiz Başla
+                  {user ? "Panele Git" : "Ücretsiz Başla"}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
                 <Link
-                  href="/login"
+                  href={user ? "/ozellikler" : "/login"}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-card/60 px-7 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/60"
                 >
-                  Giriş Yap
+                  {user ? "Özellikleri İncele" : "Giriş Yap"}
                 </Link>
               </div>
 
@@ -226,9 +303,17 @@ export default function LandingClient() {
               </ul>
             </div>
 
-            {/* Ürün önizlemesi — ekran görüntüsü değil, canlı bileşen kopyası */}
+            {/* Ürün önizlemesi — ekran görüntüsü değil, canlı bileşen kopyası.
+                Mock arayüz ekran okuyucuya okutulmaz; onun yerine tek cümlelik
+                bir açıklama verilir. */}
             <div className="relative mx-auto mt-14 max-w-5xl sm:mt-20">
-              <ProductPreview />
+              <p className="sr-only">
+                CarsTrack panelinin örnek görünümü: filo sağlık skoru, araç
+                listesi ve yaklaşan bakım/muayene uyarıları.
+              </p>
+              <div aria-hidden>
+                <ProductPreview />
+              </div>
             </div>
           </div>
         </section>
@@ -268,7 +353,10 @@ export default function LandingClient() {
                       ))}
                     </ul>
                   </div>
-                  <div className={i % 2 === 1 ? "lg:order-1" : undefined}>
+                  <div
+                    aria-hidden
+                    className={i % 2 === 1 ? "lg:order-1" : undefined}
+                  >
                     {b.visual}
                   </div>
                 </div>
@@ -277,46 +365,146 @@ export default function LandingClient() {
           </div>
         </Section>
 
-        {/* ── Nasıl çalışır ── */}
+        {/* ── Kimler için ── */}
         <Section tone="muted">
           <SectionHeading
-            eyebrow="Kurulum"
-            title="3 adımda başlayın"
-            description="Dakikalar içinde araçlarınızı sisteme ekleyin."
+            eyebrow="Kimler için?"
+            title="Tek araç da, yüz araç da"
+            description="Kendi aracını takip eden de, şoförlü filo yöneten de aynı paneli kullanır — sadece gördüğü ekran değişir."
           />
 
-          <RevealGroup className="mt-14 grid gap-8 md:grid-cols-3">
-            {steps.map((step, i) => (
-              <motion.div key={step.num} variants={fadeUp} className="relative">
-                {i < steps.length - 1 && (
-                  <div
-                    aria-hidden
-                    className="absolute left-[calc(100%-1rem)] top-7 z-0 hidden h-px w-full md:block"
-                    style={{
-                      background:
-                        "linear-gradient(90deg, color-mix(in oklab, var(--brand-1) 35%, transparent), transparent)",
-                    }}
-                  />
-                )}
-                <div className="relative z-10 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-primary/10">
-                      <step.icon className="h-6 w-6 text-primary" />
-                    </span>
-                    <span className="font-mono text-sm font-bold text-primary">
-                      {step.num}
-                    </span>
-                  </div>
-                  <h3 className="font-outfit text-lg font-bold">
-                    {step.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {step.desc}
-                  </p>
-                </div>
+          <RevealGroup className="mx-auto mt-14 grid max-w-4xl gap-6 md:grid-cols-2">
+            {personas.map((p) => (
+              <motion.div
+                key={p.title}
+                variants={fadeUp}
+                className="flex flex-col rounded-2xl border border-border/60 bg-card p-7"
+              >
+                <span className="grid h-12 w-12 place-items-center rounded-xl border border-primary/20 bg-primary/10">
+                  <p.icon className="h-5 w-5 text-primary" />
+                </span>
+                <h3 className="font-outfit mt-5 text-xl font-black">
+                  {p.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {p.desc}
+                </p>
+                <ul className="mt-5 space-y-2.5">
+                  {p.points.map((pt) => (
+                    <li
+                      key={pt}
+                      className="flex items-start gap-2.5 text-sm text-muted-foreground"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint-strong" />
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={user ? "/dashboard" : "/register"}
+                  onClick={() =>
+                    track("cta_click", {
+                      konum: `kisi_${p.title}`,
+                      hedef: user ? "dashboard" : "register",
+                    })
+                  }
+                  className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:underline"
+                >
+                  {user ? "Panele git" : p.cta}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </motion.div>
             ))}
           </RevealGroup>
+        </Section>
+
+        {/* ── Özellikler ── */}
+        <Section>
+          <SectionHeading
+            eyebrow="Özellikler"
+            title="Bakımın ötesinde, filonun tamamı"
+            description="Yakıttan cezaya, arızadan ruhsat girişine kadar günlük işleriniz tek panelde."
+          />
+
+          <RevealGroup className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((f) => (
+              <motion.div
+                key={f.title}
+                variants={fadeUp}
+                className="rounded-2xl border border-border/60 bg-card p-6 transition-colors hover:border-primary/30"
+              >
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10">
+                  <f.icon className="h-5 w-5 text-primary" />
+                </span>
+                <h3 className="font-outfit mt-4 text-base font-bold">
+                  {f.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {f.desc}
+                </p>
+              </motion.div>
+            ))}
+          </RevealGroup>
+
+          <Reveal className="mt-10">
+            <div className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-surface-1/60 px-6 py-5 text-center sm:flex-row sm:justify-between sm:text-left">
+              <p className="text-sm font-semibold text-pretty">
+                İlk aracınızı 5 dakikada ekleyin; kurulum için ekibe ihtiyacınız
+                yok.
+              </p>
+              <Link
+                href={user ? "/dashboard" : "/register"}
+                onClick={() =>
+                  track("cta_click", {
+                    konum: "ozellikler_alti",
+                    hedef: user ? "dashboard" : "register",
+                  })
+                }
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
+              >
+                {user ? "Panele Git" : "Ücretsiz Başla"}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </Reveal>
+        </Section>
+
+        {/* ── Güvenlik ── */}
+        <Section tone="muted">
+          <SectionHeading
+            eyebrow="Güvenlik"
+            title="Filo verisi şirket sınırının içinde kalır"
+            description="CarsTrack çok kiracılı bir mimariyle çalışır: her şirketin kaydı ayrı tutulur, erişim rollerle sınırlanır."
+          />
+
+          <RevealGroup className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {security.map((s) => (
+              <motion.div
+                key={s.title}
+                variants={fadeUp}
+                className="rounded-2xl border border-border/60 bg-card p-6"
+              >
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10">
+                  <s.icon className="h-5 w-5 text-primary" />
+                </span>
+                <h3 className="font-outfit mt-4 text-base font-bold">
+                  {s.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {s.desc}
+                </p>
+              </motion.div>
+            ))}
+          </RevealGroup>
+
+          <p className="mt-10 text-center text-sm">
+            <Link
+              href="/privacy"
+              className="font-semibold text-primary hover:underline"
+            >
+              Gizlilik politikasını okuyun
+            </Link>
+          </p>
         </Section>
 
         {/* ── SSS ── */}
@@ -328,13 +516,18 @@ export default function LandingClient() {
           />
 
           <RevealGroup className="mx-auto mt-12 max-w-3xl space-y-3">
-            {LANDING_FAQS.map((faq) => (
+            {LANDING_FAQS.slice(0, 4).map((faq) => (
               <motion.details
                 key={faq.q}
                 variants={fadeUp}
                 className="group overflow-hidden rounded-2xl border border-border/60 bg-card"
               >
-                <summary className="flex cursor-pointer list-none select-none items-center justify-between gap-4 px-5 py-4 font-semibold transition-colors hover:bg-muted/40">
+                <summary
+                  onClick={() =>
+                    track("sss_acildi", { soru: faq.q.slice(0, 80) })
+                  }
+                  className="flex cursor-pointer list-none select-none items-center justify-between gap-4 px-5 py-4 font-semibold transition-colors hover:bg-muted/40"
+                >
                   <span>{faq.q}</span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
                 </summary>
@@ -344,6 +537,16 @@ export default function LandingClient() {
               </motion.details>
             ))}
           </RevealGroup>
+
+          <p className="mt-8 text-center text-sm">
+            <Link
+              href="/sss"
+              className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"
+            >
+              Tüm soruların yanıtları
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </p>
         </Section>
 
         {/* ── Kapanış CTA ── */}
@@ -372,15 +575,21 @@ export default function LandingClient() {
                   Araçlarınızı hemen takibe alın
                 </h2>
                 <p className="text-muted-foreground text-pretty">
-                  Ücretsiz hesap oluşturun, dakikalar içinde ilk aracınızı
-                  ekleyin. Kredi kartı gerekmez.
+                  Dakikalar içinde ilk aracınızı ekleyin; gerisini CarsTrack
+                  takip etsin.
                 </p>
                 <Link
-                  href="/register"
+                  href={user ? "/dashboard" : "/register"}
+                  onClick={() =>
+                    track("cta_click", {
+                      konum: "kapanis",
+                      hedef: user ? "dashboard" : "register",
+                    })
+                  }
                   className="group inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
                   style={{ boxShadow: "var(--brand-glow)" }}
                 >
-                  Ücretsiz Başla
+                  {user ? "Panele Git" : "Ücretsiz Başla"}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
@@ -390,6 +599,11 @@ export default function LandingClient() {
       </main>
 
       <MarketingFooter />
+
+      <StickyCta
+        href={user ? "/dashboard" : "/register"}
+        label={user ? "Panele Git" : "Ücretsiz Başla"}
+      />
     </div>
   );
 }

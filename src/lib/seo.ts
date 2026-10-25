@@ -98,7 +98,7 @@ export const LANDING_FAQS: FaqItem[] = [
   },
   {
     q: "CarsTrack ücretsiz mi kullanılabilir?",
-    a: "Evet, CarsTrack temel özellikleriyle tamamen ücretsiz kullanılabilir. Kayıt olmak için kredi kartı gerekmez.",
+    a: "Evet, CarsTrack'un tüm özellikleri ücretsizdir; araç ve kullanıcı sayısında bir sınır yoktur. Kayıt için kredi kartı istenmez.",
   },
   {
     q: "Kaç araç ekleyebilirim?",

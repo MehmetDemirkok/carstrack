@@ -66,7 +66,7 @@ const features = [
 ];
 
 const reasons = [
-  "Ücretsiz başlangıç — kredi kartı gerekmez",
+  "Tamamen ücretsiz — kredi kartı gerekmez",
   "Türkçe arayüz, Türkiye mevzuatına uygun belge takibi",
   "PWA ile mobil kullanım",
   "PDF / Excel raporlama",

@@ -2,9 +2,7 @@ import LandingClient from "@/components/landing/landing-client";
 import { JsonLd } from "@/components/seo/json-ld";
 import {
   APP_URL,
-  LANDING_FAQS,
   buildPageMetadata,
-  faqJsonLd,
   softwareJsonLd,
   organizationJsonLd,
 } from "@/lib/seo";
@@ -19,7 +17,6 @@ export const metadata = buildPageMetadata({
 export default function LandingPage() {
   return (
     <>
-      <JsonLd data={faqJsonLd(LANDING_FAQS)} />
       <JsonLd data={softwareJsonLd()} />
       <JsonLd data={organizationJsonLd()} />
       <LandingClient />
