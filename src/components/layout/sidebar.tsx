@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut, Gavel, ChevronLeft, Fuel } from "lucide-react";
+import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut, Gavel, ChevronLeft, Fuel, Globe } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
@@ -143,6 +143,17 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
         {/* Bottom: user + add vehicle */}
         <div className="p-3 space-y-2 relative">
           <div className="mx-1 h-px mb-3" style={{ background: "color-mix(in oklab, var(--primary) 10%, transparent)" }} />
+
+          <Link
+            href="/?tanitim=1"
+            title={collapsed ? "Tanıtım Sitesi" : undefined}
+            className={`flex items-center gap-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors ${
+              collapsed ? "justify-center px-0 py-2.5" : "px-4 py-2.5"
+            }`}
+          >
+            <Globe className="h-4 w-4 shrink-0" />
+            {!collapsed && <span className="text-sm font-medium">Tanıtım Sitesi</span>}
+          </Link>
 
           {profile && (
             <div className={`flex items-center bg-accent rounded-2xl p-3 ${collapsed ? "flex-col gap-2" : "gap-3"}`}>

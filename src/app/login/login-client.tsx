@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/safe-redirect";
 import { AuthShell } from "@/components/auth/auth-shell";
 import {
   AuthField,
@@ -36,7 +37,10 @@ export default function LoginClient() {
       return;
     }
     toast.success("Giriş başarılı");
-    router.push("/dashboard");
+    const next =
+      safeNextPath(new URLSearchParams(window.location.search).get("next")) ??
+      "/dashboard";
+    router.push(next);
     router.refresh();
   };
 

@@ -1523,6 +1523,16 @@ export default function SettingsPage() {
                 trailing={exportingData ? <span className="h-4 w-4 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" /> : undefined}
                 onClick={exportingData ? undefined : handleExportData}
               />
+              <Link
+                href="/?tanitim=1"
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors tap-highlight-transparent text-left cursor-pointer"
+              >
+                <div className="p-2 rounded-xl bg-primary/10 shrink-0">
+                  <Globe className="h-4 w-4 text-primary" />
+                </div>
+                <span className="text-sm font-medium">Tanıtım sitesini aç</span>
+                <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
+              </Link>
               <button
                 onClick={signOut}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-destructive/5 transition-colors tap-highlight-transparent text-left cursor-pointer"

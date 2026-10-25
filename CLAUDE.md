@@ -39,6 +39,7 @@ Database rows are `snake_case`; app-level types (`src/lib/types.ts`) are `camelC
 - `requireCompanyId()` in `db.ts` resolves the current user's company id client-side, in order: cached value → `user_metadata.company_id` (fast path) → `/api/auth/profile` fallback, which then back-fills metadata for future calls. Any new client-side data function should call this rather than re-deriving company id.
 - `src/context/auth-context.tsx` owns `user`/`profile`/`company` state app-wide via `onAuthStateChange`, and unblocks the UI using `user_metadata.company_id` before the full profile row has loaded — the full `Profile`/`Company` load happens in the background and patches in.
 - Roles (`UserRole` in `types.ts`): `manager`, `operator`, `user` (driver). There is no plan/billing tier: the plan system was removed on 2026-09-19 (app gates) and schema-cleaned on 2026-09-25 (`20260925_remove_plans_billing.sql` drops `companies.plan*` / Stripe columns and the unused `subscriptions` billing table). Product is free for all tenants; marketing copy says "ücretsiz", not "ücretsiz plan".
+- `src/proxy.ts` drives routing only: it redirects authenticated users away from `/`, `/login`, `/register` to `/dashboard`, but `/?tanitim=1` is an explicit escape hatch so a logged-in user can still view the marketing site. Logged-out deep links bounce to `/login?next=<path>`; `safeNextPath()` in `src/lib/safe-redirect.ts` validates that value (internal paths only) before `login-client` navigates to it. Sign-out lands on `/?tanitim=1`.
 
 ### Notifications
 

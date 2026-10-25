@@ -9,9 +9,10 @@ import {
   useReducedMotion,
   useScroll,
 } from "framer-motion";
-import { Sun, Moon, Menu, X } from "lucide-react";
+import { Sun, Moon, Menu, X, LayoutDashboard } from "lucide-react";
 import { useTheme } from "next-themes";
 import { LogoMark } from "@/components/brand/logo-mark";
+import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 import { EASE } from "./motion-primitives";
 
@@ -29,6 +30,7 @@ const LINKS = [
  */
 export function MarketingNav() {
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -116,18 +118,30 @@ export function MarketingNav() {
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </button>
-          <Link
-            href="/login"
-            className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground sm:inline-flex"
-          >
-            Giriş Yap
-          </Link>
-          <Link
-            href="/register"
-            className="inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
-          >
-            Ücretsiz Başla
-          </Link>
+          {user ? (
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Panele Git
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground sm:inline-flex"
+              >
+                Giriş Yap
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
+              >
+                Ücretsiz Başla
+              </Link>
+            </>
+          )}
 
           {/* Mobil menü düğmesi — bağlantılar md altında gizli olduğu için
               telefondan gelen ziyaretçinin alt sayfalara tek erişim yolu. */}
@@ -165,13 +179,23 @@ export function MarketingNav() {
                   {l.label}
                 </Link>
               ))}
-              <Link
-                href="/login"
-                onClick={() => setMenuOpen(false)}
-                className="rounded-xl px-3 py-3 text-base font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground sm:hidden"
-              >
-                Giriş Yap
-              </Link>
+              {user ? (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  className="rounded-xl px-3 py-3 text-base font-bold text-primary transition-colors hover:bg-muted/60"
+                >
+                  Panele Git
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="rounded-xl px-3 py-3 text-base font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground sm:hidden"
+                >
+                  Giriş Yap
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

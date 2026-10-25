@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNextPath } from "@/lib/safe-redirect";
 // Bayat refresh token loglarını süzer — Supabase istemcisi kurulmadan ÖNCE yüklenmeli.
 import "@/lib/supabase/silence-refresh-logs";
 
@@ -168,10 +169,11 @@ export async function proxy(request: NextRequest) {
   }
 
   // Unauthenticated on a protected page → login
+  // Hedefi `?next=` ile taşırız; login sonrası kullanıcı aradığı sayfaya döner.
   if (!userId && !isPublicPath) {
-    const redirectResponse = NextResponse.redirect(
-      new URL("/login", request.url)
-    );
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+    const redirectResponse = NextResponse.redirect(loginUrl);
     supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
       redirectResponse.cookies.set(
         name,
@@ -190,10 +192,23 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/register") &&
     request.nextUrl.searchParams.has("invite");
 
+  // Oturum açık kullanıcı için landing'e bilinçli bir kaçış kapısı:
+  // `/?tanitim=1` panele yönlendirilmez, tanıtım sayfası normal render edilir.
+  const isLandingPreview =
+    pathname === "/" && request.nextUrl.searchParams.get("tanitim") === "1";
+
   // Authenticated on login/register or landing page → dashboard
-  if (userId && (isAuthOnlyPath || pathname === "/") && !isRegisterWithInvite) {
+  if (
+    userId &&
+    !isLandingPreview &&
+    (isAuthOnlyPath || pathname === "/") &&
+    !isRegisterWithInvite
+  ) {
+    const next = isAuthOnlyPath
+      ? safeNextPath(request.nextUrl.searchParams.get("next"))
+      : null;
     const redirectResponse = NextResponse.redirect(
-      new URL("/dashboard", request.url)
+      new URL(next ?? "/dashboard", request.url)
     );
     supabaseResponse.cookies.getAll().forEach(({ name, value, ...rest }) =>
       redirectResponse.cookies.set(
