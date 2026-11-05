@@ -16,21 +16,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import Link from "next/link";
 import {
-  Wrench, CheckCircle2, AlertTriangle, Disc3, Car, Plus,
-  Filter, Trash2, BatteryCharging, ClipboardList, Download, FileDown,
-  Sun, Snowflake, Layers, Pencil, Check, Wallet, XCircle, CalendarPlus,
+  Wrench, Disc3, Car, Plus,
+  Filter, Trash2, ClipboardList, Download, FileDown,
+  Sun, Snowflake, Layers, Pencil, Check, Wallet, XCircle, CalendarPlus, ChevronRight,
 } from "lucide-react";
 import { exportServiceHistoryExcel, exportServiceHistoryPDF } from "@/lib/export-lazy";
 import { TUVTURK_RANDEVU_URL } from "@/lib/store";
-
-const typeConfig: Record<ServiceType, { icon: React.ElementType; color: string; dot: string; label: string }> = {
-  routine: { icon: CheckCircle2, color: "bg-violet-500/10 text-violet-500", dot: "bg-violet-500", label: "Periyodik" },
-  repair: { icon: AlertTriangle, color: "bg-orange-500/10 text-orange-500", dot: "bg-orange-500", label: "Onarım" },
-  tire: { icon: Disc3, color: "bg-teal-500/10 text-teal-500", dot: "bg-teal-500", label: "Lastik" },
-  inspection: { icon: ClipboardList, color: "bg-violet-500/10 text-violet-500", dot: "bg-violet-500", label: "Muayene" },
-  battery: { icon: BatteryCharging, color: "bg-yellow-500/10 text-yellow-500", dot: "bg-yellow-500", label: "Akü" },
-  other: { icon: Wrench, color: "bg-gray-500/10 text-gray-500", dot: "bg-gray-500", label: "Diğer" },
-};
+import { RecordDetailDialog, typeConfig } from "./record-detail-dialog";
 
 const FILTER_TYPES: { key: ServiceType | "all"; label: string }[] = [
   { key: "all", label: "Tümü" },
@@ -51,6 +43,8 @@ const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
   { value: "other", label: "Diğer" },
 ];
 
+const VISIBLE_STEP = 50;
+
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
 const fadeLeft = { hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.35 } } };
 
@@ -69,7 +63,10 @@ export default function HistoryPage() {
     setProvidersLoading(true);
     getServiceProviders()
       .then(setProviders)
-      .catch((err) => console.error("Load providers failed:", err instanceof Error ? err.message : err))
+      .catch((err) => {
+        console.error("Load providers failed:", err instanceof Error ? err.message : err);
+        toast.error("Servis noktaları yüklenemedi", { description: "Lütfen sayfayı yenileyip tekrar deneyin." });
+      })
       .finally(() => setProvidersLoading(false));
   };
   useEffect(() => { loadProviders(); }, []);
@@ -84,6 +81,7 @@ export default function HistoryPage() {
       setNewProviderPhone("");
     } catch (err) {
       console.error("Add provider failed:", err instanceof Error ? err.message : err);
+      toast.error("Servis noktası eklenemedi", { description: "Lütfen tekrar deneyin." });
     } finally {
       setProviderSubmitting(false);
     }
@@ -95,6 +93,7 @@ export default function HistoryPage() {
       setProviders((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
       console.error("Delete provider failed:", err instanceof Error ? err.message : err);
+      toast.error("Servis noktası silinemedi", { description: "Lütfen tekrar deneyin." });
     }
   };
 
@@ -104,6 +103,8 @@ export default function HistoryPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_STEP);
+  const [detailRecordId, setDetailRecordId] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [editRecord, setEditRecord] = useState<ServiceRecord | null>(null);
   const [editForm, setEditForm] = useState({
@@ -175,18 +176,28 @@ export default function HistoryPage() {
         paymentStatus: hasCost ? form.paymentStatus : undefined,
         unpaidReason: hasCost && form.paymentStatus === "unpaid" ? form.unpaidReason.trim() : undefined,
       });
-      if (form.type === "tire" && form.vehicleId) {
-        await updateVehicle(form.vehicleId, {
-          tireStatus: tireForm.season,
-          tireBrand: tireForm.brand || v?.tireBrand,
-          tireSize: tireForm.size || v?.tireSize,
-          tireInstallDate: form.date,
-          tireMileage: recordMileage,
+      // Kayıt artık yazıldı: araç güncellemesi başarısız olsa da form kapanır, yoksa
+      // kullanıcı "Kaydet"e yeniden basıp aynı kaydı ikinci kez oluşturur.
+      try {
+        if (form.type === "tire" && form.vehicleId) {
+          await updateVehicle(form.vehicleId, {
+            tireStatus: tireForm.season,
+            tireBrand: tireForm.brand || v?.tireBrand,
+            tireSize: tireForm.size || v?.tireSize,
+            tireInstallDate: form.date,
+            tireMileage: recordMileage,
+          });
+        } else if (form.type === "routine" && v) {
+          // Periyodik bakım kaydı → işaretli kalemler + "Son Servis" senkronla
+          const update = applyPeriodicService(v, form.date, recordMileage, recordMaintIds);
+          await updateVehicle(v.id, update);
+        }
+        toast.success("Kayıt eklendi", { description: "Servis kaydı başarıyla eklendi." });
+      } catch (err) {
+        console.error("Vehicle sync after record failed:", err instanceof Error ? err.message : err);
+        toast.error("Kayıt eklendi, araç bilgileri güncellenemedi", {
+          description: "Servis kaydı kaydedildi. Bakım veya lastik bilgilerini araç sayfasından kontrol edin.",
         });
-      } else if (form.type === "routine" && v) {
-        // Periyodik bakım kaydı → işaretli kalemler + "Son Servis" senkronla
-        const update = applyPeriodicService(v, form.date, recordMileage, recordMaintIds);
-        await updateVehicle(v.id, update);
       }
       setShowAdd(false);
       setForm({ vehicleId: "", date: new Date().toISOString().split("T")[0], type: "routine", title: "", mileage: "", serviceCenter: "", notes: "", cost: "", paymentStatus: "paid", unpaidReason: "" });
@@ -195,6 +206,7 @@ export default function HistoryPage() {
       await reload();
     } catch (err) {
       console.error("Add record failed:", err instanceof Error ? err.message : err);
+      toast.error("Kayıt eklenemedi", { description: "Bilgileriniz formda duruyor. Lütfen tekrar deneyin." });
     }
   };
 
@@ -204,9 +216,11 @@ export default function HistoryPage() {
       await deleteRecord(recordToDelete);
       setRecordToDelete(null);
       setShowDelete(false);
+      toast.success("Kayıt silindi");
       await reload();
     } catch (err) {
       console.error("Delete record failed:", err instanceof Error ? err.message : err);
+      toast.error("Kayıt silinemedi", { description: "Lütfen tekrar deneyin." });
     }
   };
 
@@ -260,9 +274,11 @@ export default function HistoryPage() {
       });
       setShowEdit(false);
       setEditRecord(null);
+      toast.success("Kayıt güncellendi");
       await reload();
     } catch (err) {
       console.error("Update record failed:", err instanceof Error ? err.message : err);
+      toast.error("Kayıt güncellenemedi", { description: "Değişiklikleriniz formda duruyor. Lütfen tekrar deneyin." });
     }
   };
 
@@ -373,7 +389,7 @@ export default function HistoryPage() {
           {FILTER_TYPES.map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setFilter(key)}
+              onClick={() => { setFilter(key); setVisibleCount(VISIBLE_STEP); }}
               className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors border ${filter === key ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-muted/50 text-muted-foreground border-border/40 hover:bg-muted"}`}
             >
               {label}
@@ -390,7 +406,7 @@ export default function HistoryPage() {
             <div className="relative">
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 <button
-                  onClick={() => setVehicleFilter("all")}
+                  onClick={() => { setVehicleFilter("all"); setVisibleCount(VISIBLE_STEP); }}
                   className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors border ${vehicleFilter === "all" ? "bg-foreground text-background border-foreground" : "bg-muted/50 text-muted-foreground border-border/40 hover:bg-muted"}`}
                 >
                   Tüm Araçlar
@@ -398,7 +414,7 @@ export default function HistoryPage() {
                 {vehicles.map((v) => (
                   <button
                     key={v.id}
-                    onClick={() => setVehicleFilter(v.id)}
+                    onClick={() => { setVehicleFilter(v.id); setVisibleCount(VISIBLE_STEP); }}
                     className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors border ${vehicleFilter === v.id ? "bg-foreground text-background border-foreground" : "bg-muted/50 text-muted-foreground border-border/40 hover:bg-muted"}`}
                   >
                     {v.plate}
@@ -450,7 +466,7 @@ export default function HistoryPage() {
         <motion.div variants={stagger} initial="hidden" animate="show" key={filtered.length} className="relative ml-4">
           <div className="absolute left-0 top-3 bottom-0 w-px bg-gradient-to-b from-border via-border to-transparent" />
           <div className="space-y-5">
-            {filtered.map((record) => {
+            {filtered.slice(0, visibleCount).map((record) => {
               const config = typeConfig[record.type] ?? typeConfig.other;
               const Icon = config.icon;
               const vehicle = vehicles.find((v) => v.id === record.vehicleId);
@@ -522,13 +538,38 @@ export default function HistoryPage() {
                         {record.notes}
                       </div>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => setDetailRecordId(record.id)}
+                      className="mt-2 inline-flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline"
+                    >
+                      Detayları gör <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </motion.div>
               );
             })}
           </div>
+          {filtered.length > visibleCount && (
+            <div className="flex justify-center pt-5">
+              <Button variant="outline" className="rounded-full px-6" onClick={() => setVisibleCount((c) => c + VISIBLE_STEP)}>
+                Daha fazla göster ({(filtered.length - visibleCount).toLocaleString("tr-TR")} kayıt kaldı)
+              </Button>
+            </div>
+          )}
         </motion.div>
       )}
+
+      <RecordDetailDialog
+        record={records.find((r) => r.id === detailRecordId) ?? null}
+        records={records}
+        vehicles={vehicles}
+        providers={providers}
+        onClose={() => setDetailRecordId(null)}
+        onSelect={setDetailRecordId}
+        onEdit={(record) => { setDetailRecordId(null); openEditDialog(record); }}
+      />
 
       {/* Add record dialog */}
       <Dialog open={showAdd} onOpenChange={(o) => { setShowAdd(o); if (!o) { setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); setRecordMaintIds([]); } }}>

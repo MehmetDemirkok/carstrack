@@ -7,14 +7,15 @@ Supabase'in ücretsiz planında otomatik yedekleme yoktur (yalnızca ücretli Pr
 - Her Pazartesi **03:00 UTC** (Türkiye saatiyle 06:00) Vercel Cron bu uç noktayı çağırır (bkz. `vercel.json`). Vercel cron'ları her zaman UTC'dir; Türkiye DST uygulamadığı için kayma olmaz.
 - Route, `public` şemasındaki tüm tabloları (`companies`, `vehicles`, `service_records`, ... — tam liste route dosyasının başında) tek tek okuyup tek bir JSON'a toplar. Büyük payload'lı tablolar (`vehicles` — base64 fotoğraflar) küçük sayfalarla okunur; geçici Gateway Timeout hatalarında üssel geri çekilmeli retry uygulanır. Fonksiyon süresi `maxDuration = 300` sn'dir.
 - JSON gzip ile sıkıştırılıp Supabase'in **`db-backups`** adlı özel (private) depolama alanına `backups/YYYY-MM-DD.json.gz` olarak yazılır. Bu bucket'a yalnızca `service_role` anahtarı erişebilir — normal kullanıcılar (anon/authenticated) göremez.
-- 60 günden eski yedekler otomatik silinir (depolama alanı şişmesin diye).
-- Yedek başarıyla alındığında `BACKUP_NOTIFY_EMAIL` adresine (tanımlı değilse `mehmetdemirkok@gmail.com`'a) bilgilendirme e-postası gider. **Dosya e-postaya eklenmez** — e-posta yalnızca yedeğin alındığını, tablo/satır sayısını ve Supabase depolamadaki konumunu bildirir; asıl kopya yalnızca Supabase'in `db-backups` bucket'ında durur. Yedekleme başarısız olursa ayrı bir uyarı e-postası gider.
+- `BACKUP_S3_*` ortam değişkenleri tanımlıysa aynı dosya S3 uyumlu bir dış depoya da (AWS S3, Cloudflare R2, Backblaze B2...) aynı yolla yazılır. Bu yükleme, Supabase Storage yüklemesi başarısız olsa bile denenir. Tanımlı değilse atlanır ve tek kopya Supabase'de kalır.
+- Supabase'deki 60 günden eski yedekler otomatik silinir (depolama alanı şişmesin diye). Dış depodaki eski dosyaları kod silmez; saklama süresini deponun yaşam döngüsü (lifecycle) kuralıyla ayarlayın.
+- Yedek başarıyla alındığında `BACKUP_NOTIFY_EMAIL` adresine (tanımlı değilse `mehmetdemirkok@gmail.com`'a) bilgilendirme e-postası gider. **Dosya e-postaya eklenmez** — e-posta yalnızca yedeğin alındığını, tablo/satır sayısını, Supabase depolamadaki konumunu ve dış kopya durumunu bildirir. Yedekleme veya dış kopya başarısız olursa ayrı bir uyarı e-postası gider ve çalışma `/admin/system` ekranında hatalı görünür.
 
 Not: Bu bir **veri** yedeğidir, şema (tablo yapıları) yedeği değil. Şema zaten `supabase/migrations/` altında Git ile versiyonlanıyor — geri yükleme sırasında önce migration'lar çalıştırılır, sonra veri geri yüklenir.
 
 ## Geri yükleme (restore)
 
-1. **Dosyayı bul:** Supabase Dashboard → Storage → `db-backups` → `backups/` klasöründen ilgili tarihli `.json.gz` dosyasını indirin (e-postaya dosya eklenmez, e-posta yalnızca bildirim amaçlıdır).
+1. **Dosyayı bul:** Supabase Dashboard → Storage → `db-backups` → `backups/` klasöründen ilgili tarihli `.json.gz` dosyasını indirin (e-postaya dosya eklenmez, e-posta yalnızca bildirim amaçlıdır). Supabase projesine erişilemiyorsa aynı dosyayı dış depodaki `backups/` klasöründen alın.
 2. **Aç:** `gunzip carstrack-backup-YYYY-MM-DD.json.gz` (veya herhangi bir arşiv programıyla) → içinde `{"generatedAt": ..., "tables": {"tabloAdi": [...satırlar...]}}` şeklinde bir JSON bulacaksınız.
 3. **Hedef veritabanını hazırla:** Yeni/boş bir Supabase projesindeyseniz önce `supabase/migrations/` altındaki tüm dosyaları sırayla çalıştırın (Supabase CLI: `supabase db push`, ya da SQL Editor'de tek tek).
 4. **Veriyi geri yaz:** Küçük bir script ile (Node.js + `@supabase/supabase-js`, service role anahtarıyla) her tablo için JSON'daki satırları `.insert()` ile yazın. Foreign key hatası almamak için tabloları bağımlılık sırasına göre yazın (örn. `companies` → `profiles` → `vehicles` → geri kalanlar). Bu script hazır değildir; ihtiyaç anında Claude'dan (veya bir geliştiriciden) "şu tarihli yedeği şu projeye geri yükle" diye istemeniz yeterli — mevcut yedek formatına göre birkaç dakikada yazılabilir.
@@ -25,6 +26,20 @@ Not: Bu bir **veri** yedeğidir, şema (tablo yapıları) yedeği değil. Şema 
 - **Saklama süresi:** `route.ts` içindeki `RETENTION_DAYS` (şu an 60 gün).
 - **Bildirim e-postası:** `BACKUP_NOTIFY_EMAIL` ortam değişkenini Vercel'de tanımlayın (tanımlı değilse mevcut destek adresine gider).
 - **Yeni tablo eklendiğinde:** `route.ts` içindeki `BACKUP_TABLES` dizisine yeni tablo adını eklemeyi unutmayın — aksi halde o tablo yedeklenmez.
+
+## Dış kopyayı açmak
+
+Bu değişkenleri Vercel'de tanımlayın:
+
+| Değişken | Açıklama |
+|---|---|
+| `BACKUP_S3_ENDPOINT` | Sağlayıcının S3 adresi, örn. `https://<hesap-id>.r2.cloudflarestorage.com` veya `https://s3.eu-central-1.amazonaws.com` |
+| `BACKUP_S3_BUCKET` | Herkese kapalı (private) bucket adı |
+| `BACKUP_S3_ACCESS_KEY_ID` | Erişim anahtarı |
+| `BACKUP_S3_SECRET_ACCESS_KEY` | Gizli anahtar |
+| `BACKUP_S3_REGION` | İsteğe bağlı, varsayılan `auto` (R2). AWS'de bucket'ın bölgesi yazılmalıdır |
+
+Bu dört zorunlu değişkenden yalnızca bir kısmı tanımlıysa çalışma hata olarak raporlanır. Anahtara yalnızca bu bucket'a yazma izni verin: Vercel ortamı ele geçirilse bile dış kopyalar silinemesin.
 
 ## Manuel test
 

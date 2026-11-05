@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendNotificationEmail } from "@/lib/email/sendEmail";
 import { BRAND } from "@/lib/email/emailTypes";
 import { withCronLogging } from "@/lib/cron/record";
+import { uploadBackupOffsite } from "@/lib/backup/offsite";
 
 // Yeni bir migration ile tablo eklenirse buraya da eklenmeli — pg_dump yerine
 // PostgREST üzerinden okuduğumuz için şema burada elle listelenir. Şema zaten
@@ -195,10 +196,20 @@ async function handler(req: Request): Promise<Response> {
     upsert: true,
   });
 
+  // Dış kopya, Supabase Storage yüklemesi başarısız olsa bile denenir.
+  const offsite = await uploadBackupOffsite(path, gzipped);
+  const offsiteLabel =
+    offsite.status === "ok" ? "Yüklendi" : offsite.status === "skipped" ? "Yapılandırılmadı" : `Başarısız: ${offsite.error}`;
+
   if (uploadErr) {
     console.error("[cron/db-backup] upload error:", uploadErr);
-    await notifyFailure(`Storage yükleme hatası: ${uploadErr.message}`);
-    return NextResponse.json({ error: "backup upload failed" }, { status: 500 });
+    await notifyFailure(`Storage yükleme hatası: ${uploadErr.message}. Dış kopya: ${offsiteLabel}`);
+    return NextResponse.json({ error: "backup upload failed", offsite: offsite.status }, { status: 500 });
+  }
+
+  if (offsite.status === "failed") {
+    console.error("[cron/db-backup] offsite upload error:", offsite.error);
+    await notifyFailure(`Supabase yedeği alındı ama dış kopya yüklenemedi: ${offsite.error}`);
   }
 
   const totalRows = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -207,6 +218,14 @@ async function handler(req: Request): Promise<Response> {
   console.log(
     `[cron/db-backup] ok — tarih:${dateStamp} tablo:${BACKUP_TABLES.length} satır:${totalRows} boyut:${gzipped.byteLength}b silinen:${deleted}`,
   );
+
+  // Durum 502 olur ki /admin/system bu çalışmayı sağlıklı göstermesin.
+  if (offsite.status === "failed") {
+    return NextResponse.json(
+      { error: "offsite upload failed", offsite: offsite.status, date: dateStamp, totalRows, sizeBytes: gzipped.byteLength },
+      { status: 502 },
+    );
+  }
 
   const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/^https:\/\/([^.]+)\.supabase\.co/)?.[1];
   const storageUrl = projectRef
@@ -219,8 +238,9 @@ async function handler(req: Request): Promise<Response> {
     {
       title: "Veritabanı Yedeği Alındı",
       emoji: "✅",
-      intro: `Haftalık otomatik yedekleme başarıyla tamamlandı. Bu e-postaya dosya eklenmez; yedek yalnızca Supabase depolama alanında (${BUCKET}/${path}) saklanır.`,
+      intro: `Haftalık otomatik yedekleme başarıyla tamamlandı. Bu e-postaya dosya eklenmez; yedek Supabase depolama alanında (${BUCKET}/${path}) saklanır.`,
       rows: [
+        { label: "Dış Kopya", value: offsiteLabel },
         { label: "Tablo Sayısı", value: String(BACKUP_TABLES.length) },
         { label: "Toplam Satır", value: String(totalRows) },
         { label: "Dosya Boyutu", value: `${(gzipped.byteLength / 1024).toFixed(1)} KB` },
@@ -238,6 +258,7 @@ async function handler(req: Request): Promise<Response> {
     totalRows,
     sizeBytes: gzipped.byteLength,
     deletedOldBackups: deleted,
+    offsite: offsite.status,
   });
 }
 

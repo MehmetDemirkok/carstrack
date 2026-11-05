@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllPages } from "@/lib/fetch-all-pages";
 
 export async function GET() {
   try {
@@ -27,19 +28,18 @@ export async function GET() {
       return NextResponse.json({ records: [], error: "No company" }, { status: 404 });
     }
 
-    const { data, error } = await supabase
-      .from("service_records")
-      .select("*")
-      .eq("company_id", resolvedCompanyId)
-      .order("date", { ascending: false });
-
-    if (error) {
-      console.error("Records API error:", error);
-      return NextResponse.json({ records: [], error: error.message }, { status: 500 });
-    }
+    const data = await fetchAllPages<Record<string, unknown>>((from, to) =>
+      supabase
+        .from("service_records")
+        .select("*")
+        .eq("company_id", resolvedCompanyId)
+        .order("date", { ascending: false })
+        .order("id")
+        .range(from, to),
+    );
 
     // Map to camelCase for frontend consistency
-    const records = (data ?? []).map((row: Record<string, unknown>) => ({
+    const records = data.map((row) => ({
       id: row.id,
       vehicleId: row.vehicle_id,
       date: row.date,

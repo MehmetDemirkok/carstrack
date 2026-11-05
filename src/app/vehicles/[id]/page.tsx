@@ -475,6 +475,7 @@ export default function VehicleDetailPage() {
       setFines(await getTrafficFines({ vehicleId: id }));
     } catch (err) {
       console.error("Failed to load traffic fines:", err);
+      toast.error("Trafik cezaları yüklenemedi", { description: "Lütfen sayfayı yenileyin." });
     }
   }, [id]);
 
@@ -487,6 +488,7 @@ export default function VehicleDetailPage() {
       setRecords(recs);
     } catch (err) {
       console.error(err);
+      toast.error("Araç bilgileri yüklenemedi", { description: "Lütfen sayfayı yenileyin." });
     }
   }, [id, router]);
 
@@ -508,6 +510,7 @@ export default function VehicleDetailPage() {
       setFuelThreshold(threshold);
     } catch (err) {
       console.error("Failed to load fuel records:", err);
+      toast.error("Yakıt kayıtları yüklenemedi", { description: "Lütfen sayfayı yenileyin." });
     }
   }, [id]);
 
@@ -517,6 +520,7 @@ export default function VehicleDetailPage() {
       setDocuments(docs);
     } catch (err) {
       console.error("Failed to load documents:", err);
+      toast.error("Belgeler yüklenemedi", { description: "Lütfen sayfayı yenileyin." });
     }
   }, [id]);
 

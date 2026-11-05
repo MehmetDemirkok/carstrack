@@ -1,5 +1,6 @@
 import { createClient } from "./supabase/client";
 import { logActivity } from "./audit";
+import { fetchAllPages } from "./fetch-all-pages";
 import type {
   Vehicle, ServiceRecord, Profile, VehicleAssignment, VehicleTask, VehicleDocument,
   VehicleReport, VehicleReportLog, ReportStatus, ReportSeverity, ReportCategory,
@@ -603,13 +604,16 @@ export async function getRecords(): Promise<ServiceRecord[]> {
   } catch (err) {
     console.error("getRecords server fetch failed, trying client fallback:", err);
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("service_records")
-      .select("*")
-      .eq("company_id", companyId)
-      .order("date", { ascending: false });
-    if (error) throw error;
-    return setCached(cacheKey, (data ?? []).map(toRecord));
+    const data = await fetchAllPages<Record<string, unknown>>((from, to) =>
+      supabase
+        .from("service_records")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("date", { ascending: false })
+        .order("id")
+        .range(from, to),
+    );
+    return setCached(cacheKey, data.map(toRecord));
   }
 }
 
@@ -619,14 +623,17 @@ export async function getVehicleRecords(vehicleId: string): Promise<ServiceRecor
   const cached = getCached<ServiceRecord[]>(cacheKey);
   if (cached) return cached;
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("service_records")
-    .select("*")
-    .eq("vehicle_id", vehicleId)
-    .eq("company_id", companyId)
-    .order("date", { ascending: false });
-  if (error) throw error;
-  return setCached(cacheKey, (data ?? []).map(toRecord));
+  const data = await fetchAllPages<Record<string, unknown>>((from, to) =>
+    supabase
+      .from("service_records")
+      .select("*")
+      .eq("vehicle_id", vehicleId)
+      .eq("company_id", companyId)
+      .order("date", { ascending: false })
+      .order("id")
+      .range(from, to),
+  );
+  return setCached(cacheKey, data.map(toRecord));
 }
 
 export async function addRecord(
