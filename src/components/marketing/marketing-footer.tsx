@@ -10,7 +10,8 @@ const URUN = [
 const HESAP = [
   { href: "/register", label: "Ücretsiz Kayıt" },
   { href: "/login", label: "Giriş Yap" },
-  { href: "/privacy", label: "Gizlilik" },
+  { href: "/privacy", label: "Gizlilik ve KVKK" },
+  { href: "/kullanim-kosullari", label: "Kullanım Koşulları" },
 ];
 
 /** Giriş öncesi tüm sayfaların ortak alt bilgisi. */

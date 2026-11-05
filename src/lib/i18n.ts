@@ -81,20 +81,6 @@ export const translations = {
     role_user: "Kullanıcı",
     role_sofor: "Şoför",
 
-    // Privacy page
-    privacy_title: "Gizlilik & Güvenlik",
-    privacy_data_title: "Toplanan Veriler",
-    privacy_data_desc: "Araç bilgileri, servis kayıtları ve hesap bilgileriniz güvenli bir şekilde saklanır. Kişisel verileriniz üçüncü taraflarla paylaşılmaz.",
-    privacy_storage_title: "Veri Depolama",
-    privacy_storage_desc: "Verileriniz Supabase altyapısında şifreli olarak saklanır. Tarayıcı önbelleğinde yerel kopyalar tutulabilir.",
-    privacy_security_title: "Güvenlik",
-    privacy_security_desc: "Hesabınız e-posta ve parola ile korunmaktadır. Oturum token'ları güvenli HTTP-only cookie'lerde tutulur.",
-    privacy_delete_title: "Veri Silme",
-    privacy_delete_desc: "Ayarlar > Verileri Sıfırla seçeneğiyle tüm araç ve servis verilerinizi kalıcı olarak silebilirsiniz.",
-    privacy_third_title: "Üçüncü Taraf Hizmetler",
-    privacy_third_desc: "Kimlik doğrulama ve veri depolama için Supabase kullanılmaktadır. Supabase'in gizlilik politikası geçerlidir.",
-    privacy_back: "Geri",
-
     // Help & Support
     help_title: "Yardım & Destek",
     help_faq_title: "Sık Sorulan Sorular",
@@ -218,20 +204,6 @@ export const translations = {
     role_operator: "Operator",
     role_user: "User",
     role_sofor: "Driver",
-
-    // Privacy page
-    privacy_title: "Privacy & Security",
-    privacy_data_title: "Data Collected",
-    privacy_data_desc: "Your vehicle information, service records, and account details are stored securely. Your personal data is never shared with third parties.",
-    privacy_storage_title: "Data Storage",
-    privacy_storage_desc: "Your data is stored encrypted on Supabase infrastructure. Local copies may be kept in browser cache.",
-    privacy_security_title: "Security",
-    privacy_security_desc: "Your account is protected with email and password. Session tokens are stored in secure HTTP-only cookies.",
-    privacy_delete_title: "Data Deletion",
-    privacy_delete_desc: "You can permanently delete all your vehicle and service data via Settings > Reset Data.",
-    privacy_third_title: "Third-Party Services",
-    privacy_third_desc: "Supabase is used for authentication and data storage. Supabase's privacy policy applies.",
-    privacy_back: "Back",
 
     // Help & Support
     help_title: "Help & Support",

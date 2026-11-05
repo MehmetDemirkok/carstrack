@@ -34,6 +34,7 @@ export default function robots(): MetadataRoute.Robots {
           "/login",
           "/register",
           "/privacy",
+          "/kullanim-kosullari",
           "/sss",
           "/ozellikler",
           "/arac-bakim-takip",

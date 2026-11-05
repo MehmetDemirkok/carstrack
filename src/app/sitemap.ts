@@ -13,7 +13,8 @@ const LAST_MODIFIED: Record<string, string> = {
   "/ozellikler": "2026-09-19",
   "/sss": "2026-09-19",
   "/register": "2026-09-19",
-  "/privacy": "2026-06-01",
+  "/privacy": "2026-11-05",
+  "/kullanim-kosullari": "2026-11-05",
 };
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -53,6 +54,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: `${APP_URL}/privacy`,
       lastModified: LAST_MODIFIED["/privacy"],
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${APP_URL}/kullanim-kosullari`,
+      lastModified: LAST_MODIFIED["/kullanim-kosullari"],
       changeFrequency: "yearly",
       priority: 0.3,
     },

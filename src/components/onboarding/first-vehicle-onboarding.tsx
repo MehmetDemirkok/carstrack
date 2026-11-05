@@ -286,7 +286,7 @@ export function FirstVehicleOnboarding({ onSkip }: Props) {
                           ? "Belge okunuyor…"
                           : scanFilled > 0
                             ? `${scanFilled} alan dolduruldu — kontrol et`
-                            : "Fotoğrafını çek, alanları biz dolduralım."}
+                            : "Fotoğrafını çek, alanları biz dolduralım. Görsel okunmak üzere Google Gemini'ye iletilir."}
                       </p>
                     </div>
                     <Button

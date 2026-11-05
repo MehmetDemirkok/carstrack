@@ -147,6 +147,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/auth/callback") ||
     pathname.startsWith("/privacy") ||
+    pathname.startsWith("/kullanim-kosullari") ||
     pathname.startsWith("/sss") ||
     pathname.startsWith("/ozellikler") ||
     pathname.startsWith("/arac-bakim-takip");

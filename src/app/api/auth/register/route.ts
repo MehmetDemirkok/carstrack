@@ -5,6 +5,7 @@ import { sendWelcomeEmail } from "@/lib/email/sendEmail";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { generateInviteCode } from "@/lib/invite-code";
 import { resolveTimeZone } from "@/lib/timezone";
+import { TERMS_VERSION } from "@/lib/legal";
 
 export async function POST(req: Request) {
   try {
@@ -18,11 +19,17 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { mode, fullName, email, password, companyName, inviteCode, inviteToken, timezone } = body;
+    const { mode, fullName, email, password, companyName, inviteCode, inviteToken, timezone, termsAccepted } = body;
 
     if (!fullName || !email || !password) {
       return NextResponse.json({ error: "Lütfen tüm alanları doldurun." }, { status: 400 });
     }
+
+    if (termsAccepted !== true) {
+      return NextResponse.json({ error: "Devam etmek için Kullanım Koşulları'nı kabul etmelisiniz." }, { status: 400 });
+    }
+    // app_metadata yalnızca service-role ile yazılır; kabul kaydını kullanıcı değiştiremez.
+    const termsMetadata = { terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() };
 
     // Girdi doğrulama (güvenlik): geçerli e-posta + minimum parola gücü
     if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -67,7 +74,7 @@ export async function POST(req: Request) {
         // GÜVENLİK: company_id YETKİLENDİRME için app_metadata'da tutulur
         // (yalnızca service-role yazabilir; RLS get_auth_company_id() bunu okur).
         // user_metadata yalnızca istemci tarafı hızlı yükleme içindir.
-        app_metadata: { company_id: company.id },
+        app_metadata: { company_id: company.id, ...termsMetadata },
         user_metadata: { company_id: company.id },
       });
 
@@ -151,7 +158,7 @@ export async function POST(req: Request) {
         email,
         password,
         email_confirm: true,
-        app_metadata: { company_id: companyId },
+        app_metadata: { company_id: companyId, ...termsMetadata },
         user_metadata: { company_id: companyId },
       });
 
@@ -254,7 +261,7 @@ export async function POST(req: Request) {
       email_confirm: true,
       // GÜVENLİK: company_id app_metadata'da (yetkilendirme kaynağı), user_metadata
       // yalnızca istemci hızlı yükleme için.
-      app_metadata: { company_id: companyData.id },
+      app_metadata: { company_id: companyData.id, ...termsMetadata },
       user_metadata: { company_id: companyData.id },
     });
 

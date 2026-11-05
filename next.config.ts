@@ -78,7 +78,7 @@ const nextConfig: NextConfig = {
       // her Googlebot isteği soğuk SSR'a gidiyor, TTFB ve tarama bütçesi
       // gereksiz yanıyordu. Vercel yeni deploy'da cache'i zaten temizler.
       {
-        source: "/:path(|ozellikler|sss|arac-bakim-takip|privacy)",
+        source: "/:path(|ozellikler|sss|arac-bakim-takip|privacy|kullanim-kosullari)",
         headers: [
           {
             key: "Cache-Control",

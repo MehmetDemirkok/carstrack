@@ -263,6 +263,7 @@ export function FineFormDialog({
                   </Button>
                 )}
               </div>
+              {photo && <p className="text-[11px] text-muted-foreground">AI ile doldurursanız belge okunmak üzere Google Gemini&apos;ye iletilir.</p>}
             </div>
 
             {/* Araç + Sürücü */}

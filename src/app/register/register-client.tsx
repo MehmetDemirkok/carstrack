@@ -44,6 +44,7 @@ export default function RegisterClient() {
     companyName: "", inviteCode: "",
     fullName: "", email: "", password: "", confirmPassword: "",
   });
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -92,9 +93,10 @@ export default function RegisterClient() {
     e.preventDefault();
     setError("");
     if (form.password !== form.confirmPassword) { setError("Şifreler eşleşmiyor."); return; }
-    if (form.password.length < 6)               { setError("Şifre en az 6 karakter olmalıdır."); return; }
+    if (form.password.length < 8)               { setError("Şifre en az 8 karakter olmalıdır."); return; }
     if (mode === "create" && !form.companyName.trim()) { setError("Şirket adı gereklidir."); return; }
     if (mode === "join"   && !form.inviteCode.trim())  { setError("Davet kodu gereklidir."); return; }
+    if (!termsAccepted) { setError("Devam etmek için Kullanım Koşulları'nı kabul etmelisiniz."); return; }
 
     setLoading(true);
     const res = await fetch("/api/auth/register", {
@@ -104,6 +106,7 @@ export default function RegisterClient() {
         mode, companyName: form.companyName, inviteCode: form.inviteCode, inviteToken,
         fullName: form.fullName, email: form.email, password: form.password,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        termsAccepted,
       }),
     });
     const data = await res.json();
@@ -323,6 +326,32 @@ export default function RegisterClient() {
               </p>
             </div>
           )}
+
+          <div className="space-y-2">
+            <label htmlFor="reg-terms" className="flex items-start gap-2.5 text-sm text-muted-foreground">
+              <input
+                id="reg-terms"
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                required
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+              />
+              <span>
+                <Link href="/kullanim-kosullari" target="_blank" className="font-semibold text-primary hover:underline">
+                  Kullanım Koşulları
+                </Link>
+                &apos;nı okudum ve kabul ediyorum.
+              </span>
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Kişisel verilerinizin yurt dışındaki hizmet sağlayıcılar dahil nasıl işlendiği{" "}
+              <Link href="/privacy" target="_blank" className="font-semibold text-primary hover:underline">
+                KVKK Aydınlatma Metni
+              </Link>
+              &apos;nde açıklanmıştır.
+            </p>
+          </div>
 
           <AuthError>{error}</AuthError>
 

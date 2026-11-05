@@ -18,6 +18,7 @@ const AUTH_PATHS = [
   "/reset-password",
   "/",
   "/privacy",
+  "/kullanim-kosullari",
   "/sss",
   "/ozellikler",
   "/arac-bakim-takip",

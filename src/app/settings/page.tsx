@@ -542,8 +542,8 @@ export default function SettingsPage() {
   const handleChangePassword = async () => {
     const { currentPassword, newPassword, confirmPassword } = passwordForm;
     if (!currentPassword || !newPassword || !confirmPassword) return;
-    if (newPassword.length < 6) {
-      toast.error("Şifre çok kısa", { description: "Yeni şifre en az 6 karakter olmalı." });
+    if (newPassword.length < 8) {
+      toast.error("Şifre çok kısa", { description: "Yeni şifre en az 8 karakter olmalı." });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -948,7 +948,7 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold">Ehliyet ile Otomatik Doldur</p>
-                      <p className="text-[10px] text-muted-foreground">Ön ve arka yüzü yükleyin — AI sınıfları ve tarihleri okusun</p>
+                      <p className="text-[10px] text-muted-foreground">Ön ve arka yüzü yükleyin — AI sınıfları ve tarihleri okusun. Görseller okunmak üzere Google Gemini&apos;ye iletilir.</p>
                     </div>
                   </div>
 
@@ -1790,7 +1790,7 @@ export default function SettingsPage() {
                     type="password"
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
-                    placeholder="En az 6 karakter"
+                    placeholder="En az 8 karakter"
                     className="w-full h-10 rounded-xl border border-border bg-muted/40 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>

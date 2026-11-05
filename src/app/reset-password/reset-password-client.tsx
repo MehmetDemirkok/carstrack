@@ -22,7 +22,7 @@ type Status = "loading" | "ready" | "invalid" | "success";
 function getPasswordStrength(pwd: string): { bars: number; label: string; color: string } {
   if (!pwd) return { bars: 0, label: "", color: "" };
   let s = 0;
-  if (pwd.length >= 6) s++;
+  if (pwd.length >= 8) s++;
   if (pwd.length >= 10) s++;
   if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) s++;
   if (/\d/.test(pwd)) s++;
@@ -78,8 +78,8 @@ export default function ResetPasswordClient() {
     e.preventDefault();
     setError("");
 
-    if (password.length < 6) {
-      setError("Şifre en az 6 karakter olmalıdır.");
+    if (password.length < 8) {
+      setError("Şifre en az 8 karakter olmalıdır.");
       return;
     }
     if (password !== confirmPassword) {
@@ -337,7 +337,7 @@ export default function ResetPasswordClient() {
                   <Button
                     type="submit"
                     className="w-full rounded-xl h-11 font-semibold gap-2 shadow-lg shadow-primary/20 mt-2"
-                    disabled={loading || password.length < 6 || password !== confirmPassword}
+                    disabled={loading || password.length < 8 || password !== confirmPassword}
                   >
                     {loading ? (
                       <>

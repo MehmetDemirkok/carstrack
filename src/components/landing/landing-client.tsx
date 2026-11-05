@@ -194,12 +194,12 @@ const security = [
   {
     icon: Database,
     title: "Otomatik yedek",
-    desc: "Veritabanı haftalık olarak yedeklenir; yedekler ayrı bir alanda tutulur.",
+    desc: "Veritabanı her hafta otomatik olarak yedeklenir.",
   },
   {
     icon: Trash2,
     title: "Veriniz sizde",
-    desc: "Kayıtlarınızı dilediğiniz an indirebilir, hesabınızı kalıcı olarak silebilirsiniz.",
+    desc: "Kayıtlarınızı Excel veya PDF olarak indirebilir, hesabınızı kapatıp verilerinizin silinmesini talep edebilirsiniz.",
   },
 ];
 

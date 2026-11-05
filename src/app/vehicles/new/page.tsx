@@ -822,7 +822,7 @@ export default function NewVehiclePage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold">Belge ile Otomatik Doldur</p>
-                      <p className="text-[11px] text-muted-foreground">Ruhsat, sigorta veya kasko yükleyin — AI alanları doldursun</p>
+                      <p className="text-[11px] text-muted-foreground">Ruhsat, sigorta veya kasko yükleyin — AI alanları doldursun. Görsel okunmak üzere Google Gemini&apos;ye iletilir.</p>
                     </div>
                   </div>
 
