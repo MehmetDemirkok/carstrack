@@ -33,6 +33,7 @@ import { FineStatusBadge } from "@/components/traffic-fines/fine-badges";
 import { FineFormDialog } from "@/components/traffic-fines/fine-form-dialog";
 import { FuelFormDialog } from "@/components/fuel/fuel-form-dialog";
 import { FuelTrendChart } from "@/components/fuel/fuel-trend-chart";
+import { SeasonalTireSwapDialog } from "@/components/vehicles/seasonal-tire-swap-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +52,7 @@ import {
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
   Shield, Download, Upload, ClipboardCheck, CalendarPlus, ExternalLink,
-  Wallet, Gavel, Copy, CheckCheck, X as XIcon, Maximize2, Star,
+  Wallet, Gavel, Copy, CheckCheck, X as XIcon, Maximize2, Star, Repeat,
   type LucideIcon,
 } from "lucide-react";
 
@@ -415,6 +416,7 @@ export default function VehicleDetailPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showAddRecord, setShowAddRecord] = useState(false);
+  const [showTireSwap, setShowTireSwap] = useState(false);
   const [showDeleteRecord, setShowDeleteRecord] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
@@ -1354,6 +1356,21 @@ export default function VehicleDetailPage() {
                       </div>
                     </div>
 
+                    {/* Mevsimlik değişim: lastik durumunu günceller + servis kaydı ekler (sürücü göremez) */}
+                    {!isDriver && (
+                      <Button
+                        variant="outline"
+                        className="w-full rounded-xl h-10 mb-4 gap-2 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+                        onClick={() => setShowTireSwap(true)}
+                      >
+                        <Repeat className="h-4 w-4" />
+                        Mevsimlik Lastik Değişimi
+                        <span className="text-muted-foreground font-normal">
+                          ({vehicle.tireStatus === "Kışlık" ? "Yazlığa geç" : vehicle.tireStatus === "Yazlık" ? "Kışlığa geç" : "Lastik değiştir"})
+                        </span>
+                      </Button>
+                    )}
+
                     {/* Tire diagram */}
                     <div className="bg-muted/40 rounded-2xl p-4 border border-border/20 mb-4">
                       <div className="grid grid-cols-2 gap-x-12 gap-y-4 relative">
@@ -2187,6 +2204,17 @@ export default function VehicleDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── MEVSİMLİK LASTİK DEĞİŞİMİ ── */}
+      {!isDriver && (
+        <SeasonalTireSwapDialog
+          open={showTireSwap}
+          onOpenChange={setShowTireSwap}
+          vehicle={vehicle}
+          providerListId="service-providers-list"
+          onSaved={() => { reload(); refreshShared(); }}
+        />
+      )}
 
       {/* ── ADD RECORD DIALOG ── */}
       <Dialog open={showAddRecord} onOpenChange={(o) => { setShowAddRecord(o); if (!o) { setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); setRecordMaintIds([]); } }}>
