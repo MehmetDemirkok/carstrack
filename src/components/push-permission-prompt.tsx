@@ -8,13 +8,37 @@ import { isPushSupported, getPushSubscribed, subscribeToPush } from "@/lib/push-
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-const SESSION_KEY = "carstrack:push-prompt-shown";
+const DISMISS_KEY = "carstrack:push-prompt-dismissed-at";
+const LEGACY_SESSION_KEY = "carstrack:push-prompt-shown";
+/** "Daha Sonra" / kapat sonrası tekrar sormadan önce beklenecek süre. */
+const SNOOZE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function wasRecentlyDismissed(): boolean {
+  try {
+    const at = Number(localStorage.getItem(DISMISS_KEY));
+    return Number.isFinite(at) && at > 0 && Date.now() - at < SNOOZE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markDismissed() {
+  try {
+    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+  } catch {
+    // Depolama kapalıysa (gizli mod vb.) sessizce geç.
+  }
+}
 
 /**
- * Girişten sonra bir kez, push bildirimi henüz açılmamışsa kullanıcıdan
- * onay ister. Tarayıcı izni zaten "denied" ise (kullanıcı daha önce
- * reddetmiş) hiç göstermeyiz — yeniden sormanın tek yolu tarayıcı
- * ayarlarıdır, boşuna rahatsız etmeyelim.
+ * Push bildirimi henüz açılmamışsa kullanıcıdan onay ister. Şu durumlarda
+ * hiç göstermeyiz:
+ * - Tarayıcı izni "granted": kullanıcı zaten açmış; aboneliği ayarlardan
+ *   yönetir (abonelik geçici olarak okunamasa bile tekrar sormayız).
+ * - Tarayıcı izni "denied": yeniden sormanın tek yolu tarayıcı ayarlarıdır.
+ * - Son 30 gün içinde "Daha Sonra" / kapat denmiş (localStorage — uygulama
+ *   kapanıp açılınca sıfırlanmaz; eskiden sessionStorage'dı ve her açılışta
+ *   tekrar çıkıyordu).
  */
 export function PushPermissionPrompt() {
   const { profile, loading } = useAuth();
@@ -23,15 +47,15 @@ export function PushPermissionPrompt() {
 
   useEffect(() => {
     if (loading || !profile) return;
-    if (sessionStorage.getItem(SESSION_KEY)) return;
     if (!isPushSupported()) return;
-    if (Notification.permission === "denied") return;
+    if (Notification.permission !== "default") return;
+    if (wasRecentlyDismissed()) return;
+    try { sessionStorage.removeItem(LEGACY_SESSION_KEY); } catch { /* yoksay */ }
 
     let cancelled = false;
     const timer = setTimeout(async () => {
       const subscribed = await getPushSubscribed();
       if (cancelled || subscribed) return;
-      sessionStorage.setItem(SESSION_KEY, "1");
       setOpen(true);
     }, 1200);
 
@@ -50,6 +74,9 @@ export function PushPermissionPrompt() {
       });
       setOpen(false);
     } catch (err: unknown) {
+      // İzin reddedildiyse/başarısızsa da bir süre tekrar sormayalım.
+      markDismissed();
+      setOpen(false);
       toast.error((err as { message?: string })?.message ?? "Bildirimler açılamadı");
     } finally {
       setBusy(false);
@@ -57,7 +84,7 @@ export function PushPermissionPrompt() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) markDismissed(); setOpen(o); }}>
       <DialogContent showCloseButton className="sm:max-w-[380px]">
         <div className="flex flex-col items-center text-center gap-3 pt-2">
           <span className="flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/15">
@@ -76,7 +103,7 @@ export function PushPermissionPrompt() {
           <Button onClick={handleEnable} disabled={busy} className="w-full">
             {busy ? "Açılıyor…" : "Bildirimleri Aç"}
           </Button>
-          <Button variant="ghost" onClick={() => setOpen(false)} disabled={busy} className="w-full">
+          <Button variant="ghost" onClick={() => { markDismissed(); setOpen(false); }} disabled={busy} className="w-full">
             Daha Sonra
           </Button>
         </div>
