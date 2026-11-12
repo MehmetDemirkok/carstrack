@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Sun, Snowflake, Layers, Wallet, XCircle, Repeat } from "lucide-react";
+import { ArrowRight, Wallet, XCircle, Repeat } from "lucide-react";
 import { addRecord, updateVehicle } from "@/lib/db";
 import type { Vehicle, TireSeasonType, PaymentStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
-
-/** Sökülen lastiklerin nerede saklandığı — servis kaydının notuna yazılır. */
-const STORAGE_OPTIONS = ["Lastik otelinde", "Firma deposunda", "Araçta / bagajda", "Hurdaya ayrıldı"] as const;
+import {
+  TIRE_SEASON_OPTIONS, TIRE_STORAGE_OPTIONS, TIRE_STORAGE_SCRAPPED, SeasonIcon, seasonTone, defaultTargetSeason,
+} from "./tire-season";
 
 const iLabel = "text-xs font-medium text-muted-foreground";
 const iCls = "rounded-xl h-10 bg-muted/30 border-border/40 text-sm";
@@ -27,29 +27,6 @@ function parseKm(value: string): number {
   return parseInt(value.replace(/\./g, "").replace(/,/g, ""), 10) || 0;
 }
 
-/**
- * Takılacak mevsimin varsayılanı: araç yazlıktaysa kışlık, kışlıktaysa yazlık.
- * Dört mevsim lastikteyse takvime bakılır (Kasım–Mart arası kışlık).
- */
-function defaultTargetSeason(current: TireSeasonType): TireSeasonType {
-  if (current === "Yazlık") return "Kışlık";
-  if (current === "Kışlık") return "Yazlık";
-  const m = new Date().getMonth() + 1;
-  return m >= 11 || m <= 3 ? "Kışlık" : "Yazlık";
-}
-
-function SeasonIcon({ season, className }: { season: TireSeasonType; className?: string }) {
-  if (season === "Yazlık") return <Sun className={className} />;
-  if (season === "Kışlık") return <Snowflake className={className} />;
-  return <Layers className={className} />;
-}
-
-function seasonTone(season: TireSeasonType): string {
-  if (season === "Yazlık") return "bg-orange-500/10 border-orange-500/20 text-orange-600";
-  if (season === "Kışlık") return "bg-violet-500/10 border-violet-500/20 text-violet-600";
-  return "bg-teal-500/10 border-teal-500/20 text-teal-600";
-}
-
 const emptyForm = (vehicle: Vehicle) => ({
   target: defaultTargetSeason(vehicle.tireStatus),
   date: todayLocal(),
@@ -59,6 +36,7 @@ const emptyForm = (vehicle: Vehicle) => ({
   size: vehicle.tireSize || "",
   serviceCenter: "",
   storage: "" as string,
+  storageNote: "",
   cost: "",
   paymentStatus: "paid" as PaymentStatus,
   unpaidReason: "",
@@ -106,10 +84,13 @@ export function SeasonalTireSwapDialog({ open, onOpenChange, vehicle, providerLi
     const from = vehicle.tireStatus;
     const brand = form.brand.trim() || vehicle.tireBrand;
     const size = form.size.trim() || vehicle.tireSize;
+    // Lastik otelinde saklanıyorsa ve yer yazılmadıysa, oteli genelde değişimi yapan lastikçi işletir.
+    const storageNote =
+      form.storageNote.trim() || (form.storage === "Lastik otelinde" ? form.serviceCenter.trim() : "");
     const noteLines = [
       `Sökülen: ${from}${vehicle.tireBrand ? ` (${vehicle.tireBrand}${vehicle.tireSize ? ` • ${vehicle.tireSize}` : ""})` : ""}`,
       `Takılan: ${form.target}${brand ? ` (${brand}${size ? ` • ${size}` : ""})` : ""}`,
-      form.storage ? `Sökülen lastikler: ${form.storage}` : "",
+      form.storage ? `Sökülen lastikler: ${form.storage}${storageNote ? ` (${storageNote})` : ""}` : "",
       form.notes.trim(),
     ].filter(Boolean);
 
@@ -133,6 +114,14 @@ export function SeasonalTireSwapDialog({ open, onOpenChange, vehicle, providerLi
         tireSize: size,
         tireInstallDate: form.date,
         tireMileage: mileage,
+        // Sökülen takım saklanan takım olur; hurdaya ayrıldıysa saklanan takım kalmaz.
+        ...(form.storage === TIRE_STORAGE_SCRAPPED
+          ? { storedTireSeason: null, tireStorageLocation: null, tireStorageNote: null }
+          : {
+              storedTireSeason: from,
+              tireStorageLocation: form.storage || null,
+              tireStorageNote: storageNote || null,
+            }),
       });
       toast.success("Lastik değişimi kaydedildi", {
         description: `Araç ${form.target.toLocaleLowerCase("tr-TR")} lastiğe geçirildi ve servis kaydı eklendi.`,
@@ -171,12 +160,12 @@ export function SeasonalTireSwapDialog({ open, onOpenChange, vehicle, providerLi
           <div className="space-y-1">
             <Label className={iLabel}>Takılacak Lastik</Label>
             <div className="flex gap-2">
-              {(["Yazlık", "Kışlık", "Dört Mevsim"] as TireSeasonType[]).map((s) => (
+              {(TIRE_SEASON_OPTIONS as TireSeasonType[]).map((s) => (
                 <button
                   type="button"
                   key={s}
                   onClick={() => setForm((f) => ({ ...f, target: s }))}
-                  className={`flex-1 flex items-center justify-center gap-1 rounded-xl border py-2 text-xs font-medium transition-colors ${
+                  className={`cursor-pointer flex-1 flex items-center justify-center gap-1 rounded-xl border py-2 text-xs font-medium transition-colors ${
                     form.target === s ? "border-primary/50 bg-primary/10 text-primary" : "border-border/40 bg-muted/20"
                   }`}
                 >
@@ -216,12 +205,12 @@ export function SeasonalTireSwapDialog({ open, onOpenChange, vehicle, providerLi
           <div className="space-y-1">
             <Label className={iLabel}>Sökülen Lastikler (ops.)</Label>
             <div className="grid grid-cols-2 gap-2">
-              {STORAGE_OPTIONS.map((s) => (
+              {TIRE_STORAGE_OPTIONS.map((s) => (
                 <button
                   type="button"
                   key={s}
                   onClick={() => setForm((f) => ({ ...f, storage: f.storage === s ? "" : s }))}
-                  className={`rounded-xl border py-2 text-xs font-medium transition-colors ${
+                  className={`cursor-pointer rounded-xl border py-2 text-xs font-medium transition-colors ${
                     form.storage === s ? "border-primary/50 bg-primary/10 text-primary" : "border-border/40 bg-muted/20"
                   }`}
                 >
@@ -229,6 +218,14 @@ export function SeasonalTireSwapDialog({ open, onOpenChange, vehicle, providerLi
                 </button>
               ))}
             </div>
+            {form.storage && form.storage !== TIRE_STORAGE_SCRAPPED && (
+              <Input
+                className={`${iCls} mt-2`}
+                placeholder={form.serviceCenter.trim() || "Saklayan firma / adres (ops.)"}
+                value={form.storageNote}
+                onChange={(e) => setForm((f) => ({ ...f, storageNote: e.target.value }))}
+              />
+            )}
           </div>
 
           <div className="space-y-1">
@@ -244,7 +241,7 @@ export function SeasonalTireSwapDialog({ open, onOpenChange, vehicle, providerLi
                     type="button"
                     key={s}
                     onClick={() => setForm((f) => ({ ...f, paymentStatus: s }))}
-                    className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-medium transition-colors ${
+                    className={`cursor-pointer flex-1 flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-medium transition-colors ${
                       form.paymentStatus === s
                         ? s === "paid" ? "border-[var(--success)]/50 bg-[var(--success)]/10 text-[var(--success)] dark:text-emerald-400" : "border-destructive/50 bg-destructive/10 text-destructive"
                         : "border-border/40 bg-card"

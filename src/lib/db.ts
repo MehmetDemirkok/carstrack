@@ -170,6 +170,10 @@ function toVehicle(row: Record<string, unknown>): Vehicle {
     tireSize: (row.tire_size as string) || "",
     tireInstallDate: (row.tire_install_date as string) || "",
     tireMileage: (row.tire_mileage as number) || 0,
+    // Boşsa undefined: düzenleme formu bu alanlara dokunmadıysa güncellemeye hiç girmezler.
+    storedTireSeason: (row.stored_tire_season as Vehicle["storedTireSeason"]) || undefined,
+    tireStorageLocation: (row.tire_storage_location as string) || undefined,
+    tireStorageNote: (row.tire_storage_note as string) || undefined,
     batteryBrand: (row.battery_brand as string) || "",
     batteryCapacity: (row.battery_capacity as string) || "",
     batteryInstallDate: (row.battery_install_date as string) || "",
@@ -223,6 +227,9 @@ function toDbVehicle(v: Partial<Vehicle>, companyId?: string) {
   if (v.tireSize !== undefined) obj.tire_size = v.tireSize;
   if (v.tireInstallDate !== undefined) obj.tire_install_date = v.tireInstallDate || null;
   if (v.tireMileage !== undefined) obj.tire_mileage = v.tireMileage;
+  if (v.storedTireSeason !== undefined) obj.stored_tire_season = v.storedTireSeason || null;
+  if (v.tireStorageLocation !== undefined) obj.tire_storage_location = v.tireStorageLocation || null;
+  if (v.tireStorageNote !== undefined) obj.tire_storage_note = v.tireStorageNote || null;
   if (v.batteryBrand !== undefined) obj.battery_brand = v.batteryBrand;
   if (v.batteryCapacity !== undefined) obj.battery_capacity = v.batteryCapacity;
   if (v.batteryInstallDate !== undefined) obj.battery_install_date = v.batteryInstallDate || null;

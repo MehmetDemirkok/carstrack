@@ -34,6 +34,9 @@ import { FineFormDialog } from "@/components/traffic-fines/fine-form-dialog";
 import { FuelFormDialog } from "@/components/fuel/fuel-form-dialog";
 import { FuelTrendChart } from "@/components/fuel/fuel-trend-chart";
 import { SeasonalTireSwapDialog } from "@/components/vehicles/seasonal-tire-swap-dialog";
+import { TireEditDialog } from "@/components/vehicles/tire-edit-dialog";
+import { TireDiagram } from "@/components/vehicles/tire-diagram";
+import { SeasonIcon, seasonTone, seasonLower, defaultTargetSeason } from "@/components/vehicles/tire-season";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +55,7 @@ import {
   Wrench, Clock, CheckCircle2, AlertTriangle, XCircle, Plus, FileText,
   Palette, Zap, Hash, ChevronRight, Pencil, FileDown, ChevronDown, Check,
   Shield, Download, Upload, ClipboardCheck, CalendarPlus, ExternalLink,
-  Wallet, Gavel, Copy, CheckCheck, X as XIcon, Maximize2, Star, Repeat,
+  Wallet, Gavel, Copy, CheckCheck, X as XIcon, Maximize2, Star, Repeat, Warehouse, ArrowRight, History,
   type LucideIcon,
 } from "lucide-react";
 
@@ -303,6 +306,24 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
 }
 
+/** Takılma tarihinden bugüne geçen süre: "12 gün", "3 ay 4 gün", "1 yıl 2 ay". */
+function tireAgeLabel(installDate: string): string {
+  if (!installDate) return "—";
+  const start = new Date(`${installDate}T00:00:00`);
+  const now = new Date();
+  if (Number.isNaN(start.getTime()) || start > now) return "—";
+  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  if (now.getDate() < start.getDate()) months -= 1;
+  if (months < 1) {
+    const days = Math.floor((now.getTime() - start.getTime()) / 86_400_000);
+    return days === 0 ? "Bugün" : `${days} gün`;
+  }
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  if (years === 0) return `${rest} ay`;
+  return rest ? `${years} yıl ${rest} ay` : `${years} yıl`;
+}
+
 function parseKm(value: string | number): number {
   if (typeof value === "number") return Math.round(value);
   return parseInt(value.replace(/\./g, "").replace(/,/g, ""), 10) || 0;
@@ -417,6 +438,7 @@ export default function VehicleDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [showAddRecord, setShowAddRecord] = useState(false);
   const [showTireSwap, setShowTireSwap] = useState(false);
+  const [showTireEdit, setShowTireEdit] = useState(false);
   const [showDeleteRecord, setShowDeleteRecord] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
@@ -1350,61 +1372,154 @@ export default function VehicleDetailPage() {
                         </h3>
                         {vehicle.tireBrand && <p className="text-[11px] text-muted-foreground mt-1">{vehicle.tireBrand} {vehicle.tireSize && `• ${vehicle.tireSize}`}</p>}
                       </div>
-                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold ${vehicle.tireStatus === "Yazlık" ? "bg-orange-500/10 border-orange-500/20 text-orange-600" : vehicle.tireStatus === "Kışlık" ? "bg-violet-500/10 border-violet-500/20 text-violet-600" : "bg-teal-500/10 border-teal-500/20 text-teal-600"}`}>
-                        {vehicle.tireStatus === "Yazlık" ? <Sun className="h-4 w-4" /> : vehicle.tireStatus === "Kışlık" ? <Snowflake className="h-4 w-4" /> : <Layers className="h-4 w-4" />}
-                        {vehicle.tireStatus}
+                      <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold ${seasonTone(vehicle.tireStatus)}`}>
+                          <SeasonIcon season={vehicle.tireStatus} className="h-4 w-4" />
+                          {vehicle.tireStatus}
+                        </div>
+                        {!isDriver && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="cursor-pointer h-8 rounded-xl gap-1.5 text-xs"
+                            onClick={() => setShowTireEdit(true)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" /> Düzenle
+                          </Button>
+                        )}
                       </div>
                     </div>
 
                     {/* Mevsimlik değişim: lastik durumunu günceller + servis kaydı ekler (sürücü göremez) */}
-                    {!isDriver && (
-                      <Button
-                        variant="outline"
-                        className="w-full rounded-xl h-10 mb-4 gap-2 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
-                        onClick={() => setShowTireSwap(true)}
-                      >
-                        <Repeat className="h-4 w-4" />
-                        Mevsimlik Lastik Değişimi
-                        <span className="text-muted-foreground font-normal">
-                          ({vehicle.tireStatus === "Kışlık" ? "Yazlığa geç" : vehicle.tireStatus === "Yazlık" ? "Kışlığa geç" : "Lastik değiştir"})
-                        </span>
-                      </Button>
-                    )}
-
-                    {/* Tire diagram */}
-                    <div className="bg-muted/40 rounded-2xl p-4 border border-border/20 mb-4">
-                      <div className="grid grid-cols-2 gap-x-12 gap-y-4 relative">
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="w-20 h-28 border-2 border-dashed border-border/40 rounded-xl" />
-                        </div>
-                        {["Sol Ön", "Sağ Ön", "Sol Arka", "Sağ Arka"].map((pos, i) => (
-                          <div key={i} className="flex flex-col items-center gap-1 relative z-10">
-                            <div className="w-10 h-14 bg-foreground/10 rounded-lg border-2 border-foreground/20 flex items-center justify-center">
-                              <span className="text-[9px] font-bold text-muted-foreground">
-                                {vehicle.tireStatus === "Yazlık" ? "Y" : vehicle.tireStatus === "Kışlık" ? "K" : "4M"}
+                    {!isDriver && (() => {
+                      const target = defaultTargetSeason(vehicle.tireStatus);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setShowTireSwap(true)}
+                          className="group mb-4 flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3 text-left transition-all duration-200 hover:-translate-y-px hover:border-primary/40 hover:shadow-md hover:shadow-primary/10 active:translate-y-0 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm shadow-primary/30 transition-transform duration-500 group-hover:rotate-180">
+                            <Repeat className="h-4.5 w-4.5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold">Mevsimlik Lastik Değişimi</span>
+                            <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-semibold ${seasonTone(vehicle.tireStatus)}`}>
+                                <SeasonIcon season={vehicle.tireStatus} className="h-3 w-3" /> {vehicle.tireStatus}
                               </span>
-                            </div>
-                            <span className="text-[9px] text-muted-foreground font-medium">{pos}</span>
-                          </div>
-                        ))}
-                      </div>
+                              <ArrowRight className="h-3 w-3" />
+                              <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-semibold ${seasonTone(target)}`}>
+                                <SeasonIcon season={target} className="h-3 w-3" /> {target}
+                              </span>
+                            </span>
+                          </span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
+                        </button>
+                      );
+                    })()}
+
+                    <div className="mb-4">
+                      <TireDiagram season={vehicle.tireStatus} size={vehicle.tireSize} />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      {vehicle.tireInstallDate && (
-                        <div className="bg-muted/50 rounded-xl p-3 border border-border/20">
-                          <p className="text-[10px] text-muted-foreground">Takılma Tarihi</p>
-                          <p className="text-xs font-bold mt-0.5">{vehicle.tireInstallDate.split("-").reverse().join(".")}</p>
+                    {/* Takılı takımın detayları */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {[
+                        { label: "Marka / Model", value: vehicle.tireBrand || "—" },
+                        { label: "Ebat", value: vehicle.tireSize || "—" },
+                        { label: "Takılma Tarihi", value: vehicle.tireInstallDate ? vehicle.tireInstallDate.split("-").reverse().join(".") : "—" },
+                        { label: "Takıldığı Km", value: vehicle.tireMileage > 0 ? `${vehicle.tireMileage.toLocaleString("tr-TR")} km` : "—" },
+                        // Takılma bilgisi hiç girilmemişse (km 0) aracın tüm km'si "yapılan" gibi görünmesin
+                        {
+                          label: "Yapılan Km",
+                          value: vehicle.tireInstallDate || vehicle.tireMileage > 0
+                            ? `${Math.max(0, vehicle.mileage - vehicle.tireMileage).toLocaleString("tr-TR")} km`
+                            : "—",
+                        },
+                        { label: "Takılı Süre", value: tireAgeLabel(vehicle.tireInstallDate) },
+                      ].map((item) => (
+                        <div key={item.label} className="bg-muted/50 rounded-xl p-3 border border-border/20 min-w-0">
+                          <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                          <p className="text-xs font-bold mt-0.5 truncate">{item.value}</p>
                         </div>
-                      )}
-                      {vehicle.tireMileage >= 0 && (
-                        <div className="bg-muted/50 rounded-xl p-3 border border-border/20">
-                          <p className="text-[10px] text-muted-foreground">Yapılan Km</p>
-                          <p className="text-xs font-bold mt-0.5">{(vehicle.mileage - vehicle.tireMileage).toLocaleString("tr-TR")} km</p>
-                        </div>
-                      )}
+                      ))}
                     </div>
+
+                    {/* Saklanan (araçta takılı olmayan) lastik takımı */}
+                    {vehicle.storedTireSeason ? (
+                      <div className="mt-3 flex items-center gap-3 rounded-xl border border-border/20 bg-muted/50 p-3">
+                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border ${seasonTone(vehicle.storedTireSeason)}`}>
+                          <Warehouse className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] text-muted-foreground">Saklanan Lastikler</p>
+                          <p className="text-xs font-bold mt-0.5 flex items-center gap-1">
+                            <SeasonIcon season={vehicle.storedTireSeason} className="h-3 w-3" />
+                            {vehicle.storedTireSeason} takım · {vehicle.tireStorageLocation || "Yeri belirtilmedi"}
+                          </p>
+                          {vehicle.tireStorageNote && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{vehicle.tireStorageNote}</p>
+                          )}
+                        </div>
+                        {!isDriver && (
+                          <Button variant="ghost" size="sm" className="cursor-pointer rounded-lg text-xs" onClick={() => setShowTireEdit(true)}>
+                            <Pencil className="h-3.5 w-3.5" /> Düzenle
+                          </Button>
+                        )}
+                      </div>
+                    ) : !isDriver && (
+                      <button
+                        type="button"
+                        onClick={() => setShowTireEdit(true)}
+                        className="mt-3 flex w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border/60 p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                      >
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                          <Warehouse className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs font-semibold">Saklanan lastikler nerede?</span>
+                          <span className="block text-[11px] text-muted-foreground">
+                            Sökülen {seasonLower(defaultTargetSeason(vehicle.tireStatus))} takımın yerini ekleyin
+                          </span>
+                        </span>
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    )}
                   </div>
+
+                  {/* Lastik geçmişi — "Lastik" tipindeki servis kayıtları */}
+                  {(() => {
+                    const tireRecords = records.filter((r) => r.type === "tire");
+                    if (tireRecords.length === 0) return null;
+                    return (
+                      <div className="bg-card rounded-2xl p-5 border border-border/40 shadow-sm">
+                        <h3 className="font-bold text-sm flex items-center gap-2 mb-3">
+                          <History className="h-4 w-4 text-primary" /> Lastik Geçmişi
+                          <span className="text-[11px] font-normal text-muted-foreground">({tireRecords.length})</span>
+                        </h3>
+                        <ol className="relative space-y-3 border-l border-border/60 ml-1.5 pl-4">
+                          {tireRecords.map((r) => (
+                            <li key={r.id} className="relative">
+                              <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary" />
+                              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                                <p className="text-xs font-semibold">{r.title || "Lastik işlemi"}</p>
+                                <p className="font-mono text-[11px] text-muted-foreground">{r.date.split("-").reverse().join(".")}</p>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {r.mileage > 0 ? `${r.mileage.toLocaleString("tr-TR")} km` : ""}
+                                {r.serviceCenter ? `${r.mileage > 0 ? " · " : ""}${r.serviceCenter}` : ""}
+                                {r.cost != null ? ` · ${r.cost.toLocaleString("tr-TR")} ₺` : ""}
+                              </p>
+                              {r.notes && (
+                                <p className="text-[11px] text-foreground/70 mt-1 whitespace-pre-line line-clamp-3">{r.notes}</p>
+                              )}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    );
+                  })()}
 
                   <div className="bg-card rounded-2xl p-4 border border-border/40 shadow-sm flex items-center gap-4">
                     <div className="h-12 w-12 rounded-2xl bg-yellow-500/10 flex items-center justify-center shrink-0">
@@ -2212,6 +2327,14 @@ export default function VehicleDetailPage() {
           onOpenChange={setShowTireSwap}
           vehicle={vehicle}
           providerListId="service-providers-list"
+          onSaved={() => { reload(); refreshShared(); }}
+        />
+      )}
+      {!isDriver && (
+        <TireEditDialog
+          open={showTireEdit}
+          onOpenChange={setShowTireEdit}
+          vehicle={vehicle}
           onSaved={() => { reload(); refreshShared(); }}
         />
       )}

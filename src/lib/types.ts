@@ -102,6 +102,15 @@ export interface Vehicle {
   tireSize: string;
   tireInstallDate: string;
   tireMileage: number;
+  /**
+   * Sökülüp saklanan lastik takımı. Okurken boşsa undefined gelir;
+   * güncellemede undefined = dokunma, null = temizle.
+   */
+  storedTireSeason?: TireSeasonType | null;
+  /** Saklanan takımın nerede durduğu (Lastik otelinde, Firma deposunda...). */
+  tireStorageLocation?: string | null;
+  /** Saklayan firma / adres gibi serbest not. */
+  tireStorageNote?: string | null;
   batteryBrand: string;
   batteryCapacity: string;
   batteryInstallDate: string;
