@@ -18,6 +18,29 @@ export const MAINTENANCE_TEMPLATES: Omit<MaintenanceItem, "lastDoneDate" | "last
   { id: "brakerear", name: "Arka Fren Balatası", intervalKm: 60000 },
 ];
 
+/**
+ * Modele özel periyodik bakım aralıkları: eşleşen modelde listelenen kalemlerin
+ * km aralığı şablonun yerine geçer. (Kalemler araç eklendikten sonra Bakım
+ * sekmesinden yine araç bazında değiştirilebilir.)
+ */
+const MODEL_INTERVAL_OVERRIDES: { match: RegExp; intervalKm: Record<string, number> }[] = [
+  // Renault Megane: periyodik bakım 20.000 km'de bir (yağ + filtreler).
+  { match: /megane/i, intervalKm: { oil: 20000, airfilter: 20000, cabinfilter: 20000 } },
+];
+
+/** Yeni araç için bakım kalemleri şablonu — markaya/modele özel aralıklar uygulanmış halde. */
+export function getMaintenanceTemplates(
+  brand: string,
+  model: string,
+): Omit<MaintenanceItem, "lastDoneDate" | "lastDoneMileage">[] {
+  const name = `${brand} ${model}`;
+  const override = MODEL_INTERVAL_OVERRIDES.find((o) => o.match.test(name));
+  return MAINTENANCE_TEMPLATES.map((t) => ({
+    ...t,
+    ...(override?.intervalKm[t.id] ? { intervalKm: override.intervalKm[t.id] } : {}),
+  }));
+}
+
 // ─── Health Score & Maintenance Status ────────────────────────
 
 function monthsBetween(a: Date, b: Date): number {

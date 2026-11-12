@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
-import { MAINTENANCE_TEMPLATES } from "@/lib/store";
+import { getMaintenanceTemplates } from "@/lib/store";
 import { addVehicle } from "@/lib/db";
 import { fileToBase64 } from "@/lib/file-utils";
 import type { Vehicle } from "@/lib/types";
@@ -191,7 +191,7 @@ export function FirstVehicleOnboarding({ onSkip }: Props) {
         lastServiceDate: "",
         lastServiceMileage: 0,
         nextServiceMileage: 0,
-        maintenanceItems: MAINTENANCE_TEMPLATES.map((t) => ({ ...t })),
+        maintenanceItems: getMaintenanceTemplates(brand, model),
         notes: "",
       };
 

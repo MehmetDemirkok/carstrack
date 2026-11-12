@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { MAINTENANCE_TEMPLATES } from "@/lib/store";
+import { getMaintenanceTemplates } from "@/lib/store";
 import { addVehicle, addVehicleDocument, uploadDocumentFile } from "@/lib/db";
 import type { FuelType, TransmissionType, TireSeasonType, OwnershipType, Vehicle } from "@/lib/types";
 import { isDriverRole } from "@/lib/types";
@@ -579,9 +579,10 @@ export default function NewVehiclePage() {
     setError("");
     const mileage = parseKm(form.mileage);
     // Sıfır araçta tüm bakım kalemleri teslim noktasını (bugün / girilen km) baseline alır
+    const templates = getMaintenanceTemplates(form.brand, form.model);
     const maintenanceItems = factoryNew
-      ? MAINTENANCE_TEMPLATES.map((t) => ({ ...t, lastDoneDate: todayISO(), lastDoneMileage: mileage }))
-      : MAINTENANCE_TEMPLATES.map((t) => ({ ...t }));
+      ? templates.map((t) => ({ ...t, lastDoneDate: todayISO(), lastDoneMileage: mileage }))
+      : templates;
 
     const data: Omit<Vehicle, "id" | "createdAt" | "updatedAt"> = {
       ownershipType: form.ownershipType,

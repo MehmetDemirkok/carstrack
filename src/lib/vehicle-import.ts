@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 import type { Vehicle } from "@/lib/types";
-import { MAINTENANCE_TEMPLATES } from "@/lib/store";
+import { getMaintenanceTemplates } from "@/lib/store";
 
 // Export şablonuyla (export.ts → vehicleRows) birebir aynı Türkçe başlıklar.
 const TEMPLATE_HEADERS = [
@@ -211,7 +211,7 @@ export async function parseVehicleImportFile(
       lastServiceDate: dateOrEmpty("Son Servis Tarihi", "Son Servis Tarihi"),
       lastServiceMileage,
       nextServiceMileage,
-      maintenanceItems: MAINTENANCE_TEMPLATES.map((t) => ({ ...t })),
+      maintenanceItems: getMaintenanceTemplates(brand, model),
       notes: toStr(r["Notlar"]),
     };
 
