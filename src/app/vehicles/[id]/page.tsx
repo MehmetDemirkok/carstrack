@@ -1872,7 +1872,7 @@ export default function VehicleDetailPage() {
                         <> • <span className="font-semibold text-destructive">₺{records.reduce((sum, r) => sum + (r.paymentStatus === "unpaid" ? (r.cost ?? 0) : 0), 0).toLocaleString("tr-TR")} ödenmedi</span></>
                       )}
                     </p>
-                    <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={() => { setRecordMaintIds(vehicle.maintenanceItems.some((i) => i.id === "oil") ? ["oil"] : []); setShowAddRecord(true); }}>
+                    <Button size="sm" className="rounded-full h-8 px-3 gap-1.5 text-xs" onClick={() => { setRecordMaintIds(vehicle.maintenanceItems.some((i) => i.id === "oil") ? ["oil"] : []); setTireForm({ season: vehicle.tireStatus, brand: "", size: "", qty: "" }); setShowAddRecord(true); }}>
                       <Plus className="h-3.5 w-3.5" /> Kayıt Ekle
                     </Button>
                   </div>
