@@ -576,7 +576,7 @@ export default function HistoryPage() {
 
       {/* Add record dialog */}
       <Dialog open={showAdd} onOpenChange={(o) => { setShowAdd(o); if (!o) { setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); setRecordMaintIds([]); } }}>
-        <DialogContent className="max-w-[92vw] md:max-w-xl rounded-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[92vw] md:max-w-xl rounded-3xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit">Servis Kaydı Ekle</DialogTitle>
           </DialogHeader>

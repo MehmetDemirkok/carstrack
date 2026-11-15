@@ -97,7 +97,7 @@ export function TireEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-outfit flex items-center gap-2">
             <Pencil className="h-4 w-4 text-primary" /> Lastik Bilgilerini Düzenle

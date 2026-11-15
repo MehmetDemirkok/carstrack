@@ -668,7 +668,7 @@ export default function Dashboard() {
 
       {/* Uyarı detayları — hero rozetleri ve "Uyarı" istatistik kartından açılır */}
       <Dialog open={showAlertsDialog} onOpenChange={setShowAlertsDialog}>
-        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-orange-500" /> Filo Uyarıları ({alerts.length})
@@ -708,7 +708,7 @@ export default function Dashboard() {
 
       {/* Filo sağlık skoru açıklaması */}
       <Dialog open={showScoreInfoDialog} onOpenChange={setShowScoreInfoDialog}>
-        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit flex items-center gap-2">
               <Info className="h-5 w-5 text-indigo-500" /> Filo Sağlık Skoru Nasıl Hesaplanır?

@@ -67,7 +67,7 @@ export default function AuthCallbackPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
+    <div className="min-h-dvh flex flex-col items-center justify-center gap-4 bg-background">
       <div className="bg-mesh p-4 rounded-3xl shadow-xl shadow-primary/40">
         <Car className="h-8 w-8 text-white drop-shadow" />
       </div>

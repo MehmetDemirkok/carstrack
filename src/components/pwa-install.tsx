@@ -22,7 +22,9 @@ function isStandalone(): boolean {
 function isIOS(): boolean {
   if (typeof window === "undefined") return false;
   const ua = window.navigator.userAgent;
-  return /iphone|ipad|ipod/i.test(ua) && !/windows phone/i.test(ua);
+  if (/iphone|ipad|ipod/i.test(ua) && !/windows phone/i.test(ua)) return true;
+  // iPadOS 13+ masaüstü Safari gibi "Macintosh" der; dokunmatik ekranla ayırt edilir.
+  return /macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
 }
 
 /**
@@ -141,7 +143,7 @@ export function PWAInstallCard() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowIosSheet(false)}
-            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           >
             <motion.div
               initial={{ y: 40, opacity: 0, scale: 0.98 }}

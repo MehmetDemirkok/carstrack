@@ -707,7 +707,7 @@ export default function NewVehiclePage() {
 
   if (isDriverRole(profile?.role)) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+      <div className="flex flex-col items-center justify-center min-h-[60dvh] p-8 text-center">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }} className="mb-6">
           <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center">
             <ShieldCheck className="h-10 w-10 text-destructive" />
@@ -730,7 +730,7 @@ export default function NewVehiclePage() {
 
   if (done) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
+      <div className="flex flex-col items-center justify-center min-h-[60dvh] p-8">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }} className="mb-6">
           <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center">
             <CheckCircle2 className="h-10 w-10 text-emerald-500" />
@@ -744,7 +744,7 @@ export default function NewVehiclePage() {
 
   return (
     <>
-    <div className="bg-background min-h-screen">
+    <div className="bg-background min-h-dvh">
       {/* Header */}
       <div className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="flex items-center justify-between p-3 px-4 max-w-2xl mx-auto">

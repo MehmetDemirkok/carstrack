@@ -63,7 +63,9 @@ export function ShellWrapper({ children }: { children: React.ReactNode }) {
       >
         <TopBar />
         <AppBanner />
-        <main className="flex-1 overflow-x-hidden pb-20 md:pb-6 w-full">
+        {/* Mobil alt menü: h-16 + pb-2 + ana ekran çubuğu (safe-area). Önceki sabit
+            pb-20 iPhone'larda son ~26 px'i menünün altında bırakıyordu. */}
+        <main className="flex-1 overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-6 w-full">
           {children}
         </main>
         <BottomNav />

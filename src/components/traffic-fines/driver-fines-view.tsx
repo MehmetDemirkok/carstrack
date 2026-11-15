@@ -57,7 +57,7 @@ function FinePhoto({ path }: { path: string }) {
               <X className="h-5 w-5" />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="Ceza tebligatı" onClick={(e) => e.stopPropagation()} className="max-h-[90vh] max-w-full rounded-2xl object-contain" />
+            <img src={url} alt="Ceza tebligatı" onClick={(e) => e.stopPropagation()} className="max-h-[90dvh] max-w-full rounded-2xl object-contain" />
           </motion.div>
         )}
       </AnimatePresence>

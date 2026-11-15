@@ -234,7 +234,7 @@ export function FineFormDialog({
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !submitting && onOpenChange(false)} />
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="relative bg-card rounded-3xl border border-border/50 shadow-2xl w-full max-w-lg p-5 space-y-3 my-4 max-h-[94vh] overflow-y-auto"
+            className="relative bg-card rounded-3xl border border-border/50 shadow-2xl w-full max-w-lg p-5 space-y-3 my-4 max-h-[94dvh] overflow-y-auto"
           >
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-xl"><Gavel className="h-5 w-5 text-primary" /></div>

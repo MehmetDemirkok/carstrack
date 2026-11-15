@@ -378,7 +378,7 @@ function CollapsibleSection({
 
 function VehicleDetailSkeleton() {
   return (
-    <div className="bg-background min-h-screen animate-pulse">
+    <div className="bg-background min-h-dvh animate-pulse">
       <div className="sticky top-0 z-50 glass border-b border-border/30 md:hidden">
         <div className="flex items-center justify-between p-3 px-4">
           <div className="h-9 w-9 rounded-full bg-muted/70" />
@@ -935,7 +935,7 @@ export default function VehicleDetailPage() {
   const iCls = "rounded-xl h-10 bg-muted/30 border-border/40 text-sm";
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-background min-h-dvh">
       <datalist id="service-providers-list">
         {providerNames.map((name) => <option key={name} value={name} />)}
       </datalist>
@@ -2131,7 +2131,7 @@ export default function VehicleDetailPage() {
 
       {/* ── EDIT DIALOG ── */}
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="max-w-[92vw] md:max-w-2xl rounded-3xl max-h-[88vh] overflow-y-auto">
+        <DialogContent className="max-w-[92vw] md:max-w-2xl rounded-3xl max-h-[88dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit">Araç Düzenle</DialogTitle>
           </DialogHeader>
@@ -2362,7 +2362,7 @@ export default function VehicleDetailPage() {
 
       {/* ── ADD RECORD DIALOG ── */}
       <Dialog open={showAddRecord} onOpenChange={(o) => { setShowAddRecord(o); if (!o) { setTireForm({ season: "Yazlık", brand: "", size: "", qty: "" }); setRecordMaintIds([]); } }}>
-        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit">Servis Kaydı Ekle</DialogTitle>
           </DialogHeader>
@@ -2539,7 +2539,7 @@ export default function VehicleDetailPage() {
 
       {/* ── BELGE EKLE ── */}
       <Dialog open={showAddDoc} onOpenChange={(o) => { if (!isUploading) setShowAddDoc(o); }}>
-        <DialogContent className="max-w-[92vw] md:max-w-md rounded-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[92vw] md:max-w-md rounded-3xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit flex items-center gap-2">
               <Upload className="h-4 w-4 text-primary" /> Belge Ekle
@@ -2679,7 +2679,7 @@ export default function VehicleDetailPage() {
           </DialogHeader>
 
           <div className="px-5 pb-5">
-            <div className="rounded-2xl bg-muted/30 border border-border/40 overflow-hidden min-h-[55vh] flex items-center justify-center">
+            <div className="rounded-2xl bg-muted/30 border border-border/40 overflow-hidden min-h-[55dvh] flex items-center justify-center">
               {docViewLoading ? (
                 <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
                   <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -2697,9 +2697,9 @@ export default function VehicleDetailPage() {
                 </div>
               ) : docToView && getDocPreviewKind(docToView) === "image" ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={docViewUrl} alt={docToView.title} className="max-h-[70vh] w-auto max-w-full object-contain" />
+                <img src={docViewUrl} alt={docToView.title} className="max-h-[70dvh] w-auto max-w-full object-contain" />
               ) : docToView && getDocPreviewKind(docToView) === "pdf" ? (
-                <iframe src={docViewUrl} title={docToView.title} className="w-full h-[70vh] bg-white" />
+                <iframe src={docViewUrl} title={docToView.title} className="w-full h-[70dvh] bg-white" />
               ) : (
                 <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground text-center px-6">
                   <FileText className="h-8 w-8 opacity-40" />
@@ -2740,10 +2740,10 @@ export default function VehicleDetailPage() {
             <XIcon className="h-5 w-5" />
             <span className="sr-only">Kapat</span>
           </DialogClose>
-          <div className="flex items-center justify-center min-h-[40vh] p-2">
+          <div className="flex items-center justify-center min-h-[40dvh] p-2">
             {photoView && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoView} alt="Araç fotoğrafı" className="max-h-[80vh] w-auto max-w-full object-contain rounded-xl" />
+              <img src={photoView} alt="Araç fotoğrafı" className="max-h-[80dvh] w-auto max-w-full object-contain rounded-xl" />
             )}
           </div>
         </DialogContent>

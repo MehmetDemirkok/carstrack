@@ -14,10 +14,23 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
+    // Yüklü PWA günlerce kapanmadan arka planda kalabiliyor; uygulama öne
+    // geldiğinde yeni sw.js var mı diye bak (en fazla saatte bir).
+    let lastUpdateCheck = Date.now();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastUpdateCheck < 60 * 60_000) return;
+      lastUpdateCheck = Date.now();
+      navigator.serviceWorker.getRegistration().then((reg) => reg?.update()).catch(() => {});
+    };
+
     const register = () => {
-      navigator.serviceWorker.register("/sw.js").catch((err) => {
+      // updateViaCache: "none" — sw.js güncelleme kontrolü HTTP önbelleğini
+      // atlasın; yeni sürüm (çevrimdışı sayfa, push düzeltmeleri) hemen gelsin.
+      navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch((err) => {
         console.error("Service worker kaydı başarısız:", err);
       });
+      document.addEventListener("visibilitychange", onVisible);
     };
 
     if (document.readyState === "complete") {
@@ -54,6 +67,7 @@ export function ServiceWorkerRegister() {
 
     return () => {
       window.removeEventListener("load", register);
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);
     };
