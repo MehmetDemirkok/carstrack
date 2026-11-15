@@ -28,6 +28,7 @@ import {
   sortDrivers,
   sortManagement,
   type DriverWithAssignment,
+  type InviteResult,
   type MemberView,
   type PendingInvite,
   type TeamFilter,
@@ -117,21 +118,27 @@ export default function UsersPage() {
 
   // ── Davetler ───────────────────────────────────────────────
 
-  async function sendInvite(email: string, role: UserRole): Promise<boolean> {
+  async function sendInvite(email: string, role: UserRole): Promise<InviteResult> {
     try {
       const res = await fetch("/api/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, role }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(data.error || "Davet gönderilemedi"); return false; }
-      toast.success("Davet gönderildi");
+      const data = (await res.json().catch(() => ({}))) as { error?: string; resent?: boolean };
+      if (!res.ok) {
+        const error = data.error || "Davet gönderilemedi";
+        toast.error("Davet gönderilemedi", { description: error });
+        return { ok: false, error };
+      }
+      toast.success(data.resent ? "Davet yeniden gönderildi" : "Davet gönderildi", {
+        description: data.resent ? "Bağlantı yenilendi, 7 gün daha geçerli." : undefined,
+      });
       await loadInvites();
-      return true;
+      return { ok: true };
     } catch {
       toast.error("Davet gönderilemedi");
-      return false;
+      return { ok: false, error: "Bağlantı hatası, lütfen tekrar deneyin." };
     }
   }
 
@@ -356,7 +363,12 @@ export default function UsersPage() {
       )}
 
       {isManager && (
-        <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} onSend={sendInvite} />
+        <InviteDialog
+          open={inviteOpen}
+          onOpenChange={setInviteOpen}
+          onSend={sendInvite}
+          pendingEmails={pendingInvites.map((i) => i.email)}
+        />
       )}
     </div>
   );

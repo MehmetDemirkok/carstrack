@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateInviteToken } from "@/lib/invite-code";
 import { sendNotificationEmail } from "@/lib/email/sendEmail";
 import { getAppUrl } from "@/lib/email/emailTypes";
+import { findAuthUserIdByEmail } from "@/lib/auth-lookup";
+import { isDeactivatedRow } from "@/lib/member-status";
 
 const ROLE_LABELS: Record<string, string> = {
   manager: "Şirket Yetkilisi",
@@ -70,6 +72,43 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // ── Mükerrer kontrolü: bu e-postayla zaten bir hesap var mı? ──
+  // Davet kabulü (register, mode=invite) yeni bir Auth hesabı açar; kayıtlı bir
+  // e-postaya giden davet hiçbir zaman kabul edilemez. O yüzden burada durdurulur.
+  const existingUser = await findAuthUserIdByEmail(admin, email);
+  if (existingUser.error) {
+    console.error("[invites] kullanıcı kontrolü yapılamadı:", existingUser.error);
+    return NextResponse.json({ error: "E-posta kontrol edilemedi, lütfen tekrar deneyin." }, { status: 503 });
+  }
+  if (existingUser.id) {
+    const { data: member } = await admin
+      .from("profiles")
+      .select("*")
+      .eq("id", existingUser.id)
+      .maybeSingle();
+
+    if (member && member.company_id === auth.companyId) {
+      const name = (member.full_name as string) || email;
+      if (isDeactivatedRow(member)) {
+        return NextResponse.json({
+          code: "inactive_member",
+          error: `${name} ekibinizde pasif üye olarak kayıtlı. Davet yerine "Pasif Üyeler" bölümünden "Geri Al" ile yeniden etkinleştirebilirsiniz.`,
+        }, { status: 409 });
+      }
+      return NextResponse.json({
+        code: "already_member",
+        error: `${name} zaten ekibinizde. Rolünü değiştirmek için üyenin kartındaki düzenle düğmesini kullanın.`,
+      }, { status: 409 });
+    }
+
+    // Başka şirkete bağlı ya da şirketsiz hesap — hangi şirket olduğu söylenmez.
+    return NextResponse.json({
+      code: "account_exists",
+      error: "Bu e-posta adresiyle zaten bir CarsTrack hesabı var. Bir hesap yalnızca tek bir şirkete bağlı olabildiği için davet gönderilemez; kişiden farklı bir e-posta adresi isteyin.",
+    }, { status: 409 });
+  }
+
   const token = generateInviteToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString();
 
@@ -131,5 +170,5 @@ export async function POST(req: NextRequest) {
     entity_label: email,
   }).then(({ error }) => { if (error) console.error("[invites] audit log hatası:", error); });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, resent: !!existing });
 }

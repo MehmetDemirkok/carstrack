@@ -1,29 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { Mail } from "lucide-react";
+import { AlertCircle, Info, Mail } from "lucide-react";
 import type { UserRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RolePicker } from "./role-picker";
 import { inputCls } from "./edit-member-dialog";
+import type { InviteResult } from "./team-utils";
 
 export function InviteDialog({
   open,
   onOpenChange,
   onSend,
+  pendingEmails = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Daveti gönderir; başarılıysa true döner. */
-  onSend: (email: string, role: UserRole) => Promise<boolean>;
+  /** Daveti gönderir; hata varsa mesajıyla döner. */
+  onSend: (email: string, role: UserRole) => Promise<InviteResult>;
+  /** Bekleyen davetlerin e-postaları — aynı adrese yazılırsa "yeniden gönder" uyarısı. */
+  pendingEmails?: string[];
 }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("user");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const normalized = email.trim().toLowerCase();
+  const isPending = normalized !== "" && pendingEmails.some((e) => e.toLowerCase() === normalized);
 
   function change(o: boolean) {
     if (!o && submitting) return;
+    if (!o) setError(null);
     onOpenChange(o);
   }
 
@@ -31,12 +40,15 @@ export function InviteDialog({
     const value = email.trim();
     if (!value) return;
     setSubmitting(true);
-    const ok = await onSend(value, role);
+    setError(null);
+    const result = await onSend(value, role);
     setSubmitting(false);
-    if (ok) {
+    if (result.ok) {
       setEmail("");
       setRole("user");
       onOpenChange(false);
+    } else {
+      setError(result.error ?? "Davet gönderilemedi");
     }
   }
 
@@ -61,11 +73,24 @@ export function InviteDialog({
               type="email"
               autoComplete="off"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setError(null); }}
               placeholder="calisan@sirket.com"
               className={inputCls}
+              aria-invalid={!!error}
+              aria-describedby={error ? "invite-error" : isPending ? "invite-pending" : undefined}
               required
             />
+            {error && (
+              <p id="invite-error" role="alert" className="flex gap-1.5 text-[11px] leading-snug text-destructive">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" /> {error}
+              </p>
+            )}
+            {!error && isPending && (
+              <p id="invite-pending" className="flex gap-1.5 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
+                <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
+                Bu adrese zaten bekleyen bir davet var. Gönderirseniz davet seçtiğiniz rolle yenilenir ve 7 gün daha geçerli olur.
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rol</p>
@@ -79,7 +104,7 @@ export function InviteDialog({
               className="flex-1 rounded-xl bg-mesh hover:opacity-95 text-white border-none"
               disabled={submitting || !email.trim()}
             >
-              {submitting ? "Gönderiliyor..." : "Davet Gönder"}
+              {submitting ? "Gönderiliyor..." : isPending ? "Daveti Yenile" : "Davet Gönder"}
             </Button>
           </div>
         </form>

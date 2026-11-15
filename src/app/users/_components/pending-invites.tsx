@@ -5,7 +5,7 @@ import { Send, Trash2 } from "lucide-react";
 import type { UserRole } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { inviteExpiryLabel, roleBadge, type PendingInvite } from "./team-utils";
+import { inviteExpiryLabel, roleBadge, type InviteResult, type PendingInvite } from "./team-utils";
 
 export function PendingInvites({
   invites,
@@ -13,7 +13,7 @@ export function PendingInvites({
   onRevoke,
 }: {
   invites: PendingInvite[];
-  onResend: (email: string, role: UserRole) => Promise<boolean>;
+  onResend: (email: string, role: UserRole) => Promise<InviteResult>;
   onRevoke: (id: string) => Promise<void>;
 }) {
   // Davet başına meşgul durumu — bir davet işlenirken diğerleri ve

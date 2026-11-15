@@ -163,7 +163,14 @@ export async function POST(req: Request) {
       });
 
       if (authError) {
-        return NextResponse.json({ error: authError.message }, { status: 400 });
+        // Davet gönderilirken kayıtlı e-posta zaten engelleniyor; bu dal yalnızca
+        // davet gönderildikten sonra aynı e-postayla ayrıca hesap açılmışsa çalışır.
+        const exists = authError.code === "email_exists" || /already (been )?registered/i.test(authError.message);
+        return NextResponse.json({
+          error: exists
+            ? "Bu e-posta adresiyle zaten bir hesap var. Giriş yapın ya da şirket yöneticinizden farklı bir e-postaya davet isteyin."
+            : authError.message,
+        }, { status: 400 });
       }
 
       const userId = authData.user!.id;

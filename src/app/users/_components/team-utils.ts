@@ -24,6 +24,9 @@ export type MemberView = {
   licenseStatus: ReturnType<typeof getOverallLicenseStatus>;
 };
 
+/** Davet gönderiminin sonucu — hata varsa pencerede satır içinde gösterilir. */
+export type InviteResult = { ok: boolean; error?: string };
+
 export type TeamFilter = "all" | "management" | "drivers" | "active" | "unassigned" | "license";
 
 // ─── Biçimlendirme yardımcıları ──────────────────────────────
