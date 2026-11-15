@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { addRecord, deleteRecord, updateRecord, updateVehicle, getServiceProviders, addServiceProvider, deleteServiceProvider } from "@/lib/db";
 import { toast } from "sonner";
+import { checkMileageChange } from "@/lib/mileage";
+import { warnSuspiciousMileage } from "@/lib/mileage-toast";
 import { applyPeriodicService } from "@/lib/store";
 import { useData } from "@/context/data-context";
 import type { ServiceRecord, ServiceType, TireSeasonType, Vehicle, ServiceProvider, PaymentStatus } from "@/lib/types";
@@ -148,14 +150,16 @@ export default function HistoryPage() {
   const totalCost = filtered.reduce((sum, r) => sum + (r.cost ?? 0), 0);
   const unpaidTotal = filtered.reduce((sum, r) => sum + (r.paymentStatus === "unpaid" ? (r.cost ?? 0) : 0), 0);
 
-  const handleAdd = async () => {
+  // confirmed === true yalnızca "Yine de kaydet" onayından gelir (onClick'in event'i değil).
+  const handleAdd = async (confirmed: unknown = false) => {
     if (!form.vehicleId || !form.title) return;
     const v = vehicles.find((x) => x.id === form.vehicleId);
     const recordMileage = parseInt(form.mileage) || (v?.mileage ?? 0);
-    if (v && recordMileage > v.mileage) {
-      toast.error("Geçersiz Kilometre", {
-        description: `Girdiğiniz kilometre (${recordMileage.toLocaleString("tr-TR")} km), aracın mevcut kilometresinden (${v.mileage.toLocaleString("tr-TR")} km) yüksek olamaz. Lütfen aracın km bilgisini kontrol edip tekrar deneyin.`,
-      });
+    // Kayıt km'si aracınkinden büyükse kayıt aracın km'sini ileri taşır (addRecord).
+    // Geçmiş tarihli kayıtta düşük km doğaldır; yalnızca aşırı büyük artış için onay istenir.
+    const kmWarning = v ? checkMileageChange(v.mileage, recordMileage, { allowDecrease: true }) : null;
+    if (kmWarning && confirmed !== true) {
+      warnSuspiciousMileage(kmWarning, () => void handleAdd(true));
       return;
     }
     const hasCost = form.cost.trim() !== "";
@@ -245,14 +249,13 @@ export default function HistoryPage() {
     setShowEdit(true);
   };
 
-  const handleEdit = async () => {
+  const handleEdit = async (confirmed: unknown = false) => {
     if (!editRecord || !editForm.title) return;
     const editMileage = parseInt(editForm.mileage) || 0;
     const v = vehicles.find((x) => x.id === editRecord.vehicleId);
-    if (v && editMileage > v.mileage) {
-      toast.error("Geçersiz Kilometre", {
-        description: `Girdiğiniz kilometre (${editMileage.toLocaleString("tr-TR")} km), aracın mevcut kilometresinden (${v.mileage.toLocaleString("tr-TR")} km) yüksek olamaz. Lütfen aracın km bilgisini kontrol edip tekrar deneyin.`,
-      });
+    const kmWarning = v ? checkMileageChange(v.mileage, editMileage, { allowDecrease: true }) : null;
+    if (kmWarning && confirmed !== true) {
+      warnSuspiciousMileage(kmWarning, () => void handleEdit(true));
       return;
     }
     const editHasCost = editForm.cost.trim() !== "";

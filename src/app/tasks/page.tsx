@@ -45,6 +45,8 @@ import { isDriverRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { checkMileageChange } from "@/lib/mileage";
+import { warnSuspiciousMileage } from "@/lib/mileage-toast";
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -189,7 +191,8 @@ function StaffView() {
     }
   }
 
-  async function handleStart() {
+  // confirmed === true yalnızca "Yine de kaydet" onayından gelir (onClick'in event'i değil).
+  async function handleStart(confirmed: unknown = false) {
     if (!vehicleId) { toast.error("Lütfen bir araç seçin"); return; }
     if (busyVehicleIds.has(vehicleId)) {
       toast.error("Bu araç şu an başka bir görevde. Lütfen müsait bir araç seçin.");
@@ -197,6 +200,13 @@ function StaffView() {
     }
     const km = parseInt(startKm, 10);
     if (!startKm || isNaN(km) || km < 0) { toast.error("Geçerli bir başlangıç KM girin"); return; }
+    // Başlangıç km'si aracın kayıtlı km'sinden düşükse ya da çok yüksekse büyük ihtimalle yazım hatası.
+    const startVehicle = vehicles.find((v) => v.id === vehicleId);
+    const kmWarning = startVehicle ? checkMileageChange(startVehicle.mileage, km) : null;
+    if (kmWarning && confirmed !== true) {
+      warnSuspiciousMileage(kmWarning, () => void handleStart(true));
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -916,11 +926,17 @@ function ManagerView() {
     setShowAddForm(true);
   }
 
-  function submitAddForm() {
+  function submitAddForm(confirmed: unknown = false) {
     if (!addForm.vehicleId) { toast.error("Lütfen bir araç seçin"); return; }
     if (!addForm.driverId)  { toast.error("Lütfen bir personel seçin"); return; }
     const km = parseInt(addForm.startKm, 10);
     if (!addForm.startKm || isNaN(km) || km < 0) { toast.error("Geçerli bir başlangıç KM girin"); return; }
+    const addVehicle = vehicles.find((v) => v.id === addForm.vehicleId);
+    const kmWarning = addVehicle ? checkMileageChange(addVehicle.mileage, km) : null;
+    if (kmWarning && confirmed !== true) {
+      warnSuspiciousMileage(kmWarning, () => submitAddForm(true));
+      return;
+    }
     setShowAddForm(false);
     setShowAddConfirm(true);
   }

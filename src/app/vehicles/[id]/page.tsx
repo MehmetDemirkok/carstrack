@@ -64,6 +64,8 @@ const MUAYENE_RANDEVU_ESIK_GUN = 30;
 import { exportVehicleReportPDF } from "@/lib/export-lazy";
 import { photoVariantUrl } from "@/lib/vehicle-photo";
 import { DatePicker } from "@/components/ui/date-picker";
+import { describeMileageAge, checkMileageChange } from "@/lib/mileage";
+import { warnSuspiciousMileage } from "@/lib/mileage-toast";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
 const fadeUp = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
@@ -583,6 +585,8 @@ export default function VehicleDetailPage() {
   const mainDocs = documents.filter((d) => d.type !== OTHER_DOC_TYPE);
 
   const score = calculateHealthScore(vehicle);
+  // Migration uygulanmadıysa ya da tarih bilinmiyorsa null — satır hiç gösterilmez.
+  const mileageAge = describeMileageAge(vehicle.mileageUpdatedAt);
   const scoreBreakdown = calculateHealthScoreBreakdown(vehicle);
   const hasAnyMaintenanceData = vehicle.maintenanceItems.some(
     (item) => item.lastDoneDate !== undefined || item.lastDoneMileage !== undefined
@@ -676,7 +680,8 @@ export default function VehicleDetailPage() {
     }
   };
 
-  const handleSaveEdit = async () => {
+  // confirmed === true yalnızca "Yine de kaydet" onayından gelir (onClick'in event'i değil).
+  const handleSaveEdit = async (confirmed: unknown = false) => {
     // Km boş bırakılamaz: parseKm("") 0 döndüğü için boş girişi sessizce 0'a
     // düşürmek yerine kullanıcıyı uyarırız.
     const mileageRaw = editMileage.trim();
@@ -694,6 +699,13 @@ export default function VehicleDetailPage() {
     const year = yearRaw === "" ? editData.year : parseInt(yearRaw, 10);
     if (year !== undefined && (Number.isNaN(year) || year < 1900 || year > 2100)) {
       toast.error("Geçersiz Yıl", { description: "Yıl 1900–2100 arasında olmalı." });
+      return;
+    }
+
+    // Km düşürme / tek seferde çok büyük artış büyük ihtimalle yazım hatasıdır — onay iste.
+    const kmWarning = checkMileageChange(vehicle.mileage, mileage);
+    if (kmWarning && confirmed !== true) {
+      warnSuspiciousMileage(kmWarning, () => void handleSaveEdit(true));
       return;
     }
 
@@ -721,12 +733,13 @@ export default function VehicleDetailPage() {
     }
   };
 
-  const handleAddRecord = async () => {
+  const handleAddRecord = async (confirmed: unknown = false) => {
     const recordMileage = recordForm.mileage ? parseKm(recordForm.mileage) : vehicle.mileage;
-    if (recordMileage > vehicle.mileage) {
-      toast.error("Geçersiz Kilometre", {
-        description: `Girdiğiniz kilometre (${recordMileage.toLocaleString("tr-TR")} km), aracın mevcut kilometresinden (${vehicle.mileage.toLocaleString("tr-TR")} km) yüksek olamaz. Lütfen aracın km bilgisini kontrol edip tekrar deneyin.`,
-      });
+    // Kayıt km'si aracınkinden büyükse kayıt aracın km'sini ileri taşır (addRecord).
+    // Geçmiş tarihli kayıtta düşük km doğaldır; yalnızca aşırı büyük artış için onay istenir.
+    const kmWarning = checkMileageChange(vehicle.mileage, recordMileage, { allowDecrease: true });
+    if (kmWarning && confirmed !== true) {
+      warnSuspiciousMileage(kmWarning, () => void handleAddRecord(true));
       return;
     }
     const hasCost = recordForm.cost.trim() !== "";
@@ -1060,6 +1073,14 @@ export default function VehicleDetailPage() {
                 {vehicle.brand} <span className="font-light">{vehicle.model}</span>
               </motion.h1>
               <p className="text-muted-foreground font-medium text-sm">{vehicle.year} • {vehicle.color} • {vehicle.mileage.toLocaleString("tr-TR")} km</p>
+              {mileageAge && (
+                <p
+                  className={`text-[11px] font-medium ${mileageAge.stale ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}
+                  title={new Date(vehicle.mileageUpdatedAt!).toLocaleString("tr-TR")}
+                >
+                  KM {mileageAge.label} güncellendi
+                </p>
+              )}
               <div className="mt-2">
                 {vehicleBusy.busy ? (
                   <span

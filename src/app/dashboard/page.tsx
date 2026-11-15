@@ -44,7 +44,9 @@ import {
   Fuel,
   CalendarPlus,
   ExternalLink,
+  Gauge,
 } from "lucide-react";
+import { getStaleMileageVehicles, STALE_MILEAGE_DAYS } from "@/lib/mileage";
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -118,6 +120,10 @@ export default function Dashboard() {
 
   const unpaidRecords = filteredRecords.filter((r) => r.paymentStatus === "unpaid");
   const unpaidTotal = unpaidRecords.reduce((sum, r) => sum + (r.cost ?? 0), 0);
+
+  // KM'si uzun süredir güncellenmemiş araçlar — bakım uyarıları bu km'ye dayandığı için.
+  // Güncelleme tarihi bilinmeyen araçlar (eski kayıtlar) listeye girmez.
+  const staleMileage = getStaleMileageVehicles(vehicles);
 
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
   const warningCount = alerts.filter((a) => a.severity === "warning").length;
@@ -519,6 +525,46 @@ export default function Dashboard() {
                           </Link>
                         );
                       })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* KM'si eskimiş araçlar */}
+            {staleMileage.length > 0 && (
+              <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-widest">Kilometre</h3>
+                  <Link href="/vehicles">
+                    <Button variant="ghost" size="sm" className="text-[11px] text-primary h-7 px-2 gap-1 hover:bg-primary/10">
+                      Araçlar <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </Link>
+                </div>
+                <Card className="rounded-2xl border-amber-500/20 shadow-sm bg-amber-500/5">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-amber-500/10 shrink-0">
+                        <Gauge className="h-4.5 w-4.5 text-amber-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold leading-tight">
+                          {staleMileage.length} aracın km&apos;si {STALE_MILEAGE_DAYS} günden eski
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Bakım uyarılarının doğru çalışması için km&apos;leri güncelleyin.</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      {staleMileage.slice(0, 3).map(({ vehicle: v, label }) => (
+                        <Link href={`/vehicles/${v.id}`} key={v.id} className="flex items-center justify-between gap-2 bg-card/60 rounded-xl px-3 py-2 hover:bg-card transition-colors">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold truncate">{v.plate} • {v.brand} {v.model}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{v.mileage.toLocaleString("tr-TR")} km</p>
+                          </div>
+                          <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 shrink-0">{label}</span>
+                        </Link>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>

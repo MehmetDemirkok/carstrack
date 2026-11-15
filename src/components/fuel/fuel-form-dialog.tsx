@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Fuel, ImagePlus, ArrowRight, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { checkMileageChange } from "@/lib/mileage";
+import { warnSuspiciousMileage } from "@/lib/mileage-toast";
 import {
   createFuelRecord, updateFuelRecord, uploadFuelReceipt, getLastFuelRecordForVehicle,
 } from "@/lib/db";
@@ -155,7 +157,8 @@ export function FuelFormDialog({
     return { ok: true, text: `Kat edilen mesafe: ${(newOdometer - lastRecord.odometer).toLocaleString("tr-TR")} KM (önceki: ${lastRecord.odometer.toLocaleString("tr-TR")} KM)` };
   })();
 
-  async function handleSubmit() {
+  // confirmed === true yalnızca "Yine de kaydet" onayından gelir (onClick'in event'i değil).
+  async function handleSubmit(confirmed: unknown = false) {
     if (!form.vehicleId) { toast.error("Lütfen bir araç seçin"); return; }
     if (!form.date) { toast.error("Lütfen tarih girin"); return; }
     const liters = parseFloat(form.liters);
@@ -166,6 +169,14 @@ export function FuelFormDialog({
     if (!form.totalAmount || Number.isNaN(total) || total < 0) { toast.error("Lütfen geçerli bir toplam tutar girin"); return; }
     const odometer = parseInt(form.odometer, 10);
     if (form.odometer === "" || Number.isNaN(odometer) || odometer < 0) { toast.error("Lütfen geçerli bir kilometre girin"); return; }
+    // Yakıt km'si aracın km'sini ileri taşır; fazladan bir sıfır kalıcı hale gelmesin diye onay iste.
+    // (Düşük km burada zaten ayrıca bilgi olarak gösteriliyor; ona onay istenmez.)
+    const selectedVehicle = vehicles.find((x) => x.id === form.vehicleId);
+    const kmWarning = selectedVehicle ? checkMileageChange(selectedVehicle.mileage, odometer, { allowDecrease: true }) : null;
+    if (kmWarning && confirmed !== true) {
+      warnSuspiciousMileage(kmWarning, () => void handleSubmit(true));
+      return;
+    }
 
     setSubmitting(true);
     try {

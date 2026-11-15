@@ -91,6 +91,8 @@ export interface Vehicle {
   imageZoom?: number;
   sortOrder?: number;
   mileage: number;
+  /** KM'nin en son değiştiği an (ISO). Veritabanı trigger'ı doldurur, uygulama yazmaz; bilinmiyorsa undefined. */
+  mileageUpdatedAt?: string;
   engineType: string;
   engineVolume: string;
   power: string;

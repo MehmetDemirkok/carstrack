@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { checkMileageChange } from "@/lib/mileage";
+import { warnSuspiciousMileage } from "@/lib/mileage-toast";
 import { ArrowRight, Wallet, XCircle, Repeat } from "lucide-react";
 import { addRecord, updateVehicle } from "@/lib/db";
 import type { Vehicle, TireSeasonType, PaymentStatus } from "@/lib/types";
@@ -67,12 +69,13 @@ export function SeasonalTireSwapDialog({ open, onOpenChange, vehicle, providerLi
     if (open) setForm(emptyForm(vehicle));
   }
 
-  const handleSave = async () => {
+  // confirmed === true yalnızca "Yine de kaydet" onayından gelir (onClick'in event'i değil).
+  const handleSave = async (confirmed: unknown = false) => {
     const mileage = form.mileage.trim() ? parseKm(form.mileage) : vehicle.mileage;
-    if (mileage > vehicle.mileage) {
-      toast.error("Geçersiz Kilometre", {
-        description: `Girdiğiniz kilometre (${mileage.toLocaleString("tr-TR")} km), aracın mevcut kilometresinden (${vehicle.mileage.toLocaleString("tr-TR")} km) yüksek olamaz. Önce aracın km bilgisini güncelleyin.`,
-      });
+    // Değişim km'si aracınkinden büyükse servis kaydı aracın km'sini ileri taşır (addRecord).
+    const kmWarning = checkMileageChange(vehicle.mileage, mileage, { allowDecrease: true });
+    if (kmWarning && confirmed !== true) {
+      warnSuspiciousMileage(kmWarning, () => void handleSave(true));
       return;
     }
     const hasCost = form.cost.trim() !== "";

@@ -11,6 +11,7 @@ import type {
 import { DEFAULT_NOTIFICATION_PREFS, isDriverRole } from "./types";
 import { photoUrl, thumbPath, isProxyPhotoUrl } from "./vehicle-photo";
 import { resizeDataUrl } from "./image";
+import { advanceVehicleMileage, MAX_VEHICLE_TASK_KM } from "./mileage";
 
 // ─── TTL data cache ───────────────────────────────────────────
 // Keeps data in memory for 60 seconds so navigating between pages is instant.
@@ -159,6 +160,7 @@ function toVehicle(row: Record<string, unknown>): Vehicle {
     imageZoom: (row.image_zoom as number) ?? 100,
     sortOrder: (row.sort_order as number) ?? undefined,
     mileage: (row.mileage as number) || 0,
+    mileageUpdatedAt: (row.mileage_updated_at as string) || undefined,
     engineType: (row.engine_type as string) || "",
     engineVolume: (row.engine_volume as string) || "",
     power: (row.power as string) || "",
@@ -668,6 +670,16 @@ export async function addRecord(
   if (error) throw error;
   bustCache(`records:${companyId}`);
   bustCache(`vrecords:${companyId}`);
+  // Servis/lastik kaydındaki km aracın km'sinden büyükse aracı ileri taşı
+  // (yalnızca ileri yönde; geçmiş tarihli düşük km'li kayıt aracı etkilemez).
+  if (data.mileage > 0) {
+    await advanceAndBustMileage(supabase, {
+      vehicleId: data.vehicleId,
+      km: data.mileage,
+      companyId,
+      source: "addRecord",
+    });
+  }
   const record = toRecord(inserted);
   // Yöneticilere bildirim (fire-and-forget) — 4 kanaldan
   notifyEvent("/api/records/notify-new", { recordId: record.id });
@@ -690,14 +702,25 @@ export async function updateRecord(
   if (data.cost !== undefined) patch.cost = data.cost;
   if (data.paymentStatus !== undefined) patch.payment_status = data.paymentStatus;
   if (data.unpaidReason !== undefined) patch.unpaid_reason = data.unpaidReason;
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("service_records")
     .update(patch)
     .eq("id", id)
-    .eq("company_id", companyId);
+    .eq("company_id", companyId)
+    .select("vehicle_id")
+    .maybeSingle();
   if (error) throw error;
   bustCache(`records:${companyId}`);
   bustCache(`vrecords:${companyId}`);
+  const vehicleId = updated?.vehicle_id as string | undefined;
+  if (vehicleId && data.mileage !== undefined && data.mileage > 0) {
+    await advanceAndBustMileage(supabase, {
+      vehicleId,
+      km: data.mileage,
+      companyId,
+      source: "updateRecord",
+    });
+  }
 }
 
 export async function deleteRecord(id: string): Promise<void> {
@@ -1215,7 +1238,7 @@ export async function getTasks(filters?: {
 // aksi halde araç KM'si ve buna bağlı bakım hesapları yanlış şişer.
 // Not: Sınır görev başınadır — gün içindeki birden çok görevin toplamı kontrol
 // edilmez (km farkını kapatabilmek için kasıtlı olarak böyle).
-export const MAX_VEHICLE_TASK_KM = 1500;
+export { MAX_VEHICLE_TASK_KM };
 
 export async function startTask(data: {
   vehicleId: string;
@@ -1291,31 +1314,13 @@ export async function endTask(taskId: string, endKm: number): Promise<VehicleTas
   // Görev tamamlanınca aracın kilometresini bitiş KM ile güncelle.
   // Sadece bitiş KM mevcut kayıtlı KM'den büyükse güncellenir; bu sayede
   // geriye giden / hatalı km kaydı ve çift güncelleme engellenir.
-  const vehicleId = existing.vehicle_id as string;
-  try {
-    const { data: vehicle } = await supabase
-      .from("vehicles")
-      .select("mileage, company_id")
-      .eq("id", vehicleId)
-      .single();
-
-    if (vehicle && endKm > ((vehicle.mileage as number) ?? 0)) {
-      const { error: kmErr } = await supabase
-        .from("vehicles")
-        .update({ mileage: endKm, updated_at: new Date().toISOString() })
-        .eq("id", vehicleId);
-      if (kmErr) {
-        console.error("endTask: araç KM güncellenemedi:", kmErr);
-      } else if (vehicle.company_id) {
-        // Güncel km'nin sonraki sorgularda görünmesi için cache temizle
-        bustCache(`vehicles:${vehicle.company_id as string}`);
-        bustCache("myvehicles:");
-      }
-    }
-  } catch (kmErr) {
-    // KM güncellemesi başarısız olsa bile görev tamamlanmış sayılır
-    console.error("endTask: araç KM güncelleme hatası:", kmErr);
-  }
+  // KM güncellemesi başarısız olsa bile görev tamamlanmış sayılır.
+  await advanceAndBustMileage(supabase, {
+    vehicleId: existing.vehicle_id as string,
+    km: endKm,
+    companyId: (updated as Record<string, unknown>).company_id as string | undefined,
+    source: "endTask",
+  });
 
   notifyTaskEnd(taskId);
   return toTask(updated as Record<string, unknown>);
@@ -1408,16 +1413,12 @@ export async function closeKilometerGap(data: {
     .single();
   if (error) throw error;
 
-  const { error: kmErr } = await supabase
-    .from("vehicles")
-    .update({ mileage: data.newKm, updated_at: now })
-    .eq("id", data.vehicleId);
-  if (kmErr) {
-    console.error("closeKilometerGap: araç KM güncellenemedi:", kmErr);
-  } else {
-    bustCache(`vehicles:${companyId}`);
-    bustCache("myvehicles:");
-  }
+  await advanceAndBustMileage(supabase, {
+    vehicleId: data.vehicleId,
+    km: data.newKm,
+    companyId,
+    source: "closeKilometerGap",
+  });
 
   const task = toTask(inserted as Record<string, unknown>);
   void logActivity("km_gap_closed", "vehicle_task", {
@@ -2807,9 +2808,9 @@ export async function getFuelReceiptSignedUrl(path: string): Promise<string> {
 
 /**
  * Yakıt kaydındaki KM'yi aracın ana kilometresiyle senkronize eder — yalnızca
- * ileri yönde (closeKilometerGap / endTask ile aynı "KM hiçbir zaman geriye
- * alınmaz" ilkesi). Girilen KM aracın kayıtlı KM'sinden düşük/eşitse sessizce
- * atlanır (fuel_records kaydını etkilemez, hata fırlatmaz).
+ * ileri yönde (bkz. advanceVehicleMileage). Girilen KM aracın kayıtlı
+ * KM'sinden düşük/eşitse sessizce atlanır (fuel_records kaydını etkilemez,
+ * hata fırlatmaz).
  */
 async function syncVehicleMileageFromFuel(
   supabase: ReturnType<typeof createClient>,
@@ -2817,17 +2818,26 @@ async function syncVehicleMileageFromFuel(
   vehicleId: string,
   odometer: number,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("vehicles")
-    .update({ mileage: odometer, updated_at: new Date().toISOString() })
-    .eq("id", vehicleId)
-    .eq("company_id", companyId)
-    .lt("mileage", odometer);
-  if (error) {
-    console.error("syncVehicleMileageFromFuel: araç KM güncellenemedi:", error);
-    return;
-  }
-  bustCache(`vehicles:${companyId}`);
+  await advanceAndBustMileage(supabase, {
+    vehicleId,
+    km: odometer,
+    companyId,
+    source: "fuel",
+  });
+}
+
+/**
+ * advanceVehicleMileage + istemci tarafı cache temizliği. db.ts içindeki
+ * bütün "km'yi ilerlet" yolları bunu kullanır.
+ */
+async function advanceAndBustMileage(
+  supabase: ReturnType<typeof createClient>,
+  params: { vehicleId: string; km: number; companyId?: string; source: string },
+): Promise<void> {
+  const ok = await advanceVehicleMileage(supabase, params);
+  if (!ok) return;
+  // Güncel km'nin sonraki sorgularda görünmesi için cache temizle.
+  bustCache(params.companyId ? `vehicles:${params.companyId}` : "vehicles:");
   bustCache("myvehicles:");
 }
 

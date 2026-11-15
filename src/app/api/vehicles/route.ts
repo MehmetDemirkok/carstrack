@@ -48,6 +48,7 @@ export async function GET() {
       color: (row.color as string) || "",
       image: (row.image as string) || "",
       mileage: (row.mileage as number) || 0,
+      mileageUpdatedAt: (row.mileage_updated_at as string) || undefined,
       engineType: (row.engine_type as string) || "",
       engineVolume: (row.engine_volume as string) || "",
       power: (row.power as string) || "",

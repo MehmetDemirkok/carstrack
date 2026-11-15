@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-// Bir araç 24 saat (aynı takvim günü) içinde en fazla bu kadar km yapabilir.
-const MAX_VEHICLE_TASK_KM = 1500;
+import { advanceVehicleMileage, MAX_VEHICLE_TASK_KM } from "@/lib/mileage";
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,25 +66,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Aracın KM bilgisini görevden gelen bitiş KM ile güncelle.
-    // Sadece bitiş KM mevcut kayıtlı KM'den büyükse güncellenir.
-    try {
-      const { data: vehicle } = await supabase
-        .from("vehicles")
-        .select("mileage")
-        .eq("id", task.vehicle_id as string)
-        .single();
-
-      if (vehicle && endKm > (vehicle.mileage as number)) {
-        await supabase
-          .from("vehicles")
-          .update({ mileage: endKm })
-          .eq("id", task.vehicle_id as string);
-      }
-    } catch (kmErr) {
-      // KM güncellemesi başarısız olsa bile görev tamamlanmış sayılır
-      console.error("POST /api/tasks/end vehicle mileage update failed:", kmErr);
-    }
+    // Aracın KM bilgisini görevden gelen bitiş KM ile ilerlet (yalnızca ileri
+    // yönde). Başarısız olsa bile görev tamamlanmış sayılır — fonksiyon hata
+    // fırlatmaz, yalnızca loglar.
+    await advanceVehicleMileage(supabase, {
+      vehicleId: task.vehicle_id as string,
+      km: endKm,
+      source: "POST /api/tasks/end",
+    });
 
     return NextResponse.json({ task: updated });
   } catch (err) {

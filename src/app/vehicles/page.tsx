@@ -32,6 +32,7 @@ import {
   SortableContext, rectSortingStrategy, arrayMove, useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { describeMileageAge } from "@/lib/mileage";
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -304,6 +305,7 @@ export default function VehiclesPage() {
   const cardBody = (vehicle: Vehicle, score: number) => {
     const selected = selectedIds.includes(vehicle.id);
     const alert = getVehicleAlert(vehicle);
+    const mileageAge = describeMileageAge(vehicle.mileageUpdatedAt);
     const onTask = activeVehicleMap.has(vehicle.id);
     const scoreTone = score >= 85 ? "text-mint-strong" : score >= 65 ? "text-amber-300" : "text-red-300";
     return (
@@ -456,13 +458,19 @@ export default function VehiclesPage() {
           {/* Stat tiles */}
           <div className="grid grid-cols-3 gap-2 mt-auto">
             {[
-              { Icon: Gauge, value: `${vehicle.mileage.toLocaleString("tr-TR")} km` },
-              { Icon: Fuel, value: vehicle.fuelType },
-              { Icon: Settings2, value: vehicle.transmission },
-            ].map(({ Icon, value }, idx) => (
-              <div key={idx} className="bg-surface-2 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 text-center">
-                <Icon className="h-4 w-4 text-primary" />
-                <span className="font-mono text-[10px] text-muted-foreground truncate w-full">{value}</span>
+              {
+                Icon: Gauge,
+                value: `${vehicle.mileage.toLocaleString("tr-TR")} km`,
+                // KM'si eskimişse turuncu; üzerine gelince ne kadar eski olduğu görünür.
+                stale: mileageAge?.stale ?? false,
+                title: mileageAge ? `KM ${mileageAge.label} güncellendi` : undefined,
+              },
+              { Icon: Fuel, value: vehicle.fuelType, stale: false, title: undefined },
+              { Icon: Settings2, value: vehicle.transmission, stale: false, title: undefined },
+            ].map(({ Icon, value, stale, title }, idx) => (
+              <div key={idx} title={title} className={`rounded-2xl p-3 flex flex-col items-center justify-center gap-1 text-center ${stale ? "bg-amber-500/10" : "bg-surface-2"}`}>
+                <Icon className={`h-4 w-4 ${stale ? "text-amber-500" : "text-primary"}`} />
+                <span className={`font-mono text-[10px] truncate w-full ${stale ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}>{value}</span>
               </div>
             ))}
           </div>
