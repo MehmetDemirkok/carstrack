@@ -95,6 +95,8 @@ export interface Vehicle {
   mileage: number;
   /** KM'nin en son değiştiği an (ISO). Veritabanı trigger'ı doldurur, uygulama yazmaz; bilinmiyorsa undefined. */
   mileageUpdatedAt?: string;
+  /** "Km değişmedi" onayının zamanı (km aynı kaldığında güncelliği belgeler). */
+  mileageConfirmedAt?: string;
   engineType: string;
   engineVolume: string;
   power: string;

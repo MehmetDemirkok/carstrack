@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, CarFront, Activity, Settings, ClipboardList, Users, Wrench, History, Gavel, Fuel, LayoutGrid,
+  LayoutDashboard, CarFront, Activity, Settings, ClipboardList, Users, Wrench, History, Gavel, Fuel, LayoutGrid, Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -52,11 +52,13 @@ export function BottomNav() {
 
   const more: NavItem[] = isDriver
     ? [
+        { href: "/km-guncelle", icon: Gauge, label: "Km Güncelle" },
         { href: "/traffic-fines", icon: Gavel, label: "Cezalarım" },
         { href: "/vehicles", icon: CarFront, label: t("nav_vehicles").split(" ")[0] },
         { href: "/settings", icon: Settings, label: t("nav_settings") },
       ]
     : [
+        { href: "/km-guncelle", icon: Gauge, label: "Km Güncelle" },
         { href: "/yakit", icon: Fuel, label: "Yakıt" },
         { href: "/traffic-fines", icon: Gavel, label: "Cezalar" },
         { href: "/users", icon: Users, label: "Ekip" },

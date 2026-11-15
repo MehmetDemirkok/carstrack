@@ -542,9 +542,9 @@ export default function Dashboard() {
               <motion.div variants={fadeUp} className="space-y-2.5 md:space-y-3">
                 <div className="flex items-center justify-between px-1">
                   <h3 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-widest">Kilometre</h3>
-                  <Link href="/vehicles">
+                  <Link href="/km-guncelle">
                     <Button variant="ghost" size="sm" className="text-[11px] text-primary h-7 px-2 gap-1 hover:bg-primary/10">
-                      Araçlar <ChevronRight className="h-3 w-3" />
+                      Km Güncelle <ChevronRight className="h-3 w-3" />
                     </Button>
                   </Link>
                 </div>
@@ -563,7 +563,7 @@ export default function Dashboard() {
                     </div>
                     <div className="space-y-1.5">
                       {staleMileage.slice(0, 3).map(({ vehicle: v, label }) => (
-                        <Link href={`/vehicles/${v.id}`} key={v.id} className="flex items-center justify-between gap-2 bg-card/60 rounded-xl px-3 py-2 hover:bg-card transition-colors">
+                        <Link href={`/km-guncelle?arac=${v.id}`} key={v.id} className="flex items-center justify-between gap-2 bg-card/60 rounded-xl px-3 py-2 hover:bg-card transition-colors">
                           <div className="min-w-0">
                             <p className="text-xs font-semibold truncate">{v.plate} • {v.brand} {v.model}</p>
                             <p className="text-[10px] text-muted-foreground truncate">{v.mileage.toLocaleString("tr-TR")} km</p>

@@ -23,6 +23,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Her Vercel yayınının kimliği. Next.js bunu <html data-dpl-id> olarak
+  // basar ve sayfa geçişlerinde sunucudakiyle karşılaştırır: farklıysa (yeni
+  // sürüm yayınlanmışsa) istemci tarafı geçiş yerine tam yenileme yapar.
+  // Ana ekrana eklenmiş PWA günlerce açık kalsa bile böylece eski kodda kalmaz;
+  // ayrıca bkz. components/app-update-checker.tsx. Yerelde tanımsız → etkisiz.
+  deploymentId: process.env.VERCEL_DEPLOYMENT_ID || undefined,
   reactStrictMode: false,
   devIndicators: false,
   images: {
@@ -59,7 +65,7 @@ const nextConfig: NextConfig = {
       // header tek merkezden hepsini kapsar.
       {
         source:
-          "/:path(dashboard|vehicles|history|analytics|settings|users|tasks|reports|activity|notifications|traffic-fines|yakit|admin|reset-password|auth)/:rest*",
+          "/:path(dashboard|vehicles|history|analytics|settings|users|tasks|reports|activity|notifications|traffic-fines|yakit|km-guncelle|admin|reset-password|auth)/:rest*",
         headers: [
           { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
           { key: "Pragma", value: "no-cache" },

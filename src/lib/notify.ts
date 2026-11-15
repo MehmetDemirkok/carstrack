@@ -35,6 +35,8 @@ export const EVENT_CATEGORY: Record<string, "operational" | "reminders"> = {
   fine_status: "reminders",
   license_expiry: "reminders",
   profile_incomplete: "reminders",
+  mileage_stale: "reminders",
+  mileage_stale_team: "reminders",
   fuel_new: "operational",
   fuel_anomaly: "reminders",
   fuel_data_inconsistency: "reminders",

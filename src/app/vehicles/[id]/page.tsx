@@ -64,7 +64,7 @@ const MUAYENE_RANDEVU_ESIK_GUN = 30;
 import { exportVehicleReportPDF } from "@/lib/export-lazy";
 import { photoVariantUrl } from "@/lib/vehicle-photo";
 import { DatePicker } from "@/components/ui/date-picker";
-import { describeMileageAge, checkMileageChange } from "@/lib/mileage";
+import { describeMileageAge, checkMileageChange, mileageCheckedAt } from "@/lib/mileage";
 import { warnSuspiciousMileage } from "@/lib/mileage-toast";
 
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
@@ -586,7 +586,7 @@ export default function VehicleDetailPage() {
 
   const score = calculateHealthScore(vehicle);
   // Migration uygulanmadıysa ya da tarih bilinmiyorsa null — satır hiç gösterilmez.
-  const mileageAge = describeMileageAge(vehicle.mileageUpdatedAt);
+  const mileageAge = describeMileageAge(mileageCheckedAt(vehicle));
   const scoreBreakdown = calculateHealthScoreBreakdown(vehicle);
   const hasAnyMaintenanceData = vehicle.maintenanceItems.some(
     (item) => item.lastDoneDate !== undefined || item.lastDoneMileage !== undefined

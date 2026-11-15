@@ -11,6 +11,7 @@ import { CommandPaletteProvider } from "@/context/command-palette-context";
 import { CommandPalette } from "@/components/command-palette";
 import { PushPermissionPrompt } from "@/components/push-permission-prompt";
 import { ServiceWorkerRegister } from "@/components/sw-register";
+import { AppUpdateChecker } from "@/components/app-update-checker";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
@@ -147,6 +148,7 @@ export default function RootLayout({
                 <CommandPalette />
                 <PushPermissionPrompt />
                 <ServiceWorkerRegister />
+                <AppUpdateChecker />
               </CommandPaletteProvider>
               </TooltipProvider>
               </DataProvider>

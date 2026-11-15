@@ -32,7 +32,7 @@ import {
   SortableContext, rectSortingStrategy, arrayMove, useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { describeMileageAge } from "@/lib/mileage";
+import { describeMileageAge, mileageCheckedAt } from "@/lib/mileage";
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -305,7 +305,7 @@ export default function VehiclesPage() {
   const cardBody = (vehicle: Vehicle, score: number) => {
     const selected = selectedIds.includes(vehicle.id);
     const alert = getVehicleAlert(vehicle);
-    const mileageAge = describeMileageAge(vehicle.mileageUpdatedAt);
+    const mileageAge = describeMileageAge(mileageCheckedAt(vehicle));
     const onTask = activeVehicleMap.has(vehicle.id);
     const scoreTone = score >= 85 ? "text-mint-strong" : score >= 65 ? "text-amber-300" : "text-red-300";
     return (

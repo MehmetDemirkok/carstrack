@@ -162,6 +162,7 @@ function toVehicle(row: Record<string, unknown>): Vehicle {
     sortOrder: (row.sort_order as number) ?? undefined,
     mileage: (row.mileage as number) || 0,
     mileageUpdatedAt: (row.mileage_updated_at as string) || undefined,
+    mileageConfirmedAt: (row.mileage_confirmed_at as string) || undefined,
     engineType: (row.engine_type as string) || "",
     engineVolume: (row.engine_volume as string) || "",
     power: (row.power as string) || "",
@@ -1000,6 +1001,40 @@ export async function unassignVehicle(vehicleId: string, driverId: string): Prom
   bustCache("drivers:");
   bustCache(`myvehicles:${driverId}`);
   notifyVehicleAssignment(vehicleId, driverId, "unassigned");
+}
+
+/** submitMileage sonucu — şüpheli artışta `needsConfirm` ile onay istenir. */
+export type MileageSubmitResult =
+  | { ok: true; km: number; changed: boolean }
+  | { ok: false; error: string; needsConfirm?: boolean };
+
+/**
+ * Aracın güncel km'sini kaydeder veya "km değişmedi" onayı verir
+ * (POST /api/vehicles/[id]/mileage). Yetki ve geri alma/şüpheli artış
+ * kontrolleri sunucudadır.
+ */
+export async function submitMileage(
+  vehicleId: string,
+  km: number,
+  opts: { confirmed?: boolean } = {},
+): Promise<MileageSubmitResult> {
+  try {
+    const res = await fetch(`/api/vehicles/${vehicleId}/mileage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ km, confirmed: opts.confirmed === true }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string; needsConfirm?: boolean; km?: number; changed?: boolean;
+    };
+    if (!res.ok) return { ok: false, error: data.error || "Kilometre kaydedilemedi", needsConfirm: data.needsConfirm };
+    bustCache("vehicles:");
+    bustCache("myvehicles:");
+    return { ok: true, km: data.km ?? km, changed: !!data.changed };
+  } catch {
+    return { ok: false, error: "Bağlantı hatası, lütfen tekrar deneyin." };
+  }
 }
 
 export async function getMembers(): Promise<Profile[]> {

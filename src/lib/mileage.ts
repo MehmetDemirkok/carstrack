@@ -117,14 +117,65 @@ export function checkMileageChange(
   return null;
 }
 
+/**
+ * Km'nin en son ne zaman doğrulandığı: km değiştiğinde (mileage_updated_at)
+ * ya da "km değişmedi" onayı verildiğinde (mileage_confirmed_at) — hangisi
+ * daha yeniyse. İkisi de yoksa undefined.
+ */
+export function mileageCheckedAt(v: { mileageUpdatedAt?: string; mileageConfirmedAt?: string }): string | undefined {
+  const a = v.mileageUpdatedAt ? Date.parse(v.mileageUpdatedAt) : NaN;
+  const b = v.mileageConfirmedAt ? Date.parse(v.mileageConfirmedAt) : NaN;
+  if (Number.isNaN(a) && Number.isNaN(b)) return undefined;
+  if (Number.isNaN(b) || (!Number.isNaN(a) && a >= b)) return v.mileageUpdatedAt;
+  return v.mileageConfirmedAt;
+}
+
+/** Km bu kadar gün doğrulanmazsa hatırlatma gönderilir (mileage-reminder cron'u). */
+export const MILEAGE_REMINDER_DAYS = 7;
+
+/**
+ * mileage_updated_at sütununun canlıya eklendiği gün. Bu tarihten önce km
+ * güncelleme zamanı tutulmuyordu; tarihi bilinmeyen (ama km'si girilmiş)
+ * araçlar için sayaç buradan başlar — ilk gün tüm filoya birden hatırlatma
+ * gitmesin diye.
+ */
+export const MILEAGE_TRACKING_SINCE = "2026-11-15T00:00:00Z";
+
+/**
+ * Hatırlatma kuralı: km'si MILEAGE_REMINDER_DAYS günden uzun süredir
+ * doğrulanmamış araç için kaç gündür doğrulanmadığını döner; eski değilse null.
+ *
+ * - Doğrulama tarihi varsa ondan sayılır.
+ * - Yoksa ve km hiç girilmemişse (0): aracın eklendiği günden sayılır.
+ * - Yoksa ve km girilmişse: aracın eklendiği gün ile MILEAGE_TRACKING_SINCE'ten
+ *   hangisi sonraysa ondan sayılır.
+ */
+export function mileageReminderDays(
+  v: { mileage: number; mileageUpdatedAt?: string; mileageConfirmedAt?: string; createdAt?: string },
+  now: Date = new Date(),
+): number | null {
+  const checked = mileageCheckedAt(v);
+  let base: number;
+  if (checked) {
+    base = Date.parse(checked);
+  } else {
+    const created = v.createdAt ? Date.parse(v.createdAt) : NaN;
+    const since = Date.parse(MILEAGE_TRACKING_SINCE);
+    if (!v.mileage) base = Number.isNaN(created) ? since : created;
+    else base = Number.isNaN(created) ? since : Math.max(created, since);
+  }
+  const days = Math.floor((now.getTime() - base) / 86_400_000);
+  return days >= MILEAGE_REMINDER_DAYS ? days : null;
+}
+
 /** KM'si STALE_MILEAGE_DAYS günden eski olan araçlar, en eskisi önce. Tarihi bilinmeyenler dahil edilmez. */
-export function getStaleMileageVehicles<T extends { mileageUpdatedAt?: string }>(
+export function getStaleMileageVehicles<T extends { mileageUpdatedAt?: string; mileageConfirmedAt?: string }>(
   vehicles: T[],
   now: Date = new Date(),
 ): { vehicle: T; days: number; label: string }[] {
   return vehicles
     .map((vehicle) => {
-      const age = describeMileageAge(vehicle.mileageUpdatedAt, now);
+      const age = describeMileageAge(mileageCheckedAt(vehicle), now);
       return age && age.stale ? { vehicle, days: age.days, label: age.label } : null;
     })
     .filter((x): x is { vehicle: T; days: number; label: string } => x !== null)

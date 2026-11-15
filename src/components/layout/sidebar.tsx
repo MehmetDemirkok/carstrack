@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut, Gavel, ChevronLeft, Fuel, Globe } from "lucide-react";
+import { Car, LayoutDashboard, History, Activity, Settings, ClipboardList, Users, Wrench, LogOut, Gavel, ChevronLeft, Fuel, Globe, Gauge } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
@@ -34,11 +34,13 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
         { icon: Gavel, label: "Cezalarım", href: "/traffic-fines" },
         { icon: Fuel, label: "Yakıtım", href: "/yakit" },
         { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
+        { icon: Gauge, label: "Km Güncelle", href: "/km-guncelle" },
         { icon: Settings, label: t("nav_settings"), href: "/settings" },
       ]
     : [
         { icon: LayoutDashboard, label: t("nav_dashboard"), href: "/dashboard" },
         { icon: Car, label: t("nav_vehicles"), href: "/vehicles" },
+        { icon: Gauge, label: "Km Güncelle", href: "/km-guncelle" },
         { icon: ClipboardList, label: t("nav_tasks"), href: "/tasks" },
         { icon: Wrench, label: "Arızalar", href: "/reports" },
         { icon: Gavel, label: "Trafik Cezaları", href: "/traffic-fines" },

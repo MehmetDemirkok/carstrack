@@ -26,6 +26,13 @@ export const CRON_JOBS = [
       "Kullanıcılardan ürünü geliştirmek için geri bildirim ister (zil + push). Pazartesi 12:00 (TR).",
   },
   {
+    path: "/api/cron/mileage-reminder",
+    schedule: "0 7 * * *",
+    label: "Eski km hatırlatması",
+    description:
+      "Km'si 7 günden eski araçlar için atanmış sürücüye (3 günde bir, ayda en çok 4) ve yöneticilere haftalık özet gönderir. Her gün 10:00 (TR).",
+  },
+  {
     path: "/api/cron/profile-reminder",
     schedule: "30 7 * * *",
     label: "Profil tamamlama",
