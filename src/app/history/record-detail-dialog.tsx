@@ -103,7 +103,7 @@ export function RecordDetailDialog({ record, records, vehicles, providers, onClo
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-[92vw] md:max-w-lg rounded-3xl max-h-[90dvh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-outfit pr-8 break-words">{record.title || "(Başlıksız)"}</DialogTitle>
           <div className="flex items-center gap-2">

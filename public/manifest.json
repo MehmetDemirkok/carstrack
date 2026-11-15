@@ -3,38 +3,48 @@
   "short_name": "CarsTrack",
   "description": "Araç bakım takibi, sigorta/muayene hatırlatıcı, servis geçmişi ve filo analitiği. Ücretsiz filo yönetim sistemi.",
   "id": "/",
-  "start_url": "/",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#09090b",
   "theme_color": "#09090b",
-  "orientation": "portrait",
+  "orientation": "any",
   "categories": ["business", "productivity", "utilities"],
   "lang": "tr",
   "dir": "ltr",
-  "scope": "/",
+  "prefer_related_applications": false,
+  "launch_handler": { "client_mode": "focus-existing" },
   "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
     {
-      "src": "/favicon.ico",
-      "sizes": "any",
-      "type": "image/x-icon"
+      "name": "Görevler / Seyahatler",
+      "short_name": "Görevler",
+      "url": "/tasks",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "src": "/icon.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "name": "Araçlar",
+      "short_name": "Araçlar",
+      "url": "/vehicles",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "name": "Yakıt Kaydı",
+      "short_name": "Yakıt",
+      "url": "/yakit",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
+      "name": "Arıza Bildir",
+      "short_name": "Arıza",
+      "url": "/reports",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],
   "screenshots": [
@@ -43,7 +53,7 @@
       "sizes": "1200x630",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "CarsTrack Dashboard"
+      "label": "CarsTrack panel görünümü"
     }
   ]
 }

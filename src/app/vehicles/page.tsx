@@ -785,7 +785,7 @@ export default function VehiclesPage() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-20 md:bottom-8 left-0 right-0 z-50 px-4 flex justify-center pointer-events-none"
+            className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-8 left-0 right-0 z-50 px-4 flex justify-center pointer-events-none"
           >
             <div className="glass rounded-full border border-destructive/30 shadow-xl p-2 px-4 flex items-center gap-4 pointer-events-auto">
               <span className="font-semibold text-sm">{selectedIds.length} araç seçildi</span>
@@ -816,7 +816,7 @@ export default function VehiclesPage() {
 
       {/* Toplu araç içe aktarma */}
       <Dialog open={showImport} onOpenChange={(o) => { setShowImport(o); if (!o) resetImportState(); }}>
-        <DialogContent className="max-w-[92vw] md:max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[92vw] md:max-w-2xl rounded-3xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-outfit flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5 text-primary" /> Excel&apos;den Toplu Araç Ekle

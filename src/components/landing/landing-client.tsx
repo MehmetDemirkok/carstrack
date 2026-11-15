@@ -217,7 +217,7 @@ export default function LandingClient() {
   const gridY = useTransform(scrollYProgress, [0, 1], [0, 110]);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-dvh overflow-x-hidden bg-background text-foreground">
       <MarketingNav />
 
       <main id="icerik">

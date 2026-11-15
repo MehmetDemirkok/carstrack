@@ -9,7 +9,6 @@ import { DataProvider } from "@/context/data-context";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommandPaletteProvider } from "@/context/command-palette-context";
 import { CommandPalette } from "@/components/command-palette";
-import { ProfileCompletionNotice } from "@/components/profile-completion-notice";
 import { PushPermissionPrompt } from "@/components/push-permission-prompt";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -60,6 +59,16 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   manifest: "/manifest.json",
+  // iOS: ana ekrandan açılışta tam ekran uygulama gibi davranır; durum çubuğu
+  // "default" kalır ki içerik çentiğin/saatin altına girmesin.
+  appleWebApp: {
+    capable: true,
+    title: "CarsTrack",
+    statusBarStyle: "default",
+  },
+  // iOS Safari km, plaka, tutar gibi sayıları telefon numarası sanıp bağlantıya
+  // çeviriyordu.
+  formatDetection: { telephone: false, email: false, address: false },
   robots: indexRobots,
   ...(GOOGLE_SITE_VERIFICATION && {
     verification: { google: GOOGLE_SITE_VERIFICATION },
@@ -102,6 +111,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Allow pinch-zoom for accessibility / mobile usability (GSC)
   maximumScale: 5,
+  // Çentikli/ana ekran çubuklu cihazlarda env(safe-area-inset-*) ancak "cover"
+  // ile gerçek değer alır; alt menü ve sabit çubuklar bu boşluğu kullanıyor.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -133,7 +145,6 @@ export default function RootLayout({
                   <ShellWrapper>{children}</ShellWrapper>
                 </div>
                 <CommandPalette />
-                <ProfileCompletionNotice />
                 <PushPermissionPrompt />
                 <ServiceWorkerRegister />
               </CommandPaletteProvider>
@@ -141,7 +152,14 @@ export default function RootLayout({
               </DataProvider>
             </AuthProvider>
           </LanguageProvider>
-          <Toaster position="top-right" richColors closeButton />
+          {/* Telefonda bildirimler üst bardaki (h-14) zil/avatar düğmelerinin
+              üstüne binmesin; çentikli cihazda durum çubuğu boşluğu da eklenir. */}
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            mobileOffset={{ top: "calc(4rem + env(safe-area-inset-top))", left: "12px", right: "12px" }}
+          />
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />

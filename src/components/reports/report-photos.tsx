@@ -92,7 +92,7 @@ export function ReportPhotoGallery({ paths }: { paths: string[] }) {
               src={active}
               alt="Arıza fotoğrafı"
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[90vh] max-w-full rounded-2xl object-contain"
+              className="max-h-[90dvh] max-w-full rounded-2xl object-contain"
             />
           </motion.div>
         )}

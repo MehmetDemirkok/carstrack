@@ -107,7 +107,7 @@ export default function ResetPasswordClient() {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-background">
+    <div className="min-h-dvh relative flex items-center justify-center p-4 overflow-hidden bg-background">
       {/* Background — identical to login page */}
       <div className="absolute inset-0 bg-mesh-soft pointer-events-none" />
       <motion.div

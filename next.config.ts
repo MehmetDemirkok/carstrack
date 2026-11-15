@@ -109,9 +109,19 @@ const nextConfig: NextConfig = {
             },
           ]
         : []),
+      // Service worker her açılışta tazelenmeli; aksi halde tarayıcı/CDN
+      // önbelleğindeki eski sw.js yeni sürümün (çevrimdışı sayfa, rozet,
+      // push düzeltmeleri) yayılmasını geciktirir.
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
       // Cache icons and images
       {
-        source: "/(favicon\\.ico|apple-touch-icon\\.png|icon\\.png|icon-192\\.png|icon-512\\.png|logo\\.svg|og-image\\.png)",
+        source: "/(favicon\\.ico|apple-touch-icon\\.png|icon\\.png|icon-192\\.png|icon-512\\.png|badge-96\\.png|logo\\.svg|og-image\\.png)",
         headers: [
           { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
         ],
