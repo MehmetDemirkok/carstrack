@@ -2,6 +2,8 @@ import { createClient } from "./supabase/client";
 
 export type AuditAction =
   | "role_changed"
+  | "member_deactivated"
+  | "member_reactivated"
   | "vehicle_deleted"
   | "task_deleted"
   | "km_gap_closed"

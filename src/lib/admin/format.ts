@@ -118,6 +118,8 @@ export function avatarTone(seed: string): string {
 export const ACTION_LABELS: Record<string, string> = {
   // tenant (audit_logs)
   role_changed: "Rol değiştirildi",
+  member_deactivated: "Üye şirketten çıkarıldı",
+  member_reactivated: "Üye yeniden etkinleştirildi",
   vehicle_deleted: "Araç silindi",
   task_deleted: "Görev silindi",
   km_gap_closed: "Km farkı kapatıldı",

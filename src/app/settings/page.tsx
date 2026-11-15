@@ -25,6 +25,7 @@ import type { Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
 import { HelpDialog } from "@/components/help-dialog";
+import { ProfileCompletionCard } from "@/components/profile-completion";
 import { daysUntilDate, getOverallLicenseStatus, LICENSE_CLASSES } from "@/lib/license";
 import { IdCard, Sparkles, Upload, XCircle, CheckCircle2 } from "lucide-react";
 import type { DriverLicenseEntry } from "@/lib/types";
@@ -225,6 +226,18 @@ export default function SettingsPage() {
   const [licenseSaving, setLicenseSaving] = useState(false);
   // Bilgiler zaten doluysa varsayılan kapalı başlar (yer kaplamasın); boşsa açık başlar (doldurması kolay olsun).
   const [licenseOpen, setLicenseOpen] = useState(() => (profile?.licenses?.length ?? 0) === 0);
+
+  // "Profilinizi tamamlayın" bildirimi /settings#profil veya #ehliyet açar.
+  // Ehliyet bölümü rol bilinince çizildiği için profil yüklenince kaydırılır.
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash !== "profil" && hash !== "ehliyet") return;
+    if (hash === "ehliyet") setLicenseOpen(true);
+    const timer = setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [profile?.id]);
 
   useEffect(() => {
     setLicenseNumber(profile?.licenseNumber ?? "");
@@ -775,13 +788,23 @@ export default function SettingsPage() {
     }
   };
 
+  // Profil tamamlama: ilgili bölüme kaydır (ehliyet bölümü kapalıysa aç).
+  function jumpToSection(section: "profil" | "ehliyet") {
+    if (section === "ehliyet") setLicenseOpen(true);
+    requestAnimationFrame(() => {
+      document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   return (
     <div className="p-4 space-y-5 pb-28">
       <h1 className="text-2xl font-outfit font-bold tracking-tight">{t("settings_title")}</h1>
 
+      <ProfileCompletionCard onJump={jumpToSection} />
+
       <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
         {/* Profile */}
-        <motion.div variants={fadeUp}>
+        <motion.div variants={fadeUp} id="profil" className="scroll-mt-20">
           <Card className="rounded-3xl border-border/40 shadow-sm overflow-hidden">
             <CardContent className="p-5 space-y-4">
               <div className="flex items-center gap-4">
@@ -896,7 +919,7 @@ export default function SettingsPage() {
 
         {/* Ehliyet Bilgileri — yalnızca sürücü rolü */}
         {isDriverRole(profile?.role) && (
-          <motion.div variants={fadeUp} className="space-y-1">
+          <motion.div variants={fadeUp} id="ehliyet" className="space-y-1 scroll-mt-20">
             <Card className="rounded-2xl border-border/40 shadow-sm overflow-hidden">
               <button
                 type="button"
@@ -1425,7 +1448,7 @@ export default function SettingsPage() {
                 iconBg="bg-amber-500/10"
                 iconColor="text-amber-500"
                 label={categoryPrefSaving === "reminders" ? "Kaydediliyor…" : "Hatırlatıcılar"}
-                description="Ehliyet süresi ve trafik cezası bildirimleri"
+                description="Ehliyet süresi, trafik cezası ve profil tamamlama hatırlatmaları"
                 trailing={<Toggle on={remindersNotif} onToggle={() => handleCategoryToggle("reminders")} />}
                 onClick={() => handleCategoryToggle("reminders")}
               />

@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendNotificationEmail } from "@/lib/email/sendEmail";
 import { withCronLogging } from "@/lib/cron/record";
+import { activeRows } from "@/lib/member-status";
 
 /**
  * AKTİVASYON HATIRLATICISI
@@ -78,9 +79,9 @@ async function handler(req: Request): Promise<Response> {
   const dryRun = new URL(req.url).searchParams.get("dry") === "1";
 
   // ── 1. Veri ──────────────────────────────────────────────────────
-  const [{ data: companies }, { data: profiles }, { data: vehicles }] = await Promise.all([
+  const [{ data: companies }, { data: allProfiles }, { data: vehicles }] = await Promise.all([
     admin.from("companies").select("id, name, created_at"),
-    admin.from("profiles").select("id, company_id, role, full_name, notify_by_email"),
+    admin.from("profiles").select("*"),
     admin
       .from("vehicles")
       .select(
@@ -88,6 +89,7 @@ async function handler(req: Request): Promise<Response> {
       ),
   ]);
 
+  const profiles = allProfiles ? activeRows(allProfiles) : null;
   if (!companies || !profiles) {
     console.error("[cron/activation-nudge] temel veri yüklenemedi");
     return NextResponse.json({ error: "Failed to load data" }, { status: 500 });

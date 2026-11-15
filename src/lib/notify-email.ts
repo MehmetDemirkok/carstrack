@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendNotificationEmail } from "@/lib/email/sendEmail";
 import { getAppUrl, type NotificationRow } from "@/lib/email/emailTypes";
+import { activeRows } from "@/lib/member-status";
 
 export interface EventEmailContent {
   subject: string;
@@ -84,9 +85,9 @@ export async function sendEventEmailToManagers(
 
   const { data: profiles } = await admin
     .from("profiles")
-    .select("id, full_name, notify_by_email")
+    .select("*")
     .eq("company_id", companyId)
     .in("role", ["manager", "operator"]);
 
-  return sendEventEmailToUsers(admin, (profiles ?? []) as EmailRecipient[], content);
+  return sendEventEmailToUsers(admin, activeRows(profiles as EmailRecipient[] | null), content);
 }

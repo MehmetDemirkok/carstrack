@@ -46,6 +46,8 @@ export interface Profile {
   licenseNumber?: string;
   licenses?: DriverLicenseEntry[];
   notificationPrefs?: NotificationPrefs;
+  /** Şirketten çıkarıldıysa (pasif) tarih; aktif üyede yok. */
+  deactivatedAt?: string;
 }
 
 export interface VehicleAssignment {

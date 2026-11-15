@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   Activity, UserCog, Car, Route, Mail, RefreshCw, MailX,
-  Fuel, Receipt, Building2, Clock, UserX, Gauge,
+  Fuel, Receipt, Building2, Clock, UserX, UserCheck, Gauge,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getAuditLogs } from "@/lib/db";
@@ -22,6 +22,8 @@ import { toast } from "sonner";
  */
 const ACTION_STYLE: Record<string, { icon: React.ElementType; iconBg: string; iconColor: string }> = {
   role_changed: { icon: UserCog, iconBg: "bg-primary/10", iconColor: "text-primary" },
+  member_deactivated: { icon: UserX, iconBg: "bg-red-500/10", iconColor: "text-red-500" },
+  member_reactivated: { icon: UserCheck, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-500" },
   vehicle_deleted: { icon: Car, iconBg: "bg-red-500/10", iconColor: "text-red-500" },
   task_deleted: { icon: Route, iconBg: "bg-orange-500/10", iconColor: "text-orange-500" },
   km_gap_closed: { icon: Gauge, iconBg: "bg-sky-500/10", iconColor: "text-sky-500" },

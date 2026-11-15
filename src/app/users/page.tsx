@@ -1,113 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Users, Car, Route, Pencil, UserCog, X, Plus, Mail, Send, Trash2, IdCard, HelpCircle, ChevronDown, ShieldCheck } from "lucide-react";
-import { getOverallLicenseStatus, getMostUrgentEntry, daysUntilDate } from "@/lib/license";
-import type { DriverLicenseEntry } from "@/lib/types";
-import { useAuth } from "@/context/auth-context";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { Users, Car, Route, Mail, IdCard, SearchX } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  getMembers,
-  getDrivers,
-  getVehicles,
-  getTasks,
-  assignVehicle,
-  unassignVehicle,
-  updateMemberProfile,
-  updateMemberRole,
-} from "@/lib/db";
+import { toast } from "sonner";
+import { useAuth } from "@/context/auth-context";
+import { getMembers, getDrivers, getVehicles, getTasks } from "@/lib/db";
 import type { Vehicle, VehicleTask, Profile, UserRole } from "@/lib/types";
 import { isDriverRole } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-// ─── Helpers ─────────────────────────────────────────────────
-
-function formatDuration(start: string): string {
-  const ms = new Date().getTime() - new Date(start).getTime();
-  const mins = Math.floor(ms / 60000);
-  if (mins < 60) return `${mins} dk`;
-  const hours = Math.floor(mins / 60);
-  return `${hours} sa ${mins % 60} dk`;
-}
-
-function getInitials(name: string): string {
-  return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
-}
-
-const AVATAR_COLORS = [
-  "bg-blue-500", "bg-violet-500", "bg-emerald-500",
-  "bg-orange-500", "bg-pink-500", "bg-teal-500",
-  "bg-indigo-500", "bg-rose-500",
-];
-function avatarColor(name: string): string {
-  const code = (name.charCodeAt(0) ?? 0) + (name.charCodeAt(1) ?? 0);
-  return AVATAR_COLORS[code % AVATAR_COLORS.length];
-}
-
-function roleBadge(role: UserRole) {
-  if (role === "manager") return { label: "Şirket Yetkilisi", cls: "bg-primary/10 text-primary" };
-  if (role === "operator") return { label: "Operatör", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
-  if (role === "sofor") return { label: "Şoför", cls: "bg-muted text-muted-foreground" };
-  return { label: "Kullanıcı", cls: "bg-muted text-muted-foreground" };
-}
-
-function licenseBadge(licenses?: DriverLicenseEntry[]) {
-  const status = getOverallLicenseStatus(licenses);
-  if (status === "missing") return { label: "Ehliyet bilgisi yok", cls: "bg-muted/50 text-muted-foreground" };
-
-  const urgent = getMostUrgentEntry(licenses);
-  if (status === "expired" && urgent) {
-    return { label: `${urgent.class} süresi doldu (${new Date(urgent.expiryDate!).toLocaleDateString("tr-TR")})`, cls: "bg-red-500/10 text-red-600 dark:text-red-400" };
-  }
-  if (status === "expiring" && urgent) {
-    return { label: `${urgent.class} ${daysUntilDate(urgent.expiryDate!)} gün sonra doluyor`, cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
-  }
-  const classesLabel = (licenses ?? []).map((l) => l.class).join(", ");
-  return { label: `Ehliyet geçerli (${classesLabel})`, cls: "bg-green-500/10 text-green-600 dark:text-green-400" };
-}
-
-type DriverWithAssignment = Profile & { assignedVehicleIds: string[] };
-
-// ─── "Nasıl çalışır?" yardım içeriği ─────────────────────────
-const HELP_KEY = "users-help-dismissed";
-const HELP_STEPS: { Icon: React.ElementType; title: string; desc: string }[] = [
-  {
-    Icon: Users,
-    title: "Ekip üyeleri",
-    desc: "Şirketinize bağlı herkes, rol etiketiyle burada listelenir. Kartlar o anki durumu (müsait / aktif / araç atanmamış) gösterir.",
-  },
-  {
-    Icon: ShieldCheck,
-    title: "Roller ve yetkiler",
-    desc: "Kullanıcı ve Şoför yalnızca kendine atanan araçları görüp kilometre/görev günceller. Operatör tüm araç, görev ve cezaları yönetir ama ekip davet edemez. Şirket Yetkilisi tam yetkilidir.",
-  },
-  {
-    Icon: Mail,
-    title: "Ekibe davet",
-    desc: "Yalnızca Şirket Yetkilisi e-posta ile davet gönderir. Davet kabul edilince kişi otomatik olarak listeye eklenir; bekleyen davetler üstte görünür.",
-  },
-  {
-    Icon: Car,
-    title: "Araç atama",
-    desc: "Sürücü kartındaki araç ikonuyla ona araç atayabilir veya atamayı kaldırabilirsiniz. Sürücü, yalnızca atanan araçları görür.",
-  },
-  {
-    Icon: Route,
-    title: "Durum ve ehliyet",
-    desc: "\u201cAktif seyahat\u201d etiketi canlı süre ile birlikte gösterilir. Ehliyet geçerliliği de kartta renkli olarak işaretlenir.",
-  },
-  {
-    Icon: Pencil,
-    title: "Düzenleme",
-    desc: "Kalem ikonuyla ad ve departman bilgisini; yetkiniz varsa kullanıcının rolünü değiştirebilirsiniz.",
-  },
-];
-
-// ─── Page ────────────────────────────────────────────────────
+import { HelpPanel } from "./_components/help-panel";
+import { PendingInvites } from "./_components/pending-invites";
+import { TeamFilters } from "./_components/team-filters";
+import { MemberCard } from "./_components/member-card";
+import { EditMemberDialog } from "./_components/edit-member-dialog";
+import { AssignVehiclesDialog } from "./_components/assign-vehicles-dialog";
+import { InviteDialog } from "./_components/invite-dialog";
+import { InactiveMembers } from "./_components/inactive-members";
+import {
+  buildMemberViews,
+  hasLicenseIssue,
+  isUnassignedDriver,
+  matchesFilter,
+  matchesSearch,
+  sortDrivers,
+  sortManagement,
+  type DriverWithAssignment,
+  type MemberView,
+  type PendingInvite,
+  type TeamFilter,
+} from "./_components/team-utils";
 
 export default function UsersPage() {
   const { profile, user } = useAuth();
@@ -118,105 +42,23 @@ export default function UsersPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTasks, setActiveTasks] = useState<VehicleTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
 
-  // Edit dialog
   const [editMember, setEditMember] = useState<Profile | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDept, setEditDept] = useState("");
-  const [editRole, setEditRole] = useState<UserRole>("user");
-  const [editSubmitting, setEditSubmitting] = useState(false);
-
-  // Assign dialog
-  const [assignDriverId, setAssignDriverId] = useState<string | null>(null);
-  const [addVehicleId, setAddVehicleId] = useState("");
-  const [assignSubmitting, setAssignSubmitting] = useState(false);
-
-  // Davet dialog + bekleyen davetler
+  const [assignDriver, setAssignDriver] = useState<Profile | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<UserRole>("user");
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
-  const [pendingInvites, setPendingInvites] = useState<
-    { id: string; email: string; role: UserRole; created_at: string; expires_at: string }[]
-  >([]);
 
-  // "Nasıl çalışır?" yardım kartı — ilk girişte açık, kapatılınca hatırlanır.
-  const [showHelp, setShowHelp] = useState(true);
-  useEffect(() => {
-    if (localStorage.getItem(HELP_KEY) === "1") setShowHelp(false);
-  }, []);
+  const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
+  const [filter, setFilter] = useState<TeamFilter>("all");
 
-  function toggleHelp() {
-    setShowHelp((v) => {
-      const next = !v;
-      localStorage.setItem(HELP_KEY, next ? "0" : "1");
-      return next;
-    });
-  }
+  const isDriver = !!profile && isDriverRole(profile.role);
+  const isManager = profile?.role === "manager";
 
-  function dismissHelp() {
-    setShowHelp(false);
-    localStorage.setItem(HELP_KEY, "1");
-  }
+  // ── Veri yükleme ───────────────────────────────────────────
 
-  async function loadInvites() {
-    try {
-      const res = await fetch("/api/invites");
-      if (res.ok) {
-        const data = await res.json();
-        setPendingInvites(data.invites ?? []);
-      }
-    } catch {
-      /* sessizce yoksay — davet listesi kritik değil */
-    }
-  }
-
-  useEffect(() => {
-    if (user && profile?.role === "manager") loadInvites();
-  }, [user?.id, profile?.role]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function sendInvite(email: string, role: UserRole) {
-    setInviteSubmitting(true);
-    try {
-      const res = await fetch("/api/invites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
-      });
-      const data = await res.json();
-      if (!res.ok) { toast.error(data.error || "Davet gönderilemedi"); return; }
-      toast.success("Davet gönderildi");
-      setInviteOpen(false);
-      setInviteEmail("");
-      setInviteRole("user");
-      await loadInvites();
-    } catch {
-      toast.error("Davet gönderilemedi");
-    } finally {
-      setInviteSubmitting(false);
-    }
-  }
-
-  async function revokeInvite(id: string) {
-    try {
-      const res = await fetch(`/api/invites/${id}`, { method: "DELETE" });
-      if (!res.ok) { toast.error("Davet iptal edilemedi"); return; }
-      toast.success("Davet iptal edildi");
-      await loadInvites();
-    } catch {
-      toast.error("Davet iptal edilemedi");
-    }
-  }
-
-  // Live timer
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  async function loadAll() {
-    setLoading(true);
+  const loadAll = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const [m, d, v, t] = await Promise.all([
         getMembers(),
@@ -233,130 +75,151 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  // İşlem sonrası yenilemeler listeyi iskelete döndürmeden sessizce yapılır.
+  const refresh = useCallback(() => loadAll({ silent: true }), [loadAll]);
+
+  const loadInvites = useCallback(async () => {
+    try {
+      const res = await fetch("/api/invites");
+      if (res.ok) {
+        const data = await res.json();
+        setPendingInvites(data.invites ?? []);
+      }
+    } catch {
+      /* sessizce yoksay — davet listesi kritik değil */
+    }
+  }, []);
 
   useEffect(() => {
-    if (user) loadAll();
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Sürücü rolü zaten /tasks'a yönlendirilecek; gereksiz sorgu atma.
+    if (!user || isDriver) return;
+    loadAll();
+  }, [user?.id, isDriver]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (user && isManager) loadInvites();
+  }, [user?.id, isManager]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sadece sürücü rolündekiler ("user"/"sofor") /tasks'a yönlendirilir; manager ve operator erişebilir
   useEffect(() => {
-    if (profile && isDriverRole(profile.role)) router.replace("/tasks");
-  }, [profile, router]);
+    if (isDriver) router.replace("/tasks");
+  }, [isDriver, router]);
 
   // Panelden "Davet gönder" ile gelindiğinde dialog doğrudan açılsın.
   useEffect(() => {
-    if (!profile || profile.role !== "manager") return;
+    if (!isManager) return;
     if (new URLSearchParams(window.location.search).get("invite") !== "1") return;
     setInviteOpen(true);
     router.replace("/users", { scroll: false });
-  }, [profile, router]);
+  }, [isManager, router]);
 
-  if (profile && isDriverRole(profile.role)) return null;
+  // ── Davetler ───────────────────────────────────────────────
 
-  const isManager = profile?.role === "manager";
-
-  // Lookup maps
-  const assignmentMap = new Map(drivers.map((d) => [d.id, d.assignedVehicleIds]));
-  const activeTaskMap = new Map(activeTasks.map((t) => [t.driverId, t]));
-
-  const userCount = members.filter((m) => isDriverRole(m.role)).length;
-  const activeCount = activeTasks.length;
-  const managerCount = members.filter((m) => m.role === "manager").length;
-
-  // ── Edit handlers ──────────────────────────────────────────
-
-  function openEdit(member: Profile) {
-    setEditMember(member);
-    setEditName(member.fullName);
-    setEditDept(member.department ?? "");
-    setEditRole(member.role);
-  }
-
-  async function saveEdit() {
-    if (!editMember) return;
-    if (!editName.trim()) { toast.error("İsim boş olamaz"); return; }
-    setEditSubmitting(true);
+  async function sendInvite(email: string, role: UserRole): Promise<boolean> {
     try {
-      await updateMemberProfile(editMember.id, { fullName: editName.trim(), department: editDept.trim() });
-      if (isManager && editRole !== editMember.role) {
-        await updateMemberRole(editMember.id, editRole);
-      }
-      setEditMember(null);
-      toast.success("Profil güncellendi");
-      await loadAll();
+      const res = await fetch("/api/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(data.error || "Davet gönderilemedi"); return false; }
+      toast.success("Davet gönderildi");
+      await loadInvites();
+      return true;
     } catch {
-      toast.error("Güncelleme başarısız");
-    } finally {
-      setEditSubmitting(false);
+      toast.error("Davet gönderilemedi");
+      return false;
     }
   }
 
-  // ── Assign handlers ────────────────────────────────────────
-
-  function openAssign(driverId: string) {
-    setAssignDriverId(driverId);
-    setAddVehicleId("");
-  }
-
-  async function handleAddVehicle() {
-    if (!assignDriverId || !addVehicleId) return;
-    setAssignSubmitting(true);
+  async function revokeInvite(id: string) {
     try {
-      await assignVehicle(addVehicleId, assignDriverId);
-      setAddVehicleId("");
-      toast.success("Araç eklendi");
-      await loadAll();
+      const res = await fetch(`/api/invites/${id}`, { method: "DELETE" });
+      if (!res.ok) { toast.error("Davet iptal edilemedi"); return; }
+      toast.success("Davet iptal edildi");
+      await loadInvites();
     } catch {
-      toast.error("Araç eklenemedi");
-    } finally {
-      setAssignSubmitting(false);
+      toast.error("Davet iptal edilemedi");
     }
   }
 
-  async function handleRemoveVehicle(vehicleId: string) {
-    if (!assignDriverId) return;
-    setAssignSubmitting(true);
-    try {
-      await unassignVehicle(vehicleId, assignDriverId);
-      toast.success("Araç kaldırıldı");
-      await loadAll();
-    } catch {
-      toast.error("Araç kaldırılamadı");
-    } finally {
-      setAssignSubmitting(false);
-    }
+  // ── Liste: görünüm, sayımlar, filtre ───────────────────────
+
+  // Pasif (şirketten çıkarılmış) üyeler ana listede, sayımlarda ve yönetici
+  // hesabında yer almaz; ayrı "Pasif Üyeler" bölümünde gösterilir.
+  const activeMembers = useMemo(() => members.filter((m) => !m.deactivatedAt), [members]);
+  const inactiveMembers = useMemo(() => members.filter((m) => !!m.deactivatedAt), [members]);
+
+  const views = useMemo(
+    () => buildMemberViews(activeMembers, drivers, vehicles, activeTasks),
+    [activeMembers, drivers, vehicles, activeTasks],
+  );
+
+  const counts = useMemo<Record<TeamFilter, number>>(() => ({
+    all: views.length,
+    management: views.filter((v) => !v.isDriver).length,
+    drivers: views.filter((v) => v.isDriver).length,
+    active: views.filter((v) => !!v.activeTask).length,
+    unassigned: views.filter(isUnassignedDriver).length,
+    license: views.filter(hasLicenseIssue).length,
+  }), [views]);
+
+  const { management, driverViews } = useMemo(() => {
+    const visible = views.filter((v) => matchesFilter(v, filter) && matchesSearch(v, deferredQuery));
+    return {
+      management: visible.filter((v) => !v.isDriver).sort(sortManagement),
+      driverViews: visible.filter((v) => v.isDriver).sort(sortDrivers),
+    };
+  }, [views, filter, deferredQuery]);
+
+  const managerCount = useMemo(() => activeMembers.filter((m) => m.role === "manager").length, [activeMembers]);
+  const visibleCount = management.length + driverViews.length;
+
+  if (isDriver) return null;
+
+  function toggleFilter(f: TeamFilter) {
+    setFilter((cur) => (cur === f ? "all" : f));
   }
 
-  const inputCls =
-    "w-full h-12 rounded-2xl border border-border bg-background/60 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
-
-  const ROLE_OPTIONS: { value: UserRole; label: string; activeClass: string; description: string }[] = [
-    {
-      value: "user",
-      label: "Kullanıcı",
-      activeClass: "bg-muted border-primary text-primary",
-      description: "Genel personel rolüdür. Yalnızca kendisine atanan araçları görür, kilometre/görev günceller. Ekip veya araç ekleyemez, şirket ayarlarına erişemez.",
-    },
-    {
-      value: "sofor",
-      label: "Şoför",
-      activeClass: "bg-muted border-primary text-primary",
-      description: "Şoförler için uygun roldür — yetkileri Kullanıcı rolüyle birebir aynıdır. Yalnızca kendisine atanan araçları görür, kilometre/görev günceller. Ekip veya araç ekleyemez, şirket ayarlarına erişemez.",
-    },
-    {
-      value: "operator",
-      label: "Operatör",
-      activeClass: "bg-amber-500/10 border-amber-500 text-amber-600 dark:text-amber-400",
-      description: "Tüm araçları, görevleri ve cezaları yönetir. Ekip davet edemez, rol değiştiremez, etkinlik geçmişini göremez.",
-    },
-    {
-      value: "manager",
-      label: "Şirket Yetkilisi",
-      activeClass: "bg-primary/10 border-primary text-primary",
-      description: "Tam yetkilidir: ekip davet eder, rol değiştirir, şirket ayarlarını yönetir ve etkinlik geçmişini görür.",
-    },
+  const stats: { filter: TeamFilter; label: string; value: number; Icon: React.ElementType; tone: "neutral" | "green" | "amber" | "red" }[] = [
+    { filter: "all", label: "Toplam Üye", value: counts.all, Icon: Users, tone: "neutral" },
+    { filter: "active", label: "Aktif Seyahat", value: counts.active, Icon: Route, tone: counts.active > 0 ? "green" : "neutral" },
+    { filter: "unassigned", label: "Araçsız Sürücü", value: counts.unassigned, Icon: Car, tone: counts.unassigned > 0 ? "amber" : "neutral" },
+    { filter: "license", label: "Ehliyet Uyarısı", value: counts.license, Icon: IdCard, tone: counts.license > 0 ? "red" : "neutral" },
   ];
+
+  const TONE: Record<string, { border: string; icon: string }> = {
+    neutral: { border: "border-border/30", icon: "text-muted-foreground" },
+    green: { border: "border-green-500/30", icon: "text-green-500" },
+    amber: { border: "border-amber-500/30", icon: "text-amber-500" },
+    red: { border: "border-red-500/30", icon: "text-red-500" },
+  };
+
+  function renderGroup(title: string, items: MemberView[], showTitle: boolean) {
+    if (items.length === 0) return null;
+    return (
+      <section className="space-y-3" aria-label={title}>
+        {showTitle && (
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
+            {title} ({items.length})
+          </h2>
+        )}
+        <ul className="space-y-3">
+          {items.map((view) => (
+            <MemberCard
+              key={view.member.id}
+              view={view}
+              onEdit={() => setEditMember(view.member)}
+              onAssign={() => setAssignDriver(view.member)}
+            />
+          ))}
+        </ul>
+      </section>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 pb-32 space-y-6">
@@ -387,147 +250,46 @@ export default function UsersPage() {
         )}
       </motion.div>
 
-      {/* ── Nasıl çalışır? ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.03 }}
-        className="glass rounded-3xl border border-border/40 overflow-hidden"
-      >
-        <button
-          type="button"
-          onClick={toggleHelp}
-          aria-expanded={showHelp}
-          className="w-full flex items-center gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-3xl"
-        >
-          <span className="p-2 rounded-xl bg-primary/10 shrink-0">
-            <HelpCircle className="h-5 w-5 text-primary" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">Bu sayfa nasıl çalışır?</p>
-            <p className="text-xs text-muted-foreground">Ekip, roller ve araç atamaları hakkında kısa bilgi</p>
-          </div>
-          <ChevronDown className={cn("h-4 w-4 text-muted-foreground shrink-0 transition-transform", showHelp && "rotate-180")} />
-        </button>
+      <HelpPanel />
 
-        <AnimatePresence initial={false}>
-          {showHelp && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="px-4 pb-4 space-y-3">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Bu sayfa, şirket ekibinizi ve araç atamalarını tek yerden yönetmenizi sağlar. Kısa özet:
-                </p>
-                <div className="grid sm:grid-cols-2 gap-2.5">
-                  {HELP_STEPS.map(({ Icon, title, desc }) => (
-                    <div key={title} className="flex gap-3 rounded-2xl bg-muted/30 border border-border/30 p-3">
-                      <span className="h-8 w-8 rounded-lg bg-background flex items-center justify-center shrink-0">
-                        <Icon className="h-4 w-4 text-primary" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold">{title}</p>
-                        <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <p className="text-[11px] text-muted-foreground">
-                    İpucu: Kartlardaki kalem ve araç ikonlarıyla işlem yapabilirsiniz.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={dismissHelp}
-                    className="shrink-0 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
-                  >
-                    Bir daha gösterme
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* ── Bekleyen Davetler ── */}
-      {isManager && pendingInvites.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-3xl p-4 border border-border/40 space-y-3"
-        >
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Bekleyen Davetler ({pendingInvites.length})
-          </p>
-          <div className="space-y-2">
-            {pendingInvites.map((invite) => (
-              <div key={invite.id} className="flex items-center justify-between gap-2 bg-muted/40 rounded-2xl px-4 py-2.5">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{invite.email}</p>
-                  <p className="text-xs text-muted-foreground">{roleBadge(invite.role).label}</p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <button
-                          onClick={() => sendInvite(invite.email, invite.role)}
-                          disabled={inviteSubmitting}
-                          className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                        />
-                      }
-                    >
-                      <Send className="h-4 w-4" />
-                    </TooltipTrigger>
-                    <TooltipContent>Daveti Yeniden Gönder</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <button
-                          onClick={() => revokeInvite(invite.id)}
-                          className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        />
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </TooltipTrigger>
-                    <TooltipContent>Daveti İptal Et</TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+      {isManager && (
+        <PendingInvites invites={pendingInvites} onResend={sendInvite} onRevoke={revokeInvite} />
       )}
 
-      {/* ── İstatistikler ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="grid grid-cols-3 gap-3"
-      >
-        {[
-          { label: "Toplam Üye", value: members.length, Icon: Users, accent: false },
-          { label: "Aktif Seyahat", value: activeCount, Icon: Route, accent: activeCount > 0 },
-          { label: "Sürücü", value: userCount, Icon: Car, accent: false },
-        ].map(({ label, value, Icon, accent }) => (
-          <div
-            key={label}
-            className={`glass rounded-2xl p-4 border ${accent ? "border-green-500/30" : "border-border/30"}`}
-          >
-            <Icon className={`h-4 w-4 mb-2 ${accent ? "text-green-500" : "text-muted-foreground"}`} />
-            <p className="text-xl font-bold">{value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-          </div>
-        ))}
-      </motion.div>
+      {/* ── İstatistikler (tıklanınca filtreler) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {stats.map(({ filter: f, label, value, Icon, tone }) => {
+          const selected = filter === f && f !== "all";
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => toggleFilter(f)}
+              aria-pressed={selected}
+              className={cn(
+                "glass rounded-2xl p-4 border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:border-primary/40",
+                TONE[tone].border,
+                selected && "ring-2 ring-primary/50",
+              )}
+            >
+              <Icon className={cn("h-4 w-4 mb-2", TONE[tone].icon)} />
+              <p className="text-xl font-bold tabular-nums">{loading ? "–" : value}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Arama + filtre ── */}
+      {!loading && activeMembers.length > 0 && (
+        <TeamFilters
+          query={query}
+          onQueryChange={setQuery}
+          filter={filter}
+          onFilterChange={setFilter}
+          counts={counts}
+        />
+      )}
 
       {/* ── Üye Listesi ── */}
       {loading ? (
@@ -536,414 +298,65 @@ export default function UsersPage() {
             <div key={i} className="h-24 rounded-3xl bg-muted/40 animate-pulse" />
           ))}
         </div>
-      ) : members.length === 0 ? (
+      ) : activeMembers.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
           <p className="font-medium">Henüz üye yok</p>
-          <p className="text-sm mt-1">Ayarlar sayfasındaki davet koduyla ekip üyesi ekleyebilirsiniz</p>
+          {isManager && (
+            <Button variant="outline" className="mt-4 rounded-xl gap-1.5" onClick={() => setInviteOpen(true)}>
+              <Mail className="h-4 w-4" /> İlk ekip üyesini davet et
+            </Button>
+          )}
+        </div>
+      ) : visibleCount === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <SearchX className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">Bu aramaya uyan üye yok</p>
+          <Button
+            variant="outline"
+            className="mt-4 rounded-xl"
+            onClick={() => { setQuery(""); setFilter("all"); }}
+          >
+            Filtreleri temizle
+          </Button>
         </div>
       ) : (
-        <motion.div
-          initial="hidden"
-          animate="show"
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
-          className="space-y-3"
-        >
-          {members.map((member) => {
-            const isUser = isDriverRole(member.role);
-            const assignedIds = assignmentMap.get(member.id) ?? [];
-            const assignedVehicles = assignedIds
-              .map((id) => vehicles.find((v) => v.id === id))
-              .filter((v): v is Vehicle => !!v);
-            const activeTask = activeTaskMap.get(member.id) ?? null;
-            const taskVehicle = activeTask ? vehicles.find((v) => v.id === activeTask.vehicleId) : null;
-            const badge = roleBadge(member.role);
-
-            return (
-              <motion.div
-                key={member.id}
-                variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } }}
-                className="glass rounded-3xl p-4 border border-border/40"
-              >
-                <div className="flex items-start gap-4">
-                  {/* Avatar */}
-                  <div className={`h-12 w-12 rounded-2xl ${avatarColor(member.fullName)} flex items-center justify-center shrink-0 shadow-md`}>
-                    <span className="text-white font-bold text-sm">{getInitials(member.fullName)}</span>
-                  </div>
-
-                  {/* Bilgiler */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-base leading-none">{member.fullName}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${badge.cls}`}>
-                        {badge.label}
-                      </span>
-                    </div>
-
-                    {member.department && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{member.department}</p>
-                    )}
-
-                    {isUser && (() => {
-                      const badge = licenseBadge(member.licenses);
-                      return (
-                        <span className={`mt-1.5 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${badge.cls}`}>
-                          <IdCard className="h-3 w-3 shrink-0" /> {badge.label}
-                        </span>
-                      );
-                    })()}
-
-                    {isUser && (
-                      <div className="mt-2 space-y-1">
-                        {/* Aktif seyahat rozeti */}
-                        {activeTask && (
-                          <div className="inline-flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 font-medium bg-green-500/10 px-2.5 py-1 rounded-full">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-                            Aktif •{" "}
-                            {taskVehicle
-                              ? `${taskVehicle.brand} ${taskVehicle.model} (${taskVehicle.plate})`
-                              : (activeTask.vehiclePlate ?? "Araç")}
-                            {" • "}{formatDuration(activeTask.startTime)}
-                          </div>
-                        )}
-
-                        {/* Atanmış araçlar */}
-                        {!activeTask && assignedVehicles.length === 0 && (
-                          <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
-                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
-                            Müsait •{" "}
-                            <span className="text-amber-500 dark:text-amber-400 font-medium">Araç atanmamış</span>
-                          </div>
-                        )}
-
-                        {!activeTask && assignedVehicles.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {assignedVehicles.map((v) => (
-                              <span key={v.id} className="inline-flex items-center gap-1 text-xs bg-muted/50 text-muted-foreground px-2.5 py-1 rounded-full">
-                                <Car className="h-3 w-3 shrink-0" />
-                                {v.plate}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Aksiyon butonları */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {isUser && (
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <button
-                              onClick={() => openAssign(member.id)}
-                              className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            />
-                          }
-                        >
-                          <Car className="h-4 w-4" />
-                        </TooltipTrigger>
-                        <TooltipContent>Araç Ata / Yönet</TooltipContent>
-                      </Tooltip>
-                    )}
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <button
-                            onClick={() => openEdit(member)}
-                            className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          />
-                        }
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </TooltipTrigger>
-                      <TooltipContent>Kullanıcıyı Düzenle</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </motion.div>
+        <div className="space-y-6">
+          {renderGroup("Yönetim", management, driverViews.length > 0)}
+          {renderGroup("Sürücüler", driverViews, management.length > 0)}
+        </div>
       )}
 
-      {/* ── Düzenle Dialog ── */}
+      {!loading && (
+        <InactiveMembers members={inactiveMembers} canReactivate={isManager} onChanged={refresh} />
+      )}
+
+      {/* ── Pencereler ── */}
       {editMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !editSubmitting && setEditMember(null)} />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="relative bg-card rounded-3xl border border-border/50 shadow-2xl w-full max-w-sm p-6 space-y-5"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl">
-                <UserCog className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="font-bold text-base">Üye Düzenle</h2>
-                <p className="text-xs text-muted-foreground">{editMember.fullName}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ad Soyad</label>
-                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Ad Soyad" className={inputCls} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Departman / Ünvan</label>
-                <input type="text" value={editDept} onChange={(e) => setEditDept(e.target.value)} placeholder="Örn: Lojistik, Dağıtım, Kurye" className={inputCls} />
-              </div>
-
-              {/* Rol seçimi — sadece şirket yetkilisi değiştirebilir */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rol</label>
-                {isManager ? (
-                  <>
-                    <div className="flex gap-2">
-                      {ROLE_OPTIONS.map(({ value, label, activeClass }) => {
-                        const isLastManager = editMember.role === "manager" && managerCount === 1;
-                        const disabled = editMember.id === user?.id || (isLastManager && value !== "manager");
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => setEditRole(value)}
-                            disabled={disabled}
-                            className={`flex-1 h-10 rounded-xl text-[11px] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                              editRole === value
-                                ? activeClass
-                                : "bg-background border-border text-muted-foreground hover:border-primary/40"
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      {ROLE_OPTIONS.find((r) => r.value === editRole)?.description}
-                    </p>
-                    {editRole !== editMember.role && (
-                      <p className="text-[11px] text-amber-500 dark:text-amber-400">
-                        {editRole === "manager"
-                          ? "Bu kullanıcı şirkette yetkili olarak tüm yetkilere sahip olacak."
-                          : editRole === "operator"
-                          ? "Bu kullanıcı operatör yetkisiyle filoya erişim sağlayacak."
-                          : "Bu kullanıcının yönetici yetkileri kaldırılacak."}
-                      </p>
-                    )}
-                    {editMember.id === user?.id && (
-                      <p className="text-[11px] text-muted-foreground">Kendi rolünüzü değiştiremezsiniz.</p>
-                    )}
-                    {editMember.id !== user?.id && editMember.role === "manager" && managerCount === 1 && (
-                      <p className="text-[11px] text-muted-foreground">Şirketin tek yöneticisi — önce başka birini yönetici yapın.</p>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40 text-sm text-muted-foreground">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${roleBadge(editMember.role).cls}`}>
-                      {roleBadge(editMember.role).label}
-                    </span>
-                    <span className="text-xs">Rol değiştirme yetkisi sadece şirket yetkilisine aittir.</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setEditMember(null)} disabled={editSubmitting}>İptal</Button>
-              <Button className="flex-1 rounded-xl bg-mesh hover:opacity-95 text-white border-none" onClick={saveEdit} disabled={editSubmitting}>
-                {editSubmitting ? "Kaydediliyor..." : "Kaydet"}
-              </Button>
-            </div>
-          </motion.div>
-        </div>
+        <EditMemberDialog
+          key={editMember.id}
+          member={editMember}
+          isManager={isManager}
+          currentUserId={user?.id}
+          managerCount={managerCount}
+          onClose={() => setEditMember(null)}
+          onSaved={refresh}
+        />
       )}
 
-      {/* ── Araç Yönet Dialog ── */}
-      {assignDriverId && (() => {
-        const driver = members.find((m) => m.id === assignDriverId);
-        const currentIds = assignmentMap.get(assignDriverId) ?? [];
-        const currentVehicles = currentIds.map((id) => vehicles.find((v) => v.id === id)).filter((v): v is Vehicle => !!v);
-        const availableVehicles = vehicles.filter((v) => !currentIds.includes(v.id));
+      {assignDriver && (
+        <AssignVehiclesDialog
+          key={assignDriver.id}
+          driver={assignDriver}
+          drivers={drivers}
+          vehicles={vehicles}
+          onClose={() => setAssignDriver(null)}
+          onChanged={refresh}
+        />
+      )}
 
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !assignSubmitting && setAssignDriverId(null)} />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="relative bg-card rounded-3xl border border-border/50 shadow-2xl w-full max-w-sm p-6 space-y-5"
-            >
-              {/* Başlık */}
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-xl">
-                  <Car className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-base">Araç Yönet</h2>
-                  <p className="text-xs text-muted-foreground">{driver?.fullName}</p>
-                </div>
-              </div>
-
-              {/* Mevcut araçlar */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Atanmış Araçlar{currentVehicles.length > 0 && ` (${currentVehicles.length})`}
-                </p>
-                {currentVehicles.length === 0 ? (
-                  <p className="text-sm text-muted-foreground bg-muted/30 rounded-2xl px-4 py-3">
-                    Henüz araç atanmamış
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {currentVehicles.map((v) => (
-                      <div key={v.id} className="flex items-center justify-between bg-muted/40 rounded-2xl px-4 py-2.5">
-                        <div>
-                          <p className="text-sm font-semibold">{v.plate}</p>
-                          <p className="text-xs text-muted-foreground">{v.brand} {v.model}</p>
-                        </div>
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <button
-                                onClick={() => handleRemoveVehicle(v.id)}
-                                disabled={assignSubmitting}
-                                className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                              />
-                            }
-                          >
-                            <X className="h-4 w-4" />
-                          </TooltipTrigger>
-                          <TooltipContent>Atamayı Kaldır</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Araç ekle */}
-              {availableVehicles.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Araç Ekle</p>
-                  <div className="flex gap-2">
-                    <select
-                      value={addVehicleId}
-                      onChange={(e) => setAddVehicleId(e.target.value)}
-                      className="flex-1 h-11 rounded-2xl border border-border bg-background/60 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    >
-                      <option value="">Araç seçin...</option>
-                      {availableVehicles.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.plate} — {v.brand} {v.model}
-                        </option>
-                      ))}
-                    </select>
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <Button
-                            onClick={handleAddVehicle}
-                            disabled={!addVehicleId || assignSubmitting}
-                            className="h-11 px-4 rounded-2xl bg-mesh hover:opacity-95 text-white border-none shrink-0"
-                          />
-                        }
-                      >
-                        <Plus className="h-4 w-4" />
-                      </TooltipTrigger>
-                      <TooltipContent>Araç Ata</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
-              )}
-
-              {availableVehicles.length === 0 && currentVehicles.length > 0 && (
-                <p className="text-xs text-muted-foreground text-center bg-muted/30 rounded-2xl px-4 py-3">
-                  Tüm araçlar bu kullanıcıya atanmış
-                </p>
-              )}
-
-              <Button
-                variant="outline"
-                className="w-full rounded-xl"
-                onClick={() => setAssignDriverId(null)}
-                disabled={assignSubmitting}
-              >
-                Kapat
-              </Button>
-            </motion.div>
-          </div>
-        );
-      })()}
-
-      {/* ── Davet Et Dialog ── */}
-      {inviteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !inviteSubmitting && setInviteOpen(false)} />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="relative bg-card rounded-3xl border border-border/50 shadow-2xl w-full max-w-sm p-6 space-y-5"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl">
-                <Mail className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="font-bold text-base">Ekibe Davet Et</h2>
-                <p className="text-xs text-muted-foreground">E-posta ile davet gönder</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">E-posta</label>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="calisan@sirket.com"
-                  className={inputCls}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rol</label>
-                <div className="flex gap-2">
-                  {ROLE_OPTIONS.map(({ value, label, activeClass }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setInviteRole(value)}
-                      className={`flex-1 h-10 rounded-xl text-[11px] font-semibold border transition-colors ${
-                        inviteRole === value ? activeClass : "bg-background border-border text-muted-foreground hover:border-primary/40"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed pt-0.5">
-                  {ROLE_OPTIONS.find((r) => r.value === inviteRole)?.description}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setInviteOpen(false)} disabled={inviteSubmitting}>İptal</Button>
-              <Button
-                className="flex-1 rounded-xl bg-mesh hover:opacity-95 text-white border-none"
-                onClick={() => sendInvite(inviteEmail.trim(), inviteRole)}
-                disabled={inviteSubmitting || !inviteEmail.trim()}
-              >
-                {inviteSubmitting ? "Gönderiliyor..." : "Davet Gönder"}
-              </Button>
-            </div>
-          </motion.div>
-        </div>
+      {isManager && (
+        <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} onSend={sendInvite} />
       )}
     </div>
   );

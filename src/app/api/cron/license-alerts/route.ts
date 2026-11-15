@@ -8,6 +8,7 @@ import { dispatchToUser, dispatchToManagers } from "@/lib/notify";
 import { getFlaggedEntries, daysUntilDate } from "@/lib/license";
 import type { DriverLicenseEntry } from "@/lib/types";
 import { withCronLogging } from "@/lib/cron/record";
+import { activeRows } from "@/lib/member-status";
 
 // Kritik (süresi dolmuş) uyarılar 3, uyarı (yaklaşan) uyarılar 7 günde bir
 // yeniden gönderilir — fleet-alerts cron'undaki SUPPRESSION_DAYS ile aynı mantık.
@@ -61,7 +62,7 @@ async function handler(req: Request): Promise<Response> {
   // ── Ehliyet bilgisi girilmiş tüm sürücüler ───────────────────
   const { data: drivers, error } = await admin
     .from("profiles")
-    .select("id, company_id, full_name, licenses")
+    .select("*")
     .in("role", ["user", "sofor"]);
 
   if (error) {
@@ -70,7 +71,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   const flagged: { driver: DriverRow; severity: "critical" | "warning"; entries: FlaggedEntry[] }[] = [];
-  for (const row of (drivers ?? []) as DriverRow[]) {
+  for (const row of activeRows(drivers as DriverRow[] | null)) {
     const entries = getFlaggedEntries(row.licenses);
     if (entries.length === 0) continue;
     flagged.push({

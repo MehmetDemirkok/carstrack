@@ -47,6 +47,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import { checkMileageChange } from "@/lib/mileage";
 import { warnSuspiciousMileage } from "@/lib/mileage-toast";
+import { ProfileCompletionBanner } from "@/components/profile-completion";
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -106,6 +107,9 @@ export default function TasksPage() {
           </p>
         </div>
       </motion.div>
+
+      {/* Sürücülerin açılış sayfası burası — profil eksikse hatırlat (kendini gizler) */}
+      {isDriverRole(profile?.role) && <ProfileCompletionBanner />}
 
       {profile?.role === "manager" || profile?.role === "operator" ? <ManagerView /> : <StaffView />}
     </div>
@@ -1149,7 +1153,7 @@ function ManagerView() {
             <option value="">Tüm Personel</option>
             {members.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.fullName}{m.department ? ` — ${m.department}` : ""}
+                {m.fullName}{m.department ? ` — ${m.department}` : ""}{m.deactivatedAt ? " (pasif)" : ""}
               </option>
             ))}
           </select>
@@ -1415,7 +1419,7 @@ function ManagerView() {
                   className={inpCls}
                 >
                   <option value="">Personel seçin...</option>
-                  {members.map((m) => (
+                  {members.filter((m) => !m.deactivatedAt).map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.fullName}{m.department ? ` — ${m.department}` : ""}
                     </option>

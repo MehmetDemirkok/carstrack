@@ -12,6 +12,7 @@ import { DEFAULT_NOTIFICATION_PREFS, isDriverRole } from "./types";
 import { photoUrl, thumbPath, isProxyPhotoUrl } from "./vehicle-photo";
 import { resizeDataUrl } from "./image";
 import { advanceVehicleMileage, MAX_VEHICLE_TASK_KM } from "./mileage";
+import { activeRows } from "./member-status";
 
 // ─── TTL data cache ───────────────────────────────────────────
 // Keeps data in memory for 60 seconds so navigating between pages is instant.
@@ -877,7 +878,8 @@ export async function getDrivers(): Promise<(Profile & { assignedVehicleIds: str
     .order("full_name");
   if (error) throw error;
 
-  return setCached(cacheKey, (profiles ?? []).map((row: Record<string, unknown>) => ({
+  // Pasif üyeler atama/seçim listelerinde görünmez (bkz. member-status.ts).
+  return setCached(cacheKey, activeRows(profiles as Record<string, unknown>[] | null).map((row) => ({
     id: row.id as string,
     companyId: row.company_id as string,
     role: row.role as Profile["role"],
@@ -1012,6 +1014,8 @@ export async function getMembers(): Promise<Profile[]> {
     .eq("company_id", companyId)
     .order("full_name");
   if (error) throw error;
+  // Pasif üyeler de döner (geçmiş görev/rapor filtrelerinde isimleri gerekir);
+  // yeni kayıt formları `deactivatedAt` olanları kendisi eler.
   return setCached(cacheKey, (data ?? []).map((row: Record<string, unknown>) => ({
     id: row.id as string,
     companyId: row.company_id as string,
@@ -1022,7 +1026,27 @@ export async function getMembers(): Promise<Profile[]> {
     createdAt: row.created_at as string,
     licenseNumber: (row.license_number as string) || undefined,
     licenses: (row.licenses as DriverLicenseEntry[]) || [],
+    deactivatedAt: (row.deactivated_at as string | null) || undefined,
   })));
+}
+
+/**
+ * Üyeyi şirketten çıkarır (pasifleştirir) veya geri alır. Sunucu tarafında
+ * service-role ile çalışır: Auth banı, atamaların silinmesi ve audit kaydı
+ * /api/members/[id] içinde yapılır.
+ */
+export async function setMemberActive(memberId: string, active: boolean): Promise<void> {
+  const res = await fetch(`/api/members/${memberId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ active }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error || "İşlem başarısız");
+  bustCache("members:");
+  bustCache("drivers:");
+  bustCache(`myvehicles:${memberId}`);
 }
 
 export async function updateMemberProfile(
@@ -1036,6 +1060,7 @@ export async function updateMemberProfile(
   const { error } = await supabase.from("profiles").update(patch).eq("id", memberId);
   if (error) throw error;
   bustCache("members:");
+  bustCache("drivers:");
 }
 
 /**
@@ -1080,7 +1105,9 @@ export async function updateMemberRole(
     .single();
   const { error } = await supabase.from("profiles").update({ role }).eq("id", memberId);
   if (error) throw error;
+  // Rol değişince kişi sürücü listesine girip çıkabilir; ikisini de tazele.
   bustCache("members:");
+  bustCache("drivers:");
   void logActivity("role_changed", "profile", {
     entityId: memberId,
     entityLabel: (before?.full_name as string) || undefined,

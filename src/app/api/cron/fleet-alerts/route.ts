@@ -17,6 +17,7 @@ import {
   resolveTimeZone,
 } from "@/lib/timezone";
 import { withCronLogging } from "@/lib/cron/record";
+import { activeRows } from "@/lib/member-status";
 
 // Kritik uyarılar 3, warning uyarılar 7 günde bir yeniden gönderilir.
 const SUPPRESSION_DAYS: Record<string, number> = {
@@ -99,10 +100,11 @@ async function handler(req: Request): Promise<Response> {
   const userEmailMap = new Map(usersData.users.map((u) => [u.id, u.email ?? ""]));
 
   // ── 4. Digest saatindeki şirketlerin profilleri ────────────────
-  const { data: profiles, error: profilesErr } = await admin
+  const { data: allProfiles, error: profilesErr } = await admin
     .from("profiles")
-    .select("id, company_id, role, full_name, notify_by_email")
+    .select("*")
     .in("company_id", digestCompanyIds);
+  const profiles = activeRows(allProfiles);
   if (profilesErr) {
     console.error("[cron/fleet-alerts] profiles error:", profilesErr);
     return NextResponse.json({ error: "Failed to load profiles" }, { status: 500 });

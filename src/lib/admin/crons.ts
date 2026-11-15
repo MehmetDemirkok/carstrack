@@ -26,6 +26,13 @@ export const CRON_JOBS = [
       "Kullanıcılardan ürünü geliştirmek için geri bildirim ister (zil + push). Pazartesi 12:00 (TR).",
   },
   {
+    path: "/api/cron/profile-reminder",
+    schedule: "30 7 * * *",
+    label: "Profil tamamlama",
+    description:
+      "Profili eksik (ad, departman, sürücüde ehliyet) kullanıcılara hatırlatma gönderir; kişi başı en fazla 4 kez, 7 gün arayla. Her gün 10:30 (TR).",
+  },
+  {
     path: "/api/cron/db-backup",
     schedule: "0 3 * * 1",
     label: "Veritabanı yedeği",

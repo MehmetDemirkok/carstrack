@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendPushToUsers } from "@/lib/push";
 import { sendEventEmailToUsers, type EmailRecipient } from "@/lib/notify-email";
 import type { EventEmailContent } from "@/lib/notify-email";
+import { activeRows } from "@/lib/member-status";
 
 /**
  * Tek olay bildirimi — 3 kanala birden dağıtılır:
@@ -17,7 +18,7 @@ import type { EventEmailContent } from "@/lib/notify-email";
  * Eşlemede olmayan (ör. güvenlik/kurtarma) türler her zaman gönderilir.
  *
  *  - operational: günlük aktivite (yeni araç/kayıt/arıza/görev/ekip/geri bildirim)
- *  - reminders:   kişiye özel hatırlatmalar (ehliyet, trafik cezası)
+ *  - reminders:   kişiye özel hatırlatmalar (ehliyet, trafik cezası, profil tamamlama)
  */
 export const EVENT_CATEGORY: Record<string, "operational" | "reminders"> = {
   vehicle_new: "operational",
@@ -33,6 +34,7 @@ export const EVENT_CATEGORY: Record<string, "operational" | "reminders"> = {
   fine_assigned: "reminders",
   fine_status: "reminders",
   license_expiry: "reminders",
+  profile_incomplete: "reminders",
   fuel_new: "operational",
   fuel_anomaly: "reminders",
   fuel_data_inconsistency: "reminders",
@@ -226,14 +228,15 @@ export async function dispatchToManagers(
   options?: DispatchOptions,
 ): Promise<DispatchResult> {
   // Alıcı kitle: yönetici + operatör — bir kez çekilir.
+  // `*`: pasif üyeleri ele (bkz. member-status.ts — sütun adıyla seçilmez).
   const { data: profiles } = await admin
     .from("profiles")
-    .select("id, full_name, notify_by_email, notification_prefs")
+    .select("*")
     .eq("company_id", companyId)
     .in("role", ["manager", "operator"]);
 
   const explicitExtras = new Set(options?.extraUserIds ?? []);
-  const managers = ((profiles ?? []) as ManagerProfile[]).filter(
+  const managers = activeRows(profiles as ManagerProfile[] | null).filter(
     (m) => m.id !== options?.actorUserId || explicitExtras.has(m.id),
   );
 
@@ -244,10 +247,10 @@ export async function dispatchToManagers(
   if (extraIds.length > 0) {
     const { data: extraProfiles } = await admin
       .from("profiles")
-      .select("id, full_name, notify_by_email, notification_prefs")
+      .select("*")
       .eq("company_id", companyId)
       .in("id", extraIds);
-    for (const p of (extraProfiles ?? []) as ManagerProfile[]) {
+    for (const p of activeRows(extraProfiles as ManagerProfile[] | null)) {
       if (!managers.some((m) => m.id === p.id)) managers.push(p);
     }
   }
@@ -364,11 +367,11 @@ export async function dispatchToUser(
 ): Promise<DispatchResult> {
   const { data: profile } = await admin
     .from("profiles")
-    .select("id, full_name, notify_by_email, notification_prefs")
+    .select("*")
     .eq("id", userId)
     .single();
 
-  if (!profile) return { recipients: 0, inApp: 0, push: 0, email: 0 };
+  if (!profile || activeRows([profile]).length === 0) return { recipients: 0, inApp: 0, push: 0, email: 0 };
 
   return dispatchToProfiles(admin, companyId, [profile as ManagerProfile], event);
 }

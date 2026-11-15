@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { activeRows } from "@/lib/member-status";
 
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
@@ -117,10 +118,10 @@ export async function sendPushToManagers(
   // Şirketteki yönetici/operatörlerin id'leri
   const { data: managers } = await admin
     .from("profiles")
-    .select("id")
+    .select("*")
     .eq("company_id", companyId)
     .in("role", ["manager", "operator"]);
 
-  const userIds = (managers ?? []).map((m) => m.id as string);
+  const userIds = activeRows(managers).map((m) => m.id as string);
   return sendPushToUsers(admin, userIds, payload);
 }

@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchAnnouncement, type AnnouncementRecipient } from "@/lib/notify";
 import { withCronLogging } from "@/lib/cron/record";
+import { activeRows } from "@/lib/member-status";
 
 /**
  * HAFTALIK GERİ BİLDİRİM İSTEĞİ
@@ -39,11 +40,12 @@ async function handler(req: Request): Promise<Response> {
   const dryRun = new URL(req.url).searchParams.get("dry") === "1";
 
   // notifications.company_id zorunlu — yalnızca bir şirkete bağlı kullanıcılar.
-  const { data: profiles, error } = await admin
+  const { data: allProfiles, error } = await admin
     .from("profiles")
-    .select("id, company_id")
+    .select("*")
     .not("company_id", "is", null);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const profiles = activeRows(allProfiles);
 
   // Son MIN_INTERVAL_DAYS gün içinde bu hatırlatmayı alanları ele.
   const cutoff = new Date(Date.now() - MIN_INTERVAL_DAYS * DAY_MS).toISOString();
