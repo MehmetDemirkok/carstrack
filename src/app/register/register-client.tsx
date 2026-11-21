@@ -39,9 +39,13 @@ function getPasswordStrength(pw: string): { level: number; label: string } {
 }
 
 export default function RegisterClient() {
-  const [mode, setMode] = useState<Mode>("create");
+  const searchParams = useSearchParams();
+  // Ayarlar > Ekip Daveti'nden paylaşılan link/QR (?kod=XXXX) "Şirkete Katıl"
+  // modunu kod dolu olarak açar.
+  const sharedInviteCode = (searchParams.get("kod") ?? "").trim().toUpperCase().slice(0, 32);
+  const [mode, setMode] = useState<Mode>(sharedInviteCode ? "join" : "create");
   const [form, setForm] = useState({
-    companyName: "", inviteCode: "",
+    companyName: "", inviteCode: sharedInviteCode,
     fullName: "", email: "", password: "", confirmPassword: "",
   });
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -50,7 +54,6 @@ export default function RegisterClient() {
   const [success, setSuccess] = useState(false);
   const [joinedCompany, setJoinedCompany] = useState("");
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user: activeUser } = useAuth();
   const reduce = useReducedMotion();
 

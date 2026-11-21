@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { avatarDisplayUrl } from "@/lib/avatar";
 
 const TIMEOUT_MS = 8000;
 
@@ -48,7 +49,7 @@ export async function GET() {
         role: data.role,
         fullName: data.full_name,
         department: (data.department as string) || "",
-        avatarUrl: (data.avatar_url as string) || undefined,
+        avatarUrl: avatarDisplayUrl(data.avatar_url),
         notifyByEmail: data.notify_by_email !== false,
         createdAt: data.created_at,
         licenseNumber: (data.license_number as string) || undefined,
