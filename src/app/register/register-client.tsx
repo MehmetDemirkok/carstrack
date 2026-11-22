@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowRight, CheckCircle2, Building2, Users, User, Mail, Lock,
+  ArrowRight, CheckCircle2, Building2, Users, User, Mail, Lock, Phone,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import {
   AuthSubmit,
 } from "@/components/auth/auth-field";
 import { cn } from "@/lib/utils";
+import { PHONE_ERROR, isValidPhone } from "@/lib/phone";
 
 type Mode = "create" | "join" | "invite";
 
@@ -46,7 +47,7 @@ export default function RegisterClient() {
   const [mode, setMode] = useState<Mode>(sharedInviteCode ? "join" : "create");
   const [form, setForm] = useState({
     companyName: "", inviteCode: sharedInviteCode,
-    fullName: "", email: "", password: "", confirmPassword: "",
+    fullName: "", email: "", phone: "", password: "", confirmPassword: "",
   });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState("");
@@ -99,6 +100,7 @@ export default function RegisterClient() {
     if (form.password.length < 8)               { setError("Şifre en az 8 karakter olmalıdır."); return; }
     if (mode === "create" && !form.companyName.trim()) { setError("Şirket adı gereklidir."); return; }
     if (mode === "join"   && !form.inviteCode.trim())  { setError("Davet kodu gereklidir."); return; }
+    if (!isValidPhone(form.phone)) { setError(PHONE_ERROR); return; }
     if (!termsAccepted) { setError("Devam etmek için Kullanım Koşulları'nı kabul etmelisiniz."); return; }
 
     setLoading(true);
@@ -107,7 +109,7 @@ export default function RegisterClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mode, companyName: form.companyName, inviteCode: form.inviteCode, inviteToken,
-        fullName: form.fullName, email: form.email, password: form.password,
+        fullName: form.fullName, email: form.email, phone: form.phone, password: form.password,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         termsAccepted,
       }),
@@ -281,6 +283,29 @@ export default function RegisterClient() {
             required
             readOnly={mode === "invite"}
             autoComplete="email"
+          />
+
+          <AuthField
+            id="reg-phone"
+            label="Cep telefonu"
+            icon={Phone}
+            type="tel"
+            inputMode="tel"
+            value={form.phone}
+            onChange={set("phone")}
+            placeholder="0532 123 45 67"
+            required
+            autoComplete="tel"
+            maxLength={20}
+            hint={
+              <>
+                Hesabınızla ilgili gerektiğinde size ulaşabilmemiz için. Doğrulama kodu gönderilmez, pazarlama
+                amacıyla kullanılmaz.{" "}
+                <Link href="/privacy#telefon" target="_blank" className="font-semibold text-primary hover:underline">
+                  Ayrıntılar
+                </Link>
+              </>
+            }
           />
 
           <div className="grid gap-4 sm:grid-cols-2">

@@ -5,7 +5,7 @@ export const LEGAL_INFO = {
   contactEmail: "[KVKK BAŞVURU E-POSTASI]",
   kepAddress: "[KEP ADRESİ — YOKSA BU SATIR KALDIRILACAK]",
   courtCity: "[YETKİLİ MAHKEME ŞEHRİ]",
-  lastUpdated: "5 Kasım 2026",
+  lastUpdated: "22 Kasım 2026",
 } as const;
 
 /** Koşullar değiştiğinde artırılır; kayıt sırasında kullanıcının app_metadata'sına yazılır. */

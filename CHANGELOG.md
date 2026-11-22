@@ -3,6 +3,21 @@
 > Bu dosya `src/data/changelog.json` dosyasından otomatik üretilir — elle düzenlemeyin.
 > Yeni sürüm için: `npm run release -- <patch|minor|major> "Başlık"` (bkz. CLAUDE.md > Sürümleme).
 
+## v1.2.0 — 2026-11-22
+
+**Telefon numarası**
+
+### Yeni
+
+- Kayıt formunda cep telefonu numarası isteniyor. Doğrulama kodu gönderilmiyor; numara yalnızca iletişim için tutuluyor.
+- Ayarlar > Profil bölümüne telefon alanı eklendi. Numarasını girmemiş mevcut kullanıcılara profil tamamlama kartı, pano bandı ve profil hatırlatması üzerinden soruluyor.
+- Ekip sayfasında üyelerin telefon numarası görünüyor, dokununca aranabiliyor; ekip aramasında numarayla da bulunabiliyor.
+
+### İyileştirme
+
+- Gizlilik Politikası ve KVKK Aydınlatma Metni'ne telefon numarasının hangi amaçla tutulduğunu, kimlerin görebildiğini ve pazarlama için kullanılmadığını anlatan bölüm eklendi; Kullanım Koşulları güncellendi.
+- "Verilerimi indir" dosyasında telefon numarası da yer alıyor.
+
 ## v1.1.0 — 2026-11-22
 
 **Ayarlar sayfası iyileştirmeleri**

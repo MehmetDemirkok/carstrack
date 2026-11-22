@@ -8,6 +8,7 @@ import { isPushSupported, rebindPushSubscription, unsubscribeFromPush } from "@/
 import type { Profile, Company, DriverLicenseEntry, NotificationPrefs } from "@/lib/types";
 import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/types";
 import { avatarDisplayUrl } from "@/lib/avatar";
+import { isMissingPhoneColumn } from "@/lib/phone";
 
 interface AuthContextType {
   user: User | null;
@@ -47,11 +48,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setCompany({ id: metadataCompanyId, name: "Yükleniyor...", createdAt: "", inviteCode: "" });
         }
 
-        const { data, error } = await supabase
+        const cols = "id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, license_number, licenses, notification_prefs, companies(*)";
+        let { data, error } = await supabase
           .from("profiles")
-          .select("id, company_id, role, full_name, department, avatar_url, notify_by_email, created_at, license_number, licenses, notification_prefs, companies(*)")
+          .select(`${cols}, phone`)
           .eq("id", userId)
-          .single();
+          .single<Record<string, unknown>>();
+        // phone sütunu henüz yoksa (20261123_profile_phone.sql uygulanmamış)
+        // profil yüklenemez hale gelmesin — telefonsuz tekrar oku.
+        if (error && isMissingPhoneColumn(error)) {
+          ({ data, error } = await supabase
+            .from("profiles")
+            .select(cols)
+            .eq("id", userId)
+            .single<Record<string, unknown>>());
+        }
 
         if (error || !data) {
           console.error("loadProfile error:", error?.message ?? "no data");
@@ -70,14 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         primeUserRole(data.id as string, data.role as string);
 
         setProfile({
-          id: data.id,
-          companyId: data.company_id,
+          id: data.id as string,
+          companyId: data.company_id as string,
           role: data.role as "manager" | "operator" | "user",
-          fullName: data.full_name,
+          fullName: data.full_name as string,
           department: (data.department as string) || "",
+          phone: (data.phone as string) || undefined,
           avatarUrl: avatarDisplayUrl(data.avatar_url),
           notifyByEmail: data.notify_by_email !== false,
-          createdAt: data.created_at,
+          createdAt: data.created_at as string,
           licenseNumber: (data.license_number as string) || undefined,
           licenses: (data.licenses as DriverLicenseEntry[]) || [],
           notificationPrefs: (data.notification_prefs as NotificationPrefs) || DEFAULT_NOTIFICATION_PREFS,

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Car, IdCard, Pencil } from "lucide-react";
+import { Car, IdCard, Pencil, Phone } from "lucide-react";
+import { formatPhone, phoneHref } from "@/lib/phone";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { avatarColor, formatDuration, getInitials, licenseBadge, roleBadge, type MemberView } from "./team-utils";
 
@@ -51,6 +52,15 @@ export function MemberCard({
           </div>
 
           {member.department && <p className="text-xs text-muted-foreground mt-0.5">{member.department}</p>}
+
+          {member.phone && (
+            <a
+              href={phoneHref(member.phone)}
+              className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary tabular-nums"
+            >
+              <Phone className="h-3 w-3 shrink-0" aria-hidden /> {formatPhone(member.phone)}
+            </a>
+          )}
 
           {license && (
             <span className={`mt-1.5 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${license.cls}`}>

@@ -13,7 +13,7 @@ import { completionUrl, getMissingProfileFields } from "@/lib/profile-completene
 /**
  * PROFİL TAMAMLAMA HATIRLATICISI
  *
- * Profilinde eksik bilgi (ad soyad, departman; sürücüde ehliyet no/sınıf/
+ * Profilinde eksik bilgi (ad soyad, telefon, departman; sürücüde ehliyet no/sınıf/
  * geçerlilik tarihi) olan aktif kullanıcılara zil + push + e-posta ile
  * "Profilinizi tamamlayın" hatırlatması gönderir. Kural tek yerde:
  * src/lib/profile-completeness.ts (ayarlar sayfasındaki kartla aynı).
@@ -38,6 +38,8 @@ interface ProfileRow {
   company_id: string | null;
   role: string;
   full_name: string | null;
+  /** 20261123_profile_phone.sql öncesinde yok (select("*") — sütun yoksa undefined). */
+  phone?: string | null;
   department: string | null;
   license_number: string | null;
   licenses: DriverLicenseEntry[] | null;
@@ -76,6 +78,9 @@ async function handler(req: Request): Promise<Response> {
   }
 
   const now = Date.now();
+  // phone sütunu henüz yoksa (migration uygulanmamış) herkes "telefon eksik"
+  // sayılıp gereksiz hatırlatma almasın — telefonu kurala katma.
+  const hasPhoneColumn = (rows ?? []).some((r) => "phone" in (r as Record<string, unknown>));
   const candidates = activeRows(rows as ProfileRow[] | null)
     .filter((p) => now - new Date(p.created_at).getTime() >= MIN_AGE_DAYS * DAY_MS)
     .map((p) => ({
@@ -83,10 +88,11 @@ async function handler(req: Request): Promise<Response> {
       missing: getMissingProfileFields({
         role: p.role,
         fullName: p.full_name,
+        phone: p.phone,
         department: p.department,
         licenseNumber: p.license_number,
         licenses: p.licenses,
-      }),
+      }).filter((m) => hasPhoneColumn || m.key !== "phone"),
     }))
     .filter((c) => c.missing.length > 0);
 

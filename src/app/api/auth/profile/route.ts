@@ -49,6 +49,7 @@ export async function GET() {
         role: data.role,
         fullName: data.full_name,
         department: (data.department as string) || "",
+        phone: (data.phone as string) || undefined,
         avatarUrl: avatarDisplayUrl(data.avatar_url),
         notifyByEmail: data.notify_by_email !== false,
         createdAt: data.created_at,

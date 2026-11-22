@@ -6,6 +6,22 @@ import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { generateInviteCode } from "@/lib/invite-code";
 import { resolveTimeZone } from "@/lib/timezone";
 import { TERMS_VERSION } from "@/lib/legal";
+import { PHONE_ERROR, isMissingPhoneColumn, normalizePhone } from "@/lib/phone";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Profil satırını telefonla birlikte yazar. `phone` sütunu henüz yoksa
+ * (20261123_profile_phone.sql uygulanmamış) kaydı engellememek için
+ * telefonsuz tekrar dener; kullanıcıdan numara sonra Ayarlar'da istenir.
+ */
+async function insertProfile(db: SupabaseClient, row: Record<string, unknown>, phone: string) {
+  const first = await db.from("profiles").insert({ ...row, phone });
+  if (first.error && isMissingPhoneColumn(first.error)) {
+    console.warn("[register] profiles.phone yok, telefonsuz kaydediliyor:", first.error.message);
+    return db.from("profiles").insert(row);
+  }
+  return first;
+}
 
 export async function POST(req: Request) {
   try {
@@ -21,8 +37,14 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { mode, fullName, email, password, companyName, inviteCode, inviteToken, timezone, termsAccepted } = body;
 
-    if (!fullName || !email || !password) {
+    if (!fullName || !email || !password || !body.phone) {
       return NextResponse.json({ error: "Lütfen tüm alanları doldurun." }, { status: 400 });
+    }
+
+    // Telefon yalnızca biçimsel kontrol edilir; SMS ile doğrulama yapılmaz.
+    const phone = normalizePhone(body.phone);
+    if (!phone) {
+      return NextResponse.json({ error: PHONE_ERROR }, { status: 400 });
     }
 
     if (termsAccepted !== true) {
@@ -84,12 +106,12 @@ export async function POST(req: Request) {
 
       const userId = authData.user!.id;
 
-      const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+      const { error: profileError } = await insertProfile(supabaseAdmin, {
         id: userId,
         company_id: company.id,
         role: "user",
         full_name: fullName,
-      });
+      }, phone);
 
       if (profileError) {
         await supabaseAdmin.auth.admin.deleteUser(userId);
@@ -175,12 +197,12 @@ export async function POST(req: Request) {
 
       const userId = authData.user!.id;
 
-      const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+      const { error: profileError } = await insertProfile(supabaseAdmin, {
         id: userId,
         company_id: companyId,
         role,
         full_name: fullName,
-      });
+      }, phone);
 
       if (profileError) {
         await supabaseAdmin.auth.admin.deleteUser(userId);
@@ -280,12 +302,12 @@ export async function POST(req: Request) {
     const userId = authData.user!.id;
 
     // 3. Create profile
-    const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+    const { error: profileError } = await insertProfile(supabaseAdmin, {
       id: userId,
       company_id: companyData.id,
       role: "manager",
       full_name: fullName,
-    });
+    }, phone);
 
     if (profileError) {
       await supabaseAdmin.from("companies").delete().eq("id", companyData.id);

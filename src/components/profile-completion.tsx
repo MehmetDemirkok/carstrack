@@ -21,6 +21,7 @@ export function useProfileCompleteness() {
   const input = {
     role: profile.role,
     fullName: profile.fullName,
+    phone: profile.phone,
     department: profile.department,
     licenseNumber: profile.licenseNumber,
     licenses: profile.licenses,
@@ -105,6 +106,7 @@ export function ProfileCompletionCard({ onJump }: { onJump: (section: MissingFie
 
   const all: { label: string; done: boolean; section: MissingField["section"] }[] = [
     { label: "Ad Soyad", done: !missing.some((m) => m.key === "fullName"), section: "profil" },
+    { label: "Telefon", done: !missing.some((m) => m.key === "phone"), section: "profil" },
     ...(needsDept
       ? [{ label: "Departman / Ünvan", done: !missing.some((m) => m.key === "department"), section: "profil" as const }]
       : []),

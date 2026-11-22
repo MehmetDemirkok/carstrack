@@ -219,6 +219,7 @@ const FEEDBACK_TYPE_LABELS: Record<string, string> = { bug: "Hata Bildirimi", su
 interface MyProfileExport {
   fullName?: string;
   email?: string;
+  phone?: string;
   role?: string;
   department?: string;
   company?: string;
@@ -230,6 +231,7 @@ function profileRows(p: MyProfileExport) {
   const rows = [
     { "Alan": "Ad Soyad", "Değer": p.fullName ?? "" },
     { "Alan": "E-posta", "Değer": p.email ?? "" },
+    { "Alan": "Telefon", "Değer": p.phone ?? "" },
     { "Alan": "Rol", "Değer": (p.role && ROLE_LABELS[p.role]) ?? p.role ?? "" },
     { "Alan": "Departman", "Değer": p.department ?? "" },
     { "Alan": "Şirket", "Değer": p.company ?? "" },
