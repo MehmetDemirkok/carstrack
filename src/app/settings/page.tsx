@@ -10,9 +10,13 @@ import {
   Moon, Sun, Shield, HelpCircle, ChevronRight,
   Smartphone, Languages, Info, Car,
   Check, Globe, X, LogOut, Building2, Copy, Users, Camera, Mail, Lock, BellRing,
-  RefreshCw, Activity, Clock, KeyRound, Download, Trash2, AlertTriangle,
+  RefreshCw, Activity, Clock, KeyRound, Download, Trash2, AlertTriangle, Monitor, Sparkles as SparklesIcon, LogIn,
 } from "lucide-react";
-import { isPushSupported, subscribeToPush, unsubscribeFromPush, getPushSubscribed } from "@/lib/push-client";
+import { isPushSupported, subscribeToPush, unsubscribeFromPush, getPushSubscribed, getCurrentPushEndpoint } from "@/lib/push-client";
+import { describeUserAgent } from "@/lib/user-agent";
+import { APP_VERSION, COMMIT_SHA, BUILD_DATE } from "@/lib/app-version";
+import { ReleaseNotesDialog } from "@/components/release-notes-dialog";
+import { InviteShareActions } from "@/components/invite-share";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -33,7 +37,7 @@ import { isDriverRole } from "@/lib/types";
 import { fileToBase64, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS, SCAN_MAX_FILE_SIZE } from "@/lib/file-utils";
 import { DEFAULT_TIMEZONE, TIMEZONES, TIMEZONES_BY_REGION, getTimezoneLabel, resolveTimeZone } from "@/lib/timezone";
 import {
-  updateNotificationPrefs,
+  updateNotificationPrefs, uploadMyAvatar, removeMyAvatar,
   getMyVehicles, getMyTrafficFines, getMyReports, getMyFeedback,
 } from "@/lib/db";
 import { exportMyDataExcel } from "@/lib/export-lazy";
@@ -46,50 +50,70 @@ interface BeforeInstallPromptEvent extends Event {
 const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
 
+/**
+ * Ayar satırı. Tıklanabilirse klavyeyle de çalışır (Enter/Space).
+ * `checked` verilirse satırın tamamı bir anahtar (role="switch") olur —
+ * sağdaki <Toggle> yalnızca görseldir; böylece tek tıklama yolu kalır ve
+ * iç içe etkileşimli öğe oluşmaz.
+ */
 function SettingItem({
-  icon: Icon, iconBg, iconColor, label, description, trailing, onClick,
+  icon: Icon, iconBg, iconColor, label, description, trailing, onClick, checked, disabled,
 }: {
   icon: React.ElementType; iconBg: string; iconColor: string;
   label: string; description?: string; trailing?: React.ReactNode; onClick?: () => void;
+  checked?: boolean; disabled?: boolean;
 }) {
+  const interactive = !!onClick && !disabled;
+  const isSwitch = checked !== undefined;
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!interactive || e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick!();
+    }
+  };
   return (
     <div
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors tap-highlight-transparent text-left ${onClick ? "cursor-pointer" : ""}`}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      onClick={interactive ? onClick : undefined}
+      onKeyDown={onKeyDown}
+      className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors tap-highlight-transparent text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${interactive ? "cursor-pointer hover:bg-muted/50" : ""} ${disabled ? "opacity-60" : ""}`}
+      role={onClick ? (isSwitch ? "switch" : "button") : undefined}
+      aria-checked={onClick && isSwitch ? checked : undefined}
+      aria-disabled={onClick && disabled ? true : undefined}
+      aria-label={description ? `${label}. ${description}` : label}
+      tabIndex={interactive ? 0 : undefined}
     >
-      <div className={`p-2 rounded-xl ${iconBg} shrink-0`}>
+      <div className={`p-2 rounded-xl ${iconBg} shrink-0`} aria-hidden="true">
         <Icon className={`h-4 w-4 ${iconColor}`} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium">{label}</p>
         {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
       </div>
-      {trailing ?? <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+      {trailing ?? <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />}
     </div>
   );
 }
 
-function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+/** Anahtar görseli — etkileşim ve erişilebilirlik bilgisi onu saran SettingItem'da. */
+function Toggle({ on }: { on: boolean }) {
   return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+    <span
+      aria-hidden="true"
       className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${on ? "bg-primary" : "bg-muted"}`}
-      aria-checked={on}
-      role="switch"
     >
-      <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform ${on ? "translate-x-5" : "translate-x-0.5"}`} />
-    </button>
+      <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform ${on ? "translate-x-5" : "translate-x-0.5"}`} />
+    </span>
   );
 }
+
 
 function getInitials(name: string): string {
   return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
 export default function SettingsPage() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const { locale, setLocale, t } = useLanguage();
   const { user, profile, company, signOut, refreshProfile } = useAuth();
   const router = useRouter();
@@ -122,13 +146,11 @@ export default function SettingsPage() {
         const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
         setAvatarSaving(true);
         try {
-          const supabase = createClient();
-          const { error } = await supabase
-            .from("profiles")
-            .update({ avatar_url: dataUrl })
-            .eq("id", user!.id);
-          if (error) throw error;
-          setLocalAvatar(dataUrl);
+          // Storage'a yükler (yoksa satır içi kaydeder); kenar çubuğu ve üst
+          // bar da güncellensin diye profil yeniden okunur.
+          const url = await uploadMyAvatar(dataUrl);
+          setLocalAvatar(url);
+          await refreshProfile();
           toast.success("Profil fotoğrafı güncellendi");
         } catch {
           toast.error("Fotoğraf kaydedilemedi");
@@ -144,13 +166,9 @@ export default function SettingsPage() {
   const handleRemoveAvatar = async () => {
     setAvatarRemoving(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("profiles")
-        .update({ avatar_url: null })
-        .eq("id", user!.id);
-      if (error) throw error;
+      await removeMyAvatar();
       setLocalAvatar(undefined);
+      await refreshProfile();
       toast.success("Profil fotoğrafı kaldırıldı");
     } catch {
       toast.error("Kaldırılamadı");
@@ -207,6 +225,9 @@ export default function SettingsPage() {
         .update({ department: department.trim() })
         .eq("id", user!.id);
       if (error) throw error;
+      // Profil tamamlama kartı/banner'ı ve Kaydet butonunun durumu
+      // profile.department'a bakıyor — yenilenmezse eski değerde kalır.
+      await refreshProfile();
       toast.success("Departman güncellendi");
     } catch {
       toast.error("Kaydedilemedi");
@@ -507,6 +528,7 @@ export default function SettingsPage() {
   // Dialogs
   const [showLang, setShowLang] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showEmailChange, setShowEmailChange] = useState(false);
@@ -630,6 +652,31 @@ export default function SettingsPage() {
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deleteAccountForm, setDeleteAccountForm] = useState({ password: "", confirmText: "" });
   const [deletingAccount, setDeletingAccount] = useState(false);
+  // Dialog açılınca sunucuya "kapatılabilir mi?" diye sorulur (tek yönetici,
+  // aktif seyahat) — engel varsa form baştan kapalı gösterilir.
+  const [deleteEligibility, setDeleteEligibility] = useState<
+    { state: "checking" } | { state: "allowed" } | { state: "blocked"; reason: string }
+  >({ state: "checking" });
+
+  useEffect(() => {
+    if (!showDeleteAccount) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- dialog her açılışta yeniden kontrol eder
+    setDeleteEligibility({ state: "checking" });
+    fetch("/api/account/delete-request", { credentials: "same-origin" })
+      .then((res) => res.json())
+      .then((data: { allowed?: boolean; reason?: string }) => {
+        if (cancelled) return;
+        setDeleteEligibility(
+          data.allowed === false
+            ? { state: "blocked", reason: data.reason || "Hesabınız şu anda kapatılamıyor." }
+            : { state: "allowed" },
+        );
+      })
+      // Kontrol yapılamazsa formu açık bırak — POST aynı kuralı yine uygular.
+      .catch(() => { if (!cancelled) setDeleteEligibility({ state: "allowed" }); });
+    return () => { cancelled = true; };
+  }, [showDeleteAccount]);
 
   const handleDeleteAccount = async () => {
     const { password, confirmText } = deleteAccountForm;
@@ -677,17 +724,64 @@ export default function SettingsPage() {
       if (pushSubscribed) {
         await unsubscribeFromPush();
         setPushSubscribed(false);
-        toast.success("Telefon bildirimleri kapatıldı");
+        toast.success("Anlık bildirimler bu cihazda kapatıldı");
       } else {
         await subscribeToPush();
         setPushSubscribed(true);
-        toast.success("Telefon bildirimleri açıldı", { description: "Bu cihaza uyarılar gönderilecek." });
+        toast.success("Anlık bildirimler açıldı", { description: "Bu cihaza uyarılar gönderilecek." });
       }
+      void loadPushDevices();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Bir hata oluştu";
       toast.error("Bildirim açılamadı", { description: msg });
     } finally {
       setPushBusy(false);
+    }
+  };
+
+  // Anlık bildirim alan cihazlar — başka cihazdaki abonelik buradan kaldırılabilir
+  // (ör. kaybolan telefon, artık kullanılmayan iş bilgisayarı).
+  type PushDevice = { id: string; endpoint: string; userAgent: string | null; createdAt: string | null };
+  const [pushDevices, setPushDevices] = useState<PushDevice[] | null>(null);
+  const [currentPushEndpoint, setCurrentPushEndpoint] = useState<string | null>(null);
+  const [removingDeviceId, setRemovingDeviceId] = useState<string | null>(null);
+
+  const loadPushDevices = async () => {
+    try {
+      const [res, endpoint] = await Promise.all([
+        fetch("/api/push/devices", { credentials: "same-origin" }),
+        getCurrentPushEndpoint().catch(() => null),
+      ]);
+      if (!res.ok) return;
+      const data = (await res.json()) as { devices: PushDevice[] };
+      setCurrentPushEndpoint(endpoint);
+      setPushDevices(data.devices);
+    } catch {
+      // Liste gösterilemezse ana anahtar yine çalışır.
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void loadPushDevices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const handleRemoveDevice = async (device: PushDevice) => {
+    if (device.endpoint === currentPushEndpoint) {
+      await handlePushToggle();
+      return;
+    }
+    setRemovingDeviceId(device.id);
+    try {
+      const res = await fetch(`/api/push/devices?id=${encodeURIComponent(device.id)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setPushDevices((prev) => prev?.filter((d) => d.id !== device.id) ?? null);
+      toast.success("Cihaz kaldırıldı", { description: "Bu cihaza artık anlık bildirim gönderilmeyecek." });
+    } catch {
+      toast.error("Cihaz kaldırılamadı");
+    } finally {
+      setRemovingDeviceId(null);
     }
   };
 
@@ -821,6 +915,7 @@ export default function SettingsPage() {
                       htmlFor="avatar-upload"
                       className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary shadow-md flex items-center justify-center cursor-pointer ring-2 ring-background transition-transform active:scale-95"
                       title="Fotoğraf değiştir"
+                      aria-label="Profil fotoğrafını değiştir"
                     >
                       {avatarSaving
                         ? <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-r-transparent animate-spin" />
@@ -830,8 +925,9 @@ export default function SettingsPage() {
                     <input
                       id="avatar-upload"
                       type="file"
-                      accept="image/*"
-                      className="sr-only"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only peer"
+                      aria-label="Profil fotoğrafı yükle"
                       onChange={(e) => { handleAvatarFile(e.target.files?.[0] ?? null); e.target.value = ""; }}
                     />
                   </div>
@@ -866,11 +962,14 @@ export default function SettingsPage() {
 
               {/* Ad Soyad edit */}
               <div className="pt-3 border-t border-border/30 space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                <label htmlFor="settings-full-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                   Ad Soyad
                 </label>
                 <div className="flex gap-2">
                   <input
+                    id="settings-full-name"
+                    autoComplete="name"
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveFullName(); }}
                     value={fullNameInput}
                     onChange={(e) => setFullNameInput(e.target.value)}
                     placeholder="Ad Soyad"
@@ -888,11 +987,14 @@ export default function SettingsPage() {
 
               {/* Department / Title edit */}
               <div className="pt-3 border-t border-border/30 space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                <label htmlFor="settings-department" className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                   Departman / Ünvan
                 </label>
                 <div className="flex gap-2">
                   <input
+                    id="settings-department"
+                    autoComplete="organization-title"
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveDept(); }}
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     placeholder="Örn: Satış, Teknik, İdari İşler..."
@@ -924,6 +1026,8 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setLicenseOpen((v) => !v)}
+                aria-expanded={licenseOpen}
+                aria-controls="ehliyet-icerik"
                 className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left tap-highlight-transparent"
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -958,7 +1062,7 @@ export default function SettingsPage() {
                 <ChevronRight className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${licenseOpen ? "rotate-90" : ""}`} />
               </button>
               {licenseOpen && (
-              <CardContent className="p-5 pt-0 space-y-3">
+              <CardContent id="ehliyet-icerik" className="p-5 pt-0 space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Bu bilgiler zorunlu değildir; eklerseniz süre takibi ve hatırlatma yapabiliriz.</span>
                 </div>
@@ -1024,6 +1128,7 @@ export default function SettingsPage() {
                                         <button
                                           type="button"
                                           onClick={() => (side === "front" ? setLicenseScanFront(null) : setLicenseScanBack(null))}
+                                          aria-label="Dosyayı kaldır"
                                           className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                                         />
                                       }
@@ -1075,8 +1180,9 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Ehliyet No</label>
+                  <label htmlFor="settings-license-number" className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Ehliyet No</label>
                   <input
+                    id="settings-license-number"
                     value={licenseNumber}
                     onChange={(e) => setLicenseNumber(e.target.value)}
                     placeholder="Opsiyonel"
@@ -1085,8 +1191,8 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Sınıf(lar)</label>
-                  <div className="flex flex-wrap gap-1.5">
+                  <p id="settings-license-classes" className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Sınıf(lar)</p>
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby="settings-license-classes">
                     {LICENSE_CLASSES.map((c) => {
                       const active = licenseEntries.some((e) => e.class === c);
                       return (
@@ -1094,6 +1200,7 @@ export default function SettingsPage() {
                           key={c}
                           type="button"
                           onClick={() => toggleLicenseClass(c)}
+                          aria-pressed={active}
                           className={`h-8 px-3 rounded-full text-xs font-semibold border transition-colors ${
                             active
                               ? "bg-primary/15 border-primary text-primary"
@@ -1121,6 +1228,7 @@ export default function SettingsPage() {
                                   <button
                                     type="button"
                                     onClick={() => toggleLicenseClass(entry.class)}
+                                    aria-label={`${entry.class} sınıfını kaldır`}
                                     className="text-muted-foreground hover:text-red-500 transition-colors"
                                   />
                                 }
@@ -1132,8 +1240,9 @@ export default function SettingsPage() {
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Veriliş Tarihi</label>
+                              <label htmlFor={`license-${entry.class}-issue`} className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Veriliş Tarihi</label>
                               <input
+                                id={`license-${entry.class}-issue`}
                                 type="date"
                                 value={entry.issueDate ?? ""}
                                 onChange={(e) => updateLicenseEntry(entry.class, "issueDate", e.target.value)}
@@ -1141,8 +1250,9 @@ export default function SettingsPage() {
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Geçerlilik Tarihi</label>
+                              <label htmlFor={`license-${entry.class}-expiry`} className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Geçerlilik Tarihi</label>
                               <input
+                                id={`license-${entry.class}-expiry`}
                                 type="date"
                                 value={entry.expiryDate ?? ""}
                                 onChange={(e) => updateLicenseEntry(entry.class, "expiryDate", e.target.value)}
@@ -1214,6 +1324,7 @@ export default function SettingsPage() {
                               variant="outline"
                               size="icon"
                               className="rounded-xl h-12 w-12 shrink-0 border-border/50"
+                              aria-label="Davet kodunu kopyala"
                               onClick={() => {
                                 navigator.clipboard.writeText(inviteCode);
                                 toast.success("Kopyalandı", { description: "Davet kodu panoya kopyalandı." });
@@ -1250,6 +1361,7 @@ export default function SettingsPage() {
                         </button>
                       )}
                     </div>
+                    <InviteShareActions code={inviteCode} companyName={company?.name} />
                   </>
                 ) : (
                   <div className="bg-muted/50 border border-border/40 rounded-xl px-4 py-3 text-xs text-muted-foreground">
@@ -1258,7 +1370,7 @@ export default function SettingsPage() {
                 )}
 
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Yeni çalışanlar kayıt ekranında <span className="font-semibold text-foreground">&ldquo;Şirkete Katıl&rdquo;</span> seçeneğini seçip bu kodu girerek filonuza erişim sağlayabilir. Katılanlar otomatik olarak <span className="font-semibold text-foreground">Sürücü</span> rolüyle eklenir.
+                  Linki ya da QR kodu paylaşın: açan kişi kayıt ekranına kod dolu gelir. Kodu elle vermek isterseniz kayıt ekranında <span className="font-semibold text-foreground">&ldquo;Şirkete Katıl&rdquo;</span> seçeneğinde girilir. Katılanlar otomatik olarak <span className="font-semibold text-foreground">Sürücü</span> rolüyle eklenir.
                 </p>
               </CardContent>
             </Card>
@@ -1279,8 +1391,9 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Şirket Adı</label>
+                      <label htmlFor="company-name" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Şirket Adı</label>
                       <input
+                        id="company-name"
                         value={companyInfo.name}
                         onChange={(e) => setCompanyInfo((p) => ({ ...p, name: e.target.value }))}
                         placeholder="Şirket adı"
@@ -1288,8 +1401,9 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Adres</label>
+                      <label htmlFor="company-address" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Adres</label>
                       <textarea
+                        id="company-address"
                         value={companyInfo.address}
                         onChange={(e) => setCompanyInfo((p) => ({ ...p, address: e.target.value }))}
                         placeholder="Şirket açık adresi"
@@ -1299,8 +1413,12 @@ export default function SettingsPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Telefon</label>
+                        <label htmlFor="company-phone" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Telefon</label>
                         <input
+                          id="company-phone"
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
                           value={companyInfo.phone}
                           onChange={(e) => setCompanyInfo((p) => ({ ...p, phone: e.target.value }))}
                           placeholder="0212 000 00 00"
@@ -1308,8 +1426,11 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">E-posta</label>
+                        <label htmlFor="company-email" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">E-posta</label>
                         <input
+                          id="company-email"
+                          type="email"
+                          autoComplete="email"
                           value={companyInfo.email}
                           onChange={(e) => setCompanyInfo((p) => ({ ...p, email: e.target.value }))}
                           placeholder="info@sirket.com"
@@ -1319,8 +1440,9 @@ export default function SettingsPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Vergi Dairesi</label>
+                        <label htmlFor="company-tax-office" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Vergi Dairesi</label>
                         <input
+                          id="company-tax-office"
                           value={companyInfo.taxOffice}
                           onChange={(e) => setCompanyInfo((p) => ({ ...p, taxOffice: e.target.value }))}
                           placeholder="Vergi dairesi"
@@ -1328,8 +1450,9 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Vergi No</label>
+                        <label htmlFor="company-tax-number" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Vergi No</label>
                         <input
+                          id="company-tax-number"
                           value={companyInfo.taxNumber}
                           onChange={(e) => setCompanyInfo((p) => ({ ...p, taxNumber: e.target.value }))}
                           placeholder="Vergi numarası"
@@ -1389,50 +1512,122 @@ export default function SettingsPage() {
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">{t("settings_preferences")}</h3>
           <Card className="rounded-2xl border-border/40 shadow-sm">
             <CardContent className="p-2">
-              <SettingItem
-                icon={mounted && theme === "dark" ? Moon : Sun}
-                iconBg="bg-violet-500/10"
-                iconColor="text-violet-500"
-                label={t("settings_theme")}
-                description={!mounted ? undefined : theme === "dark" ? t("settings_theme_dark") : theme === "light" ? t("settings_theme_light") : t("settings_theme_system")}
-                trailing={<Toggle on={mounted && theme === "dark"} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />}
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              />
+              {/* Tema — Açık / Koyu / Sistem (eskiden yalnızca açık↔koyu geçişi vardı, "Sistem"e dönülemiyordu) */}
+              <div className="flex flex-wrap items-center gap-3 p-3">
+                <div className="p-2 rounded-xl bg-violet-500/10 shrink-0" aria-hidden="true">
+                  {mounted && resolvedTheme === "dark"
+                    ? <Moon className="h-4 w-4 text-violet-500" />
+                    : <Sun className="h-4 w-4 text-violet-500" />}
+                </div>
+                <div className="flex-1 min-w-[96px]">
+                  <p id="theme-label" className="text-sm font-medium">{t("settings_theme")}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {!mounted ? "\u00a0" : theme === "system" ? `${t("settings_theme_system")} (${resolvedTheme === "dark" ? "koyu" : "açık"})` : theme === "dark" ? t("settings_theme_dark") : t("settings_theme_light")}
+                  </p>
+                </div>
+                <div role="radiogroup" aria-labelledby="theme-label" className="flex rounded-xl bg-muted/60 p-0.5 shrink-0">
+                  {([
+                    { value: "light", label: "Açık", icon: Sun },
+                    { value: "dark", label: "Koyu", icon: Moon },
+                    { value: "system", label: "Sistem", icon: Monitor },
+                  ] as const).map(({ value, label, icon: ThemeIcon }) => {
+                    const active = mounted && theme === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setTheme(value)}
+                        className={`flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                          active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <ThemeIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <SettingItem
                 icon={Mail}
                 iconBg="bg-violet-500/10"
                 iconColor="text-violet-500"
                 label={emailNotifSaving ? t("notif_email_saving") : t("notif_email")}
                 description={t("notif_email_desc")}
-                trailing={<Toggle on={emailNotif} onToggle={handleEmailNotifToggle} />}
+                checked={emailNotif}
+                disabled={emailNotifSaving}
+                trailing={<Toggle on={emailNotif} />}
                 onClick={handleEmailNotifToggle}
               />
-              {/* Telefon (Web Push) bildirimleri — tüm roller (sürücüler de görev/km/ehliyet/ceza push'u alıyor) */}
+              {/* Anlık (Web Push) bildirimler — tüm roller; telefon ve masaüstü tarayıcılarında çalışır */}
               <SettingItem
                 icon={BellRing}
                 iconBg="bg-orange-500/10"
                 iconColor="text-orange-500"
-                label="Telefon Bildirimleri"
+                label="Anlık Bildirimler"
                 description={
                   !pushSupported
                     ? (isIOS && !isInstalled
                         ? "Önce uygulamayı ana ekrana ekleyin (iOS gereği)"
-                        : "Bu cihaz push bildirimini desteklemiyor")
+                        : "Bu tarayıcı anlık bildirimi desteklemiyor")
                     : pushSubscribed
-                      ? "Açık — uyarılar bu telefona gönderiliyor"
-                      : "Filo uyarılarını telefonunuza alın"
+                      ? "Açık — uyarılar bu cihaza gönderiliyor"
+                      : "Filo uyarılarını bu cihazda (telefon veya bilgisayar) anında alın"
                 }
+                checked={pushSupported ? pushSubscribed : undefined}
+                disabled={pushBusy}
                 trailing={
                   !pushSupported ? (
                     <Badge variant="secondary" className="text-[10px] border-none">–</Badge>
                   ) : pushBusy ? (
-                    <span className="h-5 w-5 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" />
+                    <span className="h-5 w-5 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" aria-hidden="true" />
                   ) : (
-                    <Toggle on={pushSubscribed} onToggle={handlePushToggle} />
+                    <Toggle on={pushSubscribed} />
                   )
                 }
-                onClick={pushSupported && !pushBusy ? handlePushToggle : undefined}
+                onClick={pushSupported ? handlePushToggle : undefined}
               />
+              {/* Bildirim alan cihazlar — başka cihazdaki abonelik uzaktan kaldırılabilir */}
+              {pushDevices && pushDevices.length > 0 && (
+                <div className="mx-3 mb-2 rounded-xl border border-border/40 bg-muted/20 p-2.5 space-y-1.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-0.5">
+                    Bildirim alan cihazlar ({pushDevices.length})
+                  </p>
+                  <ul className="space-y-1">
+                    {pushDevices.map((device) => {
+                      const isThis = device.endpoint === currentPushEndpoint;
+                      const name = describeUserAgent(device.userAgent);
+                      return (
+                        <li key={device.id} className="flex items-center gap-2 rounded-lg bg-background/70 px-2.5 py-1.5">
+                          <Smartphone className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">
+                              {name}
+                              {isThis && <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wider text-primary">Bu cihaz</span>}
+                            </p>
+                            {device.createdAt && (
+                              <p className="text-[10px] text-muted-foreground">
+                                Eklendi: {new Date(device.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { void handleRemoveDevice(device); }}
+                            disabled={removingDeviceId === device.id || (isThis && pushBusy)}
+                            aria-label={`${name} cihazını bildirimlerden kaldır`}
+                            className="text-[11px] font-semibold text-destructive/80 hover:text-destructive disabled:opacity-40 shrink-0 px-1"
+                          >
+                            {removingDeviceId === device.id ? "…" : "Kaldır"}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
               {/* Kategori bazlı bildirim tercihleri — yalnızca push/e-posta'yı filtreler, zil her zaman gelir */}
               <SettingItem
                 icon={Activity}
@@ -1440,7 +1635,9 @@ export default function SettingsPage() {
                 iconColor="text-sky-500"
                 label={categoryPrefSaving === "operational" ? "Kaydediliyor…" : "Günlük Aktivite Bildirimleri"}
                 description="Yeni araç, servis kaydı, arıza, görev, ekip ve geri bildirim güncellemeleri"
-                trailing={<Toggle on={operationalNotif} onToggle={() => handleCategoryToggle("operational")} />}
+                checked={operationalNotif}
+                disabled={categoryPrefSaving === "operational"}
+                trailing={<Toggle on={operationalNotif} />}
                 onClick={() => handleCategoryToggle("operational")}
               />
               <SettingItem
@@ -1449,7 +1646,9 @@ export default function SettingsPage() {
                 iconColor="text-amber-500"
                 label={categoryPrefSaving === "reminders" ? "Kaydediliyor…" : "Hatırlatıcılar"}
                 description="Ehliyet süresi, trafik cezası ve profil tamamlama hatırlatmaları"
-                trailing={<Toggle on={remindersNotif} onToggle={() => handleCategoryToggle("reminders")} />}
+                checked={remindersNotif}
+                disabled={categoryPrefSaving === "reminders"}
+                trailing={<Toggle on={remindersNotif} />}
                 onClick={() => handleCategoryToggle("reminders")}
               />
               <SettingItem
@@ -1487,6 +1686,16 @@ export default function SettingsPage() {
                 }
                 onClick={isInstalled ? undefined : () => setShowInstall(true)}
               />
+              {/* Tanıtım sitesi — oturum açıkken /?tanitim=1 ile erişilir (bkz. src/proxy.ts) */}
+              <Link href="/?tanitim=1" className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                <SettingItem
+                  icon={Globe}
+                  iconBg="bg-primary/10"
+                  iconColor="text-primary"
+                  label="CarsTrack Web Sitesi"
+                  description="Özellikler, SSS ve rehberler"
+                />
+              </Link>
               <Link href="/privacy" className="block">
                 <SettingItem
                   icon={Shield}
@@ -1507,9 +1716,17 @@ export default function SettingsPage() {
                 iconBg="bg-gray-500/10"
                 iconColor="text-gray-500"
                 label={t("settings_about")}
-                description={t("settings_version")}
-                trailing={<Badge variant="outline" className="text-[10px] font-medium border-border/50">v1.0.0</Badge>}
+                description={`Sürüm ${APP_VERSION}${COMMIT_SHA ? ` · ${COMMIT_SHA}` : ""}`}
+                trailing={<Badge variant="outline" className="text-[10px] font-medium border-border/50 font-mono">v{APP_VERSION}</Badge>}
                 onClick={() => setShowAbout(true)}
+              />
+              <SettingItem
+                icon={SparklesIcon}
+                iconBg="bg-primary/10"
+                iconColor="text-primary"
+                label="Sürüm Notları"
+                description="Her sürümde neler değişti?"
+                onClick={() => setShowReleaseNotes(true)}
               />
             </CardContent>
           </Card>
@@ -1521,6 +1738,20 @@ export default function SettingsPage() {
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-2">{t("settings_account")}</h3>
           <Card className="rounded-2xl border-border/40 shadow-sm">
             <CardContent className="p-2">
+              {user?.last_sign_in_at && (
+                <div className="flex items-center gap-3 p-3">
+                  <div className="p-2 rounded-xl bg-slate-500/10 shrink-0" aria-hidden="true">
+                    <LogIn className="h-4 w-4 text-slate-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">Son giriş</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {new Date(user.last_sign_in_at).toLocaleString("tr-TR", { dateStyle: "long", timeStyle: "short" })}
+                      {user.created_at && ` · Üyelik: ${new Date(user.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" })}`}
+                    </p>
+                  </div>
+                </div>
+              )}
               <SettingItem
                 icon={Mail}
                 iconBg="bg-blue-500/10"
@@ -1546,16 +1777,6 @@ export default function SettingsPage() {
                 trailing={exportingData ? <span className="h-4 w-4 rounded-full border-2 border-primary border-r-transparent animate-spin shrink-0" /> : undefined}
                 onClick={exportingData ? undefined : handleExportData}
               />
-              <Link
-                href="/?tanitim=1"
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors tap-highlight-transparent text-left cursor-pointer"
-              >
-                <div className="p-2 rounded-xl bg-primary/10 shrink-0">
-                  <Globe className="h-4 w-4 text-primary" />
-                </div>
-                <span className="text-sm font-medium">Tanıtım sitesini aç</span>
-                <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
-              </Link>
               <button
                 onClick={signOut}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-destructive/5 transition-colors tap-highlight-transparent text-left cursor-pointer"
@@ -1673,7 +1894,11 @@ export default function SettingsPage() {
             <p className="text-sm text-muted-foreground leading-relaxed">{t("about_desc")}</p>
             <div className="space-y-2">
               {[
-                { label: t("about_version_label"), value: "1.0.0" },
+                { label: t("about_version_label"), value: `v${APP_VERSION}` },
+                ...(COMMIT_SHA ? [{ label: "Yayın", value: COMMIT_SHA }] : []),
+                ...(BUILD_DATE
+                  ? [{ label: "Yayın tarihi", value: new Date(BUILD_DATE).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" }) }]
+                  : []),
                 { label: t("about_developer"), value: "Mehmet Demirkök" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between items-center py-2 border-b border-border/30 last:border-0">
@@ -1683,8 +1908,15 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" className="w-full rounded-xl" />}>{t("about_close")}</DialogClose>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              className="rounded-xl flex-1"
+              onClick={() => { setShowAbout(false); setShowReleaseNotes(true); }}
+            >
+              <SparklesIcon className="h-4 w-4 mr-1.5" aria-hidden="true" /> Sürüm Notları
+            </Button>
+            <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>{t("about_close")}</DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1719,6 +1951,9 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Release Notes Dialog (kaynak: src/data/changelog.json) ── */}
+      <ReleaseNotesDialog open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
+
       {/* ── Help & Support Dialog ── */}
       <HelpDialog open={showHelp} onOpenChange={setShowHelp} />
 
@@ -1736,11 +1971,13 @@ export default function SettingsPage() {
             </p>
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Yeni E-posta Adresi</label>
+                <label htmlFor="email-change-new" className="text-xs font-medium text-muted-foreground">Yeni E-posta Adresi</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <input
+                    id="email-change-new"
                     type="email"
+                    autoComplete="email"
                     value={emailChangeForm.newEmail}
                     onChange={(e) => setEmailChangeForm((f) => ({ ...f, newEmail: e.target.value }))}
                     placeholder="yeni@ornek.com"
@@ -1749,11 +1986,13 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
+                <label htmlFor="email-change-password" className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <input
+                    id="email-change-password"
                     type="password"
+                    autoComplete="current-password"
                     value={emailChangeForm.password}
                     onChange={(e) => setEmailChangeForm((f) => ({ ...f, password: e.target.value }))}
                     placeholder="••••••••"
@@ -1793,11 +2032,13 @@ export default function SettingsPage() {
           <div className="py-2 space-y-4">
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
+                <label htmlFor="password-current" className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <input
+                    id="password-current"
                     type="password"
+                    autoComplete="current-password"
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))}
                     placeholder="••••••••"
@@ -1806,11 +2047,13 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Yeni Şifre</label>
+                <label htmlFor="password-new" className="text-xs font-medium text-muted-foreground">Yeni Şifre</label>
                 <div className="relative">
-                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <input
+                    id="password-new"
                     type="password"
+                    autoComplete="new-password"
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
                     placeholder="En az 8 karakter"
@@ -1819,11 +2062,13 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Yeni Şifre (Tekrar)</label>
+                <label htmlFor="password-confirm" className="text-xs font-medium text-muted-foreground">Yeni Şifre (Tekrar)</label>
                 <div className="relative">
-                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <input
+                    id="password-confirm"
                     type="password"
+                    autoComplete="new-password"
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
                     placeholder="••••••••"
@@ -1863,15 +2108,30 @@ export default function SettingsPage() {
           <div className="py-2 space-y-4">
             <p className="text-xs text-muted-foreground leading-relaxed">
               Onayladığınızda hesabınıza giriş <span className="font-semibold text-foreground">kalıcı olarak kapatılır</span> ve otomatik çıkış yapılırsınız.
+              Araç atamalarınız ve bildirim abonelikleriniz kaldırılır; ekip listelerinde pasif görünürsünüz.
               Görev, ceza ve servis geçmişi gibi şirket kayıtlarınızla ilişkili verilerin tam silinmesi için talebiniz destek ekibine iletilir ve elle işleme alınır.
             </p>
-            <div className="space-y-3">
+            {deleteEligibility.state === "checking" && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-spin shrink-0" aria-hidden="true" />
+                Hesap durumu kontrol ediliyor…
+              </div>
+            )}
+            {deleteEligibility.state === "blocked" && (
+              <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+                <span>{deleteEligibility.reason}</span>
+              </div>
+            )}
+            <fieldset disabled={deleteEligibility.state !== "allowed"} className="space-y-3 disabled:opacity-50">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
+                <label htmlFor="delete-account-password" className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <input
+                    id="delete-account-password"
                     type="password"
+                    autoComplete="current-password"
                     value={deleteAccountForm.password}
                     onChange={(e) => setDeleteAccountForm((f) => ({ ...f, password: e.target.value }))}
                     placeholder="••••••••"
@@ -1880,24 +2140,26 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
+                <label htmlFor="delete-account-confirm" className="text-xs font-medium text-muted-foreground">
                   Onaylamak için <span className="font-semibold text-foreground">SİL</span> yazın
                 </label>
                 <input
+                  id="delete-account-confirm"
                   type="text"
+                  autoComplete="off"
                   value={deleteAccountForm.confirmText}
                   onChange={(e) => setDeleteAccountForm((f) => ({ ...f, confirmText: e.target.value }))}
                   placeholder="SİL"
                   className="w-full h-10 rounded-xl border border-destructive/30 bg-destructive/5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/30"
                 />
               </div>
-            </div>
+            </fieldset>
           </div>
           <DialogFooter className="gap-2">
             <DialogClose render={<Button variant="outline" className="rounded-xl flex-1" />}>İptal</DialogClose>
             <Button
               onClick={handleDeleteAccount}
-              disabled={deletingAccount || !deleteAccountForm.password || deleteAccountForm.confirmText.trim().toUpperCase() !== "SİL"}
+              disabled={deletingAccount || deleteEligibility.state !== "allowed" || !deleteAccountForm.password || deleteAccountForm.confirmText.trim().toUpperCase() !== "SİL"}
               className="rounded-xl flex-1 bg-destructive hover:bg-destructive/90 text-white"
             >
               {deletingAccount

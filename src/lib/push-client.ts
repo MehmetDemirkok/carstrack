@@ -111,6 +111,14 @@ export async function rebindPushSubscription(): Promise<void> {
   if (!res.ok) throw new Error("Abonelik bu hesaba bağlanamadı.");
 }
 
+/** Bu cihazın push endpoint'i (abonelik yoksa null) — cihaz listesinde "bu cihaz"ı ayırt etmek için. */
+export async function getCurrentPushEndpoint(): Promise<string | null> {
+  if (!isPushSupported()) return null;
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sub = await reg?.pushManager.getSubscription();
+  return sub?.endpoint ?? null;
+}
+
 /** Bu cihazda aktif bir push aboneliği var mı? (mount'ta bekletmemek için ready kullanmaz) */
 export async function getPushSubscribed(): Promise<boolean> {
   if (!isPushSupported()) return false;

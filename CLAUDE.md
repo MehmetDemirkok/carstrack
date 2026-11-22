@@ -22,6 +22,16 @@ npx tsc --noEmit # type-check (no separate typecheck script)
 
 There is no test suite/framework configured in this repo.
 
+## Sürümleme (her değişiklikte uygulanır)
+
+Proje semver ile sürüm sürüm ilerler; "hangi sürümde ne değişti" sorusunun tek cevabı **`src/data/changelog.json`** (en yeni üstte). `CHANGELOG.md` bu JSON'dan üretilir, elle düzenlenmez. Uygulama içinde Ayarlar > Hakkında / Sürüm Notları aynı JSON'u gösterir; sürüm numarası ve commit build anında `next.config.ts` → `NEXT_PUBLIC_APP_VERSION` / `NEXT_PUBLIC_COMMIT_SHA` ile gömülür (`src/lib/app-version.ts`).
+
+- **Kullanıcıya dokunan her değişiklik (özellik, düzeltme, migration) bir sürüme yazılır.** Branch'te çalışırken: `npm run release -- <patch|minor|major> "Başlık"` → sürümü yükseltir ve changelog.json'a boş kayıt açar; `changes` dizisini Türkçe, kullanıcının anlayacağı dille doldur (`yeni` | `iyilestirme` | `duzeltme` | `guvenlik`), sonra `npm run changelog`. Aynı branch'teki sonraki değişiklikler yeni sürüm açmaz, mevcut kayda eklenir.
+- `patch`: yalnızca düzeltme · `minor`: yeni özellik/iyileştirme (geriye uyumlu) · `major`: kırıcı değişiklik veya büyük yeniden kurgu.
+- `npm run build` önce `npm run version:check` çalıştırır: package.json sürümü changelog'un ilk kaydıyla aynı değilse, son kaydın `changes`'ı boşsa ya da CHANGELOG.md güncel değilse **build durur**.
+- Main'e merge sonrası sürüm etiketlenir: `git tag v<sürüm>` (geçmiş sürümler v0.1.0–v1.0.0 olarak etiketli).
+- Sürüm notlarında iç detay değil kullanıcı etkisi yazılır; geliştirici notları commit mesajına.
+
 ## Architecture
 
 ### Data access has two paths — know which one you're in

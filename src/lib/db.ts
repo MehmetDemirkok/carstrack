@@ -11,6 +11,7 @@ import type {
 import { DEFAULT_NOTIFICATION_PREFS, isDriverRole } from "./types";
 import { photoUrl, thumbPath, isProxyPhotoUrl } from "./vehicle-photo";
 import { resizeDataUrl } from "./image";
+import { AVATAR_BUCKET, avatarDisplayUrl, isStoredAvatarPath } from "./avatar";
 import { advanceVehicleMileage, MAX_VEHICLE_TASK_KM } from "./mileage";
 import { activeRows } from "./member-status";
 
@@ -1096,6 +1097,70 @@ export async function updateMemberProfile(
   if (error) throw error;
   bustCache("members:");
   bustCache("drivers:");
+}
+
+/** Kullanıcının mevcut avatar değerini okur (eski dosyayı silmek için). */
+async function readMyAvatarValue(userId: string): Promise<string | null> {
+  const supabase = createClient();
+  const { data } = await supabase.from("profiles").select("avatar_url").eq("id", userId).single();
+  return (data?.avatar_url as string | null) ?? null;
+}
+
+/** Storage'daki eski avatar dosyasını siler; hata sessizce yutulur (yetim dosya zararsız). */
+async function removeStoredAvatar(value: string | null): Promise<void> {
+  if (!isStoredAvatarPath(value)) return;
+  await createClient().storage.from(AVATAR_BUCKET).remove([value]).then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
+/**
+ * Profil fotoğrafını yükler ve gösterilebilir adresini döndürür.
+ * Dosya `avatars` bucket'ına gider, satırda yalnızca yol tutulur (bkz.
+ * 20261122_profile_avatars_bucket.sql). Bucket henüz yoksa ya da yükleme
+ * başarısızsa eski davranışa düşer: data-URI satıra yazılır.
+ */
+export async function uploadMyAvatar(dataUrl: string): Promise<string> {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Oturum bulunamadı.");
+  const companyId = await requireCompanyId();
+  const previous = await readMyAvatarValue(userId);
+
+  let stored: string = dataUrl;
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const path = `${companyId}/${userId}/${Date.now()}.jpg`;
+    const { error } = await supabase.storage
+      .from(AVATAR_BUCKET)
+      .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
+    if (error) throw error;
+    stored = path;
+  } catch (err) {
+    console.warn("Avatar Storage'a yüklenemedi, satır içi kaydediliyor:", err);
+  }
+
+  const { error } = await supabase.from("profiles").update({ avatar_url: stored }).eq("id", userId);
+  if (error) {
+    if (stored !== dataUrl) await removeStoredAvatar(stored);
+    throw error;
+  }
+  if (previous && previous !== stored) await removeStoredAvatar(previous);
+  return avatarDisplayUrl(stored) ?? dataUrl;
+}
+
+/** Profil fotoğrafını kaldırır (Storage dosyası dahil). */
+export async function removeMyAvatar(): Promise<void> {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Oturum bulunamadı.");
+  const previous = await readMyAvatarValue(userId);
+  const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", userId);
+  if (error) throw error;
+  await removeStoredAvatar(previous);
 }
 
 /**

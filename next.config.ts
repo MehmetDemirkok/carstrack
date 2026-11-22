@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { execSync } from "node:child_process";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://carstrack.app";
 
@@ -10,6 +13,19 @@ const SUPABASE_HOSTNAME = (() => {
     return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname || null;
   } catch {
     return null;
+  }
+})();
+
+// Sürüm bilgisi build anında koda gömülür (Ayarlar > Hakkında). Sürüm
+// package.json'dan, commit Vercel'in verdiği SHA'dan (yerelde git'ten) gelir.
+// Kaynak/kurallar: src/data/changelog.json + CLAUDE.md > Sürümleme.
+const APP_VERSION = (JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version: string }).version;
+const COMMIT_SHA = (() => {
+  if (process.env.VERCEL_GIT_COMMIT_SHA) return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7);
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "";
   }
 })();
 
@@ -29,6 +45,11 @@ const nextConfig: NextConfig = {
   // Ana ekrana eklenmiş PWA günlerce açık kalsa bile böylece eski kodda kalmaz;
   // ayrıca bkz. components/app-update-checker.tsx. Yerelde tanımsız → etkisiz.
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID || undefined,
+  env: {
+    NEXT_PUBLIC_APP_VERSION: APP_VERSION,
+    NEXT_PUBLIC_COMMIT_SHA: COMMIT_SHA,
+    NEXT_PUBLIC_BUILD_DATE: new Date().toISOString(),
+  },
   reactStrictMode: false,
   devIndicators: false,
   images: {

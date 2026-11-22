@@ -7,6 +7,7 @@ import { clearCompanyCache, primeUserRole } from "@/lib/db";
 import { isPushSupported, rebindPushSubscription, unsubscribeFromPush } from "@/lib/push-client";
 import type { Profile, Company, DriverLicenseEntry, NotificationPrefs } from "@/lib/types";
 import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/types";
+import { avatarDisplayUrl } from "@/lib/avatar";
 
 interface AuthContextType {
   user: User | null;
@@ -74,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: data.role as "manager" | "operator" | "user",
           fullName: data.full_name,
           department: (data.department as string) || "",
-          avatarUrl: (data.avatar_url as string) || undefined,
+          avatarUrl: avatarDisplayUrl(data.avatar_url),
           notifyByEmail: data.notify_by_email !== false,
           createdAt: data.created_at,
           licenseNumber: (data.license_number as string) || undefined,

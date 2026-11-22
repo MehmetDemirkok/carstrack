@@ -2,6 +2,80 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendNotificationEmail } from "@/lib/email/sendEmail";
+import { activeRows, isDeactivatedRow } from "@/lib/member-status";
+
+/** Supabase'de "süresiz ban" pratikte çok uzun bir süre vermektir. */
+const BAN_FOREVER = "876000h";
+
+type SelfRow = {
+  id: string;
+  company_id: string | null;
+  role: string;
+  full_name: string | null;
+  deactivated_at?: string | null;
+};
+
+type Eligibility = { allowed: true } | { allowed: false; reason: string; status: number };
+
+/**
+ * Hesap kapatılabilir mi? Ayarlar'daki dialog açılırken (GET) ve işlemin
+ * kendisinde (POST) aynı kurallar uygulanır — kullanıcı şifresini girip
+ * "SİL" yazdıktan sonra engelle karşılaşmasın.
+ */
+async function checkEligibility(admin: ReturnType<typeof createAdminClient>, self: SelfRow): Promise<Eligibility> {
+  if (self.role === "manager" && self.company_id) {
+    const { data: managers } = await admin
+      .from("profiles")
+      .select("*")
+      .eq("company_id", self.company_id)
+      .eq("role", "manager");
+    const otherActive = activeRows(managers).filter((m) => (m as { id: string }).id !== self.id);
+    if (otherActive.length === 0) {
+      return {
+        allowed: false,
+        status: 400,
+        reason: "Şirketinizin tek yöneticisisiniz. Hesabınızı silmeden önce Ekip sayfasından başka bir kullanıcıyı yönetici yapın ya da destek ekibiyle iletişime geçin.",
+      };
+    }
+  }
+
+  // Aktif seyahatteki sürücü kapanırsa görev sonsuza dek "aktif" kalır.
+  const { count: activeTaskCount } = await admin
+    .from("vehicle_tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("driver_id", self.id)
+    .eq("status", "active");
+  if ((activeTaskCount ?? 0) > 0) {
+    return {
+      allowed: false,
+      status: 409,
+      reason: "Şu anda aktif bir seyahatiniz var. Hesabınızı silmeden önce Görevler sayfasından seyahati bitirin.",
+    };
+  }
+
+  return { allowed: true };
+}
+
+async function loadSelf() {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) } as const;
+
+  const admin = createAdminClient();
+  // select("*"): deactivated_at sütunu (20261115b) yoksa sorgu düşmesin.
+  const { data: profile } = await admin.from("profiles").select("*").eq("id", user.id).single();
+  if (!profile) return { error: NextResponse.json({ error: "Profil bulunamadı." }, { status: 404 }) } as const;
+
+  return { user, admin, profile: profile as SelfRow } as const;
+}
+
+/** Hesap kapatılabilir mi? → { allowed, reason? } (Ayarlar dialogu açılırken). */
+export async function GET() {
+  const ctx = await loadSelf();
+  if ("error" in ctx) return ctx.error;
+  const result = await checkEligibility(ctx.admin, ctx.profile);
+  return NextResponse.json(result.allowed ? { allowed: true } : { allowed: false, reason: result.reason });
+}
 
 /**
  * Hesap silme talebi. Kimlik doğrulaması (mevcut şifre) istemci tarafında
@@ -9,47 +83,49 @@ import { sendNotificationEmail } from "@/lib/email/sendEmail";
  * geçerli oturuma güvenir.
  *
  * Görev, ceza, servis geçmişi gibi kayıtlar başka tablolardan referans
- * aldığından (foreign key) burada anında `auth.users` silmiyoruz — bunun
- * yerine hesabı kalıcı olarak "ban" ederek girişi kapatıyoruz ve tam veri
- * silme talebini destek ekibine e-posta ile iletip elle işleme alınmasını
- * sağlıyoruz.
+ * aldığından (foreign key) burada anında `auth.users` silmiyoruz. Bunun
+ * yerine ekipten çıkarmayla (PATCH /api/members/[id]) aynı pasifleştirme
+ * uygulanır ve tam veri silme talebi destek ekibine iletilir:
+ *   1. Auth hesabı kalıcı olarak askıya alınır (giriş kapanır)
+ *   2. profiles.deactivated_at yazılır → RLS kapanır, cron'lar/bildirimler
+ *      bu kişiyi alıcı saymaz, sürücü listelerinden düşer
+ *   3. Araç atamaları ve push abonelikleri temizlenir
+ * `deactivation_ban` false yazılır: yönetici üyeyi geri alsa bile hesap
+ * silme banı kalkmaz (bkz. CLAUDE.md > Multi-tenancy).
  */
 export async function POST() {
-  const supabase = await createClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await loadSelf();
+  if ("error" in ctx) return ctx.error;
+  const { user, admin, profile } = ctx;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("company_id, role, full_name")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile) return NextResponse.json({ error: "Profil bulunamadı." }, { status: 404 });
-
-  const admin = createAdminClient();
-
-  // Şirketin tek yöneticisiyse hesabı kapatmayı engelle — şirket sahipsiz kalmasın.
-  if (profile.role === "manager") {
-    const { data: managers } = await admin
-      .from("profiles")
-      .select("id")
-      .eq("company_id", profile.company_id)
-      .eq("role", "manager");
-    if ((managers?.length ?? 0) <= 1) {
-      return NextResponse.json({
-        error: "Şirketinizin tek yöneticisisiniz. Hesabınızı silmeden önce başka bir kullanıcıyı yönetici yapın ya da destek ekibiyle iletişime geçin.",
-      }, { status: 400 });
-    }
+  const eligibility = await checkEligibility(admin, profile);
+  if (!eligibility.allowed) {
+    return NextResponse.json({ error: eligibility.reason }, { status: eligibility.status });
   }
 
-  // Girişi kalıcı olarak kapat (~100 yıl ban) — auth.users satırı ve ilişkili
-  // kayıtlar korunur, yalnızca oturum açma engellenir.
-  const { error: banError } = await admin.auth.admin.updateUserById(user.id, { ban_duration: "876000h" });
+  // 1) Girişi kalıcı olarak kapat — auth.users satırı ve ilişkili kayıtlar korunur.
+  const { error: banError } = await admin.auth.admin.updateUserById(user.id, { ban_duration: BAN_FOREVER });
   if (banError) {
     console.error("POST /api/account/delete-request ban error:", banError);
     return NextResponse.json({ error: "Hesap kapatılamadı. Lütfen tekrar deneyin." }, { status: 500 });
   }
+
+  // 2) Pasifleştir (migration uygulanmamışsa sütun yoktur — ban yine geçerli).
+  if ("deactivated_at" in profile && !isDeactivatedRow(profile)) {
+    const { error: updErr } = await admin
+      .from("profiles")
+      .update({ deactivated_at: new Date().toISOString(), deactivated_by: user.id, deactivation_ban: false })
+      .eq("id", user.id);
+    if (updErr) console.error("[account/delete-request] pasifleştirme hatası:", updErr);
+  }
+
+  // 3) Atamaları ve push aboneliklerini temizle (başarısızlık işlemi geri almaz).
+  const [{ error: asgErr }, { error: pushErr }] = await Promise.all([
+    admin.from("vehicle_assignments").delete().eq("driver_id", user.id),
+    admin.from("push_subscriptions").delete().eq("user_id", user.id),
+  ]);
+  if (asgErr) console.error("[account/delete-request] atama silme hatası:", asgErr);
+  if (pushErr) console.error("[account/delete-request] push aboneliği silme hatası:", pushErr);
 
   const inbox =
     process.env.FEEDBACK_INBOX_EMAIL ||

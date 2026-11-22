@@ -1,0 +1,112 @@
+{
+  "$comment": "CarsTrack sürüm geçmişinin TEK kaynağı. En yeni sürüm en üstte. package.json 'version' alanı her zaman ilk kaydın 'version' değeriyle aynı olmalı (npm run version:check, build öncesi bunu denetler). Yeni sürüm: npm run release -- <patch|minor|major> \"Başlık\". Kurallar için bkz. CLAUDE.md > Sürümleme. Değişiklik türleri: yeni | iyilestirme | duzeltme | guvenlik.",
+  "versions": [
+    {
+      "version": "1.1.0",
+      "date": "2026-11-22",
+      "title": "Ayarlar sayfası iyileştirmeleri",
+      "changes": [
+        { "type": "yeni", "text": "Uygulama sürümü, yayın kimliği ve sürüm notları Ayarlar > Hakkında bölümünde görünüyor." },
+        { "type": "yeni", "text": "Anlık bildirim alan cihazlar listeleniyor; başka bir cihazın aboneliği uzaktan kaldırılabiliyor." },
+        { "type": "yeni", "text": "Ekip davet kodu link, WhatsApp, cihaz paylaşım menüsü ve QR kod ile paylaşılabiliyor; linki açan kişi kayıt ekranına kod dolu geliyor." },
+        { "type": "yeni", "text": "Hesap bölümünde son giriş zamanı ve üyelik tarihi görünüyor." },
+        { "type": "iyilestirme", "text": "Ayarlar sayfası klavye ve ekran okuyucuyla kullanılabilir: satırlar Enter/Boşluk ile çalışıyor, form etiketleri alanlara bağlı, anahtarlar doğru duyuruluyor." },
+        { "type": "iyilestirme", "text": "Tanıtım sitesi bağlantısı kenar çubuğundan kaldırıldı; Ayarlar > Uygulama altında \"CarsTrack Web Sitesi\" olarak yer alıyor." },
+        { "type": "iyilestirme", "text": "Tema seçimi Açık / Koyu / Sistem olarak üç seçenekli hale geldi." },
+        { "type": "iyilestirme", "text": "Profil fotoğrafları veritabanı satırı yerine dosya deposunda (Storage) saklanıyor; sayfalar daha hafif yükleniyor." },
+        { "type": "iyilestirme", "text": "Şirketin tek yöneticisi hesap silme penceresini açtığında engel baştan gösteriliyor." },
+        { "type": "iyilestirme", "text": "\"Telefon Bildirimleri\" adı, masaüstü tarayıcıları da kapsadığı için \"Anlık Bildirimler\" oldu." },
+        { "type": "duzeltme", "text": "Departman kaydedildiğinde profil tamamlama kartı ve banner sayfa yenilenmeden güncelleniyor." },
+        { "type": "duzeltme", "text": "Hesabını silen kullanıcı artık ekipten çıkarılmış gibi pasifleştiriliyor: araç atamaları ve push abonelikleri temizleniyor, hatırlatma almıyor." }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-11-15",
+      "title": "Kararlı sürüm: lastik, km takibi, ekip yönetimi ve PWA",
+      "changes": [
+        { "type": "yeni", "text": "Araç detayına Lastik sekmesi: mevsimlik değişim, saklanan lastikler, araç şeması ve lastik geçmişi." },
+        { "type": "yeni", "text": "Km takibi yenilendi: tek güncelleme akışı, km güncelleme tarihi, hatalı km uyarıları ve 7 gün eski km hatırlatması." },
+        { "type": "yeni", "text": "Ekip sayfası yenilendi; üye pasifleştirme (geri alınabilir) ve profil tamamlama hatırlatması." },
+        { "type": "yeni", "text": "Gizlilik/KVKK metni, Kullanım Koşulları, kayıt onayı; Sentry hata izleme ve dış (S3) yedek kopyası." },
+        { "type": "iyilestirme", "text": "PWA yeni yayın çıktığında kendini güncelliyor; mobil ve PWA görünümü düzeltildi." },
+        { "type": "duzeltme", "text": "Zaten kayıtlı bir e-postaya mükerrer davet gönderilmesi engellendi." }
+      ]
+    },
+    {
+      "version": "0.7.0",
+      "date": "2026-10-25",
+      "title": "Uyarı Merkezi ve geri bildirim sayfası",
+      "changes": [
+        { "type": "yeni", "text": "Uyarı Merkezi sayfası; günlük filo raporu kritik uyarılara yönlendiriyor." },
+        { "type": "yeni", "text": "Geri bildirim popup'ı ayrı bir sayfaya dönüştü; admin duyurularına Web Push eklendi." },
+        { "type": "yeni", "text": "Oturum açıkken tanıtım sitesine erişim (?tanitim=1) ve giriş sonrası hedef sayfaya dönüş." },
+        { "type": "iyilestirme", "text": "Aktivite kayıtları Türkçeleştirildi; landing sayfasına yeni bölümler eklendi." },
+        { "type": "duzeltme", "text": "Hesap değişince push aboneliği yeni kullanıcıya bağlanıyor." }
+      ]
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-09-20",
+      "title": "Yakıt yönetimi, süper admin konsolu ve ücretsiz ürün",
+      "changes": [
+        { "type": "yeni", "text": "Yakıt Yönetimi modülü: alım kaydı, KPI/analiz ve anomali tespiti." },
+        { "type": "yeni", "text": "Süper admin konsolu (/admin): kullanıcılar, şirketler, duyurular, cron sağlığı." },
+        { "type": "yeni", "text": "Aktivasyon akışı: ilk araç kurulumu, şoför davet kartı ve takılan hesap hatırlatıcısı." },
+        { "type": "iyilestirme", "text": "Plan/ödeme sistemi kaldırıldı; ürün tüm şirketler için ücretsiz." },
+        { "type": "iyilestirme", "text": "Araç fotoğrafları Storage'a taşındı; tasarım sistemi ve landing yeniden kurgulandı." }
+      ]
+    },
+    {
+      "version": "0.5.0",
+      "date": "2026-08-30",
+      "title": "Trafik cezaları, yedekleme ve şoför rolü",
+      "changes": [
+        { "type": "yeni", "text": "Trafik cezası takibi ve e-Devlet sorgulama butonu." },
+        { "type": "yeni", "text": "Otomatik veritabanı yedekleme sistemi." },
+        { "type": "yeni", "text": "Şoför rolü, şirket bilgileri düzenleme ve Verilerimi İndir (Excel)." },
+        { "type": "iyilestirme", "text": "Filo uyarıları şirket saat diliminde 09:00'da; araç ekleme akışı hızlandı." },
+        { "type": "guvenlik", "text": "Bağımlılık güncellemeleri, davet kodu sertleştirme ve rate limit." }
+      ]
+    },
+    {
+      "version": "0.4.0",
+      "date": "2026-07-14",
+      "title": "Ehliyet takibi ve filo analitiği",
+      "changes": [
+        { "type": "yeni", "text": "Sürücü ehliyet bilgileri ve süre takibi." },
+        { "type": "iyilestirme", "text": "Dashboard ve filo analitiği güncellendi; taşan arayüz öğeleri düzeltildi." }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "date": "2026-06-14",
+      "title": "Belgeler, bildirimler ve güvenlik",
+      "changes": [
+        { "type": "yeni", "text": "Araç belgeleri modülü ve e-posta değiştirme." },
+        { "type": "yeni", "text": "E-posta ve telefon (push) bildirimleri; bildirim ekranı." },
+        { "type": "yeni", "text": "Rol sistemi yenilendi; geri bildirim ekranı." },
+        { "type": "guvenlik", "text": "RLS tabanlı güvenlik sertleştirmesi." }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2026-05-14",
+      "title": "Şirket yetkileri, km takibi ve dışa aktarma",
+      "changes": [
+        { "type": "yeni", "text": "Şirket yetkileri ve şoför paneli; km takibi." },
+        { "type": "yeni", "text": "Excel/PDF dışa aktarma ve profil fotoğrafı." },
+        { "type": "iyilestirme", "text": "Yeni tema; önbellek ve erken oturum açma ile hızlanan veri yükleme." }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-05-01",
+      "title": "İlk yayın",
+      "changes": [
+        { "type": "yeni", "text": "Araç ekleme/düzenleme/silme, giriş-kayıt ve şifre sıfırlama." },
+        { "type": "yeni", "text": "Resend ile e-posta gönderimi; ilk canlı yayın." }
+      ]
+    }
+  ]
+}
