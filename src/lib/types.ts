@@ -39,6 +39,8 @@ export interface Profile {
   role: UserRole;
   fullName: string;
   department: string;
+  /** İletişim telefonu (+905321234567). Doğrulanmaz; eski hesaplarda boş olabilir. */
+  phone?: string;
   avatarUrl?: string;
   notifyByEmail: boolean;
   createdAt: string;

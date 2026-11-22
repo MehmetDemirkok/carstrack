@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSuperAdmin, type AdminIdentity } from "./auth";
+import { isMissingPhoneColumn } from "@/lib/phone";
 
 export type { AdminIdentity };
 
@@ -252,4 +253,20 @@ export function isBanned(user: Pick<AuthUserSummary, "bannedUntil">): boolean {
   if (!user.bannedUntil) return false;
   const until = new Date(user.bannedUntil).getTime();
   return Number.isFinite(until) && until > Date.now();
+}
+
+/**
+ * profiles'ı verilen sütunlar + phone ile okur. phone sütunu henüz yoksa
+ * (20261123_profile_phone.sql uygulanmamış) telefonsuz tekrar dener — panel
+ * migration'dan bağımsız çalışmaya devam eder.
+ */
+export async function selectProfilesWithPhone(
+  db: AdminContext["db"],
+  columns: string,
+): Promise<{ data: Record<string, unknown>[] | null; error: { message: string } | null }> {
+  const res = await db.from("profiles").select(`${columns}, phone`).returns<Record<string, unknown>[]>();
+  if (res.error && isMissingPhoneColumn(res.error)) {
+    return db.from("profiles").select(columns).returns<Record<string, unknown>[]>();
+  }
+  return res;
 }

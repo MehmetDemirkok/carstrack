@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { bustAuthCache, withAdmin, getAuthUser, isBanned, logAdminAction, uniqueIds } from "@/lib/admin/api";
 import { isAdminEmail } from "@/lib/admin/auth";
+import { isMissingPhoneColumn } from "@/lib/phone";
 import type { AdminUserDetail } from "@/lib/admin/types";
 import type { UserRole } from "@/lib/types";
 
@@ -14,11 +15,14 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
   const userId = params.id;
 
   const [profileRes, authUser] = await Promise.all([
-    db
-      .from("profiles")
-      .select("id, company_id, full_name, role, department, created_at, notify_by_email, license_number")
-      .eq("id", userId)
-      .maybeSingle(),
+    (async () => {
+      const cols = "id, company_id, full_name, role, department, created_at, notify_by_email, license_number";
+      const res = await db.from("profiles").select(`${cols}, phone`).eq("id", userId).maybeSingle();
+      // phone sütunu yoksa (migration uygulanmamış) telefonsuz oku.
+      return res.error && isMissingPhoneColumn(res.error)
+        ? db.from("profiles").select(cols).eq("id", userId).maybeSingle()
+        : res;
+    })(),
     getAuthUser(db, userId),
   ]);
 
@@ -61,6 +65,7 @@ export const GET = withAdmin<{ id: string }>(async (_req, { db, params }) => {
     fullName: (profile?.full_name as string) || "İsimsiz",
     role: ((profile?.role as UserRole) || "user") as UserRole,
     department: (profile?.department as string) || "",
+    phone: ((profile as Record<string, unknown> | null)?.phone as string) || null,
     companyId,
     companyName: company?.name || "—",
     createdAt: (profile?.created_at as string) ?? authUser?.createdAt ?? new Date().toISOString(),

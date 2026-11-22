@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
-import { withAdmin, intParam, isBanned, listAllAuthUsers } from "@/lib/admin/api";
+import { withAdmin, intParam, isBanned, listAllAuthUsers, selectProfilesWithPhone } from "@/lib/admin/api";
 import type { AdminUserListResponse, AdminUserRow } from "@/lib/admin/types";
 import type { UserRole } from "@/lib/types";
 import { isDriverRole } from "@/lib/types";
@@ -31,7 +31,7 @@ export const GET = withAdmin(async (req, { db }) => {
   const pageSize = intParam(url, "pageSize", 25, { min: 5, max: 200 });
 
   const [profilesRes, companiesRes, assignmentsRes, tasksRes, authUsers] = await Promise.all([
-    db.from("profiles").select("id, company_id, full_name, role, department, created_at, notify_by_email"),
+    selectProfilesWithPhone(db, "id, company_id, full_name, role, department, created_at, notify_by_email"),
     db.from("companies").select("id, name"),
     db.from("vehicle_assignments").select("driver_id"),
     db.from("vehicle_tasks").select("driver_id"),
@@ -67,6 +67,7 @@ export const GET = withAdmin(async (req, { db }) => {
       fullName: (p.full_name as string) || "İsimsiz",
       role: ((p.role as UserRole) || "user") as UserRole,
       department: (p.department as string) || "",
+      phone: ((p as Record<string, unknown>).phone as string) || null,
       companyId: (p.company_id as string) ?? null,
       companyName: company?.name ?? "—",
       createdAt: p.created_at as string,
@@ -92,12 +93,15 @@ export const GET = withAdmin(async (req, { db }) => {
   let rows = all;
 
   if (q) {
+    // "0532 123…" gibi aramalar saklanan "+90532123…" ile eşleşsin: baştaki 0'ı at.
+    const phoneQuery = q.replace(/\D/g, "").replace(/^0/, "");
     rows = rows.filter(
       (u) =>
         u.fullName.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
         u.companyName.toLowerCase().includes(q) ||
-        u.department.toLowerCase().includes(q),
+        u.department.toLowerCase().includes(q) ||
+        (phoneQuery.length >= 3 && (u.phone ?? "").includes(phoneQuery)),
     );
   }
   if (roleFilter !== "all") {

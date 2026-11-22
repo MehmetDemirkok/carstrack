@@ -40,7 +40,7 @@ export default function PrivacyPage() {
       <LegalSection title="2. İşlenen kişisel veriler">
         <LegalList
           items={[
-            "Hesap: ad soyad, e-posta, şifrenin özeti, rol, departman, profil fotoğrafı, bildirim tercihleri.",
+            "Hesap: ad soyad, e-posta, cep telefonu numarası, şifrenin özeti, rol, departman, profil fotoğrafı, bildirim tercihleri.",
             "Şirket yetkilisi ve iletişim: şirket adı, adres, telefon, e-posta, vergi dairesi ve numarası.",
             "Sürücü: ehliyet numarası, ehliyet sınıfları ve tarihleri, araç atamaları, görev, kilometre ve yakıt kayıtları, trafik cezaları.",
             "Araç: plaka, ruhsat, sigorta ve muayene bilgileri, fotoğraflar, yüklenen belgeler, servis, masraf ve arıza kayıtları.",
@@ -49,10 +49,31 @@ export default function PrivacyPage() {
         />
       </LegalSection>
 
-      <LegalSection title="3. Amaçlar ve hukuki sebepler">
+      <LegalSection id="telefon" title="3. Telefon numaranız">
+        <p>
+          Kayıt sırasında ve Ayarlar &gt; Profil bölümünde cep telefonu numaranızı istiyoruz. Numaranız yalnızca
+          iletişim amacıyla tutulur:
+        </p>
+        <LegalList
+          items={[
+            "Hesabınız, güvenliği, destek talepleriniz veya hizmetle ilgili önemli bir konuda size ulaşmak için kullanılır.",
+            "Şirketinizin yöneticileri ve aynı şirketteki ekip arkadaşlarınız, örneğin bir araç veya görevle ilgili size ulaşabilmek için ekip listesinde görebilir.",
+            "SMS veya arama ile doğrulama kodu gönderilmez; numaranız şu an doğrulanmaz ve kimlik doğrulama (giriş) için kullanılmaz.",
+            "Pazarlama, reklam veya toplu SMS amacıyla kullanılmaz; üçüncü kişilere satılmaz ve bu amaçla aktarılmaz.",
+            "Numaranızı Ayarlar > Profil bölümünden istediğiniz zaman değiştirebilirsiniz. Hesabınız açık olduğu sürece saklanır, hesabınız silindiğinde diğer hesap verilerinizle birlikte silinir.",
+          ]}
+        />
+        <p>
+          İleride telefonla doğrulama veya SMS bildirimi gibi yeni bir kullanım eklenirse bu metin güncellenir ve gerekiyorsa
+          ayrıca onayınız alınır.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="4. Amaçlar ve hukuki sebepler">
         <LegalList
           items={[
             "Hesabın açılması ve filo yönetimi hizmetinin sunulması: sözleşmenin kurulması ve ifası (KVKK m.5/2-c).",
+            "Hesabınız, güvenliği veya hizmetle ilgili gerektiğinde sizinle telefonla iletişime geçilmesi ve şirket içi iletişim: sözleşmenin ifası (m.5/2-c) ve meşru menfaat (m.5/2-f).",
             "Sigorta, muayene, bakım ve ehliyet hatırlatmaları ile hizmet bildirimleri: sözleşmenin ifası (m.5/2-c).",
             "Güvenlik, hata giderme, yedekleme, kötüye kullanımın önlenmesi ve hizmetin geliştirilmesi: meşru menfaat (m.5/2-f).",
             "Yasal yükümlülüklerin yerine getirilmesi ve uyuşmazlıklarda hakların korunması: m.5/2-ç ve m.5/2-e.",
@@ -64,7 +85,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="4. Aktarımlar ve yurt dışı">
+      <LegalSection title="5. Aktarımlar ve yurt dışı">
         <p>
           Kişisel verilerinizi satmıyoruz. Verileriniz, hizmetin çalışması için aşağıdaki hizmet sağlayıcılarına aktarılır
           ve bu sağlayıcıların sistemleri nedeniyle <strong className="text-foreground">yurt dışında işlenir</strong>:
@@ -84,7 +105,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="5. Belgelerin yapay zekâ ile okunması">
+      <LegalSection title="6. Belgelerin yapay zekâ ile okunması">
         <p>
           &quot;Otomatik doldur&quot; özelliğini kullandığınızda ruhsat, sigorta, ehliyet veya ceza görseli, alanların
           okunması için Google Gemini&apos;ye gönderilir. Bu belgeler T.C. kimlik numarası veya fotoğraf gibi bilgiler
@@ -94,7 +115,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="6. Saklama süresi ve silme">
+      <LegalSection title="7. Saklama süresi ve silme">
         <LegalList
           items={[
             "Veriler, hesabınız veya şirket hesabı açık olduğu sürece ve yasal saklama süreleri boyunca tutulur.",
@@ -105,7 +126,7 @@ export default function PrivacyPage() {
         />
       </LegalSection>
 
-      <LegalSection id="cerezler" title="7. Çerezler ve tarayıcı depolama">
+      <LegalSection id="cerezler" title="8. Çerezler ve tarayıcı depolama">
         <p>
           Reklam veya pazarlama çerezi kullanmıyoruz. Oturumunuzu sürdürmek için zorunlu kimlik doğrulama çerezleri, dil ve
           tema gibi tercihleriniz için tarayıcı depolaması kullanılır. Uygulama, bildirimler için tarayıcınızda bir service
@@ -114,7 +135,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Güvenlik">
+      <LegalSection title="9. Güvenlik">
         <p>
           Bağlantılar HTTPS ile korunur; şirket verileri veritabanı düzeyinde birbirinden ayrılır, erişim rollere göre
           sınırlandırılır ve şifreler özetlenerek saklanır. Hiçbir sistem mutlak güvenlik sağlayamaz; bir ihlal olması
@@ -122,7 +143,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="9. E-posta ve bildirimler">
+      <LegalSection title="10. E-posta ve bildirimler">
         <p>
           Bakım hatırlatmaları, hesap işlemleri, kurulum hatırlatmaları, geri bildirim istekleri ve ürün duyuruları
           gönderebiliriz. E-posta ve anlık bildirim tercihlerinizi Ayarlar bölümünden değiştirebilirsiniz; güvenlik veya
@@ -130,7 +151,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="10. KVKK kapsamındaki haklarınız">
+      <LegalSection title="11. KVKK kapsamındaki haklarınız">
         <p>KVKK m.11 uyarınca şu haklara sahipsiniz:</p>
         <LegalList
           items={[
@@ -149,7 +170,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="11. Değişiklikler">
+      <LegalSection title="12. Değişiklikler">
         <p>
           Bu metni güncelleyebiliriz; güncel hali her zaman bu sayfadadır ve önemli değişiklikleri ayrıca duyururuz. Hizmet
           şartları için{" "}

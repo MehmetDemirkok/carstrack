@@ -34,7 +34,7 @@ export default function TermsPage() {
       <LegalSection title="3. Hesap ve şirket sorumlulukları">
         <LegalList
           items={[
-            "Doğru bilgi vermek, şifrenizi gizli tutmak ve hesabınızdaki işlemleri takip etmek sizin sorumluluğunuzdadır.",
+            "Ad soyad, e-posta ve cep telefonu gibi doğru ve güncel iletişim bilgileri vermek, şifrenizi gizli tutmak ve hesabınızdaki işlemleri takip etmek sizin sorumluluğunuzdadır.",
             "Şirket yöneticisi; davet ettiği kullanıcılardan, verdiği rollerden ve davet kodunun korunmasından sorumludur.",
             "Şirket, sürücü ve çalışanlarına ait girdiği verilerde KVKK kapsamında veri sorumlusudur: ilgili kişileri aydınlatmak, gerekli hukuki sebebe sahip olmak ve talepleri yanıtlamak şirkete aittir.",
           ]}

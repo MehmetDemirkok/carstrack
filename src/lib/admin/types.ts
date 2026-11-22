@@ -13,6 +13,8 @@ export interface AdminUserRow {
   fullName: string;
   role: UserRole;
   department: string;
+  /** profiles.phone (+905321234567) — doğrulanmamış, eski hesaplarda null. */
+  phone: string | null;
   companyId: string | null;
   companyName: string;
   /** profiles.created_at — uygulamaya kaydolma anı. */

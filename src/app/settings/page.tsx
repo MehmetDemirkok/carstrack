@@ -34,6 +34,7 @@ import { daysUntilDate, getOverallLicenseStatus, LICENSE_CLASSES } from "@/lib/l
 import { IdCard, Sparkles, Upload, XCircle, CheckCircle2 } from "lucide-react";
 import type { DriverLicenseEntry } from "@/lib/types";
 import { isDriverRole } from "@/lib/types";
+import { PHONE_ERROR, formatPhone, isMissingPhoneColumn, normalizePhone } from "@/lib/phone";
 import { fileToBase64, SCAN_ALLOWED_TYPES, SCAN_ALLOWED_EXTS, SCAN_MAX_FILE_SIZE } from "@/lib/file-utils";
 import { DEFAULT_TIMEZONE, TIMEZONES, TIMEZONES_BY_REGION, getTimezoneLabel, resolveTimeZone } from "@/lib/timezone";
 import {
@@ -205,6 +206,47 @@ export default function SettingsPage() {
       toast.error("Kaydedilemedi");
     } finally {
       setFullNameSaving(false);
+    }
+  };
+
+  // Telefon — yalnızca iletişim amaçlı; SMS/arama ile doğrulama yapılmaz.
+  const [phoneInput, setPhoneInput] = useState("");
+  const [phoneSaving, setPhoneSaving] = useState(false);
+
+  useEffect(() => {
+    setPhoneInput(formatPhone(profile?.phone));
+  }, [profile?.phone]);
+
+  const phoneUnchanged = (normalizePhone(phoneInput) ?? phoneInput.trim()) === (profile?.phone ?? "");
+
+  const handleSavePhone = async () => {
+    const normalized = normalizePhone(phoneInput);
+    if (!normalized) {
+      toast.error(PHONE_ERROR);
+      return;
+    }
+    setPhoneSaving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("profiles")
+        .update({ phone: normalized })
+        .eq("id", user!.id);
+      if (error) {
+        if (isMissingPhoneColumn(error)) {
+          toast.error("Telefon şu an kaydedilemiyor", { description: "Lütfen daha sonra tekrar deneyin." });
+          return;
+        }
+        throw error;
+      }
+      // Profil tamamlama kartı/bandı profile.phone'a bakıyor.
+      await refreshProfile();
+      setPhoneInput(formatPhone(normalized));
+      toast.success("Telefon numarası kaydedildi");
+    } catch {
+      toast.error("Kaydedilemedi");
+    } finally {
+      setPhoneSaving(false);
     }
   };
 
@@ -629,6 +671,7 @@ export default function SettingsPage() {
           email: user?.email,
           role: profile?.role,
           department: profile?.department,
+          phone: profile?.phone,
           company: company?.name,
           licenseNumber: profile?.licenseNumber,
           licenses: profile?.licenses,
@@ -983,6 +1026,41 @@ export default function SettingsPage() {
                     {fullNameSaving ? "..." : "Kaydet"}
                   </button>
                 </div>
+              </div>
+
+              {/* Telefon */}
+              <div className="pt-3 border-t border-border/30 space-y-2">
+                <label htmlFor="settings-phone" className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  Cep Telefonu
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="settings-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    maxLength={20}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSavePhone(); }}
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value)}
+                    placeholder="0532 123 45 67"
+                    aria-describedby="settings-phone-hint"
+                    className="flex-1 h-9 rounded-xl border border-border bg-muted/40 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <button
+                    onClick={handleSavePhone}
+                    disabled={phoneSaving || !phoneInput.trim() || phoneUnchanged}
+                    className="h-9 px-4 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                  >
+                    {phoneSaving ? "..." : "Kaydet"}
+                  </button>
+                </div>
+                <p id="settings-phone-hint" className="text-[11px] text-muted-foreground leading-snug">
+                  {profile?.phone ? null : <span className="font-semibold text-indigo-600 dark:text-indigo-400">Lütfen numaranızı ekleyin. </span>}
+                  Yalnızca hesabınızla ilgili size ulaşmak için kullanılır; doğrulama kodu gönderilmez, pazarlama amacıyla
+                  kullanılmaz ve şirketinizin yöneticileri görebilir.{" "}
+                  <Link href="/privacy#telefon" className="text-primary hover:underline">Ayrıntılar</Link>
+                </p>
               </div>
 
               {/* Department / Title edit */}

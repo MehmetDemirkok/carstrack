@@ -2,6 +2,18 @@
   "$comment": "CarsTrack sürüm geçmişinin TEK kaynağı. En yeni sürüm en üstte. package.json 'version' alanı her zaman ilk kaydın 'version' değeriyle aynı olmalı (npm run version:check, build öncesi bunu denetler). Yeni sürüm: npm run release -- <patch|minor|major> \"Başlık\". Kurallar için bkz. CLAUDE.md > Sürümleme. Değişiklik türleri: yeni | iyilestirme | duzeltme | guvenlik.",
   "versions": [
     {
+      "version": "1.2.0",
+      "date": "2026-11-22",
+      "title": "Telefon numarası",
+      "changes": [
+        { "type": "yeni", "text": "Kayıt formunda cep telefonu numarası isteniyor. Doğrulama kodu gönderilmiyor; numara yalnızca iletişim için tutuluyor." },
+        { "type": "yeni", "text": "Ayarlar > Profil bölümüne telefon alanı eklendi. Numarasını girmemiş mevcut kullanıcılara profil tamamlama kartı, pano bandı ve profil hatırlatması üzerinden soruluyor." },
+        { "type": "yeni", "text": "Ekip sayfasında üyelerin telefon numarası görünüyor, dokununca aranabiliyor; ekip aramasında numarayla da bulunabiliyor." },
+        { "type": "iyilestirme", "text": "Gizlilik Politikası ve KVKK Aydınlatma Metni'ne telefon numarasının hangi amaçla tutulduğunu, kimlerin görebildiğini ve pazarlama için kullanılmadığını anlatan bölüm eklendi; Kullanım Koşulları güncellendi." },
+        { "type": "iyilestirme", "text": "\"Verilerimi indir\" dosyasında telefon numarası da yer alıyor." }
+      ]
+    },
+    {
       "version": "1.1.0",
       "date": "2026-11-22",
       "title": "Ayarlar sayfası iyileştirmeleri",

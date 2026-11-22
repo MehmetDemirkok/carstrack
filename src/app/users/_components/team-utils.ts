@@ -188,6 +188,7 @@ export function matchesSearch(v: MemberView, query: string): boolean {
   const haystack = [
     v.member.fullName,
     v.member.department ?? "",
+    v.member.phone ?? "",
     roleBadge(v.member.role).label,
     ...v.assignedVehicles.map((x) => x.plate),
     v.taskVehicle?.plate ?? v.activeTask?.vehiclePlate ?? "",

@@ -39,6 +39,7 @@ import {
 import { AdminNotes } from "@/components/admin/admin-notes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatPhone, phoneHref } from "@/lib/phone";
 
 const ROLE_OPTIONS: UserRole[] = ["manager", "operator", "user", "sofor"];
 
@@ -182,6 +183,18 @@ export default function AdminUserDetailPage() {
             <Meta label="Kayıt" value={formatDateTime(data.createdAt)} />
             <Meta label="Son giriş" value={formatRelative(data.lastSignInAt)} />
             <Meta label="Giriş yöntemi" value={data.provider} />
+            <Meta
+              label="Telefon"
+              value={
+                data.phone ? (
+                  <a href={phoneHref(data.phone)} className="tabular-nums text-primary hover:underline">
+                    {formatPhone(data.phone)}
+                  </a>
+                ) : (
+                  "—"
+                )
+              }
+            />
             <Meta
               label="Şirket"
               value={

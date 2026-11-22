@@ -35,6 +35,7 @@ import {
   ROLE_LABELS,
 } from "@/lib/admin/format";
 import { Button } from "@/components/ui/button";
+import { formatPhone } from "@/lib/phone";
 
 const ROLE_FILTERS = [
   { value: "all", label: "Tüm roller" },
@@ -218,6 +219,9 @@ export default function AdminUsersPage() {
                           <span className="min-w-0">
                             <span className="block truncate font-medium">{u.fullName}</span>
                             <span className="block truncate text-xs text-muted-foreground">{u.email}</span>
+                            {u.phone ? (
+                              <span className="block truncate text-[11px] tabular-nums text-muted-foreground">{formatPhone(u.phone)}</span>
+                            ) : null}
                           </span>
                         </Link>
                       </td>

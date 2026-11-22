@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-import { withAdmin, daysAgoIso, intParam, isBanned, listAllAuthUsers, uniqueIds } from "@/lib/admin/api";
+import { withAdmin, daysAgoIso, intParam, isBanned, listAllAuthUsers, selectProfilesWithPhone, uniqueIds } from "@/lib/admin/api";
 import type { UserRole } from "@/lib/types";
 
 /** Excel'in Türkçe yerelinde CSV'yi doğru ayırması için noktalı virgül. */
@@ -203,7 +203,7 @@ export const GET = withAdmin(async (req, { db }) => {
   }
 
   const [profilesRes, companiesRes, authUsers] = await Promise.all([
-    db.from("profiles").select("id, company_id, full_name, role, department, created_at, notify_by_email"),
+    selectProfilesWithPhone(db, "id, company_id, full_name, role, department, created_at, notify_by_email"),
     db.from("companies").select("id, name"),
     listAllAuthUsers(db),
   ]);
@@ -222,6 +222,7 @@ export const GET = withAdmin(async (req, { db }) => {
       "Rol",
       "Şirket",
       "Departman",
+      "Telefon",
       "Kayıt tarihi",
       "Son giriş",
       "E-posta doğrulandı",
@@ -239,6 +240,7 @@ export const GET = withAdmin(async (req, { db }) => {
           ((p.role as UserRole) || "user"),
           company?.name ?? "",
           p.department ?? "",
+          ((p as Record<string, unknown>).phone as string) ?? "",
           isoToTr(p.created_at as string),
           isoToTr(au?.lastSignInAt ?? null),
           au?.emailConfirmedAt ? "Evet" : "Hayır",
