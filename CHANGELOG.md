@@ -3,6 +3,29 @@
 > Bu dosya `src/data/changelog.json` dosyasından otomatik üretilir — elle düzenlemeyin.
 > Yeni sürüm için: `npm run release -- <patch|minor|major> "Başlık"` (bkz. CLAUDE.md > Sürümleme).
 
+## v1.3.0 — 2026-11-23
+
+**Araç listesinde toplu işlemler ve akıllı arama**
+
+### Yeni
+
+- Araçlarım'da seçim modunda "Tümünü seç" eklendi; arama ve filtreyle daraltıp yalnızca görünen araçları tek dokunuşla seçebilirsiniz.
+- Seçili araçlar tek seferde bir sürücüye atanabiliyor. Araçların mevcut sürücüleri korunuyor, sürücüye araç başına değil tek bir özet bildirim gidiyor.
+- Seçili araçlara standart periyodik bakım şablonu uygulanabiliyor: yalnızca eksik bakım kalemleri ekleniyor, mevcut kalemlere dokunulmuyor.
+- Yalnızca seçili araçlar Excel'e aktarılabiliyor.
+- Sigorta veya muayene tarihi girilmemiş araçlarda "tarihi girilmemiş" uyarısı ve bunları listeleyen "Eksik bilgi" filtresi eklendi.
+
+### İyileştirme
+
+- Araç aramasında plaka boşluklu ya da boşluksuz yazılabiliyor ("34ABC123" ile "34 ABC 123" bulunuyor); şasi numarası ve atanmış sürücü adıyla da arama yapılabiliyor.
+- Arama ve filtre seçimi araç detayından geri dönünce korunuyor ve sayfa bağlantısıyla paylaşılabiliyor.
+- Kalabalık filolarda araç kartları çok daha hızlı beliriyor.
+- Aramayla eşleşen araç yoksa "Filtreyi temizle" düğmesi çıkıyor.
+
+### Düzeltme
+
+- Araçlar bağlantı sorunu nedeniyle yüklenemediğinde artık boş filo ekranı yerine hata mesajı ve "Tekrar Dene" düğmesi gösteriliyor.
+
 ## v1.2.0 — 2026-11-22
 
 **Telefon numarası**
