@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { addVehicle, deleteVehicles, updateVehicle, updateVehicleOrder, getVehicleStatuses } from "@/lib/db";
+import { addVehicle, deleteVehicles, updateVehicle, updateVehicleOrder, getVehicleStatuses, getDrivers, assignVehiclesToDriver } from "@/lib/db";
 import { useData } from "@/context/data-context";
-import { calculateHealthScore, getMaintenanceStatusForItem } from "@/lib/store";
+import { calculateHealthScore, getMaintenanceStatusForItem, getMaintenanceTemplates } from "@/lib/store";
 import type { Vehicle } from "@/lib/types";
 import { isDriverRole } from "@/lib/types";
 import { Card } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import {
   Car, ChevronRight, Plus, Gauge, Trash2,
   CheckCircle2, Circle, Fuel, Shield, Wrench, Calendar, Download, Move, Send,
   AlertTriangle, GripVertical, ArrowUpDown, Settings2, Search, X,
-  Upload, FileSpreadsheet, ChevronDown, AlertCircle,
+  Upload, FileSpreadsheet, ChevronDown, AlertCircle, FileQuestion, UserPlus, ListChecks, Loader2,
 } from "lucide-react";
 import { exportVehiclesExcel, exportVehicleImportTemplate, parseVehicleImportFile, type ParsedVehicleRow } from "@/lib/export-lazy";
 import { photoVariantUrl } from "@/lib/vehicle-photo";
@@ -34,10 +34,12 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { describeMileageAge, mileageCheckedAt } from "@/lib/mileage";
 
-const stagger = {
+// Kartlar arası gecikme toplamda ~0.6 sn'yi geçmesin: 50 araçlık filoda son
+// kartın görünmesi 5 sn sürmesin.
+const staggerFor = (count: number) => ({
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.1 } },
-};
+  show: { opacity: 1, transition: { staggerChildren: Math.min(0.1, 0.6 / Math.max(count, 1)) } },
+});
 const cardAnim = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
@@ -83,6 +85,23 @@ function getVehicleAlert(v: Vehicle): VehicleAlert | null {
   return { label: candidates[0].label, tone: candidates[0].tone };
 }
 
+// Tarihi hiç girilmemiş zorunlu belgeler. Boş tarih sağlık skorunu düşürmez
+// (bilinmeyen = sorun yok sayılır), bu yüzden kartta ayrıca belirtilir; aksi
+// halde sigortası girilmemiş araç kusursuz görünür.
+function getMissingInfo(v: Vehicle): string[] {
+  const missing: string[] = [];
+  if (!v.insuranceExpiry) missing.push("Sigorta");
+  if (!v.inspectionExpiry) missing.push("Muayene");
+  return missing;
+}
+
+type FilterKey = "all" | "available" | "onTask" | "alert" | "missing";
+const FILTER_KEYS: FilterKey[] = ["all", "available", "onTask", "alert", "missing"];
+
+// Arama karşılaştırması: Türkçe küçük harf + boşluksuz. Böylece "34abc123"
+// yazınca "34 ABC 123" plakası da bulunur.
+const compact = (s: string) => s.toLocaleLowerCase("tr").replace(/\s+/g, "");
+
 // Sırala modunda her kartı dnd-kit ile sürüklenebilir yapan sarmalayıcı.
 function SortableVehicleCard({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -105,19 +124,21 @@ function SortableVehicleCard({ id, children }: { id: string; children: React.Rea
 export default function VehiclesPage() {
   const router = useRouter();
   const { profile } = useAuth();
-  const { vehicles, vehiclesLoading: loading, refresh, setVehicles } = useData();
+  const { vehicles, vehiclesLoading: loading, vehiclesError, refresh, setVehicles } = useData();
   const isDriver = isDriverRole(profile?.role);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const errorMsg: string | null = null;
   const [repositioningId, setRepositioningId] = useState<string | null>(null);
   const [pendingPosY, setPendingPosY] = useState(50);
   const [pendingPosX, setPendingPosX] = useState(50);
   const [positionSaving, setPositionSaving] = useState(false);
   const [isSortMode, setIsSortMode] = useState(false);
-  const [filter, setFilter] = useState<"all" | "available" | "onTask" | "alert">("all");
+  const [filter, setFilter] = useState<FilterKey>("all");
   const [query, setQuery] = useState("");
+  // Arama/filtre adres satırında tutulur (?q=…&f=…): araç detayından geri
+  // dönünce kaybolmaz, link olarak paylaşılabilir.
+  const [urlReady, setUrlReady] = useState(false);
   const saveOrderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Toplu araç içe aktarma (Excel)
@@ -129,14 +150,38 @@ export default function VehiclesPage() {
   const [importSubmitting, setImportSubmitting] = useState(false);
   const importFileRef = useRef<HTMLInputElement | null>(null);
 
-  // /vehicles/new sayfasındaki "Toplu içe aktar" linki ?import=1 ile buraya yönlendirir
+  // Toplu işlemler (seçim modu)
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [bulkDriverId, setBulkDriverId] = useState<string | null>(null);
+  const [showBulkTemplate, setShowBulkTemplate] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // İlk açılışta adres satırını oku. /vehicles/new sayfasındaki "Toplu içe
+  // aktar" linki ?import=1 ile buraya yönlendirir.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("import") === "1") {
-      setShowImport(true);
-      router.replace("/vehicles", { scroll: false });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("import") === "1") setShowImport(true);
+    const q = params.get("q");
+    if (q) setQuery(q);
+    const f = params.get("f") as FilterKey | null;
+    if (f && FILTER_KEYS.includes(f)) setFilter(f);
+    setUrlReady(true);
   }, []);
+
+  // Arama/filtre değiştikçe adres satırını güncelle (geçmişe yeni kayıt eklemeden).
+  useEffect(() => {
+    if (!urlReady) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("import");
+    if (query.trim()) url.searchParams.set("q", query.trim());
+    else url.searchParams.delete("q");
+    if (filter !== "all") url.searchParams.set("f", filter);
+    else url.searchParams.delete("f");
+    const next = url.pathname + url.search;
+    if (next !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, "", next);
+    }
+  }, [query, filter, urlReady]);
 
   // 8px eşiği: kısa tıklama ile sürüklemeyi ayırır, kazara sıralamayı önler.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -154,21 +199,58 @@ export default function VehiclesPage() {
     return () => { cancelled = true; };
   }, [vehicles.length]);
 
+  // Sürücüler (yönetici/operatör): araç → atanmış sürücü adları (arama için)
+  // ve toplu atama listesi.
+  const [drivers, setDrivers] = useState<{ id: string; fullName: string; assignedVehicleIds: string[] }[]>([]);
+  const loadDrivers = () =>
+    getDrivers()
+      .then((list) => setDrivers(list.map((d) => ({ id: d.id, fullName: d.fullName || "İsimsiz sürücü", assignedVehicleIds: d.assignedVehicleIds }))))
+      .catch((err) => console.error("getDrivers failed:", err instanceof Error ? err.message : err));
+  useEffect(() => {
+    if (!profile || isDriver) return;
+    void loadDrivers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, isDriver]);
+  const driverNamesByVehicle = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const d of drivers) {
+      for (const vid of d.assignedVehicleIds) m.set(vid, [...(m.get(vid) ?? []), d.fullName]);
+    }
+    return m;
+  }, [drivers]);
+
+  // Uyarı ve eksik bilgi araç başına bir kez hesaplanır (filtre sayıları,
+  // filtreleme ve kart aynı sonucu kullanır).
+  const derived = useMemo(() => {
+    const m = new Map<string, { alert: VehicleAlert | null; missing: string[]; score: number }>();
+    for (const v of vehicles) m.set(v.id, { alert: getVehicleAlert(v), missing: getMissingInfo(v), score: calculateHealthScore(v) });
+    return m;
+  }, [vehicles]);
+
   // Filtre sayıları + aktif filtreye göre görüntülenecek araçlar
   const filterPills = [
     { key: "all" as const, label: "Tümü", count: vehicles.length },
     { key: "available" as const, label: "Müsait", count: vehicles.filter((v) => !activeVehicleMap.has(v.id)).length },
     { key: "onTask" as const, label: "Görevde", count: vehicles.filter((v) => activeVehicleMap.has(v.id)).length },
-    { key: "alert" as const, label: "Uyarı", count: vehicles.filter((v) => getVehicleAlert(v) !== null).length },
-  ];
-  const searchQuery = query.trim().toLocaleLowerCase("tr");
+    { key: "alert" as const, label: "Uyarı", count: vehicles.filter((v) => derived.get(v.id)?.alert).length },
+    { key: "missing" as const, label: "Eksik bilgi", count: vehicles.filter((v) => derived.get(v.id)?.missing.length).length },
+  ].filter((pill) => pill.key !== "missing" || (!isDriver && (pill.count > 0 || filter === "missing")));
+  const searchQuery = compact(query);
   const visibleVehicles = vehicles.filter((v) => {
     if (filter === "available" && activeVehicleMap.has(v.id)) return false;
     if (filter === "onTask" && !activeVehicleMap.has(v.id)) return false;
-    if (filter === "alert" && getVehicleAlert(v) === null) return false;
+    if (filter === "alert" && !derived.get(v.id)?.alert) return false;
+    if (filter === "missing" && !derived.get(v.id)?.missing.length) return false;
     if (searchQuery) {
-      const haystack = `${v.plate} ${v.brand} ${v.model}`.toLocaleLowerCase("tr");
-      if (!haystack.includes(searchQuery)) return false;
+      // Alanlar ayrı ayrı karşılaştırılır; marka+model birlikte de aranabilir ("ford focus").
+      const fields = [
+        v.plate,
+        `${v.brand} ${v.model}`,
+        v.chassisNo ?? "",
+        ...(driverNamesByVehicle.get(v.id) ?? []),
+        activeVehicleMap.get(v.id) ?? "",
+      ];
+      if (!fields.some((f) => f && compact(f).includes(searchQuery))) return false;
     }
     return true;
   });
@@ -247,6 +329,85 @@ export default function VehiclesPage() {
     }
   };
 
+  const selectedVehicles = vehicles.filter((v) => selectedIds.includes(v.id));
+  const allVisibleSelected = visibleVehicles.length > 0 && visibleVehicles.every((v) => selectedIds.includes(v.id));
+
+  // "Tümünü seç" o an görünen (arama/filtreye uyan) araçları kapsar.
+  const toggleSelectAll = () => {
+    const visibleIds = visibleVehicles.map((v) => v.id);
+    setSelectedIds((prev) =>
+      allVisibleSelected
+        ? prev.filter((id) => !visibleIds.includes(id))
+        : [...new Set([...prev, ...visibleIds])]
+    );
+  };
+
+  const handleExportSelected = () => {
+    exportVehiclesExcel(selectedVehicles).catch(() => toast.error("Dışa aktarma başarısız"));
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkDriverId) return;
+    const driver = drivers.find((d) => d.id === bulkDriverId);
+    setBulkBusy(true);
+    try {
+      const added = await assignVehiclesToDriver(selectedIds, bulkDriverId);
+      const skipped = selectedIds.length - added;
+      toast.success("Sürücü atandı", {
+        description: added > 0
+          ? `${added} araç ${driver?.fullName ?? "sürücüye"} atandı.${skipped > 0 ? ` ${skipped} araç zaten atanmıştı.` : ""}`
+          : `Seçili araçların hepsi zaten ${driver?.fullName ?? "bu sürücüye"} atanmış.`,
+      });
+      setShowBulkAssign(false);
+      setBulkDriverId(null);
+      cancelSelection();
+      void loadDrivers();
+    } catch (err) {
+      console.error("Bulk assign failed:", err instanceof Error ? err.message : err);
+      toast.error("Atama yapılamadı", { description: "Lütfen tekrar deneyin." });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  // Standart bakım şablonunda olup araçta bulunmayan kalemler. Mevcut kalemlere
+  // (aralığı elle değiştirilmiş olsa bile) dokunulmaz.
+  const missingTemplateItems = (v: Vehicle) =>
+    getMaintenanceTemplates(v.brand, v.model).filter(
+      (t) => !v.maintenanceItems.some((i) => i.id === t.id || i.name.toLocaleLowerCase("tr") === t.name.toLocaleLowerCase("tr"))
+    );
+  const templateTargets = selectedVehicles.filter((v) => missingTemplateItems(v).length > 0);
+
+  const handleBulkTemplate = async () => {
+    setBulkBusy(true);
+    let updated = 0;
+    let failed = 0;
+    const patched = new Map<string, Vehicle["maintenanceItems"]>();
+    for (const v of templateTargets) {
+      const items = [...v.maintenanceItems, ...missingTemplateItems(v)];
+      try {
+        await updateVehicle(v.id, { maintenanceItems: items });
+        patched.set(v.id, items);
+        updated++;
+      } catch (err) {
+        console.error(`Template apply failed for ${v.id}:`, err instanceof Error ? err.message : err);
+        failed++;
+      }
+    }
+    setVehicles((prev) => prev.map((v) => (patched.has(v.id) ? { ...v, maintenanceItems: patched.get(v.id)! } : v)));
+    setBulkBusy(false);
+    setShowBulkTemplate(false);
+    cancelSelection();
+    if (updated > 0) {
+      toast.success("Bakım şablonu uygulandı", {
+        description: failed > 0 ? `${updated} araç güncellendi, ${failed} araç güncellenemedi.` : `${updated} araca eksik bakım kalemleri eklendi.`,
+      });
+    } else if (failed > 0) {
+      toast.error("Şablon uygulanamadı", { description: "Lütfen tekrar deneyin." });
+    }
+    void refresh();
+  };
+
   const resetImportState = () => {
     setImportRows([]);
     setImportFileName(null);
@@ -304,7 +465,8 @@ export default function VehiclesPage() {
   // aynı görseli kullanmak için tek yerde tutulur.
   const cardBody = (vehicle: Vehicle, score: number) => {
     const selected = selectedIds.includes(vehicle.id);
-    const alert = getVehicleAlert(vehicle);
+    const alert = derived.get(vehicle.id)?.alert ?? null;
+    const missing = derived.get(vehicle.id)?.missing ?? [];
     const mileageAge = describeMileageAge(mileageCheckedAt(vehicle));
     const onTask = activeVehicleMap.has(vehicle.id);
     const scoreTone = score >= 85 ? "text-mint-strong" : score >= 65 ? "text-amber-300" : "text-red-300";
@@ -455,6 +617,14 @@ export default function VehiclesPage() {
             </div>
           )}
 
+          {/* Tarihi girilmemiş belgeler: skor bunları bilemez, o yüzden ayrıca gösterilir */}
+          {missing.length > 0 && !isDriver && !isSelectionMode && repositioningId !== vehicle.id && (
+            <div className="flex items-center gap-1.5 mb-3 px-3 py-2 rounded-xl text-[11px] font-semibold text-muted-foreground bg-muted/60">
+              <FileQuestion className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{missing.join(" ve ")} tarihi girilmemiş</span>
+            </div>
+          )}
+
           {/* Stat tiles */}
           <div className="grid grid-cols-3 gap-2 mt-auto">
             {[
@@ -505,14 +675,15 @@ export default function VehiclesPage() {
     </div>
   );
 
-  if (errorMsg) return (
+  // Liste boşken yükleme hatası: "Filonuzu Oluşturun" yerine hatayı göster.
+  if (vehiclesError && vehicles.length === 0) return (
     <div className="p-4 pt-10 text-center flex flex-col items-center gap-3">
       <div className="p-3 bg-destructive/10 rounded-xl">
         <Car className="h-10 w-10 text-destructive" />
       </div>
       <p className="text-foreground font-bold">Veriler Yüklenirken Hata Oluştu</p>
-      <p className="text-sm text-destructive max-w-md">{errorMsg}</p>
-      <Button onClick={refresh} variant="outline" className="mt-2">Tekrar Dene</Button>
+      <p className="text-sm text-muted-foreground max-w-md">{vehiclesError}</p>
+      <Button onClick={() => { void refresh(); }} variant="outline" className="mt-2">Tekrar Dene</Button>
     </div>
   );
 
@@ -634,14 +805,14 @@ export default function VehiclesPage() {
         </motion.div>
       )}
 
-      {/* Arama */}
-      {!isSortMode && !isSelectionMode && vehicles.length > 0 && (
+      {/* Arama — seçim modunda da açık: önce daraltıp sonra "Tümünü seç" */}
+      {!isSortMode && vehicles.length > 0 && (
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Plaka, marka veya model ara..."
+            placeholder={isDriver ? "Plaka, marka veya model ara..." : "Plaka, marka, model, şasi no veya sürücü ara..."}
             className="rounded-full h-10 pl-10 pr-9 bg-surface-2 border-border/40 text-sm"
           />
           {query && (
@@ -657,8 +828,18 @@ export default function VehiclesPage() {
       )}
 
       {/* Filtre çipleri */}
-      {!isSortMode && !isSelectionMode && vehicles.length > 0 && (
+      {!isSortMode && vehicles.length > 0 && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+          {isSelectionMode && (
+            <button
+              onClick={toggleSelectAll}
+              disabled={visibleVehicles.length === 0}
+              className="shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[13px] font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors whitespace-nowrap disabled:opacity-50"
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+              {allVisibleSelected ? "Seçimi kaldır" : `Tümünü seç (${visibleVehicles.length})`}
+            </button>
+          )}
           {filterPills.map((pill) => (
             <button
               key={pill.key}
@@ -681,16 +862,16 @@ export default function VehiclesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {vehicles.map((vehicle) => (
                 <SortableVehicleCard key={vehicle.id} id={vehicle.id}>
-                  {cardBody(vehicle, calculateHealthScore(vehicle))}
+                  {cardBody(vehicle, derived.get(vehicle.id)?.score ?? calculateHealthScore(vehicle))}
                 </SortableVehicleCard>
               ))}
             </div>
           </SortableContext>
         </DndContext>
       ) : (
-      <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+      <motion.div variants={staggerFor(visibleVehicles.length)} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
         {visibleVehicles.map((vehicle) => {
-          const score = calculateHealthScore(vehicle);
+          const score = derived.get(vehicle.id)?.score ?? calculateHealthScore(vehicle);
           return (
             <div key={vehicle.id} className="relative">
               <Link
@@ -735,7 +916,10 @@ export default function VehiclesPage() {
         {vehicles.length > 0 && visibleVehicles.length === 0 && (
           <div className="col-span-full py-12 flex flex-col items-center gap-2 text-center text-muted-foreground">
             <Car className="h-10 w-10 opacity-40" />
-            <p className="text-sm">Bu filtrede araç yok.</p>
+            <p className="text-sm">{query.trim() ? "Aramanızla eşleşen araç yok." : "Bu filtrede araç yok."}</p>
+            <Button variant="outline" size="sm" className="rounded-full mt-1" onClick={() => { setQuery(""); setFilter("all"); }}>
+              Filtreyi temizle
+            </Button>
           </div>
         )}
 
@@ -787,11 +971,32 @@ export default function VehiclesPage() {
             exit={{ y: 100, opacity: 0 }}
             className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-8 left-0 right-0 z-50 px-4 flex justify-center pointer-events-none"
           >
-            <div className="glass rounded-full border border-destructive/30 shadow-xl p-2 px-4 flex items-center gap-4 pointer-events-auto">
-              <span className="font-semibold text-sm">{selectedIds.length} araç seçildi</span>
-              <Button variant="destructive" className="rounded-full shadow-md gap-2" onClick={() => setIsDeleteDialogOpen(true)}>
-                <Trash2 className="h-4 w-4" /> Sil
-              </Button>
+            <div className="glass rounded-full border border-border/50 shadow-xl p-2 pl-4 flex items-center gap-1.5 sm:gap-2 pointer-events-auto max-w-full">
+              <span className="font-semibold text-sm whitespace-nowrap mr-1">{selectedIds.length} seçili</span>
+              <Tooltip>
+                <TooltipTrigger render={<Button variant="outline" size="sm" className="rounded-full gap-1.5 h-9" onClick={handleExportSelected} />}>
+                  <Download className="h-4 w-4" /> <span className="hidden sm:inline">Excel</span>
+                </TooltipTrigger>
+                <TooltipContent>Seçilenleri Excel&apos;e aktar</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger render={<Button variant="outline" size="sm" className="rounded-full gap-1.5 h-9" onClick={() => { setBulkDriverId(null); setShowBulkAssign(true); }} />}>
+                  <UserPlus className="h-4 w-4" /> <span className="hidden sm:inline">Sürücü Ata</span>
+                </TooltipTrigger>
+                <TooltipContent>Seçilenleri bir sürücüye ata</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger render={<Button variant="outline" size="sm" className="rounded-full gap-1.5 h-9" onClick={() => setShowBulkTemplate(true)} />}>
+                  <Wrench className="h-4 w-4" /> <span className="hidden sm:inline">Bakım Şablonu</span>
+                </TooltipTrigger>
+                <TooltipContent>Eksik standart bakım kalemlerini ekle</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger render={<Button variant="destructive" size="sm" className="rounded-full gap-1.5 h-9 shadow-md" onClick={() => setIsDeleteDialogOpen(true)} />}>
+                  <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Sil</span>
+                </TooltipTrigger>
+                <TooltipContent>Seçilenleri sil</TooltipContent>
+              </Tooltip>
             </div>
           </motion.div>
         )}
@@ -810,6 +1015,100 @@ export default function VehiclesPage() {
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
             <DialogClose render={<Button variant="outline" className="w-full sm:w-auto rounded-xl" />}>İptal</DialogClose>
             <Button variant="destructive" onClick={handleDelete} className="w-full sm:w-auto rounded-xl">Evet, Sil</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Toplu sürücü atama */}
+      <Dialog open={showBulkAssign} onOpenChange={(o) => { if (!bulkBusy) setShowBulkAssign(o); }}>
+        <DialogContent className="rounded-3xl max-w-[92vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" /> Sürücü Ata
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Seçili <b>{selectedIds.length}</b> araç seçtiğiniz sürücüye atanır. Araçların mevcut sürücüleri kaldırılmaz; sürücüye tek bir bildirim gider.
+          </p>
+          {drivers.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border/60 p-4 text-center text-sm text-muted-foreground">
+              Henüz sürücü yok.{" "}
+              <Link href="/users" className="text-primary font-semibold hover:underline">Ekibe sürücü ekleyin</Link>
+            </div>
+          ) : (
+            <div className="max-h-72 overflow-y-auto rounded-2xl border border-border/40 divide-y divide-border/30">
+              {drivers.map((d) => {
+                const alreadyCount = selectedIds.filter((id) => d.assignedVehicleIds.includes(id)).length;
+                const active = bulkDriverId === d.id;
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setBulkDriverId(d.id)}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors ${active ? "bg-primary/10" : "hover:bg-muted/50"}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{d.fullName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {d.assignedVehicleIds.length} araç atanmış
+                        {alreadyCount > 0 && ` · seçilenlerden ${alreadyCount} tanesi zaten bu sürücüde`}
+                      </p>
+                    </div>
+                    {active ? <CheckCircle2 className="h-5 w-5 text-primary shrink-0" /> : <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <DialogClose render={<Button variant="outline" className="w-full sm:w-auto rounded-xl" disabled={bulkBusy} />}>İptal</DialogClose>
+            <Button onClick={handleBulkAssign} disabled={!bulkDriverId || bulkBusy} className="w-full sm:w-auto rounded-xl gap-1.5">
+              {bulkBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Ata
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Toplu bakım şablonu */}
+      <Dialog open={showBulkTemplate} onOpenChange={(o) => { if (!bulkBusy) setShowBulkTemplate(o); }}>
+        <DialogContent className="rounded-3xl max-w-[92vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-outfit flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-primary" /> Bakım Şablonu Uygula
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              Standart periyodik bakım kalemlerinden (yağ, filtreler, buji, triger, fren…) araçta <b>eksik olanlar</b> eklenir.
+              Mevcut kalemlere ve aralıklarına dokunulmaz.
+            </p>
+            {templateTargets.length === 0 ? (
+              <p className="rounded-2xl bg-muted/50 p-3 text-foreground">Seçili araçların hepsinde standart bakım kalemleri zaten tanımlı.</p>
+            ) : (
+              <div className="max-h-56 overflow-y-auto rounded-2xl border border-border/40 divide-y divide-border/30">
+                {templateTargets.map((v) => (
+                  <div key={v.id} className="px-4 py-2.5 text-xs">
+                    <span className="font-semibold text-foreground">{v.plate}</span> {v.brand} {v.model}
+                    <span className="block text-muted-foreground">+ {missingTemplateItems(v).map((t) => t.name).join(", ")}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {templateTargets.length > 0 && (
+              <p className="text-xs">Yeni kalemlerin son yapılma tarihi/km&apos;si boş başlar; araç detayındaki Bakım sekmesinden girebilirsiniz.</p>
+            )}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <DialogClose render={<Button variant="outline" className="w-full sm:w-auto rounded-xl" disabled={bulkBusy} />}>
+              {templateTargets.length === 0 ? "Kapat" : "İptal"}
+            </DialogClose>
+            {templateTargets.length > 0 && (
+              <Button onClick={handleBulkTemplate} disabled={bulkBusy} className="w-full sm:w-auto rounded-xl gap-1.5">
+                {bulkBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {templateTargets.length} Araca Uygula
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

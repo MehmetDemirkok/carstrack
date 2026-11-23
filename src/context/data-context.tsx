@@ -13,10 +13,15 @@ interface DataContextType {
   loading: boolean;
   /** Yalnızca araçları bekler — araç listesi servis kayıtlarına takılmasın. */
   vehiclesLoading: boolean;
+  /** Araç listesi yüklenemediyse hata mesajı — boş filo ile karışmasın diye ayrı tutulur. */
+  vehiclesError: string | null;
   refresh: () => Promise<void>;
   setVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   setRecords: React.Dispatch<React.SetStateAction<ServiceRecord[]>>;
 }
+
+// Teknik (çoğu zaman İngilizce) hata metni konsola gider; kullanıcıya sade bir Türkçe mesaj gösterilir.
+const VEHICLES_LOAD_ERROR = "Araçlar yüklenemedi. İnternet bağlantınızı kontrol edip tekrar deneyin.";
 
 const DataContext = createContext<DataContextType>({
   vehicles: [],
@@ -24,6 +29,7 @@ const DataContext = createContext<DataContextType>({
   fines: [],
   loading: true,
   vehiclesLoading: true,
+  vehiclesError: null,
   refresh: async () => {},
   setVehicles: () => {},
   setRecords: () => {},
@@ -36,6 +42,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [fines, setFines] = useState<TrafficFine[]>([]);
   const [loading, setLoading] = useState(true);
   const [vehiclesLoading, setVehiclesLoading] = useState(true);
+  const [vehiclesError, setVehiclesError] = useState<string | null>(null);
   const loadingRef = useRef(false);
 
   // getTrafficFines() RLS'e göre otomatik daraltılır: yönetici/operatör tüm
@@ -71,8 +78,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setVehiclesLoading(true);
 
     const vehiclesTask = getMyVehicles()
-      .then((v) => setVehicles(v))
-      .catch((err) => console.error("[DataProvider] vehicles load failed:", err))
+      .then((v) => { setVehicles(v); setVehiclesError(null); })
+      .catch((err) => {
+        console.error("[DataProvider] vehicles load failed:", err);
+        setVehiclesError(VEHICLES_LOAD_ERROR);
+      })
       .finally(() => setVehiclesLoading(false));
 
     const recordsTask = getRecords()
@@ -93,7 +103,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       await Promise.all([
-        getMyVehicles().then(setVehicles),
+        getMyVehicles()
+          .then((v) => { setVehicles(v); setVehiclesError(null); })
+          .catch((err) => { setVehiclesError(VEHICLES_LOAD_ERROR); throw err; }),
         getRecords().then(setRecords),
         fetchFines().then(setFines),
       ]);
@@ -109,13 +121,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setFines([]);
       setLoading(true);
       setVehiclesLoading(true);
+      setVehiclesError(null);
       return;
     }
     load();
   }, [user?.id, load]);
 
   return (
-    <DataContext.Provider value={{ vehicles, records, fines, loading, vehiclesLoading, refresh, setVehicles, setRecords }}>
+    <DataContext.Provider value={{ vehicles, records, fines, loading, vehiclesLoading, vehiclesError, refresh, setVehicles, setRecords }}>
       {children}
     </DataContext.Provider>
   );

@@ -992,6 +992,41 @@ export async function assignVehicle(vehicleId: string, driverId: string): Promis
   if (!error) notifyVehicleAssignment(vehicleId, driverId, "assigned");
 }
 
+/**
+ * Birden fazla aracı tek sürücüye atar. Zaten o sürücüye atanmış araçlar
+ * atlanır; sürücüye yalnızca yeni atananlar için tek bir özet bildirim gider.
+ * Dönen değer yeni atanan araç sayısıdır.
+ */
+export async function assignVehiclesToDriver(vehicleIds: string[], driverId: string): Promise<number> {
+  if (vehicleIds.length === 0) return 0;
+  const supabase = createClient();
+  const { data: existing, error: readErr } = await supabase
+    .from("vehicle_assignments")
+    .select("vehicle_id")
+    .eq("driver_id", driverId)
+    .in("vehicle_id", vehicleIds);
+  if (readErr) throw readErr;
+  const already = new Set((existing ?? []).map((r) => r.vehicle_id as string));
+  const toAssign = vehicleIds.filter((id) => !already.has(id));
+  if (toAssign.length > 0) {
+    const { error } = await supabase
+      .from("vehicle_assignments")
+      .insert(toAssign.map((id) => ({ vehicle_id: id, driver_id: driverId })));
+    if (error) throw error;
+  }
+  bustCache("drivers:");
+  bustCache(`myvehicles:${driverId}`);
+  if (toAssign.length > 0) {
+    void fetch("/api/vehicles/notify-assigned", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ vehicleIds: toAssign, driverId, action: "assigned" }),
+    }).catch(() => {});
+  }
+  return toAssign.length;
+}
+
 export async function unassignVehicle(vehicleId: string, driverId: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase
