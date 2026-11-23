@@ -2,6 +2,26 @@
   "$comment": "CarsTrack sürüm geçmişinin TEK kaynağı. En yeni sürüm en üstte. package.json 'version' alanı her zaman ilk kaydın 'version' değeriyle aynı olmalı (npm run version:check, build öncesi bunu denetler). Yeni sürüm: npm run release -- <patch|minor|major> \"Başlık\". Kurallar için bkz. CLAUDE.md > Sürümleme. Değişiklik türleri: yeni | iyilestirme | duzeltme | guvenlik.",
   "versions": [
     {
+      "version": "1.4.0",
+      "date": "2026-11-23",
+      "title": "Yeni araç formu yenilendi",
+      "changes": [
+        { "type": "yeni", "text": "Yeni araç formunda \"Bakım durumu\" sorusu eklendi: sıfır araç, son bakımı biliyorum (tarih, km ve yapılan kalemler) veya bilmiyorum. İkinci el araçlar artık bakım uyarısı almadan \"kusursuz\" görünmüyor." },
+        { "type": "yeni", "text": "Formun en üstünden ruhsatı okutup plaka, marka, model, yıl ve şasi no alanlarını otomatik doldurabilirsiniz; ruhsat aracın belgelerine de eklenir." },
+        { "type": "yeni", "text": "Belgeden okunan bilgiler forma yazılmadan önce listeleniyor: boş alanlar işaretli, sizin girdiğinizden farklı olanlar işaretsiz geliyor; yazdıklarınızın üzerine sessizce yazılmıyor." },
+        { "type": "yeni", "text": "Araç kaydedildikten sonra açılan ekrandan hemen sürücü atanabiliyor, araç detayına gidilebiliyor veya yeni araç eklenebiliyor." },
+        { "type": "iyilestirme", "text": "Form 3 adıma indi: Temel bilgiler, Belgeler, Ek bilgiler. Kilometre, yakıt ve vites artık ilk adımda ve zorunlu; eksik alanlar düğmenin üstünde yazıyor." },
+        { "type": "iyilestirme", "text": "Sigorta, muayene ve kasko her biri kendi kartında; poliçeyi ilgili tarihin yanına ekleyip \"Belgeden oku\" ile yalnızca o belgeyi okutabilirsiniz." },
+        { "type": "iyilestirme", "text": "Marka listesine Togg, MG, BYD, Chery, Cupra, Mazda, Mitsubishi, Suzuki, Jeep, Isuzu, Iveco, Mini, Porsche, Land Rover, Lexus, Subaru, Alfa Romeo ve DS eklendi; listede olmayan marka da yazılabiliyor." },
+        { "type": "iyilestirme", "text": "Plaka biçimi, model yılı, şasi numarası ve geçmiş bitiş tarihleri için uyarılar gösteriliyor." },
+        { "type": "duzeltme", "text": "Listede olmayan marka yazıldığında araç \"Diğer\" markasıyla kaydediliyordu; artık yazılan marka kaydediliyor." },
+        { "type": "duzeltme", "text": "Kayıtlı bir plaka belge okuma veya taslak yoluyla gelirse araç yine de kaydedilebiliyordu; artık kayıt anında da kontrol ediliyor." },
+        { "type": "duzeltme", "text": "Renk, yakıt, vites gibi alanlar doldurulmadan geçildiğinde \"Beyaz\", \"Benzin\", \"Otomatik\" gibi varsayılanlar gerçek bilgi gibi kaydediliyordu; artık yakıt ve vites seçtiriliyor, renk boş kalıyor, lastik mevsimi tarihe göre tahmin ediliyor." },
+        { "type": "duzeltme", "text": "Kasko poliçesinden okunan bitiş tarihi trafik sigortası tarihinin yerine yazılabiliyordu; artık kasko alanlarına yazılıyor." },
+        { "type": "duzeltme", "text": "Kayıt hatasında teknik İngilizce mesaj yerine anlaşılır bir Türkçe mesaj gösteriliyor; yüklenemeyen belge varsa ayrıca bildiriliyor." }
+      ]
+    },
+    {
       "version": "1.3.0",
       "date": "2026-11-23",
       "title": "Araç listesinde toplu işlemler ve akıllı arama",

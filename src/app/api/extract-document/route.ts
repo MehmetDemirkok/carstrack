@@ -30,6 +30,21 @@ Belgeden bulabildiğin bilgileri çıkar ve YALNIZCA geçerli bir JSON nesnesi d
 
 Belgede bulunamayan alanları null yap. Sadece JSON döndür.`;
 
+// Kasko poliçesinde sigorta alanları kasko şirketini/bitişini taşır; ipucu
+// verilmezse model bunları boş bırakabiliyor ya da trafik sigortası sanıyor.
+function vehicleHintSuffix(hint: unknown): string {
+  if (hint === "kasko") {
+    return "\n\nBu belge bir KASKO poliçesidir. insuranceCompany alanına kasko şirketini, insuranceExpiry alanına kasko poliçesinin bitiş tarihini yaz.";
+  }
+  if (hint === "trafik_sigortasi") {
+    return "\n\nBu belge bir zorunlu trafik sigortası poliçesidir.";
+  }
+  if (hint === "ruhsat") {
+    return "\n\nBu belge bir araç tescil belgesidir (ruhsat). Muayene geçerlilik tarihi yazılıysa inspectionExpiry alanına yaz.";
+  }
+  return "";
+}
+
 const PROMPT_FINE = `Aşağıdaki Türkçe trafik cezası tebligatını/idari para cezası karar tutanağını analiz et.
 
 Belgeden bulabildiğin bilgileri çıkar ve YALNIZCA geçerli bir JSON nesnesi döndür (başka hiçbir metin ekleme):
@@ -125,6 +140,8 @@ export async function POST(req: NextRequest) {
       fileData?: string;
       mimeType?: string;
       images?: ExtractImage[];
+      /** Araç belgesinin türü biliniyorsa (yeni araç formundaki satırdan gelir). */
+      vehicleDocHint?: "ruhsat" | "trafik_sigortasi" | "kasko";
     };
     const documentType =
       body.documentType === "license" ? "license"
@@ -169,7 +186,7 @@ export async function POST(req: NextRequest) {
     const prompt =
       documentType === "license" ? PROMPT_LICENSE
       : documentType === "fine" ? PROMPT_FINE
-      : PROMPT_VEHICLE;
+      : PROMPT_VEHICLE + vehicleHintSuffix(body.vehicleDocHint);
     const result = await model.generateContent([
       prompt,
       ...normalizedImages.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.fileData } })),

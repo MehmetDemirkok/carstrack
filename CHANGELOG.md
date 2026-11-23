@@ -3,6 +3,32 @@
 > Bu dosya `src/data/changelog.json` dosyasından otomatik üretilir — elle düzenlemeyin.
 > Yeni sürüm için: `npm run release -- <patch|minor|major> "Başlık"` (bkz. CLAUDE.md > Sürümleme).
 
+## v1.4.0 — 2026-11-23
+
+**Yeni araç formu yenilendi**
+
+### Yeni
+
+- Yeni araç formunda "Bakım durumu" sorusu eklendi: sıfır araç, son bakımı biliyorum (tarih, km ve yapılan kalemler) veya bilmiyorum. İkinci el araçlar artık bakım uyarısı almadan "kusursuz" görünmüyor.
+- Formun en üstünden ruhsatı okutup plaka, marka, model, yıl ve şasi no alanlarını otomatik doldurabilirsiniz; ruhsat aracın belgelerine de eklenir.
+- Belgeden okunan bilgiler forma yazılmadan önce listeleniyor: boş alanlar işaretli, sizin girdiğinizden farklı olanlar işaretsiz geliyor; yazdıklarınızın üzerine sessizce yazılmıyor.
+- Araç kaydedildikten sonra açılan ekrandan hemen sürücü atanabiliyor, araç detayına gidilebiliyor veya yeni araç eklenebiliyor.
+
+### İyileştirme
+
+- Form 3 adıma indi: Temel bilgiler, Belgeler, Ek bilgiler. Kilometre, yakıt ve vites artık ilk adımda ve zorunlu; eksik alanlar düğmenin üstünde yazıyor.
+- Sigorta, muayene ve kasko her biri kendi kartında; poliçeyi ilgili tarihin yanına ekleyip "Belgeden oku" ile yalnızca o belgeyi okutabilirsiniz.
+- Marka listesine Togg, MG, BYD, Chery, Cupra, Mazda, Mitsubishi, Suzuki, Jeep, Isuzu, Iveco, Mini, Porsche, Land Rover, Lexus, Subaru, Alfa Romeo ve DS eklendi; listede olmayan marka da yazılabiliyor.
+- Plaka biçimi, model yılı, şasi numarası ve geçmiş bitiş tarihleri için uyarılar gösteriliyor.
+
+### Düzeltme
+
+- Listede olmayan marka yazıldığında araç "Diğer" markasıyla kaydediliyordu; artık yazılan marka kaydediliyor.
+- Kayıtlı bir plaka belge okuma veya taslak yoluyla gelirse araç yine de kaydedilebiliyordu; artık kayıt anında da kontrol ediliyor.
+- Renk, yakıt, vites gibi alanlar doldurulmadan geçildiğinde "Beyaz", "Benzin", "Otomatik" gibi varsayılanlar gerçek bilgi gibi kaydediliyordu; artık yakıt ve vites seçtiriliyor, renk boş kalıyor, lastik mevsimi tarihe göre tahmin ediliyor.
+- Kasko poliçesinden okunan bitiş tarihi trafik sigortası tarihinin yerine yazılabiliyordu; artık kasko alanlarına yazılıyor.
+- Kayıt hatasında teknik İngilizce mesaj yerine anlaşılır bir Türkçe mesaj gösteriliyor; yüklenemeyen belge varsa ayrıca bildiriliyor.
+
 ## v1.3.0 — 2026-11-23
 
 **Araç listesinde toplu işlemler ve akıllı arama**
